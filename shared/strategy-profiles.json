@@ -1,0 +1,92 @@
+{
+  "scenarios": [
+    {
+      "id": "inflation_hike",
+      "title": "通膨升息",
+      "subtitle": "利率偏高、成長放緩",
+      "narrative_points": [
+        "提高價值與現金流因子權重",
+        "降低久期與高估值成長股曝險",
+        "提高低波動與防禦性資產偏好"
+      ],
+      "defaults": {
+        "max_weight": 0.10,
+        "objective": "max_sharpe",
+        "backtest_mode": "static",
+        "start_date": "2018-01-01",
+        "end_date": "2024-12-31"
+      },
+      "factor_tilts": {
+        "low_vol": 0.15,
+        "value": 0.1,
+        "growth": -0.1
+      }
+    },
+    {
+      "id": "recession",
+      "title": "經濟衰退",
+      "subtitle": "風險偏好下降、波動升高",
+      "narrative_points": [
+        "提高債券與防禦股權重",
+        "降低高 Beta 科技股上限",
+        "強化最大回撤約束"
+      ],
+      "defaults": {
+        "max_weight": 0.08,
+        "objective": "min_max_drawdown",
+        "backtest_mode": "static",
+        "start_date": "2018-01-01",
+        "end_date": "2024-12-31"
+      },
+      "factor_tilts": {
+        "low_vol": 0.2,
+        "defensive": 0.15,
+        "growth": -0.15
+      }
+    },
+    {
+      "id": "bull_continuation",
+      "title": "牛市延續",
+      "subtitle": "風險偏好回升、盈利改善",
+      "narrative_points": [
+        "適度提高成長與品質因子",
+        "維持分散化與單一資產上限",
+        "以夏普比率作為主要優化目標"
+      ],
+      "defaults": {
+        "max_weight": 0.10,
+        "objective": "max_sharpe",
+        "backtest_mode": "static",
+        "start_date": "2018-01-01",
+        "end_date": "2024-12-31"
+      },
+      "factor_tilts": {
+        "growth": 0.1,
+        "quality": 0.1,
+        "low_vol": -0.05
+      }
+    },
+    {
+      "id": "range_bound",
+      "title": "區間震盪",
+      "subtitle": "缺乏明確趨勢、類股輪動",
+      "narrative_points": [
+        "均衡股債配置",
+        "提高低相關資產權重",
+        "避免過度集中單一因子"
+      ],
+      "defaults": {
+        "max_weight": 0.09,
+        "objective": "max_sharpe",
+        "backtest_mode": "static",
+        "start_date": "2018-01-01",
+        "end_date": "2024-12-31"
+      },
+      "factor_tilts": {
+        "low_vol": 0.08,
+        "value": 0.05,
+        "growth": 0.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,234 @@
+import type { AssetClass } from "./constants";
+
+export type Objective =
+  | "max_sharpe"
+  | "max_return"
+  | "min_max_drawdown"
+  | "max_sortino"
+  | "min_cvar"
+  | "risk_parity_erc"
+  | "max_diversification"
+  | "mean_variance_utility"
+  | "custom";
+export type BacktestMode = "static";
+/** standard = 固定試驗次數；pro_auto = 冠軍-挑戰者迭代收斂 */
+export type OptimizationMode = "standard" | "pro_auto";
+export type JobStatus = "pending" | "running" | "completed" | "failed";
+export type ParamControlMode = "fixed" | "search" | "off";
+
+export interface ParamControl {
+  mode: ParamControlMode;
+  fixed?: number | string | null;
+  min?: number | null;
+  max?: number | null;
+  step?: number | null;
+  options?: string[] | null;
+}
+
+export interface ScenarioCard {
+  id: string;
+  title: string;
+  subtitle: string;
+  narrative_points: string[];
+  defaults: {
+    max_weight: number;
+    objective: Objective;
+    backtest_mode: BacktestMode;
+    start_date: string;
+    end_date: string;
+  };
+  /** AI 自訂情境建議的資產類別篩選 */
+  suggested_asset_classes?: AssetClass[];
+}
+
+export interface BacktestRequest {
+  scenario_id: string;
+  max_weight: number;
+  objective: Objective;
+  backtest_mode: BacktestMode;
+  start_date: string;
+  end_date: string;
+  trials: number;
+  top_models: number;
+  asset_classes: AssetClass[];
+  universe_categories?: string[] | null;
+  universe_tickers?: string[] | null;
+  universe_filter_text?: string | null;
+  enable_oos: boolean;
+  train_ratio: number;
+  fee_bps: number;
+  rebalance_freq: string;
+  top_n: number;
+  max_turnover: number;
+  objective_custom_text?: string | null;
+  param_controls?: Record<string, ParamControl>;
+  optimization_mode?: OptimizationMode;
+  enable_iterative_refinement?: boolean;
+  refinement_batch_size?: number;
+  refinement_challengers_per_round?: number;
+  refinement_max_rounds?: number;
+  refinement_patience?: number;
+  refinement_min_improvement?: number;
+  overfitting_penalty_weight?: number;
+}
+
+export interface ConvergencePreviewPoint {
+  trial: number;
+  round: number;
+  is_objective: number;
+  oos_objective?: number | null;
+  gap_objective?: number;
+  overfitting_penalty?: number;
+  overfitting_risk?: string;
+  is_champion?: boolean;
+  objective_label?: string;
+}
+
+export interface JobProgress {
+  status: JobStatus;
+  message: string;
+  trial: number;
+  trials_total: number;
+  best_sharpe: number | null;
+  refinement_round?: number;
+  refinement_rounds_total?: number;
+  convergence_preview?: ConvergencePreviewPoint[] | null;
+}
+
+export interface PortfolioCandidate {
+  rank: number;
+  model_code?: string | null;
+  weights: Record<string, number>;
+  sharpe: number;
+  max_drawdown: number;
+  cagr: number;
+  volatility: number;
+  sortino?: number | null;
+  calmar?: number | null;
+  var_95?: number | null;
+  cvar_95?: number | null;
+  win_rate?: number | null;
+  turnover_avg?: number | null;
+  turnover_total?: number | null;
+  max_drawdown_duration_days?: number | null;
+  equity_curve?: { date: string; value: number }[] | null;
+  params?: Record<string, unknown> | null;
+  train_sharpe?: number | null;
+  train_max_drawdown?: number | null;
+  validation_sharpe?: number | null;
+  validation_max_drawdown?: number | null;
+  analytics?: CandidateAnalytics | null;
+  beta?: number | null;
+  alpha?: number | null;
+  alpha_annual?: number | null;
+  tracking_error?: number | null;
+  information_ratio?: number | null;
+}
+
+export interface CandidateAnalytics {
+  benchmark_relative?: Record<string, number>;
+  periodic_returns?: {
+    monthly?: { period: string; return: number }[];
+    annual?: { period: string; return: number }[];
+  };
+  periodic_returns_scope?: "in_sample" | "full_sample";
+  periodic_returns_holdout?: {
+    monthly?: { period: string; return: number }[];
+    annual?: { period: string; return: number }[];
+  };
+  rolling?: {
+    rolling_sharpe?: { date: string; value: number }[];
+    rolling_vol?: { date: string; value: number }[];
+  };
+  drawdown_episodes?: {
+    start: string;
+    trough: string;
+    end: string;
+    depth: number;
+    days: number;
+  }[];
+  drawdown_series?: { date: string; value: number }[];
+  exposure?: {
+    by_asset_class?: Record<string, number>;
+    by_asset_bucket?: Record<string, number>;
+    equity_pct?: number;
+    bond_pct?: number;
+    other_pct?: number;
+    duration_proxy_years?: number;
+  };
+  risk_contribution?: {
+    ticker: string;
+    weight: number;
+    risk_contrib: number;
+  }[];
+  factor_summary?: {
+    factor_contribution?: Record<string, number>;
+    factor_indicator_logic?: Record<string, string>;
+    factor_observations?: number;
+  };
+  sample_metrics?: {
+    selection?: string;
+    train_ratio?: number;
+    train_start?: string;
+    train_end?: string;
+    val_start?: string;
+    objective?: string;
+    objective_label?: string;
+    in_sample?: Record<string, number>;
+    out_of_sample?: Record<string, number> | null;
+    full_sample?: Record<string, number>;
+    gap?: { objective?: number | null; sharpe?: number | null };
+  };
+  weight_history?: ({ date: string } & Record<string, number | string>)[];
+  weight_history_tickers?: string[];
+  benchmark_equity_curve?: { date: string; value: number }[];
+}
+
+export interface ProRoundSnapshot {
+  round: number;
+  improved: boolean;
+  trials_in_round: number;
+  round_best_adjusted_score?: number | null;
+  incoming_champion_model_code?: string | null;
+  round_winner_model_code?: string | null;
+  round_challenger_model_codes?: string[];
+  pool_model_codes?: string[];
+  round_setup?: Record<string, unknown>;
+  factor_ranges?: Record<string, [number, number] | number[]>;
+  factor_choices?: Record<string, string>;
+  candidates: PortfolioCandidate[];
+  equity_curve: { date: string; value: number }[];
+  efficient_frontier: {
+    volatility: number;
+    return: number;
+    sharpe: number;
+    score: number;
+    params?: Record<string, unknown>;
+  }[];
+  narrative_facts: Record<string, unknown>;
+}
+
+export interface BacktestResult {
+  job_id: string;
+  scenario_id: string;
+  benchmark: string;
+  period: { start: string; end: string };
+  candidates: PortfolioCandidate[];
+  equity_curve: { date: string; value: number }[];
+  efficient_frontier: {
+    volatility: number;
+    return: number;
+    sharpe: number;
+    score: number;
+    params?: Record<string, unknown>;
+  }[];
+  narrative_facts: Record<string, unknown>;
+  pro_rounds?: ProRoundSnapshot[] | null;
+}
+
+export type WizardPhase =
+  | "scenario"
+  | "constraints"
+  | "running"
+  | "results"
+  | "export";

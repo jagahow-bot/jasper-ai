@@ -1,0 +1,1848 @@
+"""Phase A: Optuna search + out-of-sample validation on real market data."""
+
+from __future__ import annotations
+
+import json
+import logging
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+import numpy as np
+import pandas as pd
+
+from app.engine.data import fetch_prices
+from app.engine.asset_class_policy import (
+    class_budget_from_params,
+    enforce_param_controls_for_asset_classes,
+    zero_disallowed_class_params,
+)
+from app.engine.param_bounds import (
+    RunBlueprint,
+    clamp_param_dict,
+    normalize_param_controls,
+)
+from app.engine.mutable_params import GEMINI_LEARNING_MUTABLE_FIELDS
+from app.engine.objectives import metrics_snapshot, objective_label
+from app.engine.optimizer import run_optuna_search
+from app.engine.portfolio import (
+    benchmark_metrics,
+    equity_curve_series,
+    simulate_dynamic_portfolio,
+    split_train_validation,
+)
+from app.engine.spec import DEFAULT_SPEC, BacktestSpec
+from app.models import (
+    BacktestRequest,
+    BacktestResult,
+    OptimizationMode,
+    PortfolioCandidate,
+    ProRoundSnapshot,
+)
+from app.profiles import get_universe, get_universe_meta
+from app.engine.allocator import AllocatorParams
+from app.engine.analytics import build_full_analytics
+from app.engine.ai_params import generate_ai_param_sets, generate_ai_round_seed
+from app.engine.factors import FactorParams, factor_params_from_dict
+from app.engine.ai_universe import refine_universe_with_ai
+from app.engine.refinement import (
+    assign_pro_round_model_codes,
+    assign_search_model_codes,
+    best_record_in_pool,
+    build_round_seed_learning_payload,
+    build_round_competition_pool,
+    model_signature as refinement_model_signature,
+    pool_records_in_trial_order,
+    params_for_champion_seed,
+    pro_round_display_allowlist,
+    pro_round_report_top_n,
+    records_for_pool_model_codes,
+    register_prior_challenger_signatures,
+    reconcile_pro_round_pool,
+    retire_non_winner_model_codes,
+    summarize_params_for_ai,
+)
+from app.engine.weights import effective_max_weight_cap
+
+WEIGHT_EPS = 0.001
+
+
+def _is_pro_mode(req: BacktestRequest) -> bool:
+    return (
+        req.optimization_mode == OptimizationMode.pro_auto
+        or req.enable_iterative_refinement
+    )
+
+
+def _resolve_objective(raw: str, custom_text: str | None) -> str:
+    if raw != "custom":
+        return raw
+    t = (custom_text or "").lower()
+    if any(k in t for k in ("回撤", "drawdown", "保守", "下行")):
+        return "min_max_drawdown"
+    if any(k in t for k in ("報酬", "return", "成長", "cagr")):
+        return "max_return"
+    if any(k in t for k in ("尾部", "cvar", "極端", "黑天鵝")):
+        return "min_cvar"
+    if any(k in t for k in ("平價", "風險均衡", "erc", "risk parity")):
+        return "risk_parity_erc"
+    if any(k in t for k in ("分散", "divers")):
+        return "max_diversification"
+    if any(k in t for k in ("sortino", "下行波動")):
+        return "max_sortino"
+    return "max_sharpe"
+
+
+def _champion_report_horizons(
+    candidate: PortfolioCandidate,
+    *,
+    oos_enabled: bool,
+    period: dict[str, str],
+    train_period: dict[str, str] | None,
+    validation_period: dict[str, str] | None,
+) -> dict[str, Any]:
+    """IS / OOS / full-sample metrics for report narrative (not trial selection)."""
+    sm = (candidate.analytics or {}).get("sample_metrics") or {}
+    return {
+        "oos_enabled": oos_enabled,
+        "selection_basis": sm.get("selection"),
+        "periods": {
+            "in_sample": train_period,
+            "out_of_sample": validation_period,
+            "full_sample": period,
+        },
+        "in_sample": sm.get("in_sample"),
+        "out_of_sample": sm.get("out_of_sample"),
+        "full_sample": sm.get("full_sample"),
+        "gap": sm.get("gap"),
+        "train_sharpe": candidate.train_sharpe,
+        "validation_sharpe": candidate.validation_sharpe,
+        "display_sharpe": candidate.sharpe,
+        "display_cagr": candidate.cagr,
+        "display_max_drawdown": candidate.max_drawdown,
+    }
+
+
+def _weights_dict(tickers: list[str], w: np.ndarray) -> dict[str, float]:
+    return {
+        tickers[i]: round(float(w[i]), 4)
+        for i in range(len(tickers))
+        if w[i] > WEIGHT_EPS
+    }
+
+
+def _history_point(
+    *,
+    global_trial: int,
+    round_idx: int,
+    is_objective: float,
+    oos_objective: float | None,
+    gap_objective: float,
+    penalty: float,
+    risk_level: str,
+    is_champion: bool,
+    objective_label: str,
+) -> dict[str, Any]:
+    return {
+        "trial": global_trial,
+        "round": round_idx,
+        "is_objective": round(is_objective, 6),
+        "oos_objective": round(oos_objective, 6) if oos_objective is not None else None,
+        "gap_objective": round(gap_objective, 6),
+        "overfitting_penalty": round(penalty, 4),
+        "overfitting_risk": risk_level,
+        "is_champion": is_champion,
+        "objective_label": objective_label,
+    }
+
+
+def _record_objective_sort_value(
+    objective_effective: str,
+    score: float,
+    metrics: dict[str, Any],
+) -> float:
+    if metrics.get("objective_value_is") is not None:
+        return float(metrics["objective_value_is"])
+    if objective_effective == "max_return":
+        return float(metrics.get("cagr", 0.0))
+    if objective_effective == "min_max_drawdown":
+        return -abs(float(metrics.get("max_drawdown", 0.0)))
+    if objective_effective == "max_sortino":
+        return float(metrics.get("sortino", 0.0))
+    if objective_effective == "min_cvar":
+        return -abs(float(metrics.get("cvar_95", 0.0)))
+    if objective_effective == "max_sharpe":
+        return float(metrics.get("sharpe", 0.0))
+    if objective_effective == "risk_parity_erc":
+        return float(metrics.get("sharpe", 0.0)) - 0.25 * abs(
+            float(metrics.get("max_drawdown", 0.0))
+        )
+    if objective_effective == "max_diversification":
+        return (
+            float(metrics.get("cagr", 0.0))
+            - 0.35 * abs(float(metrics.get("max_drawdown", 0.0)))
+            - 0.10 * float(metrics.get("turnover_avg", 0.0))
+        )
+    if objective_effective == "mean_variance_utility":
+        return float(metrics.get("sharpe", 0.0)) - 0.15 * float(
+            metrics.get("volatility", 0.0)
+        )
+    if objective_effective == "custom":
+        return float(metrics.get("sharpe", 0.0)) - 0.2 * abs(
+            float(metrics.get("max_drawdown", 0.0))
+        )
+    return float(score)
+
+
+def _run_iterative_search(
+    req: BacktestRequest,
+    *,
+    prices_train: pd.DataFrame,
+    prices_val: pd.DataFrame,
+    oos: bool,
+    objective_effective: str,
+    rebalance_rule: str,
+    spec: BacktestSpec,
+    universe_by_ticker: dict[str, dict[str, Any]],
+    param_controls_dict: dict[str, dict],
+    report_progress,
+) -> tuple[list[tuple[float, dict, dict]], list[dict[str, Any]], dict[str, Any]]:
+    """Champion-challenger rounds until plateau or max rounds."""
+    batch0 = int(req.refinement_batch_size)
+    challengers = int(req.refinement_challengers_per_round)
+    max_rounds = int(req.refinement_max_rounds)
+    patience = int(req.refinement_patience)
+    min_gain = float(req.refinement_min_improvement)
+    penalty_w = float(req.overfitting_penalty_weight)
+
+    # Round 2+ enqueue champion re-sim as an extra Optuna trial on top of challengers.
+    est_trials = batch0 + (challengers + 1) * max(0, max_rounds - 1)
+    all_records: list[tuple[float, dict, dict]] = []
+    convergence_history: list[dict[str, Any]] = []
+    learning_trials: list[dict[str, Any]] = []
+
+    champion_score = float("-inf")
+    champion_record: tuple[float, dict, dict] | None = None
+    rounds_without_gain = 0
+    global_trial = 0
+    ai_rationales: list[str] = []
+    per_round: list[dict[str, Any]] = []
+    prior_challenger_signatures: set[str] = set()
+    next_model_no = [1]
+    retired_model_codes: set[str] = set()
+    carry_champion_model_code: str | None = None
+    prior_round_setup: dict[str, Any] | None = None
+    prior_factor_ranges: dict[str, Any] | None = None
+    prior_factor_choices: dict[str, Any] | None = None
+    bench_ref_metrics = benchmark_metrics(
+        prices_train, spec.benchmark_ticker, spec
+    )
+    is_period = {
+        "start": str(prices_train.index[0].date()),
+        "end": str(prices_train.index[-1].date()),
+        "rows": int(len(prices_train)),
+    }
+
+    for round_idx in range(max_rounds):
+        n_trials = batch0 if round_idx == 0 else challengers
+        carry_msg = (
+            "incoming champion + new challengers"
+            if champion_record is not None
+            else "round 1 (challengers only)"
+        )
+        report_progress(
+            global_trial,
+            est_trials,
+            f"Pro round {round_idx + 1}/{max_rounds}: {carry_msg}, preparing {n_trials} challengers…",
+            champion_record[2]["sharpe"] if champion_record else None,
+            round_idx + 1,
+            max_rounds,
+            convergence_history[-24:],
+        )
+
+        incoming_champion_record = champion_record
+        incoming_champion_score = (
+            float(champion_score) if champion_record is not None else None
+        )
+        target_to_beat = champion_score + min_gain
+        learning_context: dict[str, Any] | None = None
+        incoming_champion_params: dict[str, Any] | None = (
+            champion_record[1] if champion_record else None
+        )
+        round_incoming_model_code = carry_champion_model_code
+        if champion_record and round_idx > 0:
+            # Learning context uses champion at round start; if the champion is re-run
+            # and updated later in this round, the next round's build_gemini_learning_context
+            # will pick up fresh metrics (not mid-round — would need an extra rebuild).
+            learning_context = build_round_seed_learning_payload(
+                champion_record=champion_record,
+                champion_score=champion_score,
+                min_gain=min_gain,
+                learning_trials=learning_trials,
+                objective=objective_effective,
+                round_index=round_idx + 1,
+                prior_round_setup=prior_round_setup,
+                prior_factor_ranges=prior_factor_ranges,
+                prior_factor_choices=prior_factor_choices,
+                benchmark_ticker=spec.benchmark_ticker,
+                bench_metrics=bench_ref_metrics,
+                prices_train=prices_train,
+                spec=spec,
+                period=is_period,
+            )
+            learning_context["global_config"] = {
+                "objective": objective_effective,
+                "rebalance_freq": rebalance_rule,
+                "max_weight_cap": req.max_weight,
+                "max_turnover_cap": req.max_turnover,
+                "top_n_cap": req.top_n,
+                "tradable_count": int(prices_train.shape[1]),
+            }
+            learning_context["mutable_fields"] = list(GEMINI_LEARNING_MUTABLE_FIELDS)
+            n_failed = len(learning_context.get("failed_challengers", []))
+            report_progress(
+                global_trial,
+                est_trials,
+                f"Round {round_idx + 1}: AI learning from {n_failed} failed challengers, "
+                f"target score {target_to_beat:.4f}…",
+                champion_record[2]["sharpe"] if champion_record else None,
+                round_idx + 1,
+                max_rounds,
+                convergence_history[-24:],
+            )
+
+        def ai_progress(current: int, total: int, message: str) -> None:
+            report_progress(
+                global_trial + current,
+                est_trials,
+                message,
+                champion_record[2]["sharpe"] if champion_record else None,
+                round_idx + 1,
+                max_rounds,
+                convergence_history[-24:],
+            )
+
+        ai_generation = generate_ai_round_seed(
+            objective=objective_effective,
+            rebalance_freq=rebalance_rule,
+            max_weight_cap=req.max_weight,
+            max_turnover_cap=req.max_turnover,
+            top_n_cap=req.top_n,
+            tradable_count=int(prices_train.shape[1]),
+            param_controls=param_controls_dict,
+            progress_cb=ai_progress,
+            learning_context=learning_context,
+        )
+        if not ai_generation.get("enabled", False):
+            err = ai_generation.get("error") or "ai_generation_failed"
+            raise ValueError(f"pro_ai_param_generation_failed: {err}")
+        round_setup = ai_generation.get("round_setup") or {}
+        factor_ranges = ai_generation.get("factor_ranges") or {}
+        factor_choices = ai_generation.get("factor_choices") or {}
+        report_progress(
+            global_trial,
+            est_trials,
+            f"Round {round_idx + 1}: AI round seed (setup + {len(factor_ranges)} factor ranges)",
+            champion_record[2]["sharpe"] if champion_record else None,
+            round_idx + 1,
+            max_rounds,
+            convergence_history[-24:],
+        )
+        if ai_generation.get("rationale"):
+            ai_rationales.append(str(ai_generation.get("rationale")).strip())
+
+        def optuna_progress(trial: int, total: int, best_score: float | None) -> None:
+            scope = "in-sample" if oos else "full window"
+            msg = f"Round {round_idx + 1} Optuna {trial}/{total} ({scope}, dynamic Top-N each rebalance)"
+            if best_score is not None:
+                obj_label, obj_text = _objective_progress_label_and_text(
+                    objective_effective, best_score
+                )
+                msg += f", round best {obj_label} {obj_text}"
+            report_progress(
+                global_trial + trial,
+                est_trials,
+                msg,
+                best_score,
+                round_idx + 1,
+                max_rounds,
+                convergence_history[-24:],
+            )
+
+        champion_seed = (
+            params_for_champion_seed(champion_record[1]) if champion_record else None
+        )
+        round_records = run_optuna_search(
+            prices_train,
+            max_weight=req.max_weight,
+            max_turnover=req.max_turnover,
+            top_n=req.top_n,
+            objective=objective_effective,
+            trials=n_trials,
+            round_setup=round_setup,
+            factor_ranges=factor_ranges,
+            factor_choices=factor_choices,
+            param_controls=param_controls_dict,
+            spec=spec,
+            progress_cb=optuna_progress,
+            universe_by_ticker=universe_by_ticker,
+            prices_val=prices_val if oos and len(prices_val) > 60 else None,
+            overfitting_penalty_weight=penalty_w if oos else 0.0,
+            champion_seed=champion_seed,
+            apply_holdout_penalty=bool(oos and penalty_w > 0),
+            select_on_is=bool(oos and len(prices_val) > 60),
+            asset_classes=req.asset_classes,
+        )
+
+        tagged_round_records: list[tuple[float, dict, dict]] = []
+        for score, params, metrics in round_records:
+            tagged_params = dict(params)
+            tagged_params["pro_round_index"] = round_idx + 1
+            tagged_round_records.append((score, tagged_params, metrics))
+        round_records = tagged_round_records
+
+        assign_pro_round_model_codes(
+            round_records,
+            incoming_champion_record=incoming_champion_record,
+            incoming_champion_model_code=round_incoming_model_code,
+            next_model_no=next_model_no,
+        )
+
+        global_trial += len(round_records)
+        round_best_score = float("-inf")
+        round_best_obj_value = float("-inf")
+        round_best: tuple[float, dict, dict] | None = None
+        round_improved = False
+
+        pool_records = build_round_competition_pool(
+            round_records,
+            incoming_champion_record,
+            prior_challenger_signatures=prior_challenger_signatures,
+            retired_model_codes=retired_model_codes,
+        )
+        pool_records, pool_model_codes, round_challenger_model_codes = (
+            reconcile_pro_round_pool(
+                pool_records,
+                incoming_champion_model_code=round_incoming_model_code,
+                retired_model_codes=retired_model_codes,
+            )
+        )
+
+        for score, params, metrics in round_records:
+            all_records.append((score, params, metrics))
+            assess = metrics.get("overfitting_assessment") or {}
+            raw = float(metrics.get("raw_score", score))
+            penalty = float(metrics.get("overfitting_penalty_applied", 0.0))
+            gap = float(assess.get("gap_sharpe", 0.0))
+            risk = str(assess.get("risk_level", "unknown"))
+            objective_value = _record_objective_sort_value(
+                objective_effective, score, metrics
+            )
+            surpassed = objective_value >= champion_score + min_gain
+            learning_trials.append(
+                {
+                    "round": round_idx + 1,
+                    "adjusted_score": round(score, 4),
+                    "objective_value": round(objective_value, 6),
+                    "raw_score": round(raw, 4),
+                    "overfitting_penalty": round(penalty, 4),
+                    "gap_sharpe": gap,
+                    "gap_objective": float(assess.get("gap_objective", 0.0)),
+                    "oos_objective": assess.get("out_of_sample_objective"),
+                    "risk_level": risk,
+                    "params_summary": summarize_params_for_ai(params),
+                    "outcome": "surpassed" if surpassed else "failed",
+                    "gap_to_beat": round(
+                        max(0.0, target_to_beat - objective_value), 4
+                    ),
+                    "target_at_trial": round(target_to_beat, 4),
+                }
+            )
+
+        round_best = best_record_in_pool(pool_records, objective_effective)
+        if round_best:
+            round_best_score, _round_best_params, _round_best_metrics = round_best
+            round_best_obj_value = _record_objective_sort_value(
+                objective_effective, round_best_score, _round_best_metrics
+            )
+            baseline_score = (
+                float(incoming_champion_score)
+                if incoming_champion_score is not None
+                else float("-inf")
+            )
+            round_improved = round_best_obj_value > baseline_score + min_gain
+            champion_score = round_best_obj_value
+            champion_record = round_best
+            if round_improved:
+                rounds_without_gain = 0
+            else:
+                rounds_without_gain += 1
+
+            # Re-label this round's trials vs the reigning champion (for next-round Gemini learning).
+            post_target = champion_score + min_gain
+            for t in learning_trials:
+                if t.get("round") != round_idx + 1:
+                    continue
+                s = float(t.get("adjusted_score", 0.0))
+                ov = float(t.get("objective_value", s))
+                if ov < post_target:
+                    t["outcome"] = "failed"
+                    t["gap_to_beat"] = round(post_target - ov, 4)
+                else:
+                    t["outcome"] = "surpassed"
+                    t["gap_to_beat"] = 0.0
+                t["target_at_trial"] = round(post_target, 4)
+
+            best_so_far = champion_score
+            obj_lbl = objective_label(objective_effective)
+            round_trial_base = global_trial - len(round_records) + 1
+            for trial_i, (_score, _params, _metrics) in enumerate(round_records):
+                assess = _metrics.get("overfitting_assessment") or {}
+                is_obj = float(
+                    _metrics.get(
+                        "objective_value_is",
+                        assess.get("in_sample_objective", 0.0),
+                    )
+                )
+                oos_obj = assess.get("out_of_sample_objective")
+                convergence_history.append(
+                    _history_point(
+                        global_trial=round_trial_base + trial_i,
+                        round_idx=round_idx + 1,
+                        is_objective=is_obj,
+                        oos_objective=(
+                            float(oos_obj) if oos_obj is not None else None
+                        ),
+                        gap_objective=float(assess.get("gap_objective", 0.0)),
+                        penalty=float(_metrics.get("overfitting_penalty_applied", 0.0)),
+                        risk_level=str(assess.get("risk_level", "unknown")),
+                        is_champion=abs(
+                            _record_objective_sort_value(
+                                objective_effective,
+                                _score,
+                                _metrics,
+                            )
+                            - best_so_far
+                        )
+                        < 1e-9,
+                        objective_label=obj_lbl,
+                    )
+                )
+
+        trial_order_records = pool_records_in_trial_order(
+            round_records,
+            pool_records,
+            pool_model_codes,
+        )
+        round_winner_params = round_best[1] if round_best else None
+        pool_signatures = [_model_signature(r[1]) for r in trial_order_records]
+        round_winner_model_code: str | None = None
+        if round_best and round_best[1].get("model_code"):
+            round_winner_model_code = str(round_best[1]["model_code"])
+
+        record_model_codes = [
+            str(r[1].get("model_code", ""))
+            for r in trial_order_records
+            if r[1].get("model_code")
+        ]
+        expected_pool_size = challengers + (1 if round_idx > 0 else 0)
+        actual_pool_size = len(pool_model_codes)
+        logger.info(
+            "Pro round %s pool size: expected=%s actual=%s "
+            "(incoming=%s challengers=%s pool_codes=%s record_codes=%s)",
+            round_idx + 1,
+            expected_pool_size,
+            actual_pool_size,
+            round_incoming_model_code,
+            round_challenger_model_codes,
+            pool_model_codes,
+            record_model_codes,
+        )
+        if actual_pool_size != expected_pool_size:
+            logger.warning(
+                "Pro round %s pool size mismatch: expected %s (1 incoming + %s challengers), "
+                "got %s codes %s",
+                round_idx + 1,
+                expected_pool_size,
+                challengers if round_idx > 0 else batch0,
+                actual_pool_size,
+                pool_model_codes,
+            )
+        if set(pool_model_codes) != set(record_model_codes):
+            logger.error(
+                "Pro round %s pool_model_codes %s != record model_codes %s",
+                round_idx + 1,
+                pool_model_codes,
+                record_model_codes,
+            )
+
+        retire_non_winner_model_codes(
+            trial_order_records,
+            round_best,
+            retired_model_codes,
+            prior_signatures=prior_challenger_signatures,
+        )
+        if round_winner_model_code:
+            carry_champion_model_code = round_winner_model_code
+        elif round_incoming_model_code:
+            carry_champion_model_code = round_incoming_model_code
+
+        per_round.append(
+            {
+                "round": round_idx + 1,
+                "trials_in_round": n_trials,
+                "round_setup": round_setup,
+                "factor_ranges": factor_ranges,
+                "factor_choices": factor_choices,
+                "incoming_champion_params": incoming_champion_params,
+                "round_winner_params": round_winner_params,
+                "pool_signatures": pool_signatures,
+                "pool_model_codes": pool_model_codes,
+                "incoming_champion_model_code": round_incoming_model_code,
+                "round_winner_model_code": round_winner_model_code,
+                "round_challenger_model_codes": round_challenger_model_codes,
+                "incoming_champion_score": (
+                    round(float(incoming_champion_score), 6)
+                    if incoming_champion_score is not None
+                    else None
+                ),
+                "round_best_adjusted_score": (
+                    round(round_best_score, 4) if round_best else None
+                ),
+                "round_best_objective_value": (
+                    round(round_best_obj_value, 6) if round_best else None
+                ),
+                "improved": round_improved,
+                "records": trial_order_records,
+            }
+        )
+
+        register_prior_challenger_signatures(
+            round_records,
+            incoming_champion=incoming_champion_record,
+            round_winner=round_best,
+            prior=prior_challenger_signatures,
+        )
+
+        prior_round_setup = dict(round_setup)
+        prior_factor_ranges = dict(factor_ranges)
+        prior_factor_choices = dict(factor_choices)
+
+        report_progress(
+            global_trial,
+            est_trials,
+            f"Round {round_idx + 1} done: round best {round_best_score:.4f}, "
+            f"champion {champion_score:.4f} (flat streak {rounds_without_gain}/{patience})",
+            champion_record[2]["sharpe"] if champion_record else None,
+            round_idx + 1,
+            max_rounds,
+            convergence_history[-24:],
+        )
+
+        if round_idx > 0 and rounds_without_gain >= patience:
+            break
+
+    # all_records already in chronological Optuna trial order across rounds.
+    rounds_done = len(per_round)
+    meta = {
+        "rounds_completed": rounds_done,
+        "trials_total": global_trial,
+        "final_champion_params": (
+            champion_record[1] if champion_record is not None else None
+        ),
+        "champion_adjusted_score": champion_score if champion_record else None,
+        "stopped_reason": (
+            "patience"
+            if rounds_without_gain >= patience
+            else "max_rounds"
+        ),
+        "ai_rationales": ai_rationales[:8],
+        "per_round": per_round,
+        "retired_model_codes": sorted(retired_model_codes),
+    }
+    return all_records, convergence_history, meta
+
+
+def _build_candidate(
+    rank: int,
+    tickers: list[str],
+    train_m: dict[str, Any],
+    val_m: dict[str, Any] | None,
+    oos_enabled: bool,
+    params: dict[str, Any],
+    full_m: dict[str, Any],
+    full_curve: list[dict[str, Any]],
+    prices: pd.DataFrame,
+    universe_by_ticker: dict[str, dict[str, Any]],
+    spec: BacktestSpec,
+    *,
+    objective_effective: str = "max_sharpe",
+    train_start: str | None = None,
+    train_end: str | None = None,
+    val_start: str | None = None,
+    train_ratio: float | None = None,
+) -> PortfolioCandidate:
+    primary = train_m if oos_enabled else full_m
+    weights = _weights_dict(
+        tickers, np.asarray(full_m.get("last_weights"), dtype=float)
+    )
+    port_ret: pd.Series = full_m["port_ret"]
+    equity: pd.Series = full_m["equity"]
+    bench_t = spec.benchmark_ticker
+    bench_ret = (
+        prices[bench_t].pct_change().fillna(0.0)
+        if bench_t in prices.columns
+        else None
+    )
+    periodic_equity = train_m["equity"] if oos_enabled else None
+    holdout_equity = (
+        val_m["equity"] if oos_enabled and val_m is not None else None
+    )
+    analytics = build_full_analytics(
+        port_ret=port_ret,
+        equity=equity,
+        bench_ret=bench_ret,
+        spec=spec,
+        weights=weights,
+        tickers=tickers,
+        universe_by_ticker=universe_by_ticker,
+        prices=prices,
+        periodic_equity=periodic_equity,
+        holdout_equity=holdout_equity,
+    )
+    analytics["weight_history"] = full_m.get("weight_history", [])
+    analytics["weight_history_tickers"] = full_m.get("weight_history_tickers", [])
+    if full_m.get("weight_cap_audit"):
+        analytics["weight_cap_audit"] = full_m["weight_cap_audit"]
+    analytics["factor_summary"] = full_m.get("factor_summary", {})
+    analytics["execution"] = {
+        "rebalance_freq": full_m.get("rebalance_freq"),
+        "rebalance_count": full_m.get("rebalance_count"),
+        "rebalance_applied": full_m.get("rebalance_applied"),
+        "rebalance_dates_sample": (full_m.get("rebalance_dates") or [])[:12],
+    }
+    is_snap = metrics_snapshot(train_m, objective_mode=objective_effective)
+    oos_snap = (
+        metrics_snapshot(val_m, objective_mode=objective_effective)
+        if val_m is not None
+        else None
+    )
+    full_snap = metrics_snapshot(full_m, objective_mode=objective_effective)
+    analytics["sample_metrics"] = {
+        "selection": "in_sample" if oos_enabled else "full_sample",
+        "train_ratio": train_ratio,
+        "train_start": train_start,
+        "train_end": train_end,
+        "val_start": val_start,
+        "objective": objective_effective,
+        "objective_label": objective_label(objective_effective),
+        "in_sample": is_snap,
+        "out_of_sample": oos_snap,
+        "full_sample": full_snap,
+        "gap": {
+            "objective": round(
+                float(is_snap["objective_value"])
+                - float((oos_snap or {}).get("objective_value", 0.0)),
+                6,
+            )
+            if oos_snap
+            else None,
+            "sharpe": round(float(train_m["sharpe"]) - float(val_m["sharpe"]), 4)
+            if val_m is not None
+            else None,
+        },
+    }
+    if bench_ret is not None:
+        aligned_bench = bench_ret.reindex(port_ret.index).fillna(0.0)
+        bench_equity = (1.0 + aligned_bench).cumprod()
+        analytics["benchmark_equity_curve"] = equity_curve_series(bench_equity)
+    else:
+        analytics["benchmark_equity_curve"] = []
+    rel = analytics.get("benchmark_relative", {}) or {}
+    return PortfolioCandidate(
+        rank=rank,
+        model_code=str(params.get("model_code")) if params.get("model_code") else None,
+        weights=weights,
+        sharpe=round(float(primary["sharpe"]), 3),
+        max_drawdown=round(float(primary["max_drawdown"]), 3),
+        cagr=round(float(primary["cagr"]), 3),
+        volatility=round(float(primary["volatility"]), 3),
+        sortino=round(float(primary.get("sortino", 0.0)), 3),
+        calmar=round(float(primary.get("calmar", 0.0)), 3),
+        var_95=round(float(primary.get("var_95", 0.0)), 4),
+        cvar_95=round(float(primary.get("cvar_95", 0.0)), 4),
+        win_rate=round(float(primary.get("win_rate", 0.0)), 3),
+        turnover_avg=round(float(primary.get("turnover_avg", 0.0)), 4),
+        turnover_total=round(float(primary.get("turnover_total", 0.0)), 4),
+        max_drawdown_duration_days=int(primary.get("max_drawdown_duration_days", 0)),
+        equity_curve=full_curve,
+        params={
+            **params,
+            "in_sample_objective": is_snap["objective_value"],
+            "out_of_sample_objective": (
+                oos_snap["objective_value"] if oos_snap else None
+            ),
+            "gap_objective": analytics["sample_metrics"]["gap"]["objective"],
+        },
+        train_sharpe=round(float(train_m["sharpe"]), 3),
+        train_max_drawdown=round(float(train_m["max_drawdown"]), 3),
+        validation_sharpe=(
+            round(float(val_m["sharpe"]), 3) if val_m else None
+        ),
+        validation_max_drawdown=(
+            round(float(val_m["max_drawdown"]), 3) if val_m else None
+        ),
+        analytics=analytics,
+        beta=rel.get("beta"),
+        alpha=rel.get("alpha") or rel.get("alpha_annual"),
+        alpha_annual=rel.get("alpha_annual") or rel.get("alpha"),
+        tracking_error=rel.get("tracking_error"),
+        information_ratio=rel.get("information_ratio"),
+    )
+
+
+def _model_signature(params: dict[str, Any]) -> str:
+    return refinement_model_signature(params)
+
+
+def _fallback_model_no_from_records(
+    records: list[tuple[float, dict, dict]],
+) -> list[int]:
+    mx = 0
+    for _, params, _ in records:
+        code = params.get("model_code")
+        if not code:
+            continue
+        s = str(code)
+        if s.startswith("M") and len(s) > 1:
+            try:
+                mx = max(mx, int(s[1:]))
+            except ValueError:
+                pass
+    return [max(mx + 1, 1)]
+
+
+def _read_or_assign_model_code(
+    params: dict[str, Any],
+    *,
+    next_model_no: list[int],
+    context: str = "",
+) -> str:
+    """Read model_code from search-assigned params; legacy fallback if missing.
+
+    model_code is immutable after search assignment — this helper must not re-encode
+    via signature maps. It only assigns when legacy records lack a code.
+    """
+    existing = params.get("model_code")
+    if existing:
+        return str(existing)
+    logger.warning(
+        "model_code missing on record%s; assigning fallback (search should assign codes)",
+        f" ({context})" if context else "",
+    )
+    code = f"M{next_model_no[0]:04d}"
+    next_model_no[0] += 1
+    params["model_code"] = code
+    return code
+
+
+def _sim_inputs_from_params(
+    params: dict[str, Any],
+    req: BacktestRequest,
+    rebalance_rule: str,
+    spec: BacktestSpec,
+) -> tuple[BacktestSpec, AllocatorParams, float, int, float, float, float, dict[str, float], FactorParams]:
+    blueprint = RunBlueprint.from_request(req)
+    params, bounds_violations = clamp_param_dict(params, blueprint)
+    if bounds_violations:
+        params["bounds_violations"] = bounds_violations
+    params = zero_disallowed_class_params(params, req.asset_classes)
+    trial_rebalance = str(params.get("rebalance_freq", rebalance_rule))
+    trial_spec = BacktestSpec(
+        benchmark_ticker=spec.benchmark_ticker,
+        risk_free_rate=spec.risk_free_rate,
+        fee_bps=spec.fee_bps,
+        rebalance_rule=trial_rebalance,
+        min_holdings=spec.min_holdings,
+        max_holdings=spec.max_holdings,
+    )
+    alloc = AllocatorParams(
+        mode=params["mode"],
+        lookback_days=int(params["lookback_days"]),
+        shrinkage=float(params["shrinkage"]),
+        risk_aversion=float(params["risk_aversion"]),
+    )
+    cap = effective_max_weight_cap(params.get("max_weight_actual"), req.max_weight)
+    top_n_actual = int(params.get("top_n_actual", req.top_n))
+    no_trade_tol = float(params.get("no_trade_tol", 0.0))
+    turnover_penalty_mult = float(params.get("turnover_penalty_mult", 1.0))
+    max_turnover_actual = float(params.get("max_turnover_actual", req.max_turnover))
+    class_budget = class_budget_from_params(params, asset_classes=req.asset_classes)
+    f_params = factor_params_from_dict(params, default_lookback=alloc.lookback_days)
+    return (
+        trial_spec,
+        alloc,
+        cap,
+        top_n_actual,
+        no_trade_tol,
+        turnover_penalty_mult,
+        max_turnover_actual,
+        class_budget,
+        f_params,
+    )
+
+
+def _assemble_candidates_from_records(
+    records: list[tuple[float, dict, dict]],
+    *,
+    req: BacktestRequest,
+    top_n_models: int,
+    tickers: list[str],
+    prices: pd.DataFrame,
+    prices_train: pd.DataFrame,
+    prices_val: pd.DataFrame,
+    oos: bool,
+    rebalance_rule: str,
+    spec: BacktestSpec,
+    universe_by_ticker: dict[str, dict[str, Any]],
+    objective_effective: str,
+    train_start: str,
+    train_end: str,
+    val_start: str,
+    train_ratio: float,
+    fallback_next_model_no: list[int] | None = None,
+) -> list[PortfolioCandidate]:
+    top = records[:top_n_models]
+    fallback_no = fallback_next_model_no or _fallback_model_no_from_records(records)
+    candidates: list[PortfolioCandidate] = []
+    for rank, (_, params, _) in enumerate(top, start=1):
+        params = dict(params)
+        _read_or_assign_model_code(
+            params,
+            next_model_no=fallback_no,
+            context="candidate assembly",
+        )
+        trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
+            _sim_inputs_from_params(params, req, rebalance_rule, spec)
+        )
+        train_m = simulate_dynamic_portfolio(
+            prices_train,
+            spec=trial_spec,
+            max_weight=cap,
+            allocator=alloc,
+            top_n=top_n_actual,
+            factor_params=f_params,
+            no_trade_tol=no_trade_tol,
+            turnover_penalty_mult=turnover_penalty_mult,
+            max_turnover=max_turnover_actual,
+            universe_by_ticker=universe_by_ticker,
+            class_budget=class_budget,
+        )
+        val_m = (
+            simulate_dynamic_portfolio(
+                prices_val,
+                spec=trial_spec,
+                max_weight=cap,
+                allocator=alloc,
+                top_n=top_n_actual,
+                factor_params=f_params,
+                no_trade_tol=no_trade_tol,
+                turnover_penalty_mult=turnover_penalty_mult,
+                max_turnover=max_turnover_actual,
+                universe_by_ticker=universe_by_ticker,
+                class_budget=class_budget,
+            )
+            if oos and len(prices_val) > 60
+            else None
+        )
+        full_m_rank = simulate_dynamic_portfolio(
+            prices,
+            spec=trial_spec,
+            max_weight=cap,
+            allocator=alloc,
+            top_n=top_n_actual,
+            factor_params=f_params,
+            no_trade_tol=no_trade_tol,
+            turnover_penalty_mult=turnover_penalty_mult,
+            max_turnover=max_turnover_actual,
+            universe_by_ticker=universe_by_ticker,
+            class_budget=class_budget,
+        )
+        full_curve_rank = equity_curve_series(full_m_rank["equity"])
+        candidates.append(
+            _build_candidate(
+                rank,
+                tickers,
+                train_m,
+                val_m,
+                oos,
+                params,
+                full_m_rank,
+                full_curve_rank,
+                prices,
+                universe_by_ticker,
+                trial_spec,
+                objective_effective=objective_effective,
+                train_start=train_start,
+                train_end=train_end,
+                val_start=val_start,
+                train_ratio=train_ratio,
+            )
+        )
+    return candidates
+
+
+def _oos_leaderboard(
+    candidates: list[PortfolioCandidate],
+    *,
+    objective_effective: str,
+) -> list[dict[str, Any]]:
+    """Holdout ranking for final models (not used during search)."""
+    rows: list[dict[str, Any]] = []
+    for c in candidates:
+        sm = (c.analytics or {}).get("sample_metrics") or {}
+        is_snap = sm.get("in_sample") or {}
+        oos_snap = sm.get("out_of_sample") or {}
+        full_snap = sm.get("full_sample") or {}
+        if not oos_snap:
+            continue
+        rows.append(
+            {
+                "model_code": c.model_code,
+                "rank": c.rank,
+                "in_sample_objective": is_snap.get("objective_value"),
+                "out_of_sample_objective": oos_snap.get("objective_value"),
+                "full_sample_objective": full_snap.get("objective_value"),
+                "gap_objective": (sm.get("gap") or {}).get("objective"),
+                "in_sample_sharpe": is_snap.get("sharpe"),
+                "out_of_sample_sharpe": oos_snap.get("sharpe"),
+                "objective": objective_effective,
+                "objective_label": sm.get("objective_label")
+                or objective_label(objective_effective),
+                "selection_basis": "in_sample",
+            }
+        )
+    rows.sort(
+        key=lambda r: float(r.get("in_sample_objective") or -1e9),
+        reverse=True,
+    )
+    return rows
+
+
+def _build_frontier_from_records(
+    records: list[tuple[float, dict, dict]],
+    trials_completed: int,
+) -> list[dict[str, Any]]:
+    frontier: list[dict[str, Any]] = []
+    step = max(1, trials_completed // 25)
+    for score, params, metrics in records[::step][:25]:
+        frontier.append(
+            {
+                "volatility": round(float(metrics["volatility"]), 4),
+                "return": round(float(metrics["cagr"]), 4),
+                "sharpe": round(float(metrics["sharpe"]), 4),
+                "score": round(float(score), 4),
+                "params": params,
+            }
+        )
+    return frontier
+
+
+def _candidate_objective_value(c: PortfolioCandidate, objective_effective: str) -> float:
+    sm = (c.analytics or {}).get("sample_metrics") or {}
+    is_obj = (sm.get("in_sample") or {}).get("objective_value")
+    if is_obj is not None:
+        return float(is_obj)
+    if objective_effective == "max_sharpe":
+        return float(c.sharpe)
+    if objective_effective == "max_return":
+        return float(c.cagr)
+    if objective_effective == "min_max_drawdown":
+        return -abs(float(c.max_drawdown))
+    if objective_effective == "max_sortino":
+        return float(c.sortino or 0.0)
+    if objective_effective == "min_cvar":
+        return float(c.cvar_95 or -1.0)
+    if objective_effective == "risk_parity_erc":
+        return float(c.sharpe) - 0.25 * abs(float(c.max_drawdown))
+    if objective_effective == "max_diversification":
+        return (
+            float(c.cagr)
+            - 0.35 * abs(float(c.max_drawdown))
+            - 0.10 * float(c.turnover_avg or 0.0)
+        )
+    if objective_effective == "mean_variance_utility":
+        return float(c.sharpe) - 0.15 * float(c.volatility)
+    if objective_effective == "custom":
+        return float(c.sharpe) - 0.2 * abs(float(c.max_drawdown))
+    return float(c.sharpe)
+
+
+def _objective_progress_label_and_text(
+    objective_effective: str, value: float | None
+) -> tuple[str, str]:
+    label_map = {
+        "max_sharpe": "Sharpe",
+        "max_return": "CAGR",
+        "min_max_drawdown": "max DD",
+        "max_sortino": "Sortino",
+        "min_cvar": "CVaR",
+        "risk_parity_erc": "Sharpe",
+        "max_diversification": "Sharpe",
+        "mean_variance_utility": "vol",
+        "custom": "Sharpe",
+    }
+    label = label_map.get(objective_effective, "metric")
+    if value is None:
+        return label, "—"
+    if objective_effective in {"max_return", "min_max_drawdown", "min_cvar", "mean_variance_utility"}:
+        return label, f"{value * 100:.2f}%"
+    return label, f"{value:.3f}"
+
+
+def _rerank_candidates_by_objective(
+    candidates: list[PortfolioCandidate], objective_effective: str
+) -> list[PortfolioCandidate]:
+    """Assign objective rank badges without reordering the candidate list."""
+    if not candidates:
+        return candidates
+    ranked_indices = sorted(
+        range(len(candidates)),
+        key=lambda i: _candidate_objective_value(candidates[i], objective_effective),
+        reverse=True,
+    )
+    for rank, orig_idx in enumerate(ranked_indices, start=1):
+        candidates[orig_idx].rank = rank
+    return candidates
+
+
+def _best_candidate(
+    candidates: list[PortfolioCandidate],
+) -> PortfolioCandidate | None:
+    if not candidates:
+        return None
+    flagged = next((c for c in candidates if c.is_champion), None)
+    if flagged is not None:
+        return flagged
+    by_rank = next((c for c in candidates if c.rank == 1), None)
+    return by_rank or candidates[0]
+
+
+def _build_portfolio_catalog_from_records(
+    source_records: list[tuple[float, dict, dict]],
+    *,
+    source_label: str,
+    fallback_next_model_no: list[int] | None = None,
+) -> list[dict[str, Any]]:
+    fallback_no = fallback_next_model_no or _fallback_model_no_from_records(
+        source_records
+    )
+    rows: list[dict[str, Any]] = []
+    for idx, (score, params, metrics) in enumerate(source_records, start=1):
+        params_ref = params if isinstance(params, dict) else {}
+        code = _read_or_assign_model_code(
+            params_ref,
+            next_model_no=fallback_no,
+            context=f"catalog ({source_label})",
+        )
+        rows.append(
+            {
+                "model_code": code,
+                "source": source_label,
+                "sequence": idx,
+                "adjusted_score": round(float(score), 6),
+                "raw_score": round(float(metrics.get("raw_score", score)), 6),
+                "sharpe": round(float(metrics.get("sharpe", 0.0)), 6),
+                "cagr": round(float(metrics.get("cagr", 0.0)), 6),
+                "max_drawdown": round(float(metrics.get("max_drawdown", 0.0)), 6),
+            }
+        )
+    return rows
+
+
+def _find_record_by_params(
+    records: list[tuple[float, dict, dict]], params: dict[str, Any] | None
+) -> tuple[float, dict, dict] | None:
+    if not isinstance(params, dict):
+        return None
+    target = _model_signature(params)
+    for rec in records:
+        if _model_signature(rec[1]) == target:
+            return rec
+    return None
+
+
+def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> BacktestResult:
+    objective_effective = _resolve_objective(req.objective.value, req.objective_custom_text)
+    universe = get_universe(
+        req.asset_classes,
+        req.universe_categories,
+        req.universe_tickers,
+    )
+    universe_plan = refine_universe_with_ai(universe=universe, objective=objective_effective)
+    universe = universe_plan["universe"]
+    universe_meta = get_universe_meta()
+    if len(universe) < 5:
+        raise ValueError(
+            f"Too few tickers after filter ({len(universe)}); need at least 5 or wider asset classes"
+        )
+
+    tickers = [u["ticker"] for u in universe]
+    from app.engine.portfolio import _normalize_rebalance_rule
+
+    rebalance_rule = _normalize_rebalance_rule(req.rebalance_freq)
+    bench = str(universe_plan.get("benchmark_ticker", "SPY"))
+    spec = BacktestSpec(
+        benchmark_ticker=bench,
+        fee_bps=req.fee_bps,
+        rebalance_rule=rebalance_rule,
+    )
+
+    try:
+        prices, data_meta = fetch_prices(
+            tickers, req.start_date, req.end_date, spec.benchmark_ticker
+        )
+    except Exception as exc:
+        raise ValueError(
+            f"Failed to load prices (yfinance): {exc}. Check network, date range, and API is running."
+        ) from exc
+
+    tickers = [t for t in tickers if t in prices.columns]
+    if len(tickers) < 5:
+        raise ValueError("Too few tradable tickers after filter; widen asset classes or extend dates")
+    prices = prices[tickers]
+    universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
+
+    oos = req.enable_oos
+    if oos:
+        prices_train, prices_val, train_end, val_start = split_train_validation(
+            prices, req.train_ratio
+        )
+    else:
+        prices_train, prices_val = prices, prices.iloc[0:0]
+        train_end = str(prices.index[-1].date())
+        val_start = train_end
+
+    def report_progress(
+        trial: int,
+        total: int,
+        message: str,
+        best_sharpe: float | None = None,
+        refinement_round: int = 0,
+        refinement_rounds_total: int = 0,
+        convergence_preview: list[dict[str, Any]] | None = None,
+    ) -> None:
+        if progress_cb:
+            progress_cb(
+                trial=trial,
+                trials_total=total,
+                message=message,
+                best_sharpe=best_sharpe,
+                refinement_round=refinement_round,
+                refinement_rounds_total=refinement_rounds_total,
+                convergence_preview=convergence_preview,
+            )
+
+    blueprint = RunBlueprint.from_request(req)
+    param_controls_dict = normalize_param_controls(
+        enforce_param_controls_for_asset_classes(
+            {k: v.model_dump() for k, v in (req.param_controls or {}).items()},
+            req.asset_classes,
+        ),
+        blueprint,
+    )
+    # Keep run-level objective/rebalance immutable unless user explicitly fixed differently.
+    param_controls_dict["objective_mode"] = {
+        "mode": "fixed",
+        "fixed": objective_effective,
+        "options": [objective_effective],
+    }
+    param_controls_dict["rebalance_freq"] = {
+        "mode": "fixed",
+        "fixed": rebalance_rule,
+        "options": [rebalance_rule],
+    }
+    pro_mode = _is_pro_mode(req)
+    convergence_history: list[dict[str, Any]] = []
+    refinement_meta: dict[str, Any] = {}
+    ai_generation: dict[str, Any] = {}
+    ai_param_sets: list[dict[str, Any]] = []
+
+    report_progress(
+        0,
+        req.trials if not pro_mode else req.refinement_batch_size,
+        f"Loaded {len(tickers)} tickers, {data_meta['rows']} trading days. "
+        f"Each rebalance: factor Top-N screen + allocator weights (not static weights).",
+    )
+
+    if pro_mode:
+        if not oos:
+            report_progress(
+                0,
+                req.refinement_batch_size,
+                "Pro: enable holdout split — trial selection uses in-sample only; OOS for final diagnostics…",
+            )
+        report_progress(
+            0,
+            req.refinement_batch_size,
+            "Pro: champion-challenger loop (AI learns from history)…",
+        )
+        records, convergence_history, refinement_meta = _run_iterative_search(
+            req,
+            prices_train=prices_train,
+            prices_val=prices_val,
+            oos=oos,
+            objective_effective=objective_effective,
+            rebalance_rule=rebalance_rule,
+            spec=spec,
+            universe_by_ticker=universe_by_ticker,
+            param_controls_dict=param_controls_dict,
+            report_progress=report_progress,
+        )
+        ai_generation = {
+            "enabled": True,
+            "model": "ai+iterative",
+            "seed_sets_requested": refinement_meta.get("trials_total"),
+            "seed_sets_used": refinement_meta.get("trials_total"),
+            "rationale": " | ".join(refinement_meta.get("ai_rationales", [])),
+            "rationales_by_round": refinement_meta.get("ai_rationales", []),
+            "error": None,
+        }
+    else:
+        def ai_progress(current: int, total: int, message: str) -> None:
+            report_progress(current, total, message)
+
+        report_progress(
+            0,
+            req.trials,
+            f"Starting AI — planning param seeds for {req.trials} trials…",
+        )
+        ai_generation = generate_ai_param_sets(
+            n=req.trials,
+            objective=objective_effective,
+            rebalance_freq=rebalance_rule,
+            max_weight_cap=req.max_weight,
+            max_turnover_cap=req.max_turnover,
+            top_n_cap=req.top_n,
+            tradable_count=len(tickers),
+            param_controls=param_controls_dict,
+            progress_cb=ai_progress,
+        )
+        ai_param_sets = ai_generation.get("param_sets", []) if ai_generation else []
+        ai_used = min(len(ai_param_sets), req.trials)
+        if ai_generation.get("enabled"):
+            seed_msg = f"AI done: {ai_used} seed sets for {req.trials} Optuna trials"
+            if ai_generation.get("seeds_capped"):
+                seed_msg += (
+                    f" (Gemini capped at {ai_generation.get('seeds_target', ai_used)}; "
+                    "extra trials are sampler-only)"
+                )
+            report_progress(
+                ai_used,
+                req.trials,
+                f"{seed_msg} — starting backtests…",
+            )
+        else:
+            err = ai_generation.get("error") or "unknown"
+            report_progress(
+                0,
+                req.trials,
+                f"AI off ({err}) — falling back to Optuna random search…",
+            )
+
+        def optuna_progress(trial: int, total: int, best_score: float | None) -> None:
+            scope = "in-sample" if oos else "full window"
+            msg = f"Optuna {trial}/{total} ({scope}, dynamic Top-N each rebalance)"
+            if best_score is not None:
+                obj_label, obj_text = _objective_progress_label_and_text(
+                    objective_effective, best_score
+                )
+                msg += f", best {obj_label} {obj_text}"
+            report_progress(trial, total, msg, best_score)
+
+        records = run_optuna_search(
+            prices_train,
+            max_weight=req.max_weight,
+            max_turnover=req.max_turnover,
+            top_n=req.top_n,
+            objective=objective_effective,
+            trials=req.trials,
+            ai_seed_param_sets=ai_param_sets,
+            param_controls=param_controls_dict,
+            spec=spec,
+            progress_cb=optuna_progress,
+            universe_by_ticker=universe_by_ticker,
+            prices_val=prices_val if oos and len(prices_val) > 60 else None,
+            overfitting_penalty_weight=float(req.overfitting_penalty_weight)
+            if oos
+            else 0.0,
+            apply_holdout_penalty=bool(oos and req.overfitting_penalty_weight > 0),
+            select_on_is=bool(oos and len(prices_val) > 60),
+            asset_classes=req.asset_classes,
+        )
+        assign_search_model_codes(records, next_model_no=[1])
+
+    trials_feasible = len(records)
+    trials_completed = (
+        int(refinement_meta.get("trials_total", 0))
+        if pro_mode
+        else req.trials
+    )
+    top_n_models = min(int(req.top_models), trials_feasible)
+    all_record_catalog: list[dict[str, Any]] = []
+    if pro_mode and refinement_meta.get("per_round"):
+        for pr in refinement_meta.get("per_round", []):
+            if not isinstance(pr, dict):
+                continue
+            pr_records = pr.get("records") or []
+            if not isinstance(pr_records, list):
+                continue
+            all_record_catalog.extend(
+                _build_portfolio_catalog_from_records(
+                    pr_records,
+                    source_label=f"round_{pr.get('round', '?')}",
+                )
+            )
+    else:
+        all_record_catalog.extend(
+            _build_portfolio_catalog_from_records(
+                records,
+                source_label="final_search",
+            )
+        )
+
+    report_progress(
+        trials_completed,
+        trials_completed,
+        f"Search done ({trials_feasible} feasible) — assembling top {top_n_models} candidates…",
+    )
+
+    candidates = _assemble_candidates_from_records(
+        records,
+        req=req,
+        top_n_models=top_n_models,
+        tickers=tickers,
+        prices=prices,
+        prices_train=prices_train,
+        prices_val=prices_val,
+        oos=oos,
+        rebalance_rule=rebalance_rule,
+        spec=spec,
+        universe_by_ticker=universe_by_ticker,
+        objective_effective=objective_effective,
+        train_start=str(prices_train.index[0].date()),
+        train_end=train_end,
+        val_start=val_start,
+        train_ratio=float(req.train_ratio),
+    )
+    candidates = _rerank_candidates_by_objective(candidates, objective_effective)
+    if pro_mode:
+        final_champion_params = refinement_meta.get("final_champion_params")
+        if isinstance(final_champion_params, dict):
+            champ_sig = _model_signature(final_champion_params)
+            for c in candidates:
+                if _model_signature(c.params or {}) == champ_sig:
+                    c.is_champion = True
+                    break
+    top = records[:top_n_models]
+    if pro_mode:
+        final_champion_params = refinement_meta.get("final_champion_params")
+        champion_record = (
+            _find_record_by_params(records, final_champion_params)
+            if isinstance(final_champion_params, dict)
+            else None
+        )
+        if champion_record is None and refinement_meta.get("per_round"):
+            last_pr = refinement_meta["per_round"][-1]
+            last_records = last_pr.get("records") or []
+            champion_record = best_record_in_pool(last_records, objective_effective)
+    else:
+        champion_record = best_record_in_pool(records, objective_effective)
+
+    pro_rounds: list[ProRoundSnapshot] | None = None
+    if pro_mode and refinement_meta.get("per_round"):
+        pro_rounds = []
+        for pr in refinement_meta["per_round"]:
+            pr_records: list[tuple[float, dict, dict]] = pr.get("records", [])
+            if not pr_records:
+                continue
+            pool_model_codes_meta = list(pr.get("pool_model_codes") or [])
+            if pool_model_codes_meta:
+                display_records, pool_model_codes_meta = records_for_pool_model_codes(
+                    pr_records,
+                    pool_model_codes_meta,
+                )
+            else:
+                allow_codes = pro_round_display_allowlist(
+                    pool_model_codes=None,
+                    incoming_champion_model_code=pr.get("incoming_champion_model_code"),
+                    round_winner_model_code=pr.get("round_winner_model_code"),
+                    round_challenger_model_codes=pr.get("round_challenger_model_codes"),
+                )
+                if allow_codes:
+                    display_records = [
+                        rec
+                        for rec in pr_records
+                        if str(rec[1].get("model_code", "")) in allow_codes
+                    ]
+                else:
+                    display_records = list(pr_records)
+            if not display_records:
+                continue
+            pool_model_codes = pool_model_codes_meta
+            pr_feasible = len(display_records)
+            pr_top_n = pro_round_report_top_n(
+                pool_model_codes=pool_model_codes_meta,
+                req_top_models=int(req.top_models),
+                feasible_count=pr_feasible,
+            )
+            report_progress(
+                trials_completed,
+                trials_completed,
+                f"Assembling round {pr['round']} report ({pr_top_n} candidates)…",
+            )
+            pr_candidates = _assemble_candidates_from_records(
+                display_records,
+                req=req,
+                top_n_models=pr_top_n,
+                tickers=tickers,
+                prices=prices,
+                prices_train=prices_train,
+                prices_val=prices_val,
+                oos=oos,
+                rebalance_rule=rebalance_rule,
+                spec=spec,
+                universe_by_ticker=universe_by_ticker,
+                objective_effective=objective_effective,
+                train_start=str(prices_train.index[0].date()),
+                train_end=train_end,
+                val_start=val_start,
+                train_ratio=float(req.train_ratio),
+            )
+            pr_candidates = _rerank_candidates_by_objective(
+                pr_candidates, objective_effective
+            )
+            cand_codes = {
+                str((c.params or {}).get("model_code", ""))
+                for c in pr_candidates
+                if (c.params or {}).get("model_code")
+            }
+            pool_code_set = {str(c) for c in pool_model_codes if c}
+            if cand_codes != pool_code_set:
+                logger.warning(
+                    "Pro round %s candidate codes %s != pool_model_codes %s",
+                    pr["round"],
+                    sorted(cand_codes),
+                    sorted(pool_code_set),
+                )
+                pool_model_codes = sorted(cand_codes)
+            winner_params = pr.get("round_winner_params")
+            incoming_params = pr.get("incoming_champion_params")
+            winner_sig = (
+                _model_signature(winner_params)
+                if isinstance(winner_params, dict)
+                else None
+            )
+            incoming_sig = (
+                _model_signature(incoming_params)
+                if isinstance(incoming_params, dict)
+                else None
+            )
+            incoming_model_code: str | None = pr.get("incoming_champion_model_code")
+            round_winner_model_code: str | None = pr.get("round_winner_model_code")
+            round_challenger_model_codes: list[str] = list(
+                pr.get("round_challenger_model_codes") or []
+            )
+            for c in pr_candidates:
+                sig = _model_signature(c.params or {})
+                if winner_sig and sig == winner_sig:
+                    c.is_champion = True
+                role = "challenger"
+                if incoming_sig and sig == incoming_sig:
+                    role = "incoming_champion"
+                if winner_sig and sig == winner_sig:
+                    role = "round_winner"
+                existing = dict(c.params or {})
+                existing["pro_round_role"] = role
+                existing["pro_round_index"] = int(
+                    (c.params or {}).get("pro_round_index", pr["round"])
+                )
+                existing["is_round_challenger"] = role == "challenger"
+                c.params = existing
+            pr_trials = int(pr.get("trials_in_round", len(pr_records)))
+            pr_frontier = _build_frontier_from_records(display_records, pr_trials)
+            pr_equity = pr_candidates[0].equity_curve if pr_candidates else []
+            pr_best = _best_candidate(pr_candidates)
+            pro_rounds.append(
+                ProRoundSnapshot(
+                    round=int(pr["round"]),
+                    improved=bool(pr.get("improved", False)),
+                    trials_in_round=pr_trials,
+                    round_best_adjusted_score=pr.get("round_best_adjusted_score"),
+                    incoming_champion_model_code=incoming_model_code,
+                    round_winner_model_code=round_winner_model_code,
+                    round_challenger_model_codes=round_challenger_model_codes,
+                    pool_model_codes=pool_model_codes,
+                    round_setup=dict(pr.get("round_setup") or {}),
+                    factor_ranges=dict(pr.get("factor_ranges") or {}),
+                    factor_choices=dict(pr.get("factor_choices") or {}),
+                    candidates=pr_candidates,
+                    equity_curve=pr_equity or [],
+                    efficient_frontier=pr_frontier,
+                    narrative_facts={
+                        "round": pr["round"],
+                        "round_label": f"Round {pr['round']}",
+                        "incoming_champion_score": pr.get("incoming_champion_score"),
+                        "improved": bool(pr.get("improved", False)),
+                        "trials_in_round": pr_trials,
+                        "trials_feasible": pr_feasible,
+                        "models_returned": len(pr_candidates),
+                        "model_codes": [
+                            str((c.params or {}).get("model_code", f"M?R{c.rank}"))
+                            for c in pr_candidates
+                        ],
+                        "incoming_champion_model_code": incoming_model_code,
+                        "round_winner_model_code": round_winner_model_code,
+                        "round_challenger_model_codes": round_challenger_model_codes,
+                        "round_best_adjusted_score": pr.get("round_best_adjusted_score"),
+                        "round_setup": pr.get("round_setup"),
+                        "factor_ranges": pr.get("factor_ranges"),
+                        "factor_choices": pr.get("factor_choices"),
+                        "top_sharpe": pr_best.sharpe if pr_best else None,
+                        "top_max_drawdown": pr_best.max_drawdown if pr_best else None,
+                        "top_cagr": pr_best.cagr if pr_best else None,
+                        "validation_sharpe": pr_best.validation_sharpe if pr_best else None,
+                        "train_sharpe": pr_best.train_sharpe if pr_best else None,
+                    },
+                )
+            )
+
+    best_params = (champion_record or top[0])[1]
+    best_alloc = AllocatorParams(
+        mode=best_params["mode"],
+        lookback_days=int(best_params["lookback_days"]),
+        shrinkage=float(best_params["shrinkage"]),
+        risk_aversion=float(best_params["risk_aversion"]),
+    )
+    best_cap = effective_max_weight_cap(
+        best_params.get("max_weight_actual"), req.max_weight
+    )
+    best_top_n_actual = int(best_params.get("top_n_actual", req.top_n))
+    best_no_trade_tol = float(best_params.get("no_trade_tol", 0.0))
+    best_turnover_penalty_mult = float(best_params.get("turnover_penalty_mult", 1.0))
+    best_max_turnover = float(best_params.get("max_turnover_actual", req.max_turnover))
+    best_class_budget = class_budget_from_params(
+        zero_disallowed_class_params(best_params, req.asset_classes),
+        asset_classes=req.asset_classes,
+    )
+    best_f_params = factor_params_from_dict(
+        best_params, default_lookback=best_alloc.lookback_days
+    )
+    full_m = simulate_dynamic_portfolio(
+        prices,
+        spec=BacktestSpec(
+            benchmark_ticker=spec.benchmark_ticker,
+            risk_free_rate=spec.risk_free_rate,
+            fee_bps=spec.fee_bps,
+            rebalance_rule=str(best_params.get("rebalance_freq", rebalance_rule)),
+            min_holdings=spec.min_holdings,
+            max_holdings=spec.max_holdings,
+        ),
+        max_weight=best_cap,
+        allocator=best_alloc,
+        top_n=best_top_n_actual,
+        factor_params=best_f_params,
+        no_trade_tol=best_no_trade_tol,
+        turnover_penalty_mult=best_turnover_penalty_mult,
+        max_turnover=best_max_turnover,
+        universe_by_ticker=universe_by_ticker,
+        class_budget=best_class_budget,
+    )
+    equity_curve = equity_curve_series(full_m["equity"])
+
+    frontier = _build_frontier_from_records(records, trials_completed)
+
+    best = _best_candidate(candidates) or candidates[0]
+    portfolio_catalog = all_record_catalog
+    bench = benchmark_metrics(prices, spec.benchmark_ticker, spec)
+
+    objective_map = {
+        "max_sharpe": "Max Sharpe",
+        "max_return": "Max Return",
+        "min_max_drawdown": "Min Max Drawdown",
+        "max_sortino": "Max Sortino",
+        "min_cvar": "Min CVaR",
+        "risk_parity_erc": "Risk Parity (ERC)",
+        "max_diversification": "Max Diversification",
+        "mean_variance_utility": "Mean-Variance Utility",
+        "custom": "Custom Objective",
+    }
+    narrative_facts: dict[str, Any] = {
+        "scenario_id": req.scenario_id,
+        "period": {"start": req.start_date, "end": req.end_date},
+        "train_period": {
+            "start": str(prices_train.index[0].date()),
+            "end": train_end,
+        },
+        "validation_period": (
+            {"start": val_start, "end": str(prices.index[-1].date())}
+            if oos and len(prices_val) > 0
+            else None
+        ),
+        "top_sharpe": best.sharpe,
+        "top_max_drawdown": best.max_drawdown,
+        "top_cagr": best.cagr,
+        "train_sharpe": best.train_sharpe,
+        "train_max_drawdown": best.train_max_drawdown,
+        "validation_sharpe": best.validation_sharpe,
+        "validation_max_drawdown": best.validation_max_drawdown,
+        "max_weight_constraint": req.max_weight,
+        "max_turnover_constraint": req.max_turnover,
+        "objective": objective_effective,
+        "objective_input": req.objective.value,
+        "objective_custom_text": req.objective_custom_text,
+        "objective_label": objective_map.get(objective_effective, objective_effective),
+        "data_source": data_meta["data_source"],
+        "data_quality": data_meta,
+        "engine": "optuna+pandas+pro" if pro_mode else "optuna+pandas",
+        "optimization_mode": req.optimization_mode.value,
+        "trials_requested": req.trials if not pro_mode else trials_completed,
+        "trials_feasible": trials_feasible,
+        "models_returned": len(candidates),
+        "models_total_catalog": len(portfolio_catalog),
+        "portfolio_catalog": portfolio_catalog,
+        "top_models_requested": req.top_models,
+        "trials_completed": trials_completed,
+        "pro_refinement": (
+            {
+                **{k: v for k, v in refinement_meta.items() if k != "per_round"},
+                "per_round": [
+                    {kk: vv for kk, vv in row.items() if kk != "records"}
+                    for row in (refinement_meta.get("per_round") or [])
+                    if isinstance(row, dict)
+                ],
+                "convergence_history": convergence_history,
+                "overfitting_penalty_weight": req.overfitting_penalty_weight,
+                "refinement_batch_size": req.refinement_batch_size,
+                "refinement_challengers_per_round": req.refinement_challengers_per_round,
+                "refinement_max_rounds": req.refinement_max_rounds,
+                "refinement_patience": req.refinement_patience,
+            }
+            if pro_mode
+            else None
+        ),
+        "backtest_methodology": (
+            "Dynamic rebalance: each date re-runs factor screen (Top N) then allocator weights. "
+            "When holdout is enabled, trial selection and Pro champions use in-sample metrics only; "
+            "holdout tail is reported once for generalization (oos_leaderboard), not re-used each Pro round."
+        ),
+        "trial_scores_select_on_is": bool(oos and len(prices_val) > 60),
+        "train_ratio": float(req.train_ratio) if oos else None,
+        "oos_leaderboard": (
+            _oos_leaderboard(candidates, objective_effective=objective_effective)
+            if oos and len(prices_val) > 60
+            else None
+        ),
+        "rebalance_freq": rebalance_rule,
+        "rebalance_count": full_m.get("rebalance_count"),
+        "rebalance_applied": full_m.get("rebalance_applied"),
+        "rebalance_skipped": full_m.get("rebalance_skipped"),
+        "universe_size": universe_meta["count"],
+        "tradable_count": len(tickers),
+        "asset_classes_filter": req.asset_classes,
+        "universe_categories_filter": req.universe_categories,
+        "universe_tickers_filter": req.universe_tickers,
+        "universe_filter_text": req.universe_filter_text,
+        "universe_refine": {
+            "source": universe_plan.get("source"),
+            "benchmark_ticker": spec.benchmark_ticker,
+            "selected_count": len(universe),
+            "rationale": universe_plan.get("rationale"),
+        },
+        "backtest_spec": {
+            "fee_bps": spec.fee_bps,
+            "rebalance_freq": spec.rebalance_rule,
+            "risk_free_rate": spec.risk_free_rate,
+            "benchmark": spec.benchmark_ticker,
+            "benchmark_metrics": bench,
+        },
+        "allocator": {
+            "type": "dynamic_rebalance",
+            "best_params": best_params,
+        },
+        "ai_param_generation": {
+            "enabled": bool(ai_generation.get("enabled", False)),
+            "model": ai_generation.get("model"),
+            "seed_sets_requested": trials_completed,
+            "seed_sets_used": (
+                int(refinement_meta.get("trials_total", 0))
+                if pro_mode
+                else min(len(ai_param_sets), req.trials)
+            ),
+            "rationale": ai_generation.get("rationale"),
+            "rationales_by_round": (
+                refinement_meta.get("ai_rationales")
+                if pro_mode
+                else (
+                    [ai_generation.get("rationale")]
+                    if ai_generation.get("rationale")
+                    else []
+                )
+            ),
+            "error": ai_generation.get("error"),
+        },
+        "top_holdings_count": len(best.weights),
+        "max_weight_observed": round(max(best.weights.values()), 4) if best.weights else None,
+        "max_weight_trial_param": round(best_cap, 4),
+        "max_weight_actual": round(best_cap, 4),
+        "max_weight_effective_cap": round(best_cap, 4),
+        "weight_cap_audit": (
+            (best.analytics or {}).get("weight_cap_audit")
+            if isinstance(best.analytics, dict)
+            else None
+        ),
+        "weight_cap_violation": bool(
+            isinstance((best.analytics or {}).get("weight_cap_audit"), dict)
+            and (
+                (best.analytics or {}).get("weight_cap_audit", {}).get("violation_count", 0)
+                > 0
+                or not (best.analytics or {}).get("weight_cap_audit", {}).get("feasible", True)
+            )
+        ),
+        "param_bounds_clips": (best_params or {}).get("bounds_violations"),
+        "report_horizons": _champion_report_horizons(
+            best,
+            oos_enabled=oos,
+            period={"start": req.start_date, "end": req.end_date},
+            train_period={
+                "start": str(prices_train.index[0].date()),
+                "end": train_end,
+            },
+            validation_period=(
+                {"start": val_start, "end": str(prices.index[-1].date())}
+                if oos and len(prices_val) > 0
+                else None
+            ),
+        ),
+        "report_analysis_note": (
+            "Trial selection and Pro champions use in-sample metrics only when holdout is enabled. "
+            "Report narrative should compare in-sample, out-of-sample, and full-sample (ttl) horizons."
+            if oos and len(prices_val) > 60
+            else "Full-sample metrics apply; no holdout split."
+        ),
+        "oos_enabled": oos,
+        "metrics_trustworthy": data_meta["data_source"] == "yfinance"
+        and not full_m.get("metrics_suspect", False),
+    }
+
+    return BacktestResult(
+        job_id=job_id,
+        scenario_id=req.scenario_id,
+        benchmark=spec.benchmark_ticker,
+        period={"start": req.start_date, "end": req.end_date},
+        candidates=candidates,
+        equity_curve=equity_curve,
+        efficient_frontier=frontier,
+        narrative_facts=narrative_facts,
+        pro_rounds=pro_rounds,
+    )

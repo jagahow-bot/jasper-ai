@@ -1,0 +1,21 @@
+{
+  "name": "ai-quant-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev:kill && node -e \"setTimeout(()=>process.exit(0),1500)\" && concurrently -n api,web -c cyan,green \"npm run api:dev\" \"npm run dev:web:wait\"",
+    "dev:kill": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-kill-ports.ps1",
+    "dev:web:wait": "wait-on -d 2000 http-get://127.0.0.1:8001/health -t 120000 -i 1000 && npm run dev:web",
+    "dev:web": "npm run dev --prefix apps/web",
+    "api:dev": "cd apps/api && .venv\\Scripts\\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8001",
+    "api:dev:reload": "cd apps/api && .venv\\Scripts\\python.exe -m uvicorn main:app --reload --reload-delay 2 --host 127.0.0.1 --port 8001",
+    "build": "npm run build --prefix apps/web",
+    "start": "npm run start --prefix apps/web",
+    "lint": "npm run lint --prefix apps/web",
+    "sync-universe": "node -e \"require('fs').copyFileSync('shared/etf-universe.json','apps/web/src/data/etf-universe.json')\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "wait-on": "^8.0.5"
+  }
+}

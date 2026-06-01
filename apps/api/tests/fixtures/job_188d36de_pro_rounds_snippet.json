@@ -1,0 +1,32 @@
+{
+  "job_id": "188d36de-457d-45b4-9b71-880b974da67e",
+  "note": "Captured before fix — M0006 (R2 loser) leaked into R3–R5 pools while M0001 held champion.",
+  "rounds": [
+    {
+      "round": 1,
+      "pool_model_codes": ["M0001", "M0002", "M0003", "M0004", "M0005"],
+      "candidate_codes": ["M0001", "M0002", "M0003", "M0004", "M0005"]
+    },
+    {
+      "round": 2,
+      "pool_model_codes": ["M0001", "M0006", "M0007", "M0008", "M0009"],
+      "candidate_codes": ["M0001", "M0006", "M0007", "M0008", "M0009"]
+    },
+    {
+      "round": 3,
+      "pool_model_codes": ["M0001", "M0010", "M0006", "M0011", "M0012"],
+      "leaked_from_prior_rounds": ["M0006"],
+      "candidate_codes": ["M0001", "M0010", "M0006", "M0011", "M0012"]
+    },
+    {
+      "round": 4,
+      "pool_model_codes": ["M0001", "M0006", "M0013", "M0014", "M0015"],
+      "leaked_from_prior_rounds": ["M0006"]
+    },
+    {
+      "round": 5,
+      "pool_model_codes": ["M0001", "M0006", "M0016", "M0017", "M0018"],
+      "leaked_from_prior_rounds": ["M0006"]
+    }
+  ]
+}

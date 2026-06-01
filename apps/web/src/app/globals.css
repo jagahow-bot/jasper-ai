@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #030306;
+  --foreground: #d4ffd4;
+  --surface: #0a0a12;
+  --surface-2: #0f1020;
+  --border: #1a3d1a;
+  --neon: #39ff14;
+  --neon-dim: #1a8f1a;
+  --cyan: #00f5ff;
+  --magenta: #ff2bd6;
+  --amber: #ffb000;
+  --text-dim: #5a7a5a;
+  --pixel-shadow: 4px 4px 0 #000;
+}
+
+@layer base {
+  body {
+    color: var(--foreground);
+    background: var(--background);
+    font-family: var(--font-terminal), ui-monospace, monospace;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-pixel {
+    font-family: var(--font-pixel), monospace;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}
+
+/* CRT scanlines + vignette */
+body::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.12) 2px,
+    rgba(0, 0, 0, 0.12) 4px
+  );
+  opacity: 0.35;
+}
+
+body::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+@layer components {
+  .pixel-panel {
+    @apply relative border-2 bg-[var(--surface)] p-5;
+    border-color: var(--neon-dim);
+    box-shadow: var(--pixel-shadow), 0 0 24px rgba(57, 255, 20, 0.06);
+  }
+
+  .pixel-panel::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--neon), transparent);
+    opacity: 0.5;
+  }
+
+  .pixel-panel-cyan {
+    border-color: #0a4a4a;
+    box-shadow: var(--pixel-shadow), 0 0 20px rgba(0, 245, 255, 0.08);
+  }
+
+  .pixel-panel-cyan::before {
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  }
+
+  .pixel-btn {
+    @apply border-2 px-4 py-3 font-pixel text-[10px] uppercase tracking-wider transition;
+    border-color: var(--neon);
+    background: #0a1a0a;
+    color: var(--neon);
+    box-shadow: var(--pixel-shadow);
+  }
+
+  .pixel-btn:hover {
+    background: var(--neon);
+    color: #030306;
+    box-shadow: 2px 2px 0 #000;
+    transform: translate(2px, 2px);
+  }
+
+  .pixel-btn-amber {
+    border-color: var(--amber);
+    color: var(--amber);
+    background: #1a1400;
+  }
+
+  .pixel-btn-amber:hover {
+    background: var(--amber);
+    color: #030306;
+  }
+
+  .pixel-badge {
+    @apply border px-2 py-0.5 text-[10px] uppercase tracking-wide;
+    border-color: var(--neon-dim);
+    color: var(--neon);
+    background: rgba(57, 255, 20, 0.06);
+  }
+
+  .pixel-badge-cyan {
+    border-color: #0a5a5a;
+    color: var(--cyan);
+    background: rgba(0, 245, 255, 0.06);
+  }
+
+  .pixel-badge-warn {
+    border-color: #5a4a00;
+    color: var(--amber);
+    background: rgba(255, 176, 0, 0.08);
+  }
+
+  .pixel-input {
+    @apply w-full border-2 bg-[#050508] px-3 py-2 text-sm;
+    border-color: var(--border);
+    color: var(--foreground);
+  }
+
+  .pixel-input:focus {
+    outline: none;
+    border-color: var(--neon);
+    box-shadow: 0 0 8px rgba(57, 255, 20, 0.25);
+  }
+
+  .pixel-chip {
+    @apply border-2 px-3 py-1 text-[11px] uppercase tracking-wide transition;
+    border-color: var(--border);
+    color: var(--text-dim);
+    background: #080810;
+  }
+
+  .pixel-chip-active {
+    border-color: var(--neon);
+    color: var(--neon);
+    background: rgba(57, 255, 20, 0.1);
+    box-shadow: 0 0 12px rgba(57, 255, 20, 0.15);
+  }
+
+  .text-dim {
+    color: var(--text-dim);
+  }
+
+  .glow-title {
+    text-shadow: 0 0 12px rgba(57, 255, 20, 0.5);
+  }
+}
+
+/* Pixel-style range slider accent */
+input[type="range"] {
+  accent-color: var(--neon);
+}

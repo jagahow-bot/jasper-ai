@@ -1,0 +1,2429 @@
+{
+  "version": "1.1",
+  "updated": "2026-05-29",
+  "criteria": "US-listed, typically >$500M AUM, diversified across asset classes and sub-categories",
+  "universe": [
+    {
+      "ticker": "ACWI",
+      "name": "全球股票",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "global_broad"
+    },
+    {
+      "ticker": "ARKG",
+      "name": "Genomic revolution",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "ARKK",
+      "name": "創新主動",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "ARKW",
+      "name": "Next-gen internet",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "ASHR",
+      "name": "China A-shares",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "AVUV",
+      "name": "US small-cap value",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "BOTZ",
+      "name": "機器人與 AI",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "CIBR",
+      "name": "Cybersecurity",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "CLOU",
+      "name": "Cloud computing (Global X)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "CQQQ",
+      "name": "China tech",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_thematic"
+    },
+    {
+      "ticker": "DBEF",
+      "name": "Dev ex-US hedged",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "DFAC",
+      "name": "US core equity",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "DGRO",
+      "name": "Dividend growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "DGRW",
+      "name": "Dividend growth (WisdomTree)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "DIA",
+      "name": "道瓊30",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "DRIV",
+      "name": "Electric vehicles",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "DVY",
+      "name": "Dividend achievers",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "DXJ",
+      "name": "Japan currency hedged",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "ECH",
+      "name": "Chile",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EEM",
+      "name": "新興市場",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_em"
+    },
+    {
+      "ticker": "EFA",
+      "name": "已開發市場（除美）",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "EFAV",
+      "name": "EAFE min vol",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "EFV",
+      "name": "EAFE value",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "EIDO",
+      "name": "Indonesia",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EIS",
+      "name": "Israel",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EMQQ",
+      "name": "EM internet",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_thematic"
+    },
+    {
+      "ticker": "EMXC",
+      "name": "EM ex-China",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_em"
+    },
+    {
+      "ticker": "ENOR",
+      "name": "Norway",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EPHE",
+      "name": "Philippines",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EPI",
+      "name": "India (WisdomTree)",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EPOL",
+      "name": "Poland",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "ESGU",
+      "name": "ESG US",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_esg"
+    },
+    {
+      "ticker": "ESGV",
+      "name": "ESG US (Vanguard)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_esg"
+    },
+    {
+      "ticker": "EWA",
+      "name": "澳洲",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWC",
+      "name": "加拿大",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWD",
+      "name": "Sweden",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWG",
+      "name": "德國",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWH",
+      "name": "Hong Kong",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWI",
+      "name": "Italy",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWJ",
+      "name": "日本",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWL",
+      "name": "Switzerland",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWM",
+      "name": "Malaysia",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWN",
+      "name": "Netherlands",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWP",
+      "name": "Spain",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWQ",
+      "name": "France",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWS",
+      "name": "Singapore",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWT",
+      "name": "台灣",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWU",
+      "name": "英國",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWUS",
+      "name": "UK small-cap",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "EWW",
+      "name": "Mexico",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWY",
+      "name": "南韓",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EWZ",
+      "name": "巴西",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "EZU",
+      "name": "歐元區",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "FAN",
+      "name": "Wind",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "FDN",
+      "name": "Internet",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "FEZ",
+      "name": "歐元區大型",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "FINX",
+      "name": "Fintech",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "intl_thematic"
+    },
+    {
+      "ticker": "FM",
+      "name": "Frontier markets",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_frontier"
+    },
+    {
+      "ticker": "FTEC",
+      "name": "Technology (Fidelity)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "FVD",
+      "name": "Value line dividend",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "FXH",
+      "name": "Health care (First Trust)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "FXI",
+      "name": "中國大型 (大型)",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "GDXJ",
+      "name": "Junior gold miners",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "GEM",
+      "name": "Active EM multifactor",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_em"
+    },
+    {
+      "ticker": "GWL",
+      "name": "Developed world",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "global_broad"
+    },
+    {
+      "ticker": "GXC",
+      "name": "China large-cap (SPDR)",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "HACK",
+      "name": "Cybersecurity (ETFMG)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "HDV",
+      "name": "高股息 (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "HEFA",
+      "name": "Dev ex-US currency hedged",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "HEWJ",
+      "name": "Japan hedged",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "IBB",
+      "name": "Biotech (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "ICLN",
+      "name": "潔淨能源",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "IDU",
+      "name": "Utilities (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IEFA",
+      "name": "已開發市場 (iShares)",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "IEMG",
+      "name": "新興市場 (iShares)",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_em"
+    },
+    {
+      "ticker": "IEUR",
+      "name": "歐洲",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "IGV",
+      "name": "Software (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IHF",
+      "name": "Health care providers",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IHI",
+      "name": "Medical devices",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IJH",
+      "name": "S&P 中型股 (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "IJK",
+      "name": "S&P mid-cap growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "IJR",
+      "name": "S&P 小型股 600",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "IJS",
+      "name": "S&P small-cap value",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "IJT",
+      "name": "S&P small-cap growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "INDA",
+      "name": "印度",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "IOO",
+      "name": "Global 100",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "global_broad"
+    },
+    {
+      "ticker": "ITA",
+      "name": "Aerospace & defense (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "ITB",
+      "name": "Home construction",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "ITOT",
+      "name": "全美股市 (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "IVE",
+      "name": "S&P 500 value (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "IVV",
+      "name": "S&P 500 (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "IVW",
+      "name": "S&P 500 growth (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "IWB",
+      "name": "羅素1000大型",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "IWD",
+      "name": "羅素1000價值",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "IWF",
+      "name": "羅素1000成長",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "IWM",
+      "name": "羅素2000小型股",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "IWN",
+      "name": "Russell 2000 value",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "IWO",
+      "name": "Russell 2000 growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "IWV",
+      "name": "羅素3000",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "IXUS",
+      "name": "全球（除美）iShares",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_broad"
+    },
+    {
+      "ticker": "IYC",
+      "name": "Consumer disc (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IYE",
+      "name": "Energy (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IYF",
+      "name": "Financials (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IYK",
+      "name": "Consumer staples (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IYM",
+      "name": "Materials (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IYT",
+      "name": "Transportation",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "IYW",
+      "name": "Technology (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "JETS",
+      "name": "Airlines",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "KBE",
+      "name": "Banks",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "KIE",
+      "name": "Insurance",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "KRE",
+      "name": "Regional banks",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "KSA",
+      "name": "Saudi Arabia",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "KWEB",
+      "name": "中國網路",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_thematic"
+    },
+    {
+      "ticker": "LIT",
+      "name": "Lithium & battery",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "LRGF",
+      "name": "US large-cap multifactor",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "MCHI",
+      "name": "中國大型股",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "MDY",
+      "name": "S&P 中型股 400",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "MGK",
+      "name": "US mega-cap growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_growth"
+    },
+    {
+      "ticker": "MTUM",
+      "name": "動能因子",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "NLR",
+      "name": "Nuclear",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "PAVE",
+      "name": "Infrastructure",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "PPH",
+      "name": "Pharma (VanEck)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "PRF",
+      "name": "Russell 1000 style neutral",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "PRFZ",
+      "name": "Russell 2000 style neutral",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "QAT",
+      "name": "Qatar",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "QQQ",
+      "name": "納斯達克100",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_growth"
+    },
+    {
+      "ticker": "QQQM",
+      "name": "納斯達克100 (低成本)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_growth"
+    },
+    {
+      "ticker": "QUAL",
+      "name": "品質因子",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "ROBO",
+      "name": "Robotics",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "RSP",
+      "name": "S&P 500 equal weight",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "SCHB",
+      "name": "全美股市 (Schwab)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "SCHD",
+      "name": "股息成長",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "SCHE",
+      "name": "EM small-cap",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_em"
+    },
+    {
+      "ticker": "SCHX",
+      "name": "US large-cap core",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "SIZE",
+      "name": "規模因子",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "SKYY",
+      "name": "Cloud computing",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "SMH",
+      "name": "Semiconductors (VanEck)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "SOXX",
+      "name": "Semiconductors (iShares)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "SPEM",
+      "name": "EM (SPDR)",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_em"
+    },
+    {
+      "ticker": "SPHD",
+      "name": "S&P 500 high dividend low vol",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "SPHQ",
+      "name": "S&P 500 quality",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "SPLG",
+      "name": "S&P 500 low cost",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "SPLV",
+      "name": "S&P 500低波動",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "SPMD",
+      "name": "S&P 400 mid-cap",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "SPMO",
+      "name": "S&P 500 momentum",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "SPSM",
+      "name": "S&P 600 small-cap",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "SPTM",
+      "name": "US total market",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "SPY",
+      "name": "S&P 500",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "SPYG",
+      "name": "S&P 500 growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "SPYV",
+      "name": "S&P 500 value",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "SUSA",
+      "name": "MSCI USA ESG",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_esg"
+    },
+    {
+      "ticker": "TAN",
+      "name": "Solar",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "THD",
+      "name": "Thailand",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "UAE",
+      "name": "UAE",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "URA",
+      "name": "Uranium",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_thematic"
+    },
+    {
+      "ticker": "URTH",
+      "name": "全球已開發",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "global_broad"
+    },
+    {
+      "ticker": "USMC",
+      "name": "US mega-cap",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "USMV",
+      "name": "MSCI美國最小波動",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "VB",
+      "name": "小型股",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "VBK",
+      "name": "Small-cap growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "VBR",
+      "name": "Small-cap value",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "VCR",
+      "name": "Consumer disc Vanguard",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "VDC",
+      "name": "Consumer staples Vanguard",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "VDE",
+      "name": "能源 Vanguard",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "VEA",
+      "name": "已開發市場 (Vanguard)",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "VEU",
+      "name": "All-world ex-US",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "global_broad"
+    },
+    {
+      "ticker": "VFH",
+      "name": "金融 Vanguard",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "VGK",
+      "name": "Europe",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_developed"
+    },
+    {
+      "ticker": "VGT",
+      "name": "科技 (Vanguard)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "VHT",
+      "name": "醫療 Vanguard",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "VIG",
+      "name": "股息成長 (Vanguard)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "VIOG",
+      "name": "S&P 600 growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "VIOO",
+      "name": "S&P 600",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "VIOV",
+      "name": "S&P 600 value",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "VIS",
+      "name": "Industrials Vanguard",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "VLUE",
+      "name": "價值因子",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "VNM",
+      "name": "Vietnam",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_country"
+    },
+    {
+      "ticker": "VO",
+      "name": "中型股",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_size"
+    },
+    {
+      "ticker": "VONE",
+      "name": "Russell 1000",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "VOO",
+      "name": "S&P 500 (Vanguard)",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "VOX",
+      "name": "Communication Vanguard",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "VPU",
+      "name": "Utilities Vanguard",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "VT",
+      "name": "全球股票 Vanguard",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "global_broad"
+    },
+    {
+      "ticker": "VTI",
+      "name": "全美股市",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "VTV",
+      "name": "大型價值",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "VUG",
+      "name": "大型成長",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "VV",
+      "name": "US large-cap",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_broad"
+    },
+    {
+      "ticker": "VWO",
+      "name": "新興市場 (Vanguard)",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_em"
+    },
+    {
+      "ticker": "VXUS",
+      "name": "全球（除美）",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_broad"
+    },
+    {
+      "ticker": "VYM",
+      "name": "高股息",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_factor"
+    },
+    {
+      "ticker": "XAR",
+      "name": "Aerospace & defense",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XBI",
+      "name": "Biotech",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XES",
+      "name": "Oil & gas equipment",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XHB",
+      "name": "Homebuilders",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XHE",
+      "name": "Healthcare equipment",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XHS",
+      "name": "Health care services",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XLB",
+      "name": "原物料",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XLC",
+      "name": "通訊服務",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XLE",
+      "name": "能源類股",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XLF",
+      "name": "金融類股",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XLI",
+      "name": "工業類股",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XLK",
+      "name": "科技類股",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XLP",
+      "name": "必需消費",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XLU",
+      "name": "公用事業",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XLV",
+      "name": "醫療類股",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XLY",
+      "name": "非必需消費",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_sector"
+    },
+    {
+      "ticker": "XME",
+      "name": "Metals & mining",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XNTK",
+      "name": "Nasdaq 100 Technology",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XOP",
+      "name": "Oil & gas exploration",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XPH",
+      "name": "Pharma",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XRT",
+      "name": "Retail",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XSD",
+      "name": "Semiconductor SPDR",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XSW",
+      "name": "Software",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XTL",
+      "name": "Telecom",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "XWEB",
+      "name": "Internet & direct marketing",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_industry"
+    },
+    {
+      "ticker": "AGG",
+      "name": "美國綜合債券 iShares",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "aggregate"
+    },
+    {
+      "ticker": "ANGL",
+      "name": "Fallen angels (VanEck)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_hy"
+    },
+    {
+      "ticker": "BIL",
+      "name": "1-3月美債",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "BIV",
+      "name": "Intermediate bond Vanguard",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "aggregate"
+    },
+    {
+      "ticker": "BLV",
+      "name": "Long-term bond Vanguard",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "aggregate"
+    },
+    {
+      "ticker": "BND",
+      "name": "美國綜合債券",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "aggregate"
+    },
+    {
+      "ticker": "BNDX",
+      "name": "全球債券（除美）",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "intl_bond"
+    },
+    {
+      "ticker": "BSV",
+      "name": "Short-term bond Vanguard",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "aggregate"
+    },
+    {
+      "ticker": "BWX",
+      "name": "International Treasury",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "intl_bond"
+    },
+    {
+      "ticker": "BWZ",
+      "name": "Short-term intl Treasury",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "intl_bond"
+    },
+    {
+      "ticker": "CMBS",
+      "name": "CMBS",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "bond_mbs"
+    },
+    {
+      "ticker": "EDV",
+      "name": "Extended duration Treasury",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "EMB",
+      "name": "新興市場美元債",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "em_bond"
+    },
+    {
+      "ticker": "EMHY",
+      "name": "EM USD HY",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "em_bond"
+    },
+    {
+      "ticker": "EMLC",
+      "name": "EM local currency bonds",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "em_bond"
+    },
+    {
+      "ticker": "FALN",
+      "name": "Fallen angels HY",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_hy"
+    },
+    {
+      "ticker": "FLOT",
+      "name": "Investment-grade floating rate",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "bond_floating"
+    },
+    {
+      "ticker": "GNMA",
+      "name": "GNMA bonds",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "bond_mbs"
+    },
+    {
+      "ticker": "GOVT",
+      "name": "美債全期限",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "HYD",
+      "name": "High yield muni",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "muni"
+    },
+    {
+      "ticker": "HYG",
+      "name": "高收益債",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_hy"
+    },
+    {
+      "ticker": "HYLB",
+      "name": "High yield corporate",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_hy"
+    },
+    {
+      "ticker": "IAGG",
+      "name": "全球債券 iShares",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "intl_bond"
+    },
+    {
+      "ticker": "IEF",
+      "name": "中期美債 7-10年",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "IEI",
+      "name": "中短期美債 3-7年",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "IGIB",
+      "name": "Intermediate IG corporate",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_ig"
+    },
+    {
+      "ticker": "IGLB",
+      "name": "Long-term IG corporate",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_ig"
+    },
+    {
+      "ticker": "IGOV",
+      "name": "International Treasury (iShares)",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "intl_bond"
+    },
+    {
+      "ticker": "IGSB",
+      "name": "Short-term IG corporate",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_ig"
+    },
+    {
+      "ticker": "JNK",
+      "name": "高收益債 (SPDR)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_hy"
+    },
+    {
+      "ticker": "JPMB",
+      "name": "EM corporate",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "em_bond"
+    },
+    {
+      "ticker": "LEMB",
+      "name": "EM local currency (iShares)",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "em_bond"
+    },
+    {
+      "ticker": "LMBS",
+      "name": "Mortgage-backed securities",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "bond_mbs"
+    },
+    {
+      "ticker": "LQD",
+      "name": "投資級公司債",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_ig"
+    },
+    {
+      "ticker": "LTPZ",
+      "name": "Long-term TIPS",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "inflation"
+    },
+    {
+      "ticker": "MBB",
+      "name": "MBS (iShares)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "bond_mbs"
+    },
+    {
+      "ticker": "MUB",
+      "name": "市政債",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "muni"
+    },
+    {
+      "ticker": "MUNI",
+      "name": "National muni",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "muni"
+    },
+    {
+      "ticker": "PCY",
+      "name": "EM sovereign debt",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "em_bond"
+    },
+    {
+      "ticker": "PHB",
+      "name": "High yield (PowerShares)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_hy"
+    },
+    {
+      "ticker": "SCHO",
+      "name": "Short-term Treasury (Schwab)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "SCHP",
+      "name": "TIPS Schwab",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "inflation"
+    },
+    {
+      "ticker": "SCHR",
+      "name": "Intermediate Treasury (Schwab)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "SCHZ",
+      "name": "US aggregate bond",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "aggregate"
+    },
+    {
+      "ticker": "SGOV",
+      "name": "0-3 month T-bills",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "SHV",
+      "name": "超短期美債",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "SHY",
+      "name": "短期美債 1-3年",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "SHYG",
+      "name": "Short-term HY",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_hy"
+    },
+    {
+      "ticker": "SJNK",
+      "name": "Short-term HY (SPDR)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_hy"
+    },
+    {
+      "ticker": "SPAB",
+      "name": "US aggregate (SPDR)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "aggregate"
+    },
+    {
+      "ticker": "SPBO",
+      "name": "Global IG corporate",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_ig"
+    },
+    {
+      "ticker": "SPTI",
+      "name": "Intermediate Treasury",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "SPTL",
+      "name": "Long-term Treasury",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "SPTS",
+      "name": "Short-term Treasury",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "STIP",
+      "name": "短期 TIPS",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "inflation"
+    },
+    {
+      "ticker": "SUB",
+      "name": "Short-term muni",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "muni"
+    },
+    {
+      "ticker": "TBIL",
+      "name": "T-bill",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "TFLO",
+      "name": "Floating rate Treasury",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "TIP",
+      "name": "通膨連動債 TIPS",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "inflation"
+    },
+    {
+      "ticker": "TIPX",
+      "name": "TIPS broad",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "inflation"
+    },
+    {
+      "ticker": "TLT",
+      "name": "長天期美債 20+年",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "USFR",
+      "name": "Floating rate Treasury (WisdomTree)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "bond_floating"
+    },
+    {
+      "ticker": "USHY",
+      "name": "高收益 (iShares)",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_hy"
+    },
+    {
+      "ticker": "VCIT",
+      "name": "中期公司債",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_ig"
+    },
+    {
+      "ticker": "VCSH",
+      "name": "短期公司債",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "credit_ig"
+    },
+    {
+      "ticker": "VGIT",
+      "name": "中期美債 Vanguard",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "VGLT",
+      "name": "長期美債 Vanguard",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "VGSH",
+      "name": "Short-term Treasury Vanguard",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "VMBS",
+      "name": "MBS Vanguard",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "bond_mbs"
+    },
+    {
+      "ticker": "VTEB",
+      "name": "市政債 Vanguard",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "muni"
+    },
+    {
+      "ticker": "VTIP",
+      "name": "Short-term TIPS Vanguard",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "inflation"
+    },
+    {
+      "ticker": "VUSB",
+      "name": "Ultra-short bond",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "VWOB",
+      "name": "新興市場債 Vanguard",
+      "asset_class": "bond",
+      "region": "intl",
+      "category": "em_bond"
+    },
+    {
+      "ticker": "ZROZ",
+      "name": "25+ year Treasury",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "treasury"
+    },
+    {
+      "ticker": "BCI",
+      "name": "Broad commodities",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "broad"
+    },
+    {
+      "ticker": "BNO",
+      "name": "Brent crude",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "energy"
+    },
+    {
+      "ticker": "COMT",
+      "name": "Commodity broad",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "broad"
+    },
+    {
+      "ticker": "CORN",
+      "name": "Corn",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "commodity_agriculture"
+    },
+    {
+      "ticker": "CPER",
+      "name": "銅",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "industrial"
+    },
+    {
+      "ticker": "DBA",
+      "name": "Agriculture broad",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "commodity_agriculture"
+    },
+    {
+      "ticker": "DBC",
+      "name": "商品指數",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "broad"
+    },
+    {
+      "ticker": "GCC",
+      "name": "Commodity broad (WisdomTree)",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "broad"
+    },
+    {
+      "ticker": "GDX",
+      "name": "金礦股",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "precious"
+    },
+    {
+      "ticker": "GLD",
+      "name": "黃金",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "precious"
+    },
+    {
+      "ticker": "GLDM",
+      "name": "Gold mini",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "precious"
+    },
+    {
+      "ticker": "GSG",
+      "name": "商品 S&P GSCI",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "broad"
+    },
+    {
+      "ticker": "IAU",
+      "name": "黃金 (低成本)",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "precious"
+    },
+    {
+      "ticker": "PALL",
+      "name": "Palladium",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "precious"
+    },
+    {
+      "ticker": "PDBC",
+      "name": "商品指數 (主動)",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "broad"
+    },
+    {
+      "ticker": "PPLT",
+      "name": "Platinum",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "precious"
+    },
+    {
+      "ticker": "SGOL",
+      "name": "Gold (Aberdeen)",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "precious"
+    },
+    {
+      "ticker": "SLV",
+      "name": "白銀",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "precious"
+    },
+    {
+      "ticker": "SOYB",
+      "name": "Soybeans",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "commodity_agriculture"
+    },
+    {
+      "ticker": "TAGS",
+      "name": "Agriculture",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "commodity_agriculture"
+    },
+    {
+      "ticker": "UNG",
+      "name": "Natural gas",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "energy"
+    },
+    {
+      "ticker": "USL",
+      "name": "Oil",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "energy"
+    },
+    {
+      "ticker": "USO",
+      "name": "原油",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "energy"
+    },
+    {
+      "ticker": "WEAT",
+      "name": "Wheat",
+      "asset_class": "commodity",
+      "region": "global",
+      "category": "commodity_agriculture"
+    },
+    {
+      "ticker": "HAUZ",
+      "name": "International residential",
+      "asset_class": "real_estate",
+      "region": "intl",
+      "category": "reit"
+    },
+    {
+      "ticker": "INDS",
+      "name": "Industrial REIT",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "reit_sector"
+    },
+    {
+      "ticker": "IYR",
+      "name": "美國房地產",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "reit"
+    },
+    {
+      "ticker": "MORT",
+      "name": "Mortgage REIT (VanEck)",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "reit_mortgage"
+    },
+    {
+      "ticker": "REET",
+      "name": "全球 REITs",
+      "asset_class": "real_estate",
+      "region": "global",
+      "category": "reit"
+    },
+    {
+      "ticker": "REM",
+      "name": "Mortgage REIT",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "reit_mortgage"
+    },
+    {
+      "ticker": "RWO",
+      "name": "Global REIT",
+      "asset_class": "real_estate",
+      "region": "global",
+      "category": "reit"
+    },
+    {
+      "ticker": "RWR",
+      "name": "REIT (SPDR)",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "reit"
+    },
+    {
+      "ticker": "SCHH",
+      "name": "美國 REITs Schwab",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "reit"
+    },
+    {
+      "ticker": "USRT",
+      "name": "REIT core",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "reit"
+    },
+    {
+      "ticker": "VNQ",
+      "name": "美國 REITs",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "reit"
+    },
+    {
+      "ticker": "VNQI",
+      "name": "國際 REITs",
+      "asset_class": "real_estate",
+      "region": "intl",
+      "category": "reit"
+    },
+    {
+      "ticker": "XLRE",
+      "name": "房地產類股",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "reit"
+    },
+    {
+      "ticker": "AMLP",
+      "name": "MLP 能源基礎建設",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "income"
+    },
+    {
+      "ticker": "BKLN",
+      "name": "銀行貸款",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "credit_alt"
+    },
+    {
+      "ticker": "BTAL",
+      "name": "Anti-beta",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "alt_hedge"
+    },
+    {
+      "ticker": "CTA",
+      "name": "Managed futures (Simplify)",
+      "asset_class": "alternative",
+      "region": "global",
+      "category": "alt_managed_futures"
+    },
+    {
+      "ticker": "DBMF",
+      "name": "Managed futures",
+      "asset_class": "alternative",
+      "region": "global",
+      "category": "alt_managed_futures"
+    },
+    {
+      "ticker": "ENFR",
+      "name": "Energy infrastructure",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "income"
+    },
+    {
+      "ticker": "FTSL",
+      "name": "Senior loans (First Trust)",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "credit_alt"
+    },
+    {
+      "ticker": "ICAP",
+      "name": "Infrastructure income",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "income"
+    },
+    {
+      "ticker": "KMLM",
+      "name": "Managed futures (KFA)",
+      "asset_class": "alternative",
+      "region": "global",
+      "category": "alt_managed_futures"
+    },
+    {
+      "ticker": "MLPA",
+      "name": "MLP",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "income"
+    },
+    {
+      "ticker": "MNA",
+      "name": "Merger arbitrage",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "alt_hedge"
+    },
+    {
+      "ticker": "PFF",
+      "name": "優先股",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "preferred"
+    },
+    {
+      "ticker": "PFFA",
+      "name": "Preferred & income",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "preferred"
+    },
+    {
+      "ticker": "PFFD",
+      "name": "Preferred securities",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "preferred"
+    },
+    {
+      "ticker": "PGX",
+      "name": "優先股 (全球)",
+      "asset_class": "alternative",
+      "region": "global",
+      "category": "preferred"
+    },
+    {
+      "ticker": "PUTW",
+      "name": "Covered put write",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "alt_hedge"
+    },
+    {
+      "ticker": "QAI",
+      "name": "Multi-strategy alt",
+      "asset_class": "alternative",
+      "region": "global",
+      "category": "multi_alt"
+    },
+    {
+      "ticker": "RLY",
+      "name": "Real assets",
+      "asset_class": "alternative",
+      "region": "global",
+      "category": "multi_alt"
+    },
+    {
+      "ticker": "SRLN",
+      "name": "Senior loans",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "credit_alt"
+    },
+    {
+      "ticker": "SVOL",
+      "name": "Short vol",
+      "asset_class": "alternative",
+      "region": "us",
+      "category": "alt_hedge"
+    }
+  ]
+}
