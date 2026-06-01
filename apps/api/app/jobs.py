@@ -9,7 +9,11 @@ _lock = threading.Lock()
 
 
 def _public_log_message(message: str) -> str:
-    """User-facing terminal log — never show vendor model names."""
+    """User-facing job progress (pass-through from backtest search/assembly).
+
+    Trial phase: Optuna progress. Post-search: Packaging report / Building report
+    snapshot when chart backtests re-run. Never show vendor model names.
+    """
     return (
         message.replace("Gemini", "AI")
         .replace("gemini_", "ai_")

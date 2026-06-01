@@ -62,6 +62,7 @@ from app.engine.refinement import (
     retire_non_winner_model_codes,
     summarize_params_for_ai,
 )
+from app.engine.report_sim_cache import TrialReportCache
 from app.engine.weights import effective_max_weight_cap
 
 WEIGHT_EPS = 0.001
@@ -263,6 +264,7 @@ def _run_iterative_search(
     universe_by_ticker: dict[str, dict[str, Any]],
     param_controls_dict: dict[str, dict],
     report_progress,
+    trial_report_cache: TrialReportCache | None = None,
 ) -> tuple[list[tuple[float, dict, dict]], list[dict[str, Any]], dict[str, Any]]:
     """Champion-challenger rounds until plateau or max rounds."""
     batch0 = int(req.refinement_batch_size)
@@ -502,6 +504,7 @@ def _run_iterative_search(
             apply_holdout_penalty=bool(oos and penalty_w > 0),
             select_on_is=bool(oos and len(prices_val) > 60),
             asset_classes=req.asset_classes,
+            trial_report_cache=trial_report_cache,
         )
 
         tagged_round_records: list[tuple[float, dict, dict]] = []
@@ -517,6 +520,9 @@ def _run_iterative_search(
             incoming_champion_model_code=round_incoming_model_code,
             next_model_no=next_model_no,
         )
+        if trial_report_cache is not None:
+            for _, params, _ in round_records:
+                trial_report_cache.register_model_code(params)
 
         global_trial += len(round_records)
         round_best_score = float("-inf")
@@ -995,9 +1001,17 @@ def _assemble_candidates_from_records(
     train_ratio: float,
     fallback_next_model_no: list[int] | None = None,
     assembly_progress: Callable[[str], None] | None = None,
+    trial_report_cache: TrialReportCache | None = None,
 ) -> list[PortfolioCandidate]:
+    """Build report-ready PortfolioCandidate rows for top trials.
+
+    Uses ``trial_report_cache`` when present (captured during Optuna scoring) to
+    avoid repeating in-sample / holdout simulates; may still run one full-period
+    backtest when weight history was not cached.
+    """
     top = records[:top_n_models]
     n_models = len(top)
+    val_required = bool(oos and len(prices_val) > 60)
     fallback_no = fallback_next_model_no or _fallback_model_no_from_records(records)
     candidates: list[PortfolioCandidate] = []
     for rank, (_, params, _) in enumerate(top, start=1):
@@ -1007,16 +1021,13 @@ def _assemble_candidates_from_records(
             next_model_no=fallback_no,
             context="candidate assembly",
         )
+        if trial_report_cache:
+            trial_report_cache.register_model_code(params)
         model_code = str(params.get("model_code") or f"#{rank}")
-        if assembly_progress:
-            assembly_progress(
-                f"Simulating candidate {rank}/{n_models} ({model_code}) — in-sample…"
-            )
         trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
             _sim_inputs_from_params(params, req, rebalance_rule, spec)
         )
-        train_m = simulate_dynamic_portfolio(
-            prices_train,
+        sim_kw = dict(
             spec=trial_spec,
             max_weight=cap,
             allocator=alloc,
@@ -1028,44 +1039,49 @@ def _assemble_candidates_from_records(
             universe_by_ticker=universe_by_ticker,
             class_budget=class_budget,
         )
-        if assembly_progress and oos and len(prices_val) > 60:
-            assembly_progress(
-                f"Candidate {rank}/{n_models} ({model_code}) — holdout validation…"
-            )
-        val_m = (
-            simulate_dynamic_portfolio(
-                prices_val,
-                spec=trial_spec,
-                max_weight=cap,
-                allocator=alloc,
-                top_n=top_n_actual,
-                factor_params=f_params,
-                no_trade_tol=no_trade_tol,
-                turnover_penalty_mult=turnover_penalty_mult,
-                max_turnover=max_turnover_actual,
-                universe_by_ticker=universe_by_ticker,
-                class_budget=class_budget,
-            )
-            if oos and len(prices_val) > 60
-            else None
+
+        bundle = (
+            trial_report_cache.copy_bundle(params) if trial_report_cache else None
         )
-        if assembly_progress:
-            assembly_progress(
-                f"Candidate {rank}/{n_models} ({model_code}) — full-period equity…"
+        train_m = bundle.train_m if bundle else None
+        val_m = bundle.val_m if bundle else None
+        full_m_rank = bundle.full_m if bundle else None
+
+        cache_hit = bool(
+            bundle
+            and (
+                bundle.complete_for_oos(oos=oos, val_required=val_required)
+                if oos
+                else bundle.complete_no_oos()
             )
-        full_m_rank = simulate_dynamic_portfolio(
-            prices,
-            spec=trial_spec,
-            max_weight=cap,
-            allocator=alloc,
-            top_n=top_n_actual,
-            factor_params=f_params,
-            no_trade_tol=no_trade_tol,
-            turnover_penalty_mult=turnover_penalty_mult,
-            max_turnover=max_turnover_actual,
-            universe_by_ticker=universe_by_ticker,
-            class_budget=class_budget,
         )
+        need_train = train_m is None
+        need_val = val_required and val_m is None
+        need_full = full_m_rank is None or not full_m_rank.get("weight_history")
+
+        if cache_hit and not (need_train or need_val or need_full):
+            if assembly_progress:
+                assembly_progress(
+                    f"Packaging {model_code} charts from search cache ({rank}/{n_models})…"
+                )
+        else:
+            if assembly_progress:
+                if bundle and not need_train and not need_val:
+                    assembly_progress(
+                        f"Packaging {model_code} ({rank}/{n_models}): "
+                        f"cache hit IS/OOS — one full-period backtest for weights…"
+                    )
+                else:
+                    assembly_progress(
+                        f"Packaging {model_code} ({rank}/{n_models}): "
+                        f"cache miss — running backtest(s) for charts…"
+                    )
+            if need_train:
+                train_m = simulate_dynamic_portfolio(prices_train, **sim_kw)
+            if need_val:
+                val_m = simulate_dynamic_portfolio(prices_val, **sim_kw)
+            if need_full:
+                full_m_rank = simulate_dynamic_portfolio(prices, **sim_kw)
         full_curve_rank = equity_curve_series(full_m_rank["equity"])
         candidates.append(
             _build_candidate(
@@ -1365,6 +1381,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     refinement_meta: dict[str, Any] = {}
     ai_generation: dict[str, Any] = {}
     ai_param_sets: list[dict[str, Any]] = []
+    trial_report_cache = TrialReportCache()
 
     report_progress(
         0,
@@ -1396,6 +1413,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             universe_by_ticker=universe_by_ticker,
             param_controls_dict=param_controls_dict,
             report_progress=report_progress,
+            trial_report_cache=trial_report_cache,
         )
         ai_generation = {
             "enabled": True,
@@ -1482,8 +1500,11 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             apply_holdout_penalty=bool(oos and req.overfitting_penalty_weight > 0),
             select_on_is=bool(oos and len(prices_val) > 60),
             asset_classes=req.asset_classes,
+            trial_report_cache=trial_report_cache,
         )
         assign_search_model_codes(records, next_model_no=[1])
+        for _, params, _ in records:
+            trial_report_cache.register_model_code(params)
 
     trials_feasible = len(records)
     trials_completed = (
@@ -1517,11 +1538,16 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     report_progress(
         trials_completed,
         trials_completed,
-        f"Search done ({trials_feasible} feasible) — assembling top {top_n_models} candidates…",
+        f"Search done ({trials_feasible} feasible) — packaging top {top_n_models} "
+        f"for report (using search cache when available)…",
     )
 
     def final_assembly_progress(message: str) -> None:
-        report_progress(trials_completed, trials_completed, message)
+        report_progress(
+            trials_completed,
+            trials_completed,
+            f"Packaging report: {message}",
+        )
 
     candidates = _assemble_candidates_from_records(
         records,
@@ -1541,6 +1567,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         val_start=val_start,
         train_ratio=float(req.train_ratio),
         assembly_progress=final_assembly_progress,
+        trial_report_cache=trial_report_cache,
     )
     candidates = _rerank_candidates_by_objective(candidates, objective_effective)
     if pro_mode:
@@ -1613,7 +1640,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 )
 
             pro_round_assembly_progress(
-                f"starting assembly ({pr_top_n} of {pr_feasible} pool candidates)…"
+                f"top {pr_top_n} of {pr_feasible} pool models "
+                f"(using search cache when available)…"
             )
             pr_candidates = _assemble_candidates_from_records(
                 display_records,
@@ -1633,8 +1661,9 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 val_start=val_start,
                 train_ratio=float(req.train_ratio),
                 assembly_progress=pro_round_assembly_progress,
+                trial_report_cache=trial_report_cache,
             )
-            pro_round_assembly_progress("ranking candidates by objective…")
+            pro_round_assembly_progress("ranking packaged models by objective…")
             pr_candidates = _rerank_candidates_by_objective(
                 pr_candidates, objective_effective
             )
@@ -1686,11 +1715,13 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 existing["is_round_challenger"] = role == "challenger"
                 c.params = existing
             pr_trials = int(pr.get("trials_in_round", len(pr_records)))
-            pro_round_assembly_progress("building efficient frontier…")
+            pro_round_assembly_progress(
+                "plotting efficient frontier from trial scores (no extra backtests)…"
+            )
             pr_frontier = _build_frontier_from_records(display_records, pr_trials)
             pr_equity = pr_candidates[0].equity_curve if pr_candidates else []
             pr_best = _best_candidate(pr_candidates)
-            pro_round_assembly_progress("packaging round snapshot…")
+            pro_round_assembly_progress("finalizing round snapshot…")
             pro_rounds.append(
                 ProRoundSnapshot(
                     round=int(pr["round"]),

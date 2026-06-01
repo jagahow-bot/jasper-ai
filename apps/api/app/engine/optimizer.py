@@ -47,6 +47,7 @@ from app.engine.param_bounds import (
     resolve_off_value,
 )
 from app.engine.param_taxonomy import build_pro_round_param_controls
+from app.engine.report_sim_cache import TrialReportCache
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -97,6 +98,7 @@ def run_optuna_search(
     apply_holdout_penalty: bool = False,
     select_on_is: bool = False,
     asset_classes: list[str] | None = None,
+    trial_report_cache: TrialReportCache | None = None,
 ) -> list[tuple[float, dict, dict]]:
     records: list[tuple[float, dict, dict]] = []
     best_value: float | None = None
@@ -566,6 +568,21 @@ def run_optuna_search(
 
         params["raw_score"] = float(score)
         params["adjusted_score"] = float(adjusted)
+
+        if trial_report_cache is not None:
+            train_sim = train_m_holdout if has_holdout else metrics
+            full_sim: dict | None = None
+            if not has_holdout:
+                full_sim = metrics
+            elif not use_is_only:
+                full_sim = metrics
+            trial_report_cache.stash_from_trial(
+                params,
+                train_m=train_sim,
+                val_m=val_m if has_holdout else None,
+                full_m=full_sim,
+            )
+
         records.append((adjusted, params, metrics))
         return adjusted
 
