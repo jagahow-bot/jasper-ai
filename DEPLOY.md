@@ -22,6 +22,17 @@ This app is a **monorepo** with two runtime services:
 
 **Files:** `docker-compose.prod.yml`, `apps/api/Dockerfile`, `apps/web/Dockerfile`, `deploy/nginx/nginx.conf`
 
+### Render Blueprint (web + API)
+
+Use the repo-root [`render.yaml`](render.yaml) when the Render UI does not expose Dockerfile path fields (common on monorepos):
+
+1. **Dashboard → Blueprints → New Blueprint Instance** → connect `jagahow-bot/jasper-ai`.
+2. Render creates **jasper-ai-api** (`apps/api/Dockerfile`, context `.`) and **jasper-ai-web** (`apps/web/Dockerfile`, context `.`).
+3. `QUANT_API_URL` on web is wired from the API service’s public URL (`RENDER_EXTERNAL_URL`).
+4. Set **`GEMINI_API_KEY`** on the API service and **`GOOGLE_GENERATIVE_AI_API_KEY`** on web in the Render dashboard (required for AI features).
+
+Keep **one API instance** — backtest jobs are in-memory.
+
 ### Optional split: Vercel (web) + Railway / Fly / Render (API)
 
 - **Web on Vercel:** set `QUANT_API_URL=https://your-api-host` (server-side proxy).

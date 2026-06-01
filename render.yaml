@@ -1,0 +1,22 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploy: Dashboard → Blueprints → New Blueprint Instance → connect this repo.
+services:
+  - type: web
+    name: jasper-ai-api
+    runtime: docker
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+
+  - type: web
+    name: jasper-ai-web
+    runtime: docker
+    dockerfilePath: apps/web/Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      - key: QUANT_API_URL
+        fromService:
+          type: web
+          name: jasper-ai-api
+          envVarKey: RENDER_EXTERNAL_URL
