@@ -85,7 +85,11 @@ def run_optuna_search(
     factor_choices: dict | None = None,
     param_controls: dict[str, dict] | None = None,
     spec: BacktestSpec = DEFAULT_SPEC,
-    progress_cb: Callable[[int, int, float | None], None] | None = None,
+    progress_cb: (
+        Callable[[int, int, float | None], None]
+        | Callable[[int, int, float | None, tuple[float, dict, dict] | None], None]
+        | None
+    ) = None,
     universe_by_ticker: dict[str, dict] | None = None,
     prices_val: pd.DataFrame | None = None,
     overfitting_penalty_weight: float = 0.0,
@@ -585,7 +589,11 @@ def run_optuna_search(
             ]
             best_value = max(vals) if vals else None
         if progress_cb:
-            progress_cb(trial.number + 1, optuna_trials, best_value)
+            latest = records[-1] if records else None
+            try:
+                progress_cb(trial.number + 1, optuna_trials, best_value, latest)
+            except TypeError:
+                progress_cb(trial.number + 1, optuna_trials, best_value)
 
     study.optimize(
         optuna_objective,

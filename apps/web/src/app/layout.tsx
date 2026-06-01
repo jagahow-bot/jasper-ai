@@ -20,7 +20,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Quant Assistant",
+  title: "JASPER.AI",
   description: "Institutional quant backtest · Pro champion-challenger loop",
 };
 

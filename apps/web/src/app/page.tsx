@@ -79,7 +79,7 @@ export default function HomePage() {
     {
       id: "welcome",
       role: "assistant",
-      content: `QUANT_OS online. Universe: ${universeMeta.count} ETFs. Configure params below — each rebalance runs factor screen (Top N) then allocator (MPT / min-var).`,
+      content: `JASPER online. Universe: ${universeMeta.count} ETFs. Configure params below — each rebalance runs factor screen (Top N) then allocator (MPT / min-var).`,
     },
   ]);
   const lastProgressMsg = useRef("");
@@ -215,7 +215,7 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div>
             <h1 className="font-pixel text-sm glow-title text-neon md:text-base">
-              AI Quant Assistant
+              JASPER.AI
             </h1>
             <p className="mt-1 font-terminal text-lg text-[var(--cyan)]">
               {`> ${header}`}

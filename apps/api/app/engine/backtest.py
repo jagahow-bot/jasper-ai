@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +154,63 @@ def _history_point(
         "is_champion": is_champion,
         "objective_label": objective_label,
     }
+
+
+def _append_convergence_from_record(
+    convergence_history: list[dict[str, Any]],
+    *,
+    global_trial: int,
+    round_idx: int,
+    score: float,
+    metrics: dict[str, Any],
+    objective_effective: str,
+    is_champion: bool,
+) -> None:
+    assess = metrics.get("overfitting_assessment") or {}
+    is_obj = float(
+        metrics.get(
+            "objective_value_is",
+            assess.get("in_sample_objective", 0.0),
+        )
+    )
+    oos_obj = assess.get("out_of_sample_objective")
+    convergence_history.append(
+        _history_point(
+            global_trial=global_trial,
+            round_idx=round_idx,
+            is_objective=is_obj,
+            oos_objective=float(oos_obj) if oos_obj is not None else None,
+            gap_objective=float(assess.get("gap_objective", 0.0)),
+            penalty=float(metrics.get("overfitting_penalty_applied", 0.0)),
+            risk_level=str(assess.get("risk_level", "unknown")),
+            is_champion=is_champion,
+            objective_label=objective_label(objective_effective),
+        )
+    )
+
+
+def _relabel_round_champion_flags(
+    convergence_history: list[dict[str, Any]],
+    *,
+    round_idx: int,
+    champion_objective: float,
+    objective_effective: str,
+    round_records: list[tuple[float, dict, dict]],
+    round_trial_base: int,
+) -> None:
+    """Mark the round's champion trial after the round winner is known."""
+    for point in convergence_history:
+        if point.get("round") == round_idx:
+            point["is_champion"] = False
+    for trial_i, (score, _params, metrics) in enumerate(round_records):
+        obj = _record_objective_sort_value(objective_effective, score, metrics)
+        if abs(obj - champion_objective) >= 1e-9:
+            continue
+        target_trial = round_trial_base + trial_i
+        for point in convergence_history:
+            if point.get("round") == round_idx and point.get("trial") == target_trial:
+                point["is_champion"] = True
+                return
 
 
 def _record_objective_sort_value(
@@ -351,7 +408,35 @@ def _run_iterative_search(
         if ai_generation.get("rationale"):
             ai_rationales.append(str(ai_generation.get("rationale")).strip())
 
-        def optuna_progress(trial: int, total: int, best_score: float | None) -> None:
+        round_live_best = float("-inf")
+        round_trial_base = global_trial + 1
+
+        def optuna_progress(
+            trial: int,
+            total: int,
+            best_score: float | None,
+            latest_record: tuple[float, dict, dict] | None = None,
+        ) -> None:
+            nonlocal round_live_best
+            if latest_record is not None:
+                score, _params, metrics = latest_record
+                obj = _record_objective_sort_value(
+                    objective_effective, score, metrics
+                )
+                if obj > round_live_best:
+                    round_live_best = obj
+                    for point in convergence_history:
+                        if point.get("round") == round_idx + 1:
+                            point["is_champion"] = False
+                _append_convergence_from_record(
+                    convergence_history,
+                    global_trial=round_trial_base + trial - 1,
+                    round_idx=round_idx + 1,
+                    score=score,
+                    metrics=metrics,
+                    objective_effective=objective_effective,
+                    is_champion=abs(obj - round_live_best) < 1e-9,
+                )
             scope = "in-sample" if oos else "full window"
             msg = f"Round {round_idx + 1} Optuna {trial}/{total} ({scope}, dynamic Top-N each rebalance)"
             if best_score is not None:
@@ -493,41 +578,14 @@ def _run_iterative_search(
                     t["gap_to_beat"] = 0.0
                 t["target_at_trial"] = round(post_target, 4)
 
-            best_so_far = champion_score
-            obj_lbl = objective_label(objective_effective)
-            round_trial_base = global_trial - len(round_records) + 1
-            for trial_i, (_score, _params, _metrics) in enumerate(round_records):
-                assess = _metrics.get("overfitting_assessment") or {}
-                is_obj = float(
-                    _metrics.get(
-                        "objective_value_is",
-                        assess.get("in_sample_objective", 0.0),
-                    )
-                )
-                oos_obj = assess.get("out_of_sample_objective")
-                convergence_history.append(
-                    _history_point(
-                        global_trial=round_trial_base + trial_i,
-                        round_idx=round_idx + 1,
-                        is_objective=is_obj,
-                        oos_objective=(
-                            float(oos_obj) if oos_obj is not None else None
-                        ),
-                        gap_objective=float(assess.get("gap_objective", 0.0)),
-                        penalty=float(_metrics.get("overfitting_penalty_applied", 0.0)),
-                        risk_level=str(assess.get("risk_level", "unknown")),
-                        is_champion=abs(
-                            _record_objective_sort_value(
-                                objective_effective,
-                                _score,
-                                _metrics,
-                            )
-                            - best_so_far
-                        )
-                        < 1e-9,
-                        objective_label=obj_lbl,
-                    )
-                )
+            _relabel_round_champion_flags(
+                convergence_history,
+                round_idx=round_idx + 1,
+                champion_objective=champion_score,
+                objective_effective=objective_effective,
+                round_records=round_records,
+                round_trial_base=global_trial - len(round_records) + 1,
+            )
 
         trial_order_records = pool_records_in_trial_order(
             round_records,
@@ -911,8 +969,10 @@ def _assemble_candidates_from_records(
     val_start: str,
     train_ratio: float,
     fallback_next_model_no: list[int] | None = None,
+    assembly_progress: Callable[[str], None] | None = None,
 ) -> list[PortfolioCandidate]:
     top = records[:top_n_models]
+    n_models = len(top)
     fallback_no = fallback_next_model_no or _fallback_model_no_from_records(records)
     candidates: list[PortfolioCandidate] = []
     for rank, (_, params, _) in enumerate(top, start=1):
@@ -922,6 +982,11 @@ def _assemble_candidates_from_records(
             next_model_no=fallback_no,
             context="candidate assembly",
         )
+        model_code = str(params.get("model_code") or f"#{rank}")
+        if assembly_progress:
+            assembly_progress(
+                f"Simulating candidate {rank}/{n_models} ({model_code}) — in-sample…"
+            )
         trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
             _sim_inputs_from_params(params, req, rebalance_rule, spec)
         )
@@ -938,6 +1003,10 @@ def _assemble_candidates_from_records(
             universe_by_ticker=universe_by_ticker,
             class_budget=class_budget,
         )
+        if assembly_progress and oos and len(prices_val) > 60:
+            assembly_progress(
+                f"Candidate {rank}/{n_models} ({model_code}) — holdout validation…"
+            )
         val_m = (
             simulate_dynamic_portfolio(
                 prices_val,
@@ -955,6 +1024,10 @@ def _assemble_candidates_from_records(
             if oos and len(prices_val) > 60
             else None
         )
+        if assembly_progress:
+            assembly_progress(
+                f"Candidate {rank}/{n_models} ({model_code}) — full-period equity…"
+            )
         full_m_rank = simulate_dynamic_portfolio(
             prices,
             spec=trial_spec,
@@ -1350,7 +1423,12 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 f"AI off ({err}) — falling back to Optuna random search…",
             )
 
-        def optuna_progress(trial: int, total: int, best_score: float | None) -> None:
+        def optuna_progress(
+            trial: int,
+            total: int,
+            best_score: float | None,
+            _latest_record: tuple[float, dict, dict] | None = None,
+        ) -> None:
             scope = "in-sample" if oos else "full window"
             msg = f"Optuna {trial}/{total} ({scope}, dynamic Top-N each rebalance)"
             if best_score is not None:
@@ -1417,6 +1495,9 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         f"Search done ({trials_feasible} feasible) — assembling top {top_n_models} candidates…",
     )
 
+    def final_assembly_progress(message: str) -> None:
+        report_progress(trials_completed, trials_completed, message)
+
     candidates = _assemble_candidates_from_records(
         records,
         req=req,
@@ -1434,6 +1515,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         train_end=train_end,
         val_start=val_start,
         train_ratio=float(req.train_ratio),
+        assembly_progress=final_assembly_progress,
     )
     candidates = _rerank_candidates_by_objective(candidates, objective_effective)
     if pro_mode:
@@ -1496,10 +1578,17 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 req_top_models=int(req.top_models),
                 feasible_count=pr_feasible,
             )
-            report_progress(
-                trials_completed,
-                trials_completed,
-                f"Assembling round {pr['round']} report ({pr_top_n} candidates)…",
+            pr_round = int(pr["round"])
+
+            def pro_round_assembly_progress(message: str) -> None:
+                report_progress(
+                    trials_completed,
+                    trials_completed,
+                    f"Round {pr_round} report: {message}",
+                )
+
+            pro_round_assembly_progress(
+                f"starting assembly ({pr_top_n} of {pr_feasible} pool candidates)…"
             )
             pr_candidates = _assemble_candidates_from_records(
                 display_records,
@@ -1518,7 +1607,9 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 train_end=train_end,
                 val_start=val_start,
                 train_ratio=float(req.train_ratio),
+                assembly_progress=pro_round_assembly_progress,
             )
+            pro_round_assembly_progress("ranking candidates by objective…")
             pr_candidates = _rerank_candidates_by_objective(
                 pr_candidates, objective_effective
             )
@@ -1570,9 +1661,11 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 existing["is_round_challenger"] = role == "challenger"
                 c.params = existing
             pr_trials = int(pr.get("trials_in_round", len(pr_records)))
+            pro_round_assembly_progress("building efficient frontier…")
             pr_frontier = _build_frontier_from_records(display_records, pr_trials)
             pr_equity = pr_candidates[0].equity_curve if pr_candidates else []
             pr_best = _best_candidate(pr_candidates)
+            pro_round_assembly_progress("packaging round snapshot…")
             pro_rounds.append(
                 ProRoundSnapshot(
                     round=int(pr["round"]),

@@ -5,7 +5,7 @@ from app.config import settings
 from app.routers import jobs, scenarios, universe
 
 app = FastAPI(
-    title="AI Quant Assistant API",
+    title="JASPER.AI API",
     version="0.1.0",
     description="數學引擎算數字，LLM 只寫敘事。",
 )
