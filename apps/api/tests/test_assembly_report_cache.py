@@ -180,6 +180,85 @@ def test_assembly_cache_hit_runs_only_full_for_weights():
     assert sim_mock.call_args[0][0] is prices
 
 
+def test_get_bundle_finds_sig_stash_when_params_have_model_code():
+    """Trials stash under sig: before model_code exists; assembly must still hit."""
+    params_trial = {
+        "mode": "min_var",
+        "lookback_days": 60,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 3,
+        "rebalance_freq": "M",
+    }
+    train_m = _minimal_sim(1.0, with_weights=False)
+    cache = TrialReportCache()
+    cache.stash_from_trial(params_trial, train_m=train_m, val_m=None, full_m=None)
+
+    params_assembly = dict(params_trial)
+    params_assembly["model_code"] = "M0007"
+    cache.register_model_code(params_assembly)
+
+    bundle = cache.get_bundle(params_assembly)
+    assert bundle is not None
+    assert bundle.train_m is not None
+    assert cache._by_key.get("code:M0007") is bundle
+
+
+def test_assembly_hits_cache_after_trial_stash_then_model_code_assigned():
+    tickers, prices, prices_train, prices_val = _price_panel()
+    params_trial = {
+        "mode": "min_var",
+        "lookback_days": 60,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 3,
+        "rebalance_freq": "M",
+    }
+    train_m = _minimal_sim(1.2, with_weights=False)
+    val_m = _minimal_sim(0.9, with_weights=False)
+    full_m = _minimal_sim(1.0, with_weights=True)
+    cache = TrialReportCache()
+    cache.stash_from_trial(
+        params_trial, train_m=train_m, val_m=val_m, full_m=full_m, retain_weight_history=True
+    )
+    params = dict(params_trial)
+    params["model_code"] = "M0007"
+    cache.register_model_code(params)
+    records = [(1.0, params, {})]
+
+    sim_mock = MagicMock(side_effect=AssertionError("simulate should not run"))
+    with patch("app.engine.backtest.simulate_dynamic_portfolio", sim_mock):
+        _assemble_candidates_from_records(
+            records,
+            req=_req(),
+            top_n_models=1,
+            tickers=tickers,
+            prices=prices,
+            prices_train=prices_train,
+            prices_val=prices_val,
+            oos=True,
+            rebalance_rule="M",
+            spec=MagicMock(
+                benchmark_ticker="SPY",
+                risk_free_rate=0.0,
+                fee_bps=0.0,
+                rebalance_rule="M",
+                min_holdings=2,
+                max_holdings=30,
+            ),
+            universe_by_ticker={},
+            objective_effective="max_sharpe",
+            train_start="2020-01-01",
+            train_end="2020-04-01",
+            val_start="2020-04-02",
+            train_ratio=0.7,
+            trial_report_cache=cache,
+        )
+    sim_mock.assert_not_called()
+
+
 def test_report_sim_bundle_complete_flags():
     b = ReportSimBundle(
         train_m=_minimal_sim(with_weights=False),

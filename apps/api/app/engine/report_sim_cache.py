@@ -102,7 +102,14 @@ class TrialReportCache:
         code = params.get("model_code")
         if not code:
             return
-        self._sig_to_code[model_signature(params)] = str(code)
+        sig = model_signature(params)
+        code_s = str(code)
+        self._sig_to_code[sig] = code_s
+        sig_key = f"sig:{sig}"
+        code_key = f"code:{code_s}"
+        bundle = self._by_key.get(sig_key)
+        if bundle is not None and code_key not in self._by_key:
+            self._by_key[code_key] = bundle
 
     def stash_from_trial(
         self,
@@ -143,10 +150,45 @@ class TrialReportCache:
         if hit is not None:
             return hit
         sig = model_signature(params)
+        sig_key = f"sig:{sig}"
+        hit = self._by_key.get(sig_key)
+        if hit is not None:
+            return hit
         code = self._sig_to_code.get(sig) or params.get("model_code")
         if code:
             return self._by_key.get(f"code:{code}")
-        return self._by_key.get(f"sig:{sig}")
+        return None
+
+    def backfill_from_search_record(
+        self,
+        params: dict[str, Any],
+        metrics: dict[str, Any],
+        *,
+        has_holdout: bool,
+        select_on_is: bool,
+    ) -> None:
+        """Populate cache from a search record when trial stash was missed (e.g. pool-only incoming champion)."""
+        if self.get_bundle(params) is not None:
+            self.register_model_code(params)
+            return
+        if not metrics or not isinstance(metrics, dict):
+            return
+        train_m: dict[str, Any] | None = metrics
+        val_m: dict[str, Any] | None = None
+        full_m: dict[str, Any] | None = None
+        if has_holdout:
+            if select_on_is:
+                full_m = None
+            else:
+                full_m = metrics
+        else:
+            full_m = metrics
+        self.stash_from_trial(
+            params,
+            train_m=train_m,
+            val_m=val_m,
+            full_m=full_m,
+        )
 
     def copy_bundle(self, params: dict[str, Any]) -> ReportSimBundle | None:
         b = self.get_bundle(params)

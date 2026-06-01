@@ -544,6 +544,18 @@ def _run_iterative_search(
             )
         )
 
+        if trial_report_cache is not None:
+            has_holdout = bool(oos and len(prices_val) > 60)
+            select_on_is = has_holdout
+            for _, params, metrics in pool_records:
+                trial_report_cache.register_model_code(params)
+                trial_report_cache.backfill_from_search_record(
+                    params,
+                    metrics,
+                    has_holdout=has_holdout,
+                    select_on_is=select_on_is,
+                )
+
         for score, params, metrics in round_records:
             all_records.append((score, params, metrics))
             assess = metrics.get("overfitting_assessment") or {}
@@ -1066,15 +1078,25 @@ def _assemble_candidates_from_records(
                 )
         else:
             if assembly_progress:
-                if bundle and not need_train and not need_val:
+                if bundle is None:
                     assembly_progress(
                         f"Packaging {model_code} ({rank}/{n_models}): "
-                        f"cache hit IS/OOS — one full-period backtest for weights…"
+                        f"no search cache — running backtest(s) for charts…"
+                    )
+                elif not need_train and not need_val:
+                    assembly_progress(
+                        f"Packaging {model_code} ({rank}/{n_models}): "
+                        f"search cache IS/OOS — one full-period backtest for weights…"
                     )
                 else:
+                    missing = []
+                    if need_train:
+                        missing.append("in-sample")
+                    if need_val:
+                        missing.append("holdout")
                     assembly_progress(
                         f"Packaging {model_code} ({rank}/{n_models}): "
-                        f"cache miss — running backtest(s) for charts…"
+                        f"cache incomplete ({', '.join(missing)}) — running backtest(s)…"
                     )
             if need_train:
                 train_m = simulate_dynamic_portfolio(prices_train, **sim_kw)
