@@ -9,7 +9,9 @@ from app.engine.ai_params import (
     _extract_json,
     _param_response_schema,
     _resolve_learning_context_mode,
+    _resolve_round_seed_thinking_level,
     _resolve_thinking_level,
+    _round_seed_max_output_tokens,
     _thinking_config_for_model,
     _round_param_numbers,
     _salvage_truncated_json,
@@ -232,9 +234,8 @@ def test_generate_ai_round_seed_posts_thinking_config(monkeypatch):
     monkeypatch.setattr(
         "app.engine.ai_params.settings.gemini_model", "gemini-3-flash-preview"
     )
-    monkeypatch.setattr("app.engine.ai_params.settings.gemini_thinking_level", "low")
     monkeypatch.setattr(
-        "app.engine.ai_params.settings.gemini_learning_context_mode", "full"
+        "app.engine.ai_params.settings.gemini_round_seed_thinking_level", "low"
     )
     captured: dict = {}
 
@@ -295,3 +296,123 @@ def test_generate_ai_round_seed_posts_thinking_config(monkeypatch):
     gen_cfg = captured["json"]["generationConfig"]
     assert gen_cfg["thinkingConfig"] == {"thinkingLevel": "low"}
     assert gen_cfg["responseMimeType"] == "application/json"
+    assert gen_cfg["maxOutputTokens"] >= 8192
+
+
+def test_resolve_round_seed_thinking_level_inherits_global(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_thinking_level", None)
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_thinking_level", "low")
+    assert _resolve_round_seed_thinking_level() == "low"
+
+
+def test_resolve_round_seed_thinking_level_override(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_thinking_level", "minimal")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_thinking_level", "high")
+    assert _resolve_round_seed_thinking_level() == "minimal"
+
+
+def test_round_seed_max_output_tokens_escalates_on_retry(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_max_output_tokens", 8192)
+    assert _round_seed_max_output_tokens(attempt=0) == 8192
+    assert _round_seed_max_output_tokens(attempt=1) == 10240
+    assert _round_seed_max_output_tokens(attempt=4) == 16384
+
+
+def test_generate_ai_round_seed_inherits_thinking_from_global(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_model", "gemini-3-flash-preview"
+    )
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_thinking_level", None)
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_thinking_level", "low")
+    captured: dict = {}
+
+    class _FakeResp:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "rationale": "test",
+                                            "round_setup": {
+                                                "mode": "mean_variance",
+                                                "lookback_days": 252,
+                                                "shrinkage": 0.1,
+                                                "risk_aversion": 2.0,
+                                                "top_n_actual": 10,
+                                                "max_weight_actual": 0.15,
+                                                "max_turnover_actual": 0.3,
+                                                "no_trade_tol": 0.01,
+                                                "turnover_penalty_mult": 1.0,
+                                            },
+                                            "factor_ranges": {},
+                                            "factor_choices": {},
+                                        }
+                                    )
+                                }
+                            ]
+                        },
+                    }
+                ]
+            }
+
+    def _fake_post(_url: str, *, json: dict | None = None, **_: object) -> _FakeResp:
+        captured["json"] = json
+        return _FakeResp()
+
+    monkeypatch.setattr("app.engine.ai_params.httpx.post", _fake_post)
+    out = generate_ai_round_seed(
+        objective="max_sharpe",
+        rebalance_freq="monthly",
+        max_weight_cap=0.2,
+        max_turnover_cap=0.5,
+        top_n_cap=20,
+        tradable_count=50,
+    )
+    assert out["enabled"] is True
+    assert out["thinking_level"] == "low"
+    assert captured["json"]["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "low"}
+
+
+def test_generate_ai_round_seed_max_tokens_returns_disabled(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_round_seed_max_output_tokens", 2048
+    )
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_param_seed_max_retries", 1
+    )
+
+    class _FakeResp:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "MAX_TOKENS",
+                        "content": {"parts": [{"text": ""}]},
+                    }
+                ]
+            }
+
+    monkeypatch.setattr("app.engine.ai_params.httpx.post", lambda *_a, **_k: _FakeResp())
+    out = generate_ai_round_seed(
+        objective="max_sharpe",
+        rebalance_freq="monthly",
+        max_weight_cap=0.2,
+        max_turnover_cap=0.5,
+        top_n_cap=20,
+        tradable_count=50,
+    )
+    assert out["enabled"] is False
+    assert out["error"] == "gemini_max_tokens"

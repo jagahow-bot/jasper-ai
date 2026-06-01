@@ -93,3 +93,27 @@ def test_prior_setup_keeps_valid_allocator_mode():
         champion_params={"mode": "mean_variance", "objective_mode": "max_sharpe"},
     )
     assert prior["round_setup"]["mode"] == "risk_parity"
+
+
+def test_prior_factor_choices_truncates_absurd_indicator_names():
+    long_name = "book_to_market_" + ("0" * 200)
+    prior = summarize_prior_round_seed(
+        {"factor_choices": {"value_indicator": long_name}},
+    )
+    assert len(prior["factor_choices"]["value_indicator"]) <= 120
+
+
+def test_learning_block_sanitizes_long_prior_factor_choices(monkeypatch):
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_round_seed_learning_max_chars", 8000
+    )
+    long_name = "x" * 500
+    block = _build_round_seed_learning_block(
+        {
+            "round_index": 2,
+            "prior_round_setup": {"mode": "mean_variance", "lookback_days": 252},
+            "prior_factor_choices": {"value_indicator": long_name},
+        }
+    )
+    assert long_name not in block
+    assert "..." in block

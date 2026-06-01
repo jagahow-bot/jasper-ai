@@ -241,6 +241,9 @@ def summarize_prior_round_seed(
             setup[key] = _round_seed_numeric(val)
     ranges = dict(seed_dict.get("factor_ranges") or {})
     choices = dict(seed_dict.get("factor_choices") or {})
+    for key, val in list(choices.items()):
+        if isinstance(val, str) and len(val) > 120:
+            choices[key] = val[:117] + "..."
     return {
         "round_setup": setup,
         "factor_ranges": ranges,

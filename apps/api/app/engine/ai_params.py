@@ -424,6 +424,54 @@ def _thinking_config_for_model(
     return None
 
 
+def _resolve_round_seed_thinking_level() -> str | None:
+    """Round seed thinking: GEMINI_ROUND_SEED_THINKING_LEVEL or inherit GEMINI_THINKING_LEVEL."""
+    raw = settings.gemini_round_seed_thinking_level
+    if raw is not None and str(raw).strip():
+        level = _normalize_thinking_level(raw, default="off")
+    else:
+        level = _normalize_thinking_level(settings.gemini_thinking_level, default="off")
+    return None if level == "off" else level
+
+
+def _thinking_config_for_round_seed(*, model: str) -> dict[str, Any] | None:
+    """Pro round seed thinkingConfig; inherits GEMINI_THINKING_LEVEL when round override unset."""
+    level = _resolve_round_seed_thinking_level()
+    if level is None:
+        return None
+    if "gemini-3" in model or "gemini-2.5" in model:
+        return {"thinkingLevel": level if level != "minimal" else "minimal"}
+    if level in _ELEVATED_THINKING_LEVELS:
+        budget = {"low": 1024, "medium": 4096, "high": 8192}.get(level, 0)
+        return {"thinkingBudget": budget}
+    if level == "minimal":
+        return {"thinkingBudget": 256}
+    return None
+
+
+_PROMPT_STRING_MAX_LEN = 120
+
+
+def _sanitize_prompt_string(value: Any, *, max_len: int = _PROMPT_STRING_MAX_LEN) -> Any:
+    if not isinstance(value, str):
+        return value
+    s = " ".join(value.split())
+    if len(s) <= max_len:
+        return s
+    return s[: max_len - 3] + "..."
+
+
+def _sanitize_prompt_dict(data: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        return {}
+    return {
+        str(k): _sanitize_prompt_string(v)
+        if isinstance(v, str)
+        else v
+        for k, v in data.items()
+    }
+
+
 def _gemini_thinking_metadata(
     learning_context: dict[str, Any] | None,
     *,
@@ -1274,10 +1322,14 @@ def _round_seed_response_schema(
     }
 
 
+_ROUND_SEED_OUTPUT_TOKEN_CEILING = 16384
+
+
 def _round_seed_max_output_tokens(*, attempt: int = 0) -> int:
     cap = max(512, int(settings.gemini_round_seed_max_output_tokens))
-    global_max = max(1024, int(settings.gemini_max_output_tokens))
-    return min(cap, global_max) + attempt * 256
+    base = min(cap, _ROUND_SEED_OUTPUT_TOKEN_CEILING)
+    bump = attempt * 2048
+    return min(_ROUND_SEED_OUTPUT_TOKEN_CEILING, base + bump)
 
 
 def _round_seed_learning_max_chars() -> int:
@@ -1365,7 +1417,10 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
 
     prev_choices = learning_context.get("prior_factor_choices")
     if isinstance(prev_choices, dict) and prev_choices:
-        lines.append("PRIOR_FACTOR_CHOICES " + _json_compact(prev_choices))
+        lines.append(
+            "PRIOR_FACTOR_CHOICES "
+            + _json_compact(_sanitize_prompt_dict(prev_choices))
+        )
 
     champ = learning_context.get("champion")
     champ_params = learning_context.get("champion_record_params")
@@ -1613,9 +1668,7 @@ Return STRICT JSON only (sparse — omit empty sections):
                 compact=compact,
             ),
         }
-        thinking_config = _thinking_config_for_model(
-            learning_context, model=model
-        )
+        thinking_config = _thinking_config_for_round_seed(model=model)
         if thinking_config is not None:
             generation_config["thinkingConfig"] = thinking_config
         try:
@@ -1665,12 +1718,11 @@ Return STRICT JSON only (sparse — omit empty sections):
                 "factor_choices": normalized["factor_choices"],
                 "generation_mode": "pro_round_seed",
                 "error": None,
-                **_gemini_thinking_metadata(learning_context, model=model),
+                "thinking_level": _resolve_round_seed_thinking_level(),
+                "thinking_config": thinking_config,
             }
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
-            if str(exc) == "gemini_max_tokens":
-                raise
 
     return {
         "enabled": False,

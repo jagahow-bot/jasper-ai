@@ -390,21 +390,46 @@ def _run_iterative_search(
             progress_cb=ai_progress,
             learning_context=learning_context,
         )
-        if not ai_generation.get("enabled", False):
-            err = ai_generation.get("error") or "ai_generation_failed"
-            raise ValueError(f"pro_ai_param_generation_failed: {err}")
         round_setup = ai_generation.get("round_setup") or {}
         factor_ranges = ai_generation.get("factor_ranges") or {}
         factor_choices = ai_generation.get("factor_choices") or {}
-        report_progress(
-            global_trial,
-            est_trials,
-            f"Round {round_idx + 1}: AI round seed (setup + {len(factor_ranges)} factor ranges)",
-            champion_record[2]["sharpe"] if champion_record else None,
-            round_idx + 1,
-            max_rounds,
-            convergence_history[-24:],
-        )
+        if not ai_generation.get("enabled", False):
+            err = ai_generation.get("error") or "ai_generation_failed"
+            if prior_round_setup:
+                round_setup = dict(prior_round_setup)
+                factor_ranges = dict(prior_factor_ranges or {})
+                factor_choices = dict(prior_factor_choices or {})
+                report_progress(
+                    global_trial,
+                    est_trials,
+                    f"Round {round_idx + 1}: AI round seed failed ({err}); "
+                    "reusing prior round setup, continuing Optuna…",
+                    champion_record[2]["sharpe"] if champion_record else None,
+                    round_idx + 1,
+                    max_rounds,
+                    convergence_history[-24:],
+                )
+            else:
+                report_progress(
+                    global_trial,
+                    est_trials,
+                    f"Round {round_idx + 1}: AI round seed failed ({err}); "
+                    "standard Optuna search (no round setup)…",
+                    champion_record[2]["sharpe"] if champion_record else None,
+                    round_idx + 1,
+                    max_rounds,
+                    convergence_history[-24:],
+                )
+        else:
+            report_progress(
+                global_trial,
+                est_trials,
+                f"Round {round_idx + 1}: AI round seed (setup + {len(factor_ranges)} factor ranges)",
+                champion_record[2]["sharpe"] if champion_record else None,
+                round_idx + 1,
+                max_rounds,
+                convergence_history[-24:],
+            )
         if ai_generation.get("rationale"):
             ai_rationales.append(str(ai_generation.get("rationale")).strip())
 

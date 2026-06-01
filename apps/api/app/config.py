@@ -41,12 +41,19 @@ class Settings(BaseSettings):
         ),
     )
     gemini_round_seed_max_output_tokens: int = Field(
-        default=2048,
+        default=8192,
         ge=512,
-        le=8192,
+        le=16384,
         validation_alias=AliasChoices(
             "gemini_round_seed_max_output_tokens",
             "GEMINI_ROUND_SEED_MAX_OUTPUT_TOKENS",
+        ),
+    )
+    gemini_round_seed_thinking_level: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "gemini_round_seed_thinking_level",
+            "GEMINI_ROUND_SEED_THINKING_LEVEL",
         ),
     )
     gemini_round_seed_learning_max_chars: int = Field(
