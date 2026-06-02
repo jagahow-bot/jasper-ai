@@ -61,6 +61,16 @@ def test_resolve_universe_filter_prompts_merges_legacy_text():
     assert prompts == ["legacy rule", "rule a"]
 
 
+def test_pin_guaranteed_supplements_after_refine_dedupe():
+    """Supplement tickers re-unioned after refine cannot drop guaranteed names."""
+    from app.profiles import pin_guaranteed_supplements
+
+    refined = [{"ticker": "SPY", "asset_class": "equity", "category": "us_broad"}]
+    pinned = pin_guaranteed_supplements(refined, ["GLD", "BTAL"])
+    tickers = {u["ticker"] for u in pinned}
+    assert tickers == {"SPY", "GLD", "BTAL"}
+
+
 def test_resolve_universe_filter_prompts_ignores_joined_duplicate_text():
     from app.models import BacktestRequest, BacktestMode, Objective
 

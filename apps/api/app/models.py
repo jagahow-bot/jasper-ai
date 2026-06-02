@@ -77,7 +77,10 @@ class BacktestRequest(BaseModel):
     )
     universe_supplement_tickers: list[str] | None = Field(
         default=None,
-        description="AI-discovered tickers unioned onto the asset-class base pool",
+        description=(
+            "AI-discovered tickers unioned onto the asset-class base pool; "
+            "pinned/guaranteed after refine_universe_with_ai (cannot be dropped)"
+        ),
     )
     universe_filter_text: str | None = Field(
         default=None,

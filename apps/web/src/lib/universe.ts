@@ -89,7 +89,7 @@ export function baseUniverseFromRequest(req: { asset_classes: AssetClass[] }): U
   return { assetClasses: req.asset_classes };
 }
 
-/** Final backtest pool: base (asset classes) ∪ AI supplement tickers. */
+/** Final backtest pool: base (asset classes) ∪ pinned/guaranteed AI supplement tickers. */
 export function combinedUniverseFromRequest(req: {
   asset_classes: AssetClass[];
   universe_supplement_tickers?: string[] | null;

@@ -5,6 +5,7 @@ import {
   buildSingleRulePrompt,
   getBasePoolTickers,
   mergeSupplementTickers,
+  pinGuaranteedSupplementTickers,
   resolveRuleTickersFullUniverse,
   resolveUniverseFilterPrompts,
   tickersAddedBeyondBase,
@@ -65,6 +66,10 @@ function run() {
 
   assert.ok(buildSingleRulePrompt("rule 1", ["equity"]).includes("FULL universe"));
   assert.ok(buildCombinedFilterPrompt(["rule 1"], ["equity"]).includes("Supplementary"));
+
+  const refined = ["SPY", "AGG"];
+  const pinned = pinGuaranteedSupplementTickers(refined, ["GLD", "SPY"]);
+  assert.deepEqual(pinned, ["SPY", "AGG", "GLD"]);
 
   console.log("universe-filter-merge: ok");
 }

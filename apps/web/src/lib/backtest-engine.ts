@@ -62,13 +62,15 @@ export function runBacktestEngine(
   req: BacktestRequest,
   jobId: string,
 ): BacktestResult {
+  // Base = asset classes; supplements are pinned/guaranteed (union, never dropped).
+  const guaranteed = (req.universe_supplement_tickers ?? []).filter(Boolean);
   const tickers = getTickers(
-    req.universe_supplement_tickers?.length
+    guaranteed.length
       ? {
           tickers: [
             ...new Set([
               ...getTickers({ assetClasses: req.asset_classes }),
-              ...req.universe_supplement_tickers,
+              ...guaranteed,
             ]),
           ],
         }

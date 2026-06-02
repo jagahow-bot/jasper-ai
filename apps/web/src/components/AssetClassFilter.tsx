@@ -243,6 +243,27 @@ export function AssetClassFilter({ value, onChange }: Props) {
           against all {total} ETFs; new tickers are unioned onto your base pool.
         </p>
 
+        <textarea
+          value={draftText}
+          onChange={(e) => setDraftText(e.target.value)}
+          placeholder="e.g. short equity hedge ETFs; US tech and healthcare; AI industry theme"
+          className="pixel-input min-h-20"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              addDraftRule();
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={addDraftRule}
+          disabled={!draftText.trim()}
+          className="pixel-btn w-full disabled:opacity-40"
+        >
+          ADD RULE
+        </button>
+
         {pendingRules.length > 0 && (
           <ol className="space-y-1.5">
             {pendingRules.map((rule, index) => (
@@ -267,104 +288,103 @@ export function AssetClassFilter({ value, onChange }: Props) {
           </ol>
         )}
 
-        <textarea
-          value={draftText}
-          onChange={(e) => setDraftText(e.target.value)}
-          placeholder="e.g. short equity hedge ETFs; US tech and healthcare; AI industry theme"
-          className="pixel-input min-h-20"
-        />
+        <button
+          type="button"
+          onClick={() => void applyWithAi()}
+          disabled={loading || pendingRules.length === 0}
+          className="pixel-btn w-full disabled:opacity-40"
+        >
+          {loading ? "APPLYING…" : "APPLY AI FILTER"}
+        </button>
+
         {error && <p className="text-sm text-[var(--magenta)]">{error}</p>}
-        {rationale && (
-          <p className="text-xs text-[var(--cyan)]">{rationale}</p>
-        )}
-        {perRuleResults && perRuleResults.length > 0 && (
-          <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--panel)] p-2">
+
+        {(rationale || (perRuleResults && perRuleResults.length > 0)) && (
+          <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--panel)] p-3">
             <p className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
               FILTER RESULTS
             </p>
+            {rationale && (
+              <p className="text-xs text-[var(--cyan)]">{rationale}</p>
+            )}
             <p className="text-xs text-dim">
-              Base pool: {baseCount} ticker{baseCount === 1 ? "" : "s"} (from asset
-              classes)
-              {supplementCount > 0 && (
+              Base pool: {baseCount} ticker{baseCount === 1 ? "" : "s"} (asset classes,
+              unchanged by AI).{" "}
+              {supplementCount > 0 ? (
                 <>
-                  {" "}
-                  · Combined: {combinedCount} ticker
-                  {combinedCount === 1 ? "" : "s"} (base + {supplementCount} supplement
-                  {supplementCount === 1 ? "" : "s"})
+                  <span className="text-[var(--foreground)]">
+                    {supplementCount} supplement ticker
+                    {supplementCount === 1 ? "" : "s"} — guaranteed inclusion in backtest
+                  </span>
+                  {" · "}
+                  Combined pool: {combinedCount} ticker
+                  {combinedCount === 1 ? "" : "s"} (base ∪ supplements).
                 </>
+              ) : (
+                <>Apply AI filter to add guaranteed supplement tickers on top of base.</>
               )}
             </p>
-            <ul className="space-y-1">
-              {perRuleResults.map((row) => (
-                <li key={ruleKey(row.rule_index, row.rule_text)} className="text-xs">
-                  <button
-                    type="button"
-                    onClick={() => toggleRuleExpanded(row.rule_index)}
-                    className="flex w-full items-start gap-2 text-left hover:text-[var(--cyan)]"
-                  >
-                    <span className="shrink-0 font-pixel text-[10px] text-[var(--cyan)]">
-                      {row.rule_index + 1}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="text-[var(--foreground)]">
-                        &quot;{row.rule_text}&quot;
+            {perRuleResults && perRuleResults.length > 0 && (
+              <ul className="space-y-1">
+                {perRuleResults.map((row) => (
+                  <li key={ruleKey(row.rule_index, row.rule_text)} className="text-xs">
+                    <button
+                      type="button"
+                      onClick={() => toggleRuleExpanded(row.rule_index)}
+                      className="flex w-full items-start gap-2 text-left hover:text-[var(--cyan)]"
+                    >
+                      <span className="shrink-0 font-pixel text-[10px] text-[var(--cyan)]">
+                        {row.rule_index + 1}
                       </span>
-                      <span className="text-dim">
-                        {" "}
-                        → {row.matched_tickers.length} matched in full universe
-                        {row.added_tickers.length > 0 && (
-                          <>
-                            ,{" "}
-                            <span className="text-[var(--cyan)]">
-                              +{row.added_tickers.length} new
-                            </span>
-                          </>
-                        )}
-                        {expandedRules[row.rule_index] ? "" : " (expand)"}
+                      <span className="min-w-0 flex-1">
+                        <span className="text-[var(--foreground)]">
+                          &quot;{row.rule_text}&quot;
+                        </span>
+                        <span className="text-dim">
+                          {" "}
+                          → {row.matched_tickers.length} matched in full universe
+                          {row.added_tickers.length > 0 && (
+                            <>
+                              ,{" "}
+                              <span className="text-[var(--cyan)]">
+                                +{row.added_tickers.length} new
+                              </span>
+                            </>
+                          )}
+                          {expandedRules[row.rule_index] ? "" : " (expand)"}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                  {expandedRules[row.rule_index] && (
-                    <div className="mt-1 space-y-1 pl-5 text-dim">
-                      {row.categories?.length ? (
-                        <p>Categories: {row.categories.join(", ")}</p>
-                      ) : null}
-                      <p className="break-words">
-                        Matched:{" "}
-                        {row.matched_tickers.length
-                          ? row.matched_tickers.join(", ")
-                          : "(none in universe for this rule)"}
-                      </p>
-                      {row.added_tickers.length > 0 && (
-                        <p className="break-words text-[var(--cyan)]">
-                          New vs base: {row.added_tickers.join(", ")}
+                    </button>
+                    {expandedRules[row.rule_index] && (
+                      <div className="mt-1 space-y-1 pl-5 text-dim">
+                        {row.categories?.length ? (
+                          <p>Categories: {row.categories.join(", ")}</p>
+                        ) : null}
+                        <p className="break-words">
+                          Matched:{" "}
+                          {row.matched_tickers.length
+                            ? row.matched_tickers.join(", ")
+                            : "(none in universe for this rule)"}
                         </p>
-                      )}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+                        {row.added_tickers.length > 0 && (
+                          <p className="break-words text-[var(--cyan)]">
+                            New vs base: {row.added_tickers.join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {supplementCount > 0 && (
+              <p className="text-xs text-[var(--cyan)]">
+                Guaranteed: {(value.universe_supplement_tickers ?? []).join(", ")} — always
+                included in the backtest universe (highest priority).
+              </p>
+            )}
           </div>
         )}
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button
-            type="button"
-            onClick={addDraftRule}
-            disabled={!draftText.trim()}
-            className="pixel-btn flex-1 disabled:opacity-40"
-          >
-            ADD RULE
-          </button>
-          <button
-            type="button"
-            onClick={() => void applyWithAi()}
-            disabled={loading || pendingRules.length === 0}
-            className="pixel-btn flex-1 disabled:opacity-40"
-          >
-            {loading ? "APPLYING…" : "APPLY AI FILTER"}
-          </button>
-        </div>
       </div>
     </div>
   );

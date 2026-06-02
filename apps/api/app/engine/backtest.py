@@ -39,7 +39,7 @@ from app.models import (
     PortfolioCandidate,
     ProRoundSnapshot,
 )
-from app.profiles import get_universe, get_universe_meta
+from app.profiles import get_universe, get_universe_meta, pin_guaranteed_supplements
 from app.engine.allocator import AllocatorParams
 from app.engine.analytics import build_full_analytics
 from app.engine.ai_params import generate_ai_param_sets, generate_ai_round_seed
@@ -1353,14 +1353,19 @@ def _find_record_by_params(
 
 def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> BacktestResult:
     objective_effective = _resolve_objective(req.objective.value, req.objective_custom_text)
+    guaranteed_supplements = list(req.universe_supplement_tickers or [])
     universe = get_universe(
         req.asset_classes,
         req.universe_categories,
         req.universe_tickers,
-        supplement_tickers=req.universe_supplement_tickers,
+        supplement_tickers=guaranteed_supplements or None,
     )
     universe_plan = refine_universe_with_ai(universe=universe, objective=objective_effective)
-    universe = universe_plan["universe"]
+    # Pinned supplements survive category dedupe during refine (保證名單).
+    universe = pin_guaranteed_supplements(
+        universe_plan["universe"],
+        guaranteed_supplements or None,
+    )
     universe_meta = get_universe_meta()
     if len(universe) < 5:
         raise ValueError(

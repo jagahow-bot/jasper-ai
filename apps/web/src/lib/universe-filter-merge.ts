@@ -66,6 +66,23 @@ export function tickersAddedBeyondBase(
   return matched.filter((t) => !base.has(t.toUpperCase()));
 }
 
+/** Re-union pinned supplement tickers after a refine/dedupe step drops them. */
+export function pinGuaranteedSupplementTickers(
+  refinedTickers: string[],
+  guaranteedSupplements: string[],
+): string[] {
+  if (!guaranteedSupplements.length) return refinedTickers;
+  const seen = new Set(refinedTickers.map((t) => t.toUpperCase()));
+  const out = [...refinedTickers];
+  for (const t of guaranteedSupplements) {
+    const key = t.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
 export function mergeSupplementTickers(
   outputs: UniverseFilterOutput[],
 ): UniverseSupplementMerge {

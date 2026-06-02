@@ -37,14 +37,7 @@ def get_universe(
         base = [u for u in base if u.get("asset_class") in allowed]
 
     if supplement_tickers:
-        sup_set = {str(t).upper() for t in supplement_tickers}
-        seen = {str(u.get("ticker", "")).upper() for u in base}
-        for u in all_items:
-            t = str(u.get("ticker", "")).upper()
-            if t in sup_set and t not in seen:
-                base.append(u)
-                seen.add(t)
-        return base
+        return _union_supplement_items(base, all_items, supplement_tickers)
 
     items = base
     if categories:
@@ -54,6 +47,39 @@ def get_universe(
         tick_set = {str(t).upper() for t in tickers}
         items = [u for u in items if str(u.get("ticker", "")).upper() in tick_set]
     return items
+
+
+def _union_supplement_items(
+    base: list[dict[str, Any]],
+    all_items: list[dict[str, Any]],
+    supplement_tickers: list[str],
+) -> list[dict[str, Any]]:
+    """Union AI-filter supplement tickers onto the asset-class base pool."""
+    sup_set = {str(t).upper() for t in supplement_tickers}
+    seen = {str(u.get("ticker", "")).upper() for u in base}
+    out = list(base)
+    for u in all_items:
+        t = str(u.get("ticker", "")).upper()
+        if t in sup_set and t not in seen:
+            out.append(u)
+            seen.add(t)
+    return out
+
+
+def pin_guaranteed_supplements(
+    refined_universe: list[dict[str, Any]],
+    supplement_tickers: list[str] | None,
+) -> list[dict[str, Any]]:
+    """Re-attach AI filter supplement tickers after refine_universe_with_ai.
+
+    Supplement tickers from the user's AI universe filter are pinned/guaranteed:
+    category dedupe during refine must not drop them from the final backtest pool.
+    Final pool = (asset-class base) ∪ (guaranteed supplements), then refine, then pin.
+    """
+    if not supplement_tickers:
+        return refined_universe
+    all_items = load_universe_file()["universe"]
+    return _union_supplement_items(refined_universe, all_items, supplement_tickers)
 
 
 def _count_field(items: list[dict[str, Any]], key: str) -> dict[str, int]:
