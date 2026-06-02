@@ -51,19 +51,19 @@ export function FontSizeControl() {
     <div
       className="flex items-center gap-1.5 border-2 border-[var(--neon-dim)] bg-[#050508] px-2 py-1 shadow-[0_0_12px_rgba(57,255,20,0.12)]"
       role="group"
-      aria-label="字體大小"
-      title="字體大小"
+      aria-label="Font size"
+      title="Font size"
     >
       <span className="px-0.5 font-terminal text-base font-bold tracking-wide text-[var(--cyan)]">
-        字體
+        FONT
       </span>
       <button
         type="button"
         className="font-terminal flex min-h-11 min-w-11 items-center justify-center border-2 border-[var(--border)] bg-[#0a1a0a] text-lg font-bold leading-none text-[var(--neon)] transition hover:border-[var(--neon)] hover:bg-[#122812] disabled:cursor-not-allowed disabled:opacity-40"
         onClick={shrink}
         disabled={!ready || atMin}
-        aria-label="縮小字體"
-        title="縮小字體"
+        aria-label="Decrease font size"
+        title="Decrease font size"
       >
         A−
       </button>
@@ -79,8 +79,8 @@ export function FontSizeControl() {
         className="font-terminal flex min-h-11 min-w-11 items-center justify-center border-2 border-[var(--border)] bg-[#0a1a0a] text-lg font-bold leading-none text-[var(--neon)] transition hover:border-[var(--neon)] hover:bg-[#122812] disabled:cursor-not-allowed disabled:opacity-40"
         onClick={enlarge}
         disabled={!ready || atMax}
-        aria-label="放大字體"
-        title="放大字體"
+        aria-label="Increase font size"
+        title="Increase font size"
       >
         A+
       </button>
@@ -90,10 +90,10 @@ export function FontSizeControl() {
           className="font-terminal min-h-11 border-2 border-[var(--border)] bg-[#0a1a0a] px-2 text-sm text-[var(--text-dim)] transition hover:border-[var(--neon-dim)] hover:text-[var(--neon)]"
           onClick={reset}
           disabled={!ready}
-          aria-label="重設字體大小"
-          title="重設為預設"
+          aria-label="Reset font size"
+          title="Reset font size"
         >
-          重設
+          RESET
         </button>
       )}
     </div>
