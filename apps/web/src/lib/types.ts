@@ -53,6 +53,8 @@ export interface BacktestRequest {
   asset_classes: AssetClass[];
   universe_categories?: string[] | null;
   universe_tickers?: string[] | null;
+  /** AI supplement tickers unioned onto the asset-class base pool */
+  universe_supplement_tickers?: string[] | null;
   universe_filter_text?: string | null;
   /** Stacked AI universe rules (AND); legacy jobs may only have universe_filter_text */
   universe_filter_prompts?: string[] | null;

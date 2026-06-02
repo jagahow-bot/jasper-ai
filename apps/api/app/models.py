@@ -73,7 +73,11 @@ class BacktestRequest(BaseModel):
     )
     universe_tickers: list[str] | None = Field(
         default=None,
-        description="Optional ticker whitelist after asset-class/category filters",
+        description="Legacy optional ticker whitelist (prefer universe_supplement_tickers)",
+    )
+    universe_supplement_tickers: list[str] | None = Field(
+        default=None,
+        description="AI-discovered tickers unioned onto the asset-class base pool",
     )
     universe_filter_text: str | None = Field(
         default=None,

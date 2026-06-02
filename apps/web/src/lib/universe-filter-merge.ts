@@ -1,85 +1,120 @@
 import type { AssetClass } from "./constants";
-import { ASSET_CLASSES } from "./constants";
-import { filterUniverse, getTickers, getUniverseItems } from "./universe";
+import { getTickers, getUniverseItems } from "./universe";
 import type { UniverseFilterOutput } from "./universe-filter-schema";
 
 export type UniverseFilterRuleResult = {
   rule_index: number;
   rule_text: string;
-  asset_classes: AssetClass[];
+  /** All tickers matching this rule in the full universe */
+  matched_tickers: string[];
+  /** Tickers this rule adds beyond the user's asset-class base pool */
+  added_tickers: string[];
   categories?: string[];
-  tickers: string[];
   rationale?: string;
 };
 
-function intersectSets<T>(sets: Set<T>[]): Set<T> {
-  if (!sets.length) return new Set();
-  let acc = new Set(sets[0]);
-  for (let i = 1; i < sets.length; i++) {
-    const next = sets[i];
-    acc = new Set([...acc].filter((x) => next.has(x)));
+export type UniverseSupplementMerge = {
+  supplement_tickers: string[];
+  rationale: string;
+};
+
+function uniqueTickers(lists: string[][]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const list of lists) {
+    for (const t of list) {
+      const key = t.toUpperCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(t);
+    }
   }
-  return acc;
+  return out;
 }
 
-function intersectOptionalLists<T>(lists: (T[] | undefined)[]): T[] | undefined {
-  const defined = lists.filter((x): x is T[] => Boolean(x?.length));
-  if (!defined.length) return undefined;
-  if (defined.length === 1) return [...defined[0]];
-  const sets = defined.map((arr) => new Set(arr));
-  return [...intersectSets(sets)];
+/** Resolve rule output to tickers searched across the full ETF universe (no asset-class ceiling). */
+export function resolveRuleTickersFullUniverse(
+  output: UniverseFilterOutput,
+): string[] {
+  const universeSet = new Set(getUniverseItems().map((u) => u.ticker.toUpperCase()));
+
+  if (output.tickers?.length) {
+    const fromList = output.tickers.filter((t) => universeSet.has(t.toUpperCase()));
+    if (fromList.length) return fromList;
+  }
+
+  if (output.categories?.length) {
+    return getTickers({ categories: output.categories });
+  }
+
+  if (output.asset_classes?.length) {
+    return getTickers({ assetClasses: output.asset_classes });
+  }
+
+  return [];
 }
 
-export function intersectAssetClasses(
-  fromAi: AssetClass[],
-  userSelected: AssetClass[],
-): AssetClass[] {
-  const userSet = new Set(userSelected);
-  const narrowed = fromAi.filter((c) => userSet.has(c));
-  return narrowed.length ? narrowed : [...userSelected];
+export function getBasePoolTickers(userAssetClasses: AssetClass[]): string[] {
+  return getTickers({ assetClasses: userAssetClasses });
 }
 
-export function mergeUniverseFilterOutputs(
+export function tickersAddedBeyondBase(
+  matched: string[],
+  baseTickers: string[],
+): string[] {
+  const base = new Set(baseTickers.map((t) => t.toUpperCase()));
+  return matched.filter((t) => !base.has(t.toUpperCase()));
+}
+
+export function mergeSupplementTickers(
   outputs: UniverseFilterOutput[],
-  userAssetClasses: AssetClass[],
-): UniverseFilterOutput {
+): UniverseSupplementMerge {
   if (!outputs.length) {
-    return {
-      asset_classes: [...userAssetClasses],
-      rationale: "No AI rules applied.",
-    };
+    return { supplement_tickers: [], rationale: "No AI supplement rules applied." };
   }
 
-  const classSets = outputs.map((o) => new Set(o.asset_classes));
-  let asset_classes = [...intersectSets(classSets)] as AssetClass[];
-  asset_classes = intersectAssetClasses(asset_classes, userAssetClasses);
-
-  const categories = intersectOptionalLists(outputs.map((o) => o.categories));
-  let tickers = intersectOptionalLists(outputs.map((o) => o.tickers));
-
-  if (tickers?.length) {
-    const pool = filterUniverse(getUniverseItems(), {
-      assetClasses: asset_classes,
-      categories,
-    });
-    const allowed = new Set(pool.map((u) => u.ticker.toUpperCase()));
-    tickers = tickers.filter((t) => allowed.has(t.toUpperCase()));
-    if (!tickers.length) tickers = undefined;
-  }
+  const perRule = outputs.map((o) => resolveRuleTickersFullUniverse(o));
+  const supplement_tickers = uniqueTickers(perRule);
 
   const rationale =
     outputs.length === 1
       ? outputs[0].rationale
-      : `Applied ${outputs.length} stacked rules within ${userAssetClasses.join(", ")}.`;
+      : `Supplement: ${outputs.length} rules matched ${supplement_tickers.length} ETF(s) in the full universe (union).`;
 
-  return { asset_classes, categories, tickers, rationale };
+  return { supplement_tickers, rationale };
 }
 
-export function constrainUniverseFilterOutput(
-  output: UniverseFilterOutput,
+export function buildPerRuleSupplementResults(
+  prompts: string[],
+  outputs: UniverseFilterOutput[],
   userAssetClasses: AssetClass[],
-): UniverseFilterOutput {
-  return mergeUniverseFilterOutputs([output], userAssetClasses);
+): UniverseFilterRuleResult[] {
+  const baseTickers = getBasePoolTickers(userAssetClasses);
+
+  return prompts.map((rule_text, rule_index) => {
+    const output = outputs[rule_index] ?? outputs[outputs.length - 1];
+    const matched_tickers = resolveRuleTickersFullUniverse(output);
+    const added_tickers = tickersAddedBeyondBase(matched_tickers, baseTickers);
+    return {
+      rule_index,
+      rule_text,
+      matched_tickers,
+      added_tickers,
+      categories: output.categories,
+      rationale: output.rationale,
+    };
+  });
+}
+
+export function buildSingleRulePrompt(ruleText: string, userAssetClasses: AssetClass[]): string {
+  return [
+    "Supplementary universe rule — find ETFs in the FULL universe that match this description.",
+    `Rule: ${ruleText.trim()}`,
+    "",
+    `Context: user already has a base pool from asset classes [${userAssetClasses.join(", ")}].`,
+    "Return tickers that match the rule even if they fall outside those classes (漏網之魚).",
+    "Prefer a focused ticker list over broad asset_class-only filters.",
+  ].join("\n");
 }
 
 export function buildCombinedFilterPrompt(
@@ -88,11 +123,11 @@ export function buildCombinedFilterPrompt(
 ): string {
   const lines = prompts.map((p, i) => `${i + 1}. ${p.trim()}`).join("\n");
   return [
-    "Stacked universe filter rules (apply ALL; each rule narrows the pool):",
+    "Supplementary universe rules (each rule is evaluated separately; results are unioned):",
     lines,
     "",
-    `User-selected asset class ceiling (output asset_classes must be a subset of): ${userAssetClasses.join(", ")}`,
-    `Valid asset_classes: ${ASSET_CLASSES.join(", ")}`,
+    `Context: user base pool from asset classes: ${userAssetClasses.join(", ")}.`,
+    "Search the FULL ETF universe for each rule; do not restrict to those classes.",
   ].join("\n");
 }
 
@@ -110,30 +145,4 @@ export function resolveUniverseFilterPrompts(req: {
   if (legacy === joined) return fromList;
   if (fromList.includes(legacy)) return fromList;
   return [legacy, ...fromList];
-}
-
-export function buildPerRuleFilterResults(
-  prompts: string[],
-  outputs: UniverseFilterOutput[],
-  userAssetClasses: AssetClass[],
-): UniverseFilterRuleResult[] {
-  return prompts.map((rule_text, rule_index) => {
-    const constrained = constrainUniverseFilterOutput(
-      outputs[rule_index] ?? outputs[outputs.length - 1],
-      userAssetClasses,
-    );
-    const tickers = getTickers({
-      assetClasses: constrained.asset_classes,
-      categories: constrained.categories,
-      tickers: constrained.tickers,
-    });
-    return {
-      rule_index,
-      rule_text,
-      asset_classes: constrained.asset_classes,
-      categories: constrained.categories,
-      tickers,
-      rationale: constrained.rationale,
-    };
-  });
 }

@@ -1,9 +1,34 @@
-import type { AssetClass } from "./constants";
-import { ASSET_CLASSES } from "./constants";
 import { getUniverseItems } from "./universe";
 import type { UniverseFilterOutput } from "./universe-filter-schema";
 
-const ALL: AssetClass[] = [...ASSET_CLASSES];
+const SHORT_MARKET_TICKERS = [
+  "BTAL",
+  "PUTW",
+  "CTA",
+  "DBMF",
+  "KMLM",
+  "MNA",
+  "SVOL",
+  "QAI",
+  "RLY",
+];
+
+const AI_THEMATIC_TICKERS = [
+  "BOTZ",
+  "ROBO",
+  "IRBO",
+  "AIQ",
+  "THNQ",
+  "IGV",
+  "SKYY",
+  "WCLD",
+  "SMH",
+  "SOXX",
+  "XSD",
+  "XLK",
+  "VGT",
+  "FTEC",
+];
 
 const SECTOR_TICKERS: Record<string, string[]> = {
   technology: ["XLK", "VGT", "FTEC", "IYW", "XNTK", "IGV", "XSW", "SMH", "SOXX", "XSD"],
@@ -77,39 +102,32 @@ function categoriesForText(text: string): string[] | undefined {
 
 export function analyzeUniverseFilterFallback(text: string): UniverseFilterOutput {
   const lower = text.toLowerCase();
-  let asset_classes: AssetClass[] = [...ALL];
+  const universe = new Set(getUniverseItems().map((u) => u.ticker));
+  const pick = (list: string[]) => list.filter((t) => universe.has(t));
 
-  if (/no bond|without bond|exclude bond|bond.?free|equity only|stock only|equities only/.test(lower)) {
-    asset_classes = ALL.filter((c) => c !== "bond");
-  }
-  if (/bond only|fixed income only|treasury only|no equity|without equity|exclude equity/.test(lower)) {
-    asset_classes = ["bond"];
-  }
-  if (/commodit(y|ies) only|gold only|no equity|no bond/.test(lower) && /commodit|gold|oil|precious/.test(lower)) {
-    asset_classes = ["commodity"];
-  }
-  if (/reit only|real estate only/.test(lower)) {
-    asset_classes = ["real_estate"];
-  }
-  if (/equity and bond|stock and bond|balanced|multi-asset|diversified/.test(lower)) {
-    asset_classes = ["equity", "bond"];
-  }
-  if (/sector|industry|tech|health|financial|energy|only/.test(lower) && !/bond|commodit|reit|alt/.test(lower)) {
-    asset_classes = ["equity"];
-  }
+  let tickers: string[] | undefined;
+  let categories = categoriesForText(text);
 
-  const categories = categoriesForText(text);
-  const tickers = tickersForKeywords(text);
+  if (/short.*(stock|equity|market)|bear.*(market|equity)|inverse.*(market|equity)|hedge.*equity/.test(lower)) {
+    tickers = pick(SHORT_MARKET_TICKERS);
+    categories = ["alt_hedge", "alt_managed_futures", "multi_alt"];
+  } else if (/\bai\b|artificial intelligence|machine learning|robot/.test(lower)) {
+    tickers = pick(AI_THEMATIC_TICKERS);
+    categories = ["us_thematic", "us_industry"];
+  } else {
+    tickers = tickersForKeywords(text);
+  }
 
   const parts: string[] = [];
-  parts.push(`Asset classes: ${asset_classes.join(", ")}`);
-  if (categories?.length) parts.push(`Categories: ${categories.slice(0, 4).join(", ")}${categories.length > 4 ? "…" : ""}`);
-  if (tickers?.length) parts.push(`${tickers.length} sector/industry tickers`);
+  if (tickers?.length) parts.push(`${tickers.length} matching ETF(s)`);
+  if (categories?.length) {
+    parts.push(`Categories: ${categories.slice(0, 4).join(", ")}${categories.length > 4 ? "…" : ""}`);
+  }
 
   return {
-    asset_classes,
+    asset_classes: undefined,
     categories,
     tickers,
-    rationale: parts.join(" · ") || "Applied rule-based universe filter from your text.",
+    rationale: parts.join(" · ") || "Supplement tickers from rule-based match in full universe.",
   };
 }

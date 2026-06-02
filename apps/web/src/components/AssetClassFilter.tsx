@@ -7,9 +7,10 @@ import {
   type AssetClass,
 } from "@/lib/constants";
 import {
+  baseUniverseFromRequest,
+  combinedUniverseFromRequest,
   countUniverse,
   getUniverseMeta,
-  universeFilterFromRequest,
 } from "@/lib/universe";
 import {
   resolveUniverseFilterPrompts,
@@ -41,8 +42,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
   const pendingRules = resolveUniverseFilterPrompts(value);
   const hasAiApplied =
     pendingRules.length > 0 ||
-    Boolean(value.universe_categories?.length) ||
-    Boolean(value.universe_tickers?.length);
+    Boolean(value.universe_supplement_tickers?.length);
 
   useEffect(() => {
     if (!hasAiApplied) {
@@ -53,8 +53,9 @@ export function AssetClassFilter({ value, onChange }: Props) {
   }, [hasAiApplied]);
 
   const total = getUniverseMeta().count;
-  const baseCount = countUniverse({ assetClasses: value.asset_classes });
-  const selectedCount = countUniverse(universeFilterFromRequest(value));
+  const baseCount = countUniverse(baseUniverseFromRequest(value));
+  const combinedCount = countUniverse(combinedUniverseFromRequest(value));
+  const supplementCount = (value.universe_supplement_tickers ?? []).length;
 
   const toggle = (ac: AssetClass) => {
     const classes = value.asset_classes;
@@ -98,6 +99,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
       ...(next.length
         ? {}
         : {
+            universe_supplement_tickers: null,
             universe_categories: null,
             universe_tickers: null,
           }),
@@ -123,12 +125,12 @@ export function AssetClassFilter({ value, onChange }: Props) {
         body: JSON.stringify({
           texts: prompts,
           asset_classes: value.asset_classes,
+          search_full_universe: true,
         }),
       });
       const data = (await res.json()) as {
         asset_classes?: AssetClass[];
-        categories?: string[];
-        tickers?: string[];
+        supplement_tickers?: string[];
         rationale?: string;
         per_rule?: UniverseFilterRuleResult[];
         error?: string;
@@ -136,14 +138,13 @@ export function AssetClassFilter({ value, onChange }: Props) {
       if (!res.ok) {
         throw new Error(data.error ?? "Filter analysis failed");
       }
-      if (!data.asset_classes?.length) {
-        throw new Error("Filter analysis failed");
-      }
       onChange({
         ...value,
-        asset_classes: data.asset_classes,
-        universe_categories: data.categories?.length ? data.categories : null,
-        universe_tickers: data.tickers?.length ? data.tickers : null,
+        universe_supplement_tickers: data.supplement_tickers?.length
+          ? data.supplement_tickers
+          : null,
+        universe_categories: null,
+        universe_tickers: null,
         universe_filter_prompts: prompts,
         universe_filter_text: prompts.join("; "),
       });
@@ -169,6 +170,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
     setExpandedRules({});
     onChange({
       ...value,
+      universe_supplement_tickers: null,
       universe_categories: null,
       universe_tickers: null,
       universe_filter_text: null,
@@ -190,7 +192,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
           <span className="text-xs text-dim">
             {hasAiApplied ? (
               <>
-                {selectedCount} / {baseCount} (in class) · universe {total}
+                base {baseCount} + supplement → {combinedCount} · universe {total}
               </>
             ) : (
               <>
@@ -215,8 +217,9 @@ export function AssetClassFilter({ value, onChange }: Props) {
           })}
         </div>
         <p className="text-xs text-dim">
-          Narrow the pool by asset class first ({baseCount} names). AI rules below
-          filter within selected classes only—they never widen them.
+          Layer 1 — pick asset classes to define your base pool ({baseCount} ETFs).
+          AI rules below search the full universe and add matching tickers on top; they
+          never remove base-pool names or change your class selection.
         </p>
       </div>
 
@@ -236,8 +239,8 @@ export function AssetClassFilter({ value, onChange }: Props) {
           )}
         </div>
         <p className="text-xs text-dim">
-          Add one rule at a time with ADD RULE, then APPLY AI FILTER to run all
-          rules together (AND). Each rule stays a separate line in the list.
+          Layer 2 — add rules one at a time, then APPLY AI FILTER. Each rule is matched
+          against all {total} ETFs; new tickers are unioned onto your base pool.
         </p>
 
         {pendingRules.length > 0 && (
@@ -267,7 +270,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
         <textarea
           value={draftText}
           onChange={(e) => setDraftText(e.target.value)}
-          placeholder="e.g. US tech and healthcare only; exclude bonds; short-duration Treasuries"
+          placeholder="e.g. short equity hedge ETFs; US tech and healthcare; AI industry theme"
           className="pixel-input min-h-20"
         />
         {error && <p className="text-sm text-[var(--magenta)]">{error}</p>}
@@ -280,8 +283,16 @@ export function AssetClassFilter({ value, onChange }: Props) {
               FILTER RESULTS
             </p>
             <p className="text-xs text-dim">
-              Combined pool: {selectedCount} ETF
-              {selectedCount === 1 ? "" : "s"} selected (all rules applied).
+              Base pool: {baseCount} ticker{baseCount === 1 ? "" : "s"} (from asset
+              classes)
+              {supplementCount > 0 && (
+                <>
+                  {" "}
+                  · Combined: {combinedCount} ticker
+                  {combinedCount === 1 ? "" : "s"} (base + {supplementCount} supplement
+                  {supplementCount === 1 ? "" : "s"})
+                </>
+              )}
             </p>
             <ul className="space-y-1">
               {perRuleResults.map((row) => (
@@ -300,23 +311,35 @@ export function AssetClassFilter({ value, onChange }: Props) {
                       </span>
                       <span className="text-dim">
                         {" "}
-                        → {row.tickers.length} ticker
-                        {row.tickers.length === 1 ? "" : "s"}
+                        → {row.matched_tickers.length} matched in full universe
+                        {row.added_tickers.length > 0 && (
+                          <>
+                            ,{" "}
+                            <span className="text-[var(--cyan)]">
+                              +{row.added_tickers.length} new
+                            </span>
+                          </>
+                        )}
                         {expandedRules[row.rule_index] ? "" : " (expand)"}
                       </span>
                     </span>
                   </button>
                   {expandedRules[row.rule_index] && (
-                    <div className="mt-1 pl-5 text-dim">
+                    <div className="mt-1 space-y-1 pl-5 text-dim">
                       {row.categories?.length ? (
                         <p>Categories: {row.categories.join(", ")}</p>
                       ) : null}
                       <p className="break-words">
-                        Tickers:{" "}
-                        {row.tickers.length
-                          ? row.tickers.join(", ")
+                        Matched:{" "}
+                        {row.matched_tickers.length
+                          ? row.matched_tickers.join(", ")
                           : "(none in universe for this rule)"}
                       </p>
+                      {row.added_tickers.length > 0 && (
+                        <p className="break-words text-[var(--cyan)]">
+                          New vs base: {row.added_tickers.join(", ")}
+                        </p>
+                      )}
                     </div>
                   )}
                 </li>
@@ -324,14 +347,6 @@ export function AssetClassFilter({ value, onChange }: Props) {
             </ul>
           </div>
         )}
-        {!perRuleResults && value.universe_categories?.length ? (
-          <p className="text-xs text-dim">
-            Category tags: {value.universe_categories.join(", ")}
-            {value.universe_tickers?.length
-              ? ` · ${value.universe_tickers.length} tickers`
-              : ""}
-          </p>
-        ) : null}
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"

@@ -1,4 +1,4 @@
-"""Universe filter: asset-class + category + ticker intersection."""
+"""Universe filter: asset-class base pool + AI supplement union."""
 
 from app.profiles import get_universe
 
@@ -19,6 +19,31 @@ def test_get_universe_ticker_whitelist_within_asset_classes():
     items = get_universe(asset_classes=["equity", "bond"], tickers=tickers)
     assert {u["ticker"] for u in items}.issubset(set(tickers))
     assert all(u.get("asset_class") in {"equity", "bond"} for u in items)
+
+
+def test_get_universe_supplement_unions_onto_base():
+    """Base from equity+bond; supplement adds commodity ticker outside base classes."""
+    base = get_universe(asset_classes=["equity", "bond"])
+    base_set = {u["ticker"] for u in base}
+    supplement = ["GLD"]
+    combined = get_universe(
+        asset_classes=["equity", "bond"],
+        supplement_tickers=supplement,
+    )
+    combined_set = {u["ticker"] for u in combined}
+    assert base_set.issubset(combined_set)
+    assert "GLD" in combined_set
+    assert len(combined) >= len(base)
+
+
+def test_get_universe_supplement_dedupes_existing_base():
+    base = get_universe(asset_classes=["equity"])
+    spy = next(u["ticker"] for u in base if u["ticker"] == "SPY")
+    combined = get_universe(
+        asset_classes=["equity"],
+        supplement_tickers=[spy],
+    )
+    assert len(combined) == len(base)
 
 
 def test_resolve_universe_filter_prompts_merges_legacy_text():
@@ -48,13 +73,3 @@ def test_resolve_universe_filter_prompts_ignores_joined_duplicate_text():
         universe_filter_prompts=["rule a", "rule b"],
     )
     assert req.resolved_universe_filter_prompts() == ["rule a", "rule b"]
-
-
-def test_get_universe_asset_classes_always_applied_with_ai_categories():
-    """Simulates UI: user picks equity+bond, AI adds us_sector — both must apply."""
-    items = get_universe(
-        asset_classes=["equity", "bond"],
-        categories=["us_sector"],
-    )
-    assert items
-    assert all(u.get("asset_class") in {"equity", "bond"} for u in items)

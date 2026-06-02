@@ -62,11 +62,22 @@ export function runBacktestEngine(
   req: BacktestRequest,
   jobId: string,
 ): BacktestResult {
-  const tickers = getTickers({
-    assetClasses: req.asset_classes,
-    categories: req.universe_categories,
-    tickers: req.universe_tickers,
-  });
+  const tickers = getTickers(
+    req.universe_supplement_tickers?.length
+      ? {
+          tickers: [
+            ...new Set([
+              ...getTickers({ assetClasses: req.asset_classes }),
+              ...req.universe_supplement_tickers,
+            ]),
+          ],
+        }
+      : {
+          assetClasses: req.asset_classes,
+          categories: req.universe_categories,
+          tickers: req.universe_tickers,
+        },
+  );
   const meta = getUniverseMeta();
   const n = tickers.length;
   if (n < 5) {
@@ -203,6 +214,7 @@ export function runBacktestEngine(
       asset_classes_filter: req.asset_classes,
       universe_categories_filter: req.universe_categories,
       universe_tickers_filter: req.universe_tickers,
+      universe_supplement_tickers: req.universe_supplement_tickers ?? undefined,
       universe_filter_text: req.universe_filter_text,
       universe_filter_prompts: req.universe_filter_prompts ?? undefined,
       backtest_spec: {

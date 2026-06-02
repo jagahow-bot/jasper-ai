@@ -1357,6 +1357,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         req.asset_classes,
         req.universe_categories,
         req.universe_tickers,
+        supplement_tickers=req.universe_supplement_tickers,
     )
     universe_plan = refine_universe_with_ai(universe=universe, objective=objective_effective)
     universe = universe_plan["universe"]
@@ -1982,6 +1983,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "asset_classes_filter": req.asset_classes,
         "universe_categories_filter": req.universe_categories,
         "universe_tickers_filter": req.universe_tickers,
+        "universe_supplement_tickers": req.universe_supplement_tickers,
         "universe_filter_text": req.universe_filter_text,
         "universe_filter_prompts": req.resolved_universe_filter_prompts(),
         "universe_refine": {

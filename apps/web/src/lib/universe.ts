@@ -84,11 +84,33 @@ export function getUniverseMeta() {
   };
 }
 
+/** Layer-1 base pool from user-selected asset classes only. */
+export function baseUniverseFromRequest(req: { asset_classes: AssetClass[] }): UniverseFilterOptions {
+  return { assetClasses: req.asset_classes };
+}
+
+/** Final backtest pool: base (asset classes) ∪ AI supplement tickers. */
+export function combinedUniverseFromRequest(req: {
+  asset_classes: AssetClass[];
+  universe_supplement_tickers?: string[] | null;
+}): UniverseFilterOptions {
+  const base = getTickers({ assetClasses: req.asset_classes });
+  const sup = (req.universe_supplement_tickers ?? []).filter(Boolean);
+  if (!sup.length) return { assetClasses: req.asset_classes };
+  const merged = [...new Set([...base, ...sup])];
+  return { tickers: merged };
+}
+
+/** @deprecated Use baseUniverseFromRequest or combinedUniverseFromRequest */
 export function universeFilterFromRequest(req: {
   asset_classes: AssetClass[];
   universe_categories?: string[] | null;
   universe_tickers?: string[] | null;
+  universe_supplement_tickers?: string[] | null;
 }): UniverseFilterOptions {
+  if (req.universe_supplement_tickers?.length) {
+    return combinedUniverseFromRequest(req);
+  }
   return {
     assetClasses: req.asset_classes,
     categories: req.universe_categories,

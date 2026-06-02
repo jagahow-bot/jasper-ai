@@ -1,50 +1,59 @@
 import assert from "node:assert/strict";
 import {
   buildCombinedFilterPrompt,
-  buildPerRuleFilterResults,
-  constrainUniverseFilterOutput,
-  intersectAssetClasses,
-  mergeUniverseFilterOutputs,
+  buildPerRuleSupplementResults,
+  buildSingleRulePrompt,
+  getBasePoolTickers,
+  mergeSupplementTickers,
+  resolveRuleTickersFullUniverse,
   resolveUniverseFilterPrompts,
+  tickersAddedBeyondBase,
 } from "./universe-filter-merge";
 import { analyzeUniverseFilterFallback } from "./universe-filter-fallback";
-import type { UniverseFilterOutput } from "./universe-filter-schema";
+import { countUniverse, combinedUniverseFromRequest } from "./universe";
 
 function run() {
-  assert.deepEqual(
-    intersectAssetClasses(["equity", "bond", "commodity"], ["equity", "bond"]),
-    ["equity", "bond"],
+  const baseEquityBond = ["equity", "bond"] as const;
+  const baseTickers = getBasePoolTickers([...baseEquityBond]);
+  assert.ok(baseTickers.length > 0);
+
+  const shortOut = analyzeUniverseFilterFallback("SHORT STOCK MARKET");
+  const shortTickers = resolveRuleTickersFullUniverse(shortOut);
+  assert.ok(shortTickers.length > 0);
+  assert.ok(shortTickers.length < 50, "short market rule should not match whole universe");
+
+  const aiOut = analyzeUniverseFilterFallback("AI INDUSTRY");
+  const aiTickers = resolveRuleTickersFullUniverse(aiOut);
+  assert.ok(aiTickers.length > 0);
+  assert.ok(aiTickers.length < 100);
+
+  const merged = mergeSupplementTickers([shortOut, aiOut]);
+  assert.ok(merged.supplement_tickers.length > 0);
+
+  const perRule = buildPerRuleSupplementResults(
+    ["SHORT STOCK MARKET", "AI INDUSTRY"],
+    [shortOut, aiOut],
+    [...baseEquityBond],
   );
-  assert.deepEqual(
-    intersectAssetClasses(["commodity"], ["equity", "bond"]),
-    ["equity", "bond"],
+  assert.equal(perRule.length, 2);
+  assert.ok(perRule[0].matched_tickers.length < 50);
+  assert.ok(
+    perRule[0].added_tickers.length <= perRule[0].matched_tickers.length,
   );
 
-  const a: UniverseFilterOutput = {
-    asset_classes: ["equity"],
-    categories: ["us_sector"],
-    tickers: ["XLK", "XLV"],
-    rationale: "a",
-  };
-  const b: UniverseFilterOutput = {
-    asset_classes: ["equity"],
-    categories: ["us_sector", "us_industry"],
-    tickers: ["XLK"],
-    rationale: "b",
-  };
-  const merged = mergeUniverseFilterOutputs([a, b], ["equity", "bond"]);
-  assert.deepEqual(merged.asset_classes, ["equity"]);
-  assert.deepEqual(merged.categories, ["us_sector"]);
-  assert.deepEqual(merged.tickers, ["XLK"]);
-
-  const constrained = constrainUniverseFilterOutput(
-    {
-      asset_classes: ["equity", "bond", "commodity"],
-      rationale: "wide",
-    },
-    ["equity"],
+  const combined = countUniverse(
+    combinedUniverseFromRequest({
+      asset_classes: [...baseEquityBond],
+      universe_supplement_tickers: merged.supplement_tickers,
+    }),
   );
-  assert.deepEqual(constrained.asset_classes, ["equity"]);
+  assert.ok(
+    combined >= baseTickers.length,
+    "combined pool must be base ∪ supplements, not intersection",
+  );
+
+  const added = tickersAddedBeyondBase(shortTickers, baseTickers);
+  assert.ok(added.every((t) => !baseTickers.map((b) => b.toUpperCase()).includes(t.toUpperCase())));
 
   assert.deepEqual(
     resolveUniverseFilterPrompts({
@@ -54,32 +63,9 @@ function run() {
     ["legacy", "a"],
   );
 
-  assert.deepEqual(
-    resolveUniverseFilterPrompts({
-      universe_filter_text: "rule a; rule b",
-      universe_filter_prompts: ["rule a", "rule b"],
-    }),
-    ["rule a", "rule b"],
-  );
+  assert.ok(buildSingleRulePrompt("rule 1", ["equity"]).includes("FULL universe"));
+  assert.ok(buildCombinedFilterPrompt(["rule 1"], ["equity"]).includes("Supplementary"));
 
-  assert.deepEqual(
-    resolveUniverseFilterPrompts({
-      universe_filter_text: "only legacy",
-    }),
-    ["only legacy"],
-  );
-
-  const techOut = analyzeUniverseFilterFallback("US technology sector only");
-  const perRule = buildPerRuleFilterResults(
-    ["US technology sector only"],
-    [techOut],
-    ["equity", "bond"],
-  );
-  assert.equal(perRule.length, 1);
-  assert.equal(perRule[0].rule_text, "US technology sector only");
-  assert.ok(perRule[0].tickers.includes("XLK"));
-
-  assert.ok(buildCombinedFilterPrompt(["rule 1"], ["equity"]).includes("rule 1"));
   console.log("universe-filter-merge: ok");
 }
 
