@@ -212,9 +212,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b-2 border-[var(--border)] bg-[var(--surface)]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div>
+      <header className="sticky top-0 z-40 border-b-2 border-[var(--border)] bg-[var(--surface)] shadow-[0_4px_24px_rgba(0,0,0,0.45)]">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+          <div className="min-w-0">
             <h1 className="font-pixel text-sm glow-title text-neon md:text-base">
               JASPER.AI
             </h1>
@@ -222,7 +222,7 @@ export default function HomePage() {
               {`> ${header}`}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <FontSizeControl />
             {apiOnline === false && (
               <span

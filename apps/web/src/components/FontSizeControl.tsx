@@ -49,17 +49,17 @@ export function FontSizeControl() {
 
   return (
     <div
-      className="flex items-center gap-1 border-2 border-[var(--border)] bg-[#050508] px-1 py-0.5"
+      className="flex items-center gap-1.5 border-2 border-[var(--neon-dim)] bg-[#050508] px-2 py-1 shadow-[0_0_12px_rgba(57,255,20,0.12)]"
       role="group"
       aria-label="字體大小"
       title="字體大小"
     >
-      <span className="hidden px-1 font-pixel text-[9px] uppercase tracking-wide text-[var(--text-dim)] sm:inline">
+      <span className="px-0.5 font-terminal text-base font-bold tracking-wide text-[var(--cyan)]">
         字體
       </span>
       <button
         type="button"
-        className="font-pixel min-w-[2rem] border border-[var(--border)] bg-[#0a1a0a] px-1.5 py-0.5 text-[9px] uppercase text-[var(--neon)] transition hover:border-[var(--neon)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="font-terminal flex min-h-11 min-w-11 items-center justify-center border-2 border-[var(--border)] bg-[#0a1a0a] text-lg font-bold leading-none text-[var(--neon)] transition hover:border-[var(--neon)] hover:bg-[#122812] disabled:cursor-not-allowed disabled:opacity-40"
         onClick={shrink}
         disabled={!ready || atMin}
         aria-label="縮小字體"
@@ -68,7 +68,7 @@ export function FontSizeControl() {
         A−
       </button>
       <span
-        className="min-w-[2.25rem] text-center font-terminal text-sm tabular-nums text-[var(--cyan)]"
+        className="min-w-[2.5rem] text-center font-terminal text-lg font-bold tabular-nums text-[var(--cyan)]"
         aria-live="polite"
         aria-atomic="true"
       >
@@ -76,7 +76,7 @@ export function FontSizeControl() {
       </span>
       <button
         type="button"
-        className="font-pixel min-w-[2rem] border border-[var(--border)] bg-[#0a1a0a] px-1.5 py-0.5 text-[9px] uppercase text-[var(--neon)] transition hover:border-[var(--neon)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="font-terminal flex min-h-11 min-w-11 items-center justify-center border-2 border-[var(--border)] bg-[#0a1a0a] text-lg font-bold leading-none text-[var(--neon)] transition hover:border-[var(--neon)] hover:bg-[#122812] disabled:cursor-not-allowed disabled:opacity-40"
         onClick={enlarge}
         disabled={!ready || atMax}
         aria-label="放大字體"
@@ -87,7 +87,7 @@ export function FontSizeControl() {
       {!isDefault && (
         <button
           type="button"
-          className="font-pixel border border-[var(--border)] bg-[#0a1a0a] px-1 py-0.5 text-[8px] uppercase text-[var(--text-dim)] transition hover:border-[var(--neon-dim)] hover:text-[var(--neon)]"
+          className="font-terminal min-h-11 border-2 border-[var(--border)] bg-[#0a1a0a] px-2 text-sm text-[var(--text-dim)] transition hover:border-[var(--neon-dim)] hover:text-[var(--neon)]"
           onClick={reset}
           disabled={!ready}
           aria-label="重設字體大小"
