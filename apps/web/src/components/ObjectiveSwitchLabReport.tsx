@@ -1,6 +1,7 @@
 "use client";
 
 import { BenchmarkRegimeChart } from "@/components/BenchmarkRegimeChart";
+import { RegimeScoreChart } from "@/components/RegimeScoreChart";
 import type { ObjectiveSwitchLabResult, RegimePredictionQuality } from "@/lib/types";
 
 function fmt(v: number | null | undefined, digits = 3): string {
@@ -45,6 +46,18 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
 
       <p className="text-xs text-dim">{result.limitation}</p>
 
+      {result.detector_version && (
+        <p className="text-xs text-dim">
+          Regime detector:{" "}
+          <span className="pixel-badge-cyan inline-block px-2 py-0.5 font-pixel text-[8px]">
+            {result.detector_version.toUpperCase()}
+          </span>
+          {result.detector_version === "v2"
+            ? " — risk-on / risk-off indicator scores with arbitration"
+            : " — legacy return & volatility thresholds"}
+        </p>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         <ArmCard title="Fixed objective" arm={result.fixed_arm} />
         <ArmCard title="Switch policy" arm={result.switch_arm} showSwitches />
@@ -69,6 +82,19 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
         </div>
       )}
 
+      {result.detector_version === "v2" &&
+        result.regime_score_timeline &&
+        result.regime_score_timeline.length > 0 && (
+          <div className="pixel-panel p-4">
+            <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
+              Regime scores vs active label
+            </h3>
+            <div className="mt-3">
+              <RegimeScoreChart scoreTimeline={result.regime_score_timeline} />
+            </div>
+          </div>
+        )}
+
       <div className="pixel-panel p-4">
         <h3 className="font-pixel text-[8px] text-[var(--cyan)]">Regime timeline</h3>
         <div className="mt-3 max-h-48 overflow-auto font-terminal text-xs">
@@ -80,6 +106,12 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
                 <th>Active</th>
                 <th>Objective</th>
                 <th>Vol</th>
+                {result.detector_version === "v2" && (
+                  <>
+                    <th>Off</th>
+                    <th>On</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -90,6 +122,12 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
                   <td>{row.active_regime ?? row.regime}</td>
                   <td>{row.objective}</td>
                   <td>{fmt(row.annualized_vol, 2)}</td>
+                  {result.detector_version === "v2" && (
+                    <>
+                      <td>{fmt(row.risk_off_score, 2)}</td>
+                      <td>{fmt(row.risk_on_score, 2)}</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

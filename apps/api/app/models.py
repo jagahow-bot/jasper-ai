@@ -313,6 +313,10 @@ class ObjectiveSwitchLabRequest(BaseModel):
         le=4,
         description="Consecutive raw regime confirmations before switching",
     )
+    regime_detector_version: Literal["v1", "v2"] = Field(
+        default="v2",
+        description="Regime heuristic: v1 threshold rules, v2 scored indicators + arbitration",
+    )
 
 
 class ObjectiveSwitchLabResult(BaseModel):
@@ -333,3 +337,5 @@ class ObjectiveSwitchLabResult(BaseModel):
     # Regime diagnostic (does not replace Sharpe A/B)
     regime_prediction_quality: dict[str, Any] = Field(default_factory=dict)
     benchmark_series: list[dict[str, Any]] = Field(default_factory=list)
+    detector_version: str = "v2"
+    regime_score_timeline: list[dict[str, Any]] = Field(default_factory=list)

@@ -11,6 +11,7 @@ import type {
   Objective,
   ObjectiveSwitchLabRequest,
   ObjectiveSwitchLabResult,
+  RegimeDetectorVersion,
 } from "@/lib/types";
 
 const OBJECTIVES: { value: Objective; label: string }[] = [
@@ -26,6 +27,11 @@ const REGIME_OPTIONS: { value: ExperimentalRegimeMode; label: string }[] = [
   { value: "risk_on", label: "Risk-on" },
 ];
 
+const DETECTOR_OPTIONS: { value: RegimeDetectorVersion; label: string }[] = [
+  { value: "v2", label: "V2 — scored indicators" },
+  { value: "v1", label: "V1 — legacy thresholds" },
+];
+
 const DEFAULT_LAB: ObjectiveSwitchLabRequest = {
   start_date: "2018-01-01",
   end_date: "2024-12-31",
@@ -37,6 +43,7 @@ const DEFAULT_LAB: ObjectiveSwitchLabRequest = {
   train_ratio: 0.7,
   cooldown_steps: 2,
   confirm_steps: 1,
+  regime_detector_version: "v2",
 };
 
 export default function ObjectiveSwitchLabPage() {
@@ -130,6 +137,25 @@ export default function ObjectiveSwitchLabPage() {
                   setForm((f) => ({ ...f, benchmark_ticker: e.target.value || "SPY" }))
                 }
               />
+            </label>
+            <label className="block text-xs">
+              Regime detector
+              <select
+                className="pixel-input mt-1 w-full"
+                value={form.regime_detector_version ?? "v2"}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    regime_detector_version: e.target.value as RegimeDetectorVersion,
+                  }))
+                }
+              >
+                {DETECTOR_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="block text-xs">
               Regime mode

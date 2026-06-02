@@ -283,6 +283,7 @@ export type WizardPhase =
   | "export";
 
 export type LabRecommendation = "APPLY" | "NOT_YET" | "NEED_MORE_DATA";
+export type RegimeDetectorVersion = "v1" | "v2";
 
 export interface ObjectiveSwitchLabRequest {
   start_date: string;
@@ -295,6 +296,7 @@ export interface ObjectiveSwitchLabRequest {
   train_ratio: number;
   cooldown_steps?: number;
   confirm_steps?: number;
+  regime_detector_version?: RegimeDetectorVersion;
 }
 
 export interface LabArmMetrics {
@@ -341,6 +343,15 @@ export interface BenchmarkSeriesPoint {
   price_index: number;
 }
 
+export interface RegimeScoreTimelinePoint {
+  date: string;
+  risk_off_score?: number;
+  risk_on_score?: number;
+  neutral_score?: number | null;
+  active_regime: string;
+  switched: boolean;
+}
+
 export interface ObjectiveSwitchLabResult {
   disclaimer: string;
   limitation: string;
@@ -370,9 +381,14 @@ export interface ObjectiveSwitchLabResult {
     trailing_return?: number;
     annualized_vol?: number;
     raw_regime?: string;
+    risk_off_score?: number;
+    risk_on_score?: number;
+    neutral_score?: number;
   }[];
   regime_prediction_quality?: RegimePredictionQuality;
   benchmark_series?: BenchmarkSeriesPoint[];
+  detector_version?: RegimeDetectorVersion;
+  regime_score_timeline?: RegimeScoreTimelinePoint[];
   current_regime: Record<string, unknown>;
   periods: Record<string, unknown>;
   benchmark_ticker: string;

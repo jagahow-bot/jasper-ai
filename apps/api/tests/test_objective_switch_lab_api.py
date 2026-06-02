@@ -63,6 +63,60 @@ def test_lab_evaluate_endpoint(mock_fetch: object, mock_universe: object) -> Non
         assert "cumulative_return_pct" in pt
     if body["regime_timeline"]:
         assert "active_regime" in body["regime_timeline"][0]
+    assert body.get("detector_version") == "v2"
+    assert isinstance(body.get("regime_score_timeline"), list)
+
+
+@patch("app.engine.objective_switch_lab.get_universe")
+@patch("app.engine.objective_switch_lab.fetch_prices")
+def test_lab_evaluate_v2_score_timeline(mock_fetch: object, mock_universe: object) -> None:
+    prices = _synthetic_prices()
+    mock_fetch.return_value = (prices, {"data_source": "test"})
+    tickers = [c for c in prices.columns if c != "SPY"]
+    mock_universe.return_value = [
+        {"ticker": t, "asset_class": "equity"} for t in tickers
+    ]
+
+    res = client.post(
+        "/lab/objective-switch/evaluate",
+        json={
+            "start_date": "2018-01-01",
+            "end_date": "2020-06-01",
+            "regime_detector_version": "v2",
+        },
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["detector_version"] == "v2"
+    timeline = body["regime_score_timeline"]
+    assert isinstance(timeline, list)
+    if timeline:
+        pt = timeline[0]
+        assert "risk_off_score" in pt
+        assert "risk_on_score" in pt
+        assert "active_regime" in pt
+
+
+@patch("app.engine.objective_switch_lab.get_universe")
+@patch("app.engine.objective_switch_lab.fetch_prices")
+def test_lab_evaluate_v1_detector(mock_fetch: object, mock_universe: object) -> None:
+    prices = _synthetic_prices()
+    mock_fetch.return_value = (prices, {"data_source": "test"})
+    tickers = [c for c in prices.columns if c != "SPY"]
+    mock_universe.return_value = [
+        {"ticker": t, "asset_class": "equity"} for t in tickers
+    ]
+
+    res = client.post(
+        "/lab/objective-switch/evaluate",
+        json={
+            "start_date": "2018-01-01",
+            "end_date": "2020-06-01",
+            "regime_detector_version": "v1",
+        },
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["detector_version"] == "v1"
 
 
 @patch("app.engine.objective_switch_lab.get_universe")

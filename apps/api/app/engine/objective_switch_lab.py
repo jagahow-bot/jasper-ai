@@ -17,10 +17,16 @@ from app.engine.portfolio import (
     split_train_validation,
 )
 from app.engine.regime_policy import (
+    RegimeSignal,
     current_regime_snapshot,
     objective_for_regime,
     resolve_regime_signal,
     walk_forward_regime_timeline,
+)
+from app.engine.regime_policy_v2 import (
+    current_regime_snapshot_v2,
+    resolve_regime_signal_v2,
+    walk_forward_regime_timeline_v2,
 )
 from app.engine.spec import BacktestSpec
 from app.profiles import get_universe, get_universe_meta
@@ -32,10 +38,85 @@ LAB_REBALANCE = "QE"
 LAB_FEE_BPS = 10.0
 
 LIMITATION_NOTE = (
-    "Lab v1 uses fixed top-N factor screen + allocator presets per objective "
+    "Lab uses fixed top-N factor screen + allocator presets per objective "
     "(no Optuna search). Arms differ by objective→allocator mapping at each rebalance; "
-    "not comparable to a fully optimized Jasper backtest."
+    "not comparable to a fully optimized Jasper backtest. "
+    "Regime detector v2 scores risk-on/risk-off indicators and arbitrates; v1 uses legacy thresholds."
 )
+
+
+def _normalize_detector_version(version: str | None) -> str:
+    v = (version or "v2").strip().lower()
+    return v if v in ("v1", "v2") else "v2"
+
+
+def walk_forward_timeline_for_detector(
+    bench_ret: pd.Series,
+    requested_mode: str,
+    *,
+    detector_version: str,
+    cooldown_steps: int,
+    confirm_steps: int,
+) -> tuple[int, list[dict[str, Any]]]:
+    if detector_version == "v1":
+        return walk_forward_regime_timeline(
+            bench_ret,
+            requested_mode,
+            cooldown_steps=cooldown_steps,
+            confirm_steps=confirm_steps,
+        )
+    return walk_forward_regime_timeline_v2(
+        bench_ret,
+        requested_mode,
+        cooldown_steps=cooldown_steps,
+        confirm_steps=confirm_steps,
+    )
+
+
+def resolve_raw_regime_for_detector(
+    window: pd.Series,
+    requested_mode: str,
+    *,
+    detector_version: str,
+    vol_history: pd.Series | None = None,
+) -> RegimeSignal:
+    if detector_version == "v1":
+        return resolve_regime_signal(window, requested_mode)
+    regime, _ = resolve_regime_signal_v2(
+        window, requested_mode, vol_history=vol_history
+    )
+    return regime
+
+
+def current_snapshot_for_detector(
+    bench_ret: pd.Series,
+    requested_mode: str,
+    *,
+    detector_version: str,
+) -> dict[str, Any]:
+    if detector_version == "v1":
+        snap = current_regime_snapshot(bench_ret, requested_mode)
+        snap["detector_version"] = "v1"
+        return snap
+    return current_regime_snapshot_v2(bench_ret, requested_mode)
+
+
+def build_regime_score_timeline(
+    timeline: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for step in timeline:
+        row: dict[str, Any] = {
+            "date": step["date"],
+            "active_regime": step.get("active_regime") or step["regime"],
+            "switched": bool(step.get("switched")),
+        }
+        if "risk_off_score" in step:
+            row["risk_off_score"] = step["risk_off_score"]
+            row["risk_on_score"] = step["risk_on_score"]
+            row["neutral_score"] = step.get("neutral_score")
+        rows.append(row)
+    return rows
 
 FORWARD_HORIZON_DAYS = 21
 REGIME_LABELS = ("risk_off", "neutral", "risk_on")
@@ -329,11 +410,13 @@ def _build_allocator_resolver(
     cooldown_steps: int = 2,
     confirm_steps: int = 1,
     fixed_objective: str | None = None,
+    detector_version: str = "v2",
 ) -> tuple[Callable[[pd.Timestamp], AllocatorParams], list[dict[str, Any]], int]:
     """Resolver for switch arm; fixed arm passes fixed_objective."""
-    switch_count, timeline = walk_forward_regime_timeline(
+    switch_count, timeline = walk_forward_timeline_for_detector(
         bench_ret,
         requested_mode,
+        detector_version=detector_version,
         cooldown_steps=cooldown_steps,
         confirm_steps=confirm_steps,
     )
@@ -353,9 +436,12 @@ def _build_allocator_resolver(
         prior = [d for d in dates_sorted if d <= key]
         if prior:
             row = by_date[prior[-1]]
-            raw_regime = resolve_regime_signal(
-                bench_ret.loc[: dt].tail(lookback_days),
+            window = bench_ret.loc[:dt].tail(lookback_days)
+            raw_regime = resolve_raw_regime_for_detector(
+                window,
                 requested_mode,
+                detector_version=detector_version,
+                vol_history=bench_ret.loc[:dt],
             )
             candidate = objective_for_regime(raw_regime)
             idx = dates_sorted.index(prior[-1])
@@ -388,6 +474,7 @@ def _simulate_arm(
     cooldown_steps: int,
     confirm_steps: int,
     universe_by_ticker: dict[str, dict[str, Any]],
+    detector_version: str = "v2",
 ) -> tuple[dict[str, Any], list[dict[str, Any]], int]:
     resolver, timeline, switch_count = _build_allocator_resolver(
         bench_ret,
@@ -395,6 +482,7 @@ def _simulate_arm(
         fixed_objective=fixed_objective,
         cooldown_steps=cooldown_steps,
         confirm_steps=confirm_steps,
+        detector_version=detector_version,
     )
     factor_lb = resolver(prices.index[-1]).lookback_days
     metrics = simulate_dynamic_portfolio(
@@ -436,6 +524,7 @@ def evaluate_objective_switch_lab(
     bench = (req.benchmark_ticker or "SPY").upper()
     regime_mode = str(req.regime_mode).lower()
     fixed_objective = req.fixed_objective.value
+    detector_version = _normalize_detector_version(req.regime_detector_version)
 
     universe = get_universe(req.asset_classes)
     universe_meta = get_universe_meta()
@@ -477,53 +566,59 @@ def evaluate_objective_switch_lab(
     cooldown = int(req.cooldown_steps)
     confirm = int(req.confirm_steps)
 
+    train_bench_slice = bench_ret.loc[prices_train.index[0] : prices_train.index[-1]]
     fixed_is, _, _ = _simulate_arm(
         prices_train,
         spec=spec,
-        bench_ret=bench_ret.loc[prices_train.index[0] : prices_train.index[-1]],
+        bench_ret=train_bench_slice,
         regime_mode=regime_mode,
         objective=fixed_objective,
         fixed_objective=fixed_objective,
         cooldown_steps=cooldown,
         confirm_steps=confirm,
         universe_by_ticker=universe_by_ticker,
+        detector_version=detector_version,
     )
     switch_is, timeline, switch_count = _simulate_arm(
         prices_train,
         spec=spec,
-        bench_ret=bench_ret.loc[prices_train.index[0] : prices_train.index[-1]],
+        bench_ret=train_bench_slice,
         regime_mode=regime_mode,
         objective=None,
         fixed_objective=None,
         cooldown_steps=cooldown,
         confirm_steps=confirm,
         universe_by_ticker=universe_by_ticker,
+        detector_version=detector_version,
     )
 
     fixed_oos: dict[str, Any] | None = None
     switch_oos: dict[str, Any] | None = None
     if req.enable_oos and len(prices_val) > 60:
+        val_bench = bench_ret.loc[prices_val.index[0] : prices_val.index[-1]]
         fixed_oos, _, _ = _simulate_arm(
             prices_val,
             spec=spec,
-            bench_ret=bench_ret.loc[prices_val.index[0] : prices_val.index[-1]],
+            bench_ret=val_bench,
             regime_mode=regime_mode,
             objective=fixed_objective,
             fixed_objective=fixed_objective,
             cooldown_steps=cooldown,
             confirm_steps=confirm,
             universe_by_ticker=universe_by_ticker,
+            detector_version=detector_version,
         )
         switch_oos, _, _ = _simulate_arm(
             prices_val,
             spec=spec,
-            bench_ret=bench_ret.loc[prices_val.index[0] : prices_val.index[-1]],
+            bench_ret=val_bench,
             regime_mode=regime_mode,
             objective=None,
             fixed_objective=None,
             cooldown_steps=cooldown,
             confirm_steps=confirm,
             universe_by_ticker=universe_by_ticker,
+            detector_version=detector_version,
         )
 
     oos_delta: float | None = None
@@ -550,13 +645,16 @@ def evaluate_objective_switch_lab(
         timeline_len=len(timeline),
     )
 
-    snapshot = current_regime_snapshot(bench_ret, regime_mode)
+    snapshot = current_snapshot_for_detector(
+        bench_ret, regime_mode, detector_version=detector_version
+    )
 
-    train_bench = bench_ret.loc[prices_train.index[0] : prices_train.index[-1]]
+    train_bench = train_bench_slice
     prediction_quality = compute_regime_prediction_quality(train_bench, timeline)
     benchmark_series, regime_timeline_enhanced = build_benchmark_series(
         train_bench, timeline
     )
+    score_timeline = build_regime_score_timeline(regime_timeline_enhanced)
 
     return ObjectiveSwitchLabResult(
         disclaimer=LIMITATION_NOTE,
@@ -581,6 +679,8 @@ def evaluate_objective_switch_lab(
         regime_timeline=regime_timeline_enhanced,
         regime_prediction_quality=prediction_quality,
         benchmark_series=benchmark_series,
+        detector_version=detector_version,
+        regime_score_timeline=score_timeline,
         current_regime=snapshot,
         periods={
             "full": {"start": req.start_date, "end": req.end_date},
