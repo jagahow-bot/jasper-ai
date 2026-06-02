@@ -7,6 +7,7 @@ import { ConstraintsPanel } from "@/components/ConstraintsPanel";
 import { ProgressPanel } from "@/components/ProgressPanel";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
+import { ExperimentalObjectiveSwitchPanel } from "@/components/ExperimentalObjectiveSwitchPanel";
 import {
   checkApiHealth,
   createJob,
@@ -74,6 +75,7 @@ export default function HomePage() {
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [narrative, setNarrative] = useState("");
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
+  const [expSandboxAvailable, setExpSandboxAvailable] = useState(false);
   const universeMeta = useMemo(() => getUniverseMeta(), []);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -87,6 +89,28 @@ export default function HomePage() {
 
   useEffect(() => {
     void checkApiHealth().then(setApiOnline);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const exp = params.get("exp");
+    const enabled = exp === "objective-switch";
+    setExpSandboxAvailable(enabled);
+    if (enabled) {
+      setRequest((prev) =>
+        prev
+          ? {
+              ...prev,
+              experiment: prev.experiment ?? {
+                enabled: true,
+                mode: "objective_switch",
+                regime_mode: "auto",
+                note: "EXPERIMENTAL: Objective Switch Sandbox",
+              },
+            }
+          : prev,
+      );
+    }
   }, []);
 
   const pollJob = useCallback(async (id: string) => {
@@ -143,7 +167,11 @@ export default function HomePage() {
       lastProgressMsg.current = "";
 
       try {
-        const { job_id } = await createJob(req);
+        const requestForRun: BacktestRequest =
+          expSandboxAvailable && req.experiment?.enabled
+            ? req
+            : { ...req, experiment: undefined };
+        const { job_id } = await createJob(requestForRun);
         setJobId(job_id);
 
         let done = false;
@@ -160,7 +188,7 @@ export default function HomePage() {
         setPhase("constraints");
       }
     },
-    [pollJob, request],
+    [expSandboxAvailable, pollJob, request],
   );
 
   const onRun = useCallback(() => {
@@ -252,7 +280,17 @@ export default function HomePage() {
 
         <section className="space-y-5">
           {phase === "constraints" && request && (
-            <ConstraintsPanel value={request} onChange={setRequest} onRun={onRun} />
+            <>
+              <ConstraintsPanel value={request} onChange={setRequest} onRun={onRun} />
+              {expSandboxAvailable && (
+                <ExperimentalObjectiveSwitchPanel
+                  value={request.experiment}
+                  onChange={(experiment) =>
+                    setRequest((prev) => (prev ? { ...prev, experiment } : prev))
+                  }
+                />
+              )}
+            </>
           )}
 
           {phase === "running" && progress && <ProgressPanel progress={progress} />}

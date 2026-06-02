@@ -15,6 +15,7 @@ export type BacktestMode = "static";
 export type OptimizationMode = "standard" | "pro_auto";
 export type JobStatus = "pending" | "running" | "completed" | "failed";
 export type ParamControlMode = "fixed" | "search" | "off";
+export type ExperimentalRegimeMode = "auto" | "risk_off" | "neutral" | "risk_on";
 
 export interface ParamControl {
   mode: ParamControlMode;
@@ -23,6 +24,13 @@ export interface ParamControl {
   max?: number | null;
   step?: number | null;
   options?: string[] | null;
+}
+
+export interface ExperimentRequest {
+  enabled: boolean;
+  mode: "objective_switch";
+  regime_mode: ExperimentalRegimeMode;
+  note?: string | null;
 }
 
 export interface ScenarioCard {
@@ -74,6 +82,7 @@ export interface BacktestRequest {
   refinement_patience?: number;
   refinement_min_improvement?: number;
   overfitting_penalty_weight?: number;
+  experiment?: ExperimentRequest;
 }
 
 export interface ConvergencePreviewPoint {
@@ -249,6 +258,16 @@ export interface BacktestResult {
   }[];
   narrative_facts: Record<string, unknown>;
   pro_rounds?: ProRoundSnapshot[] | null;
+  experimental?: {
+    mode?: string;
+    enabled?: boolean;
+    requested_regime_mode?: string;
+    resolved_regime_signal?: string;
+    chosen_objective?: string;
+    reason?: string;
+    benchmark_ticker?: string;
+    lookback_days?: number;
+  } | null;
 }
 
 export type WizardPhase =

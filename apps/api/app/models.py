@@ -43,6 +43,15 @@ class ParamControl(BaseModel):
     options: list[str] | None = None
 
 
+class ExperimentConfig(BaseModel):
+    """Explicitly opt-in sandbox knobs for non-production experiments."""
+
+    enabled: bool = False
+    mode: Literal["objective_switch"] = "objective_switch"
+    regime_mode: Literal["auto", "risk_off", "neutral", "risk_on"] = "auto"
+    note: str | None = None
+
+
 class BacktestRequest(BaseModel):
     scenario_id: str
     # User-facing cap. Engine/Optuna may choose a stricter cap <= this value.
@@ -156,6 +165,10 @@ class BacktestRequest(BaseModel):
         le=3.0,
         description="Multiplier on train-validation gap penalty in scoring",
     )
+    experiment: ExperimentConfig | None = Field(
+        default=None,
+        description="Optional sandbox experiment config; ignored unless explicitly enabled.",
+    )
 
     def resolved_universe_filter_prompts(self) -> list[str]:
         """Merged stacked prompts + legacy single-line filter."""
@@ -255,6 +268,7 @@ class BacktestResult(BaseModel):
     efficient_frontier: list[dict[str, Any]]
     narrative_facts: dict[str, Any]
     pro_rounds: list[ProRoundSnapshot] | None = None
+    experimental: dict[str, Any] | None = None
 
 
 class ScenarioCard(BaseModel):

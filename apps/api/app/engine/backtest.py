@@ -96,6 +96,71 @@ def _resolve_objective(raw: str, custom_text: str | None) -> str:
     return "max_sharpe"
 
 
+def _is_experimental_objective_switch_enabled(req: BacktestRequest) -> bool:
+    exp = req.experiment
+    return bool(exp and exp.enabled and exp.mode == "objective_switch")
+
+
+def _experimental_objective_switch_metadata(
+    req: BacktestRequest,
+    prices: pd.DataFrame,
+    benchmark_ticker: str,
+) -> dict[str, Any]:
+    """Sandbox-only objective-switch diagnostics. Does not mutate core objective."""
+    exp = req.experiment
+    requested_mode = str(getattr(exp, "regime_mode", "auto")).lower()
+    bench = benchmark_ticker if benchmark_ticker in prices.columns else prices.columns[0]
+    bench_ret = prices[bench].pct_change().dropna()
+    lookback_days = int(min(max(len(bench_ret), 1), 63))
+    window = bench_ret.tail(lookback_days)
+    trailing_return = float(window.sum()) if len(window) else 0.0
+    annualized_vol = float(window.std(ddof=0) * np.sqrt(252.0)) if len(window) > 1 else 0.0
+
+    if requested_mode == "risk_off":
+        regime_signal = "risk_off"
+    elif requested_mode == "risk_on":
+        regime_signal = "risk_on"
+    elif requested_mode == "neutral":
+        regime_signal = "neutral"
+    else:
+        if trailing_return < -0.01 or annualized_vol > 0.24:
+            regime_signal = "risk_off"
+        elif trailing_return > 0.015 and annualized_vol < 0.18:
+            regime_signal = "risk_on"
+        else:
+            regime_signal = "neutral"
+
+    chosen_objective = {
+        "risk_off": "min_max_drawdown",
+        "neutral": "max_sharpe",
+        "risk_on": "max_return",
+    }[regime_signal]
+
+    reason = (
+        f"Sandbox heuristic on {bench} over {lookback_days} days: "
+        f"return={trailing_return:.4f}, annualized_vol={annualized_vol:.4f}, "
+        f"regime={regime_signal}."
+    )
+    logger.info(
+        "Experimental objective-switch sandbox active: benchmark=%s requested_mode=%s "
+        "regime=%s chosen_objective=%s",
+        bench,
+        requested_mode,
+        regime_signal,
+        chosen_objective,
+    )
+    return {
+        "mode": "objective_switch",
+        "enabled": True,
+        "requested_regime_mode": requested_mode,
+        "resolved_regime_signal": regime_signal,
+        "chosen_objective": chosen_objective,
+        "reason": reason,
+        "benchmark_ticker": bench,
+        "lookback_days": lookback_days,
+    }
+
+
 def _champion_report_horizons(
     candidate: PortfolioCandidate,
     *,
@@ -1398,6 +1463,14 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     prices = prices[tickers]
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
 
+    experimental_meta: dict[str, Any] | None = None
+    if _is_experimental_objective_switch_enabled(req):
+        experimental_meta = _experimental_objective_switch_metadata(
+            req,
+            prices,
+            spec.benchmark_ticker,
+        )
+
     oos = req.enable_oos
     if oos:
         prices_train, prices_val, train_end, val_start = split_train_validation(
@@ -2083,4 +2156,5 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         efficient_frontier=frontier,
         narrative_facts=narrative_facts,
         pro_rounds=pro_rounds,
+        experimental=experimental_meta,
     )

@@ -459,6 +459,7 @@ export function ResultsDashboard({
     | undefined;
   const convergenceHistory = proRefinement?.convergence_history ?? [];
   const sampleMetrics = top.analytics?.sample_metrics;
+  const experimental = result.experimental;
 
   const dataSource = String(result.narrative_facts.data_source ?? "");
   const trustworthy = result.narrative_facts.metrics_trustworthy === true;
@@ -591,6 +592,20 @@ export function ResultsDashboard({
         <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-4 py-2 text-sm text-[var(--amber)]">
           Viewing: {String(result.narrative_facts.round_label ?? "round")}
           {result.narrative_facts.improved === true && " · new round best"}
+        </div>
+      )}
+      {experimental?.enabled && (
+        <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-4 py-3 text-xs">
+          <p className="font-pixel text-[8px] text-[var(--amber)]">
+            EXPERIMENTAL: Objective Switch Sandbox
+          </p>
+          <p className="mt-1 text-dim">
+            Regime {String(experimental.resolved_regime_signal ?? "—")} · objective{" "}
+            {String(experimental.chosen_objective ?? "—")}
+          </p>
+          {experimental.reason && (
+            <p className="mt-1 text-dim">{String(experimental.reason)}</p>
+          )}
         </div>
       )}
 
