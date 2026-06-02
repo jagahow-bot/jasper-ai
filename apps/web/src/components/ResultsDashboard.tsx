@@ -41,6 +41,7 @@ import {
   extentWithZero,
   tightMaxFromValues,
 } from "@/lib/align-y-axis-zero";
+import { ExperimentalObjectiveEvaluation } from "@/components/ExperimentalObjectiveEvaluation";
 import type { BacktestRequest, BacktestResult } from "@/lib/types";
 import { getUniverseItems } from "@/lib/universe";
 
@@ -595,18 +596,29 @@ export function ResultsDashboard({
         </div>
       )}
       {experimental?.enabled && (
-        <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-4 py-3 text-xs">
-          <p className="font-pixel text-[8px] text-[var(--amber)]">
-            EXPERIMENTAL: Objective Switch Sandbox
-          </p>
-          <p className="mt-1 text-dim">
-            Regime {String(experimental.resolved_regime_signal ?? "—")} · objective{" "}
-            {String(experimental.chosen_objective ?? "—")}
-          </p>
-          {experimental.reason && (
-            <p className="mt-1 text-dim">{String(experimental.reason)}</p>
-          )}
-        </div>
+        <ExperimentalObjectiveEvaluation
+          result={result}
+          request={request}
+          onRunAbEvaluation={
+            onQuickTweakAndRun
+              ? () =>
+                  onQuickTweakAndRun(
+                    {
+                      ...request,
+                      experiment: {
+                        ...(request.experiment ?? {
+                          enabled: true,
+                          mode: "objective_switch",
+                          regime_mode: "auto",
+                        }),
+                        run_ab_evaluation: true,
+                      },
+                    },
+                    "Run objective switch A/B evaluation",
+                  )
+              : undefined
+          }
+        />
       )}
 
       <div className="border-2 border-[var(--border)] bg-[#050508] px-4 py-2 font-terminal text-sm text-dim">

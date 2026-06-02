@@ -45,6 +45,12 @@ from app.engine.analytics import build_full_analytics
 from app.engine.ai_params import generate_ai_param_sets, generate_ai_round_seed
 from app.engine.factors import FactorParams, factor_params_from_dict
 from app.engine.ai_universe import refine_universe_with_ai
+from app.engine.experimental_objective_switch import (
+    build_evaluation_summary,
+    is_experimental_objective_switch_enabled,
+    objective_switch_metadata,
+    run_switch_arm_lightweight,
+)
 from app.engine.refinement import (
     assign_pro_round_model_codes,
     assign_search_model_codes,
@@ -97,8 +103,7 @@ def _resolve_objective(raw: str, custom_text: str | None) -> str:
 
 
 def _is_experimental_objective_switch_enabled(req: BacktestRequest) -> bool:
-    exp = req.experiment
-    return bool(exp and exp.enabled and exp.mode == "objective_switch")
+    return is_experimental_objective_switch_enabled(req)
 
 
 def _experimental_objective_switch_metadata(
@@ -106,59 +111,17 @@ def _experimental_objective_switch_metadata(
     prices: pd.DataFrame,
     benchmark_ticker: str,
 ) -> dict[str, Any]:
-    """Sandbox-only objective-switch diagnostics. Does not mutate core objective."""
-    exp = req.experiment
-    requested_mode = str(getattr(exp, "regime_mode", "auto")).lower()
-    bench = benchmark_ticker if benchmark_ticker in prices.columns else prices.columns[0]
-    bench_ret = prices[bench].pct_change().dropna()
-    lookback_days = int(min(max(len(bench_ret), 1), 63))
-    window = bench_ret.tail(lookback_days)
-    trailing_return = float(window.sum()) if len(window) else 0.0
-    annualized_vol = float(window.std(ddof=0) * np.sqrt(252.0)) if len(window) > 1 else 0.0
-
-    if requested_mode == "risk_off":
-        regime_signal = "risk_off"
-    elif requested_mode == "risk_on":
-        regime_signal = "risk_on"
-    elif requested_mode == "neutral":
-        regime_signal = "neutral"
-    else:
-        if trailing_return < -0.01 or annualized_vol > 0.24:
-            regime_signal = "risk_off"
-        elif trailing_return > 0.015 and annualized_vol < 0.18:
-            regime_signal = "risk_on"
-        else:
-            regime_signal = "neutral"
-
-    chosen_objective = {
-        "risk_off": "min_max_drawdown",
-        "neutral": "max_sharpe",
-        "risk_on": "max_return",
-    }[regime_signal]
-
-    reason = (
-        f"Sandbox heuristic on {bench} over {lookback_days} days: "
-        f"return={trailing_return:.4f}, annualized_vol={annualized_vol:.4f}, "
-        f"regime={regime_signal}."
-    )
+    meta = objective_switch_metadata(req, prices, benchmark_ticker)
     logger.info(
         "Experimental objective-switch sandbox active: benchmark=%s requested_mode=%s "
-        "regime=%s chosen_objective=%s",
-        bench,
-        requested_mode,
-        regime_signal,
-        chosen_objective,
+        "regime=%s chosen_objective=%s switches=%s",
+        meta.get("benchmark_ticker"),
+        meta.get("requested_regime_mode"),
+        meta.get("resolved_regime_signal"),
+        meta.get("chosen_objective"),
+        meta.get("regime_switch_count"),
     )
-    return {
-        "mode": "objective_switch",
-        "enabled": True,
-        "requested_regime_mode": requested_mode,
-        "resolved_regime_signal": regime_signal,
-        "chosen_objective": chosen_objective,
-        "reason": reason,
-        "benchmark_ticker": bench,
-        "lookback_days": lookback_days,
-    }
+    return meta
 
 
 def _champion_report_horizons(
@@ -1431,6 +1394,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         universe_plan["universe"],
         guaranteed_supplements or None,
     )
+    universe_pool_count = len(universe)
     universe_meta = get_universe_meta()
     if len(universe) < 5:
         raise ValueError(
@@ -2067,8 +2031,13 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "universe_refine": {
             "source": universe_plan.get("source"),
             "benchmark_ticker": spec.benchmark_ticker,
-            "selected_count": len(universe),
+            "selected_count": len(tickers),
+            "pool_count": universe_pool_count,
             "rationale": universe_plan.get("rationale"),
+            "grouped_categories": universe_plan.get("grouped_categories"),
+            "pick_representatives_per_category": universe_plan.get(
+                "pick_representatives_per_category", False
+            ),
         },
         "backtest_spec": {
             "fee_bps": spec.fee_bps,
@@ -2145,6 +2114,71 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "metrics_trustworthy": data_meta["data_source"] == "yfinance"
         and not full_m.get("metrics_suspect", False),
     }
+
+    if experimental_meta and candidates:
+        switch_arm_metrics: dict[str, Any] | None = None
+        exp_cfg = req.experiment
+        if (
+            exp_cfg
+            and getattr(exp_cfg, "run_ab_evaluation", False)
+            and not pro_mode
+            and experimental_meta.get("chosen_objective") != objective_effective
+        ):
+            report_progress(
+                trials_completed,
+                trials_completed,
+                "Experimental: running lightweight switch-policy eval arm…",
+            )
+
+            def _assemble_one(
+                *,
+                records: list[tuple[float, dict, dict]],
+                objective: str,
+            ) -> list[PortfolioCandidate]:
+                return _assemble_candidates_from_records(
+                    [records[0]] if records else [],
+                    req=req,
+                    top_n_models=1,
+                    tickers=tickers,
+                    prices=prices,
+                    prices_train=prices_train,
+                    prices_val=prices_val,
+                    oos=oos,
+                    rebalance_rule=rebalance_rule,
+                    spec=spec,
+                    universe_by_ticker=universe_by_ticker,
+                    objective_effective=objective,
+                    train_start=str(prices_train.index[0].date()),
+                    train_end=train_end,
+                    val_start=val_start,
+                    train_ratio=float(req.train_ratio),
+                    assembly_progress=lambda _msg: None,
+                    trial_report_cache=trial_report_cache,
+                )
+
+            switch_arm_metrics = run_switch_arm_lightweight(
+                req=req,
+                switch_objective=str(experimental_meta["chosen_objective"]),
+                prices_train=prices_train,
+                prices_val=prices_val,
+                oos=oos,
+                rebalance_rule=rebalance_rule,
+                spec=spec,
+                universe_by_ticker=universe_by_ticker,
+                param_controls_dict=param_controls_dict,
+                trial_report_cache=trial_report_cache,
+                assemble_top_candidate=lambda records, objective: _assemble_one(
+                    records=records, objective=objective
+                ),
+            )
+
+        experimental_meta["evaluation"] = build_evaluation_summary(
+            req=req,
+            user_objective=objective_effective,
+            experimental_meta=experimental_meta,
+            champion=candidates[0],
+            switch_arm_metrics=switch_arm_metrics,
+        )
 
     return BacktestResult(
         job_id=job_id,

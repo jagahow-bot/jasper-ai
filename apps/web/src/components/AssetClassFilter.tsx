@@ -217,9 +217,10 @@ export function AssetClassFilter({ value, onChange }: Props) {
           })}
         </div>
         <p className="text-xs text-dim">
-          Layer 1 — pick asset classes to define your base pool ({baseCount} ETFs).
-          AI rules below search the full universe and add matching tickers on top; they
-          never remove base-pool names or change your class selection.
+          Layer 1 — pick asset classes to define your full trading pool ({baseCount}{" "}
+          ETFs). Optuna selects holdings from this pool each rebalance; AI does not
+          shrink it to one ETF per category. Rules below only add supplement tickers on
+          top of this base.
         </p>
       </div>
 

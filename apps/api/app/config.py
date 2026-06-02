@@ -122,6 +122,13 @@ class Settings(BaseSettings):
     )
     use_mock_engine: bool = False
     optuna_trials: int = 50
+    ai_universe_pick_representatives_per_category: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "ai_universe_pick_representatives_per_category",
+            "AI_UNIVERSE_PICK_REPRESENTATIVES_PER_CATEGORY",
+        ),
+    )
 
 
 settings = Settings()

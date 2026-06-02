@@ -50,6 +50,13 @@ class ExperimentConfig(BaseModel):
     mode: Literal["objective_switch"] = "objective_switch"
     regime_mode: Literal["auto", "risk_off", "neutral", "risk_on"] = "auto"
     note: str | None = None
+    run_ab_evaluation: bool = Field(
+        default=False,
+        description=(
+            "When true (standard mode only), run a second lightweight Optuna pass "
+            "under the switch-suggested objective for A/B comparison."
+        ),
+    )
 
 
 class BacktestRequest(BaseModel):

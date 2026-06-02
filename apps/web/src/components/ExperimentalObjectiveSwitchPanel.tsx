@@ -25,9 +25,10 @@ export function ExperimentalObjectiveSwitchPanel({ value, onChange }: Props) {
   return (
     <div className="pixel-panel border-[var(--amber)] bg-[rgba(255,176,0,0.06)]">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="pixel-badge-warn">EXPERIMENTAL: Objective Switch Sandbox</span>
+        <span className="pixel-badge-warn">EXPERIMENTAL: Objective Switch Evaluation</span>
         <span className="font-pixel text-[8px] text-[var(--muted)]">
-          Sandbox only, does not alter normal flow unless enabled.
+          A/B: your fixed objective vs regime-based switch (sandbox; main flow unchanged
+          without ?exp=objective-switch).
         </span>
       </div>
 
@@ -46,7 +47,21 @@ export function ExperimentalObjectiveSwitchPanel({ value, onChange }: Props) {
           Enable sandbox objective switch
         </label>
 
-        <label className="font-pixel text-[8px] text-[var(--fg)]">
+        <label className="flex items-center gap-2 font-pixel text-[8px] text-[var(--fg)]">
+          <input
+            type="checkbox"
+            checked={Boolean(current.run_ab_evaluation)}
+            onChange={(e) =>
+              onChange({
+                ...current,
+                run_ab_evaluation: e.target.checked,
+              })
+            }
+          />
+          Run A/B eval on backtest (2nd lightweight pass)
+        </label>
+
+        <label className="font-pixel text-[8px] text-[var(--fg)] md:col-span-2">
           Regime mode
           <select
             className="pixel-input mt-1 w-full py-1 text-xs"

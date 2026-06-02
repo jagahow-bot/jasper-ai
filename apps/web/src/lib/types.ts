@@ -31,6 +31,8 @@ export interface ExperimentRequest {
   mode: "objective_switch";
   regime_mode: ExperimentalRegimeMode;
   note?: string | null;
+  /** Run second lightweight Optuna pass under switch objective (standard mode) */
+  run_ab_evaluation?: boolean;
 }
 
 export interface ScenarioCard {
@@ -267,6 +269,9 @@ export interface BacktestResult {
     reason?: string;
     benchmark_ticker?: string;
     lookback_days?: number;
+    regime_switch_count?: number;
+    regime_labels_sample?: string[];
+    evaluation?: Record<string, unknown>;
   } | null;
 }
 

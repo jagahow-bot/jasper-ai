@@ -6,6 +6,7 @@ from app.engine.backtest import (
     _experimental_objective_switch_metadata,
     _is_experimental_objective_switch_enabled,
 )
+from app.engine.experimental_objective_switch import objective_switch_metadata
 from app.models import BacktestRequest, Objective
 
 
@@ -60,3 +61,22 @@ def test_experiment_metadata_uses_explicit_regime_override() -> None:
     assert meta["enabled"] is True
     assert meta["resolved_regime_signal"] == "risk_on"
     assert meta["chosen_objective"] == "max_return"
+
+
+def test_regime_walk_forward_switch_count() -> None:
+    req = BacktestRequest(
+        **{
+            **_minimal_request().model_dump(),
+            "experiment": {
+                "enabled": True,
+                "mode": "objective_switch",
+                "regime_mode": "auto",
+            },
+        }
+    )
+    idx = pd.bdate_range("2020-01-01", periods=400)
+    rng = pd.Series(range(400), index=idx, dtype=float)
+    prices = pd.DataFrame({"SPY": 100 + rng * 0.1}, index=idx)
+    meta = objective_switch_metadata(req, prices, "SPY")
+    assert "regime_switch_count" in meta
+    assert isinstance(meta["regime_labels_sample"], list)
