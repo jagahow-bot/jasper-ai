@@ -92,6 +92,18 @@ body::after {
     background: linear-gradient(90deg, transparent, var(--cyan), transparent);
   }
 
+  html[data-font-lg="true"] .pixel-btn {
+    font-size: 11px;
+  }
+
+  html[data-font-lg="true"] .pixel-badge {
+    font-size: 11px;
+  }
+
+  html[data-font-lg="true"] .pixel-chip {
+    font-size: 12px;
+  }
+
   .pixel-btn {
     @apply border-2 px-4 py-3 font-pixel text-[10px] uppercase tracking-wider transition;
     border-color: var(--neon);

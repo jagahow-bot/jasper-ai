@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
+import { FontSizeControl } from "@/components/FontSizeControl";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
 import { ProgressPanel } from "@/components/ProgressPanel";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
@@ -222,6 +223,7 @@ export default function HomePage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <FontSizeControl />
             {apiOnline === false && (
               <span
                 className="pixel-badge-warn max-w-xs"
