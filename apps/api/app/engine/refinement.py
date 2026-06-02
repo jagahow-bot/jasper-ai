@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
+
+BenchmarkStatus = Literal["above", "below", "unknown"]
 
 from app.engine.analytics import benchmark_relative
 from app.engine.objectives import compute_objective_score, objective_label
@@ -609,6 +611,139 @@ def _benchmark_comparison_summary(
     return out
 
 
+def _benchmark_alpha_from_comparison(comparison: dict[str, Any] | None) -> float | None:
+    if not isinstance(comparison, dict):
+        return None
+    pvb = comparison.get("portfolio_vs_benchmark") or comparison
+    if not isinstance(pvb, dict):
+        return None
+    alpha = pvb.get("alpha")
+    if alpha is None:
+        return None
+    try:
+        return float(alpha)
+    except (TypeError, ValueError):
+        return None
+
+
+def _benchmark_alpha_from_champion(champion: dict[str, Any] | None) -> float | None:
+    if not isinstance(champion, dict):
+        return None
+    bvs = champion.get("benchmark_vs")
+    return _benchmark_alpha_from_comparison(bvs if isinstance(bvs, dict) else None)
+
+
+def benchmark_status_from_alpha(alpha: float | None) -> BenchmarkStatus:
+    if alpha is None:
+        return "unknown"
+    try:
+        return "above" if float(alpha) >= 0.0 else "below"
+    except (TypeError, ValueError):
+        return "unknown"
+
+
+def beats_benchmark_from_alpha(alpha: float | None) -> bool | None:
+    if alpha is None:
+        return None
+    try:
+        return float(alpha) >= 0.0
+    except (TypeError, ValueError):
+        return None
+
+
+def compute_round_benchmark_fields(
+    metrics: dict[str, Any] | None,
+    *,
+    prices_train: pd.DataFrame | None = None,
+    benchmark_ticker: str = "SPY",
+    bench_metrics: dict[str, Any] | None = None,
+    spec: BacktestSpec | None = None,
+) -> dict[str, Any]:
+    """Per-round benchmark outcome (same alpha threshold as exploration phase)."""
+    comparison: dict[str, Any] = {}
+    if isinstance(metrics, dict):
+        comparison = _benchmark_comparison_summary(
+            metrics,
+            prices_train=prices_train,
+            benchmark_ticker=benchmark_ticker,
+            bench_metrics=bench_metrics,
+            spec=spec or DEFAULT_SPEC,
+        )
+    alpha = _benchmark_alpha_from_comparison(comparison)
+    pvb = comparison.get("portfolio_vs_benchmark")
+    status = benchmark_status_from_alpha(alpha)
+    beats = beats_benchmark_from_alpha(alpha)
+    out: dict[str, Any] = {
+        "benchmark_status": status,
+        "beats_benchmark": beats,
+        "benchmark_alpha": round(alpha, 6) if alpha is not None else None,
+    }
+    if isinstance(pvb, dict):
+        out["portfolio_vs_benchmark"] = pvb
+    return out
+
+
+def compute_exploration_phase(
+    *,
+    round_index: int,
+    total_rounds: int,
+    target_adjusted_score: float | None = None,
+    champion_in_sample_objective: float | None = None,
+    benchmark_alpha: float | None = None,
+    near_target_fraction: float = 0.98,
+) -> str:
+    """Signal for Pro round seed: explore (wide) vs balance vs narrow factor_ranges."""
+    ri = max(1, int(round_index))
+    total = max(1, int(total_rounds))
+    early = ri <= 1 or ri <= max(1, total // 2)
+
+    near_target = False
+    if target_adjusted_score is not None and champion_in_sample_objective is not None:
+        try:
+            target = float(target_adjusted_score)
+            champ = float(champion_in_sample_objective)
+            near_target = champ >= target * float(near_target_fraction)
+        except (TypeError, ValueError):
+            near_target = False
+
+    far_from_bench = benchmark_alpha is not None and float(benchmark_alpha) < 0.0
+
+    if early or far_from_bench:
+        return "explore"
+    late = ri >= max(2, total - 1)
+    if late and near_target:
+        return "narrow"
+    return "balance"
+
+
+def merge_round_seed_budget_fields(
+    learning_context: dict[str, Any] | None,
+    *,
+    round_index: int,
+    total_rounds: int,
+    trials_per_round: int,
+    total_trial_budget: int,
+) -> dict[str, Any]:
+    """Attach trial/round budget and exploration_phase for generate_ai_round_seed."""
+    out = dict(learning_context or {})
+    out["round_index"] = int(round_index)
+    out["total_rounds"] = int(total_rounds)
+    out["trials_per_round"] = int(trials_per_round)
+    out["total_trial_budget"] = int(total_trial_budget)
+    champ = out.get("champion") if isinstance(out.get("champion"), dict) else None
+    is_obj = None
+    if isinstance(champ, dict):
+        is_obj = champ.get("in_sample_objective")
+    out["exploration_phase"] = compute_exploration_phase(
+        round_index=int(round_index),
+        total_rounds=int(total_rounds),
+        target_adjusted_score=out.get("target_adjusted_score"),
+        champion_in_sample_objective=is_obj,
+        benchmark_alpha=_benchmark_alpha_from_champion(champ),
+    )
+    return out
+
+
 def _failed_params_avoid_list(failed: list[dict[str, Any]], limit: int = 8) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
@@ -640,6 +775,9 @@ def build_round_seed_learning_payload(
     prices_train: pd.DataFrame | None = None,
     spec: BacktestSpec | None = None,
     period: dict[str, Any] | None = None,
+    total_rounds: int | None = None,
+    trials_per_round: int | None = None,
+    total_trial_budget: int | None = None,
 ) -> dict[str, Any]:
     """Learning context for Pro round-2+ generate_ai_round_seed (rich, structured)."""
     _sc, champ_params, champ_m = champion_record
@@ -694,6 +832,14 @@ def build_round_seed_learning_payload(
             key=lambda t: float(t.get("gap_to_beat", 0.0)),
             reverse=True,
         )[:15]
+    if total_rounds is not None:
+        ctx = merge_round_seed_budget_fields(
+            ctx,
+            round_index=int(round_index),
+            total_rounds=int(total_rounds),
+            trials_per_round=int(trials_per_round or 0),
+            total_trial_budget=int(total_trial_budget or 0),
+        )
     return ctx
 
 

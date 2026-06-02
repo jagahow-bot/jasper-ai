@@ -156,6 +156,9 @@ class JobProgress(BaseModel):
     refinement_round: int = 0
     refinement_rounds_total: int = 0
     convergence_preview: list[dict[str, Any]] | None = None
+    round_benchmark_status: str | None = None
+    round_benchmark_alpha: float | None = None
+    round_portfolio_vs_benchmark: dict[str, Any] | None = None
 
 
 class PortfolioCandidate(BaseModel):
@@ -203,6 +206,12 @@ class ProRoundSnapshot(BaseModel):
     round_setup: dict[str, Any] = Field(default_factory=dict)
     factor_ranges: dict[str, Any] = Field(default_factory=dict)
     factor_choices: dict[str, Any] = Field(default_factory=dict)
+    optimization_strategy: str = ""
+    performance_assessment: str = ""
+    benchmark_status: str | None = None
+    beats_benchmark: bool | None = None
+    benchmark_alpha: float | None = None
+    portfolio_vs_benchmark: dict[str, Any] | None = None
     candidates: list[PortfolioCandidate]
     equity_curve: list[dict[str, Any]]
     efficient_frontier: list[dict[str, Any]]

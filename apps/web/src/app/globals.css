@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  --font-size-root: 17px;
   --background: #030306;
   --foreground: #d4ffd4;
   --surface: #0a0a12;
@@ -18,6 +19,10 @@
 }
 
 @layer base {
+  html {
+    font-size: var(--font-size-root);
+  }
+
   body {
     color: var(--foreground);
     background: var(--background);

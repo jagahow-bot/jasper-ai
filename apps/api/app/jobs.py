@@ -66,6 +66,9 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
                 refinement_round=int(kwargs.get("refinement_round", 0)),
                 refinement_rounds_total=int(kwargs.get("refinement_rounds_total", 0)),
                 convergence_preview=kwargs.get("convergence_preview"),
+                round_benchmark_status=kwargs.get("round_benchmark_status"),
+                round_benchmark_alpha=kwargs.get("round_benchmark_alpha"),
+                round_portfolio_vs_benchmark=kwargs.get("round_portfolio_vs_benchmark"),
             )
 
     try:

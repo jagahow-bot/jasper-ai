@@ -50,6 +50,8 @@ from app.engine.refinement import (
     assign_search_model_codes,
     best_record_in_pool,
     build_round_seed_learning_payload,
+    compute_round_benchmark_fields,
+    merge_round_seed_budget_fields,
     build_round_competition_pool,
     model_signature as refinement_model_signature,
     pool_records_in_trial_order,
@@ -348,6 +350,9 @@ def _run_iterative_search(
                 prices_train=prices_train,
                 spec=spec,
                 period=is_period,
+                total_rounds=max_rounds,
+                trials_per_round=n_trials,
+                total_trial_budget=est_trials,
             )
             learning_context["global_config"] = {
                 "objective": objective_effective,
@@ -358,6 +363,14 @@ def _run_iterative_search(
                 "tradable_count": int(prices_train.shape[1]),
             }
             learning_context["mutable_fields"] = list(GEMINI_LEARNING_MUTABLE_FIELDS)
+        learning_context = merge_round_seed_budget_fields(
+            learning_context,
+            round_index=round_idx + 1,
+            total_rounds=max_rounds,
+            trials_per_round=n_trials,
+            total_trial_budget=est_trials,
+        )
+        if champion_record and round_idx > 0:
             n_failed = len(learning_context.get("failed_challengers", []))
             report_progress(
                 global_trial,
@@ -395,6 +408,12 @@ def _run_iterative_search(
         round_setup = ai_generation.get("round_setup") or {}
         factor_ranges = ai_generation.get("factor_ranges") or {}
         factor_choices = ai_generation.get("factor_choices") or {}
+        optimization_strategy = str(
+            ai_generation.get("optimization_strategy") or ""
+        ).strip()
+        performance_assessment = str(
+            ai_generation.get("performance_assessment") or ""
+        ).strip()
         if not ai_generation.get("enabled", False):
             err = ai_generation.get("error") or "ai_generation_failed"
             if prior_round_setup:
@@ -688,6 +707,14 @@ def _run_iterative_search(
         elif round_incoming_model_code:
             carry_champion_model_code = round_incoming_model_code
 
+        round_bench = compute_round_benchmark_fields(
+            round_best[2] if round_best else None,
+            prices_train=prices_train,
+            benchmark_ticker=spec.benchmark_ticker,
+            bench_metrics=bench_ref_metrics,
+            spec=spec,
+        )
+
         per_round.append(
             {
                 "round": round_idx + 1,
@@ -695,6 +722,10 @@ def _run_iterative_search(
                 "round_setup": round_setup,
                 "factor_ranges": factor_ranges,
                 "factor_choices": factor_choices,
+                "optimization_strategy": optimization_strategy,
+                "performance_assessment": performance_assessment,
+                "exploration_phase": ai_generation.get("exploration_phase"),
+                **round_bench,
                 "incoming_champion_params": incoming_champion_params,
                 "round_winner_params": round_winner_params,
                 "pool_signatures": pool_signatures,
@@ -729,15 +760,27 @@ def _run_iterative_search(
         prior_factor_ranges = dict(factor_ranges)
         prior_factor_choices = dict(factor_choices)
 
+        round_done_msg = (
+            f"Round {round_idx + 1} done: round best {round_best_score:.4f}, "
+            f"champion {champion_score:.4f} (flat streak {rounds_without_gain}/{patience})"
+        )
+        if round_bench.get("benchmark_status") == "below":
+            alpha_disp = round_bench.get("benchmark_alpha")
+            alpha_txt = f"{alpha_disp:.4f}" if alpha_disp is not None else "—"
+            round_done_msg += (
+                f" · in-sample alpha vs {spec.benchmark_ticker} {alpha_txt} (below benchmark)"
+            )
         report_progress(
             global_trial,
             est_trials,
-            f"Round {round_idx + 1} done: round best {round_best_score:.4f}, "
-            f"champion {champion_score:.4f} (flat streak {rounds_without_gain}/{patience})",
+            round_done_msg,
             champion_record[2]["sharpe"] if champion_record else None,
             round_idx + 1,
             max_rounds,
             convergence_history[-24:],
+            round_benchmark_status=round_bench.get("benchmark_status"),
+            round_benchmark_alpha=round_bench.get("benchmark_alpha"),
+            round_portfolio_vs_benchmark=round_bench.get("portfolio_vs_benchmark"),
         )
 
         if round_idx > 0 and rounds_without_gain >= patience:
@@ -1367,6 +1410,9 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         refinement_round: int = 0,
         refinement_rounds_total: int = 0,
         convergence_preview: list[dict[str, Any]] | None = None,
+        round_benchmark_status: str | None = None,
+        round_benchmark_alpha: float | None = None,
+        round_portfolio_vs_benchmark: dict[str, Any] | None = None,
     ) -> None:
         if progress_cb:
             progress_cb(
@@ -1377,6 +1423,9 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 refinement_round=refinement_round,
                 refinement_rounds_total=refinement_rounds_total,
                 convergence_preview=convergence_preview,
+                round_benchmark_status=round_benchmark_status,
+                round_benchmark_alpha=round_benchmark_alpha,
+                round_portfolio_vs_benchmark=round_portfolio_vs_benchmark,
             )
 
     blueprint = RunBlueprint.from_request(req)
@@ -1757,6 +1806,12 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                     round_setup=dict(pr.get("round_setup") or {}),
                     factor_ranges=dict(pr.get("factor_ranges") or {}),
                     factor_choices=dict(pr.get("factor_choices") or {}),
+                    optimization_strategy=str(pr.get("optimization_strategy") or ""),
+                    performance_assessment=str(pr.get("performance_assessment") or ""),
+                    benchmark_status=pr.get("benchmark_status"),
+                    beats_benchmark=pr.get("beats_benchmark"),
+                    benchmark_alpha=pr.get("benchmark_alpha"),
+                    portfolio_vs_benchmark=pr.get("portfolio_vs_benchmark"),
                     candidates=pr_candidates,
                     equity_curve=pr_equity or [],
                     efficient_frontier=pr_frontier,
@@ -1779,6 +1834,10 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                         "round_setup": pr.get("round_setup"),
                         "factor_ranges": pr.get("factor_ranges"),
                         "factor_choices": pr.get("factor_choices"),
+                        "optimization_strategy": pr.get("optimization_strategy"),
+                        "performance_assessment": pr.get("performance_assessment"),
+                        "benchmark_status": pr.get("benchmark_status"),
+                        "benchmark_alpha": pr.get("benchmark_alpha"),
                         "top_sharpe": pr_best.sharpe if pr_best else None,
                         "top_max_drawdown": pr_best.max_drawdown if pr_best else None,
                         "top_cagr": pr_best.cagr if pr_best else None,

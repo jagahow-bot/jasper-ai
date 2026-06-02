@@ -261,6 +261,8 @@ def normalize_round_seed(
     controls = normalize_param_controls(param_controls, blueprint)
     out: dict[str, Any] = {
         "rationale": str(seed.get("rationale") or "").strip(),
+        "optimization_strategy": str(seed.get("optimization_strategy") or "").strip(),
+        "performance_assessment": str(seed.get("performance_assessment") or "").strip(),
         "round_setup": {},
         "factor_ranges": {},
         "factor_choices": {},

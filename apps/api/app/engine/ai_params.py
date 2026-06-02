@@ -1280,6 +1280,8 @@ _ROUND_SETUP_SCHEMA_CORE: dict[str, dict[str, str]] = {
 # Example only — model may add other factor keys; server merges with defaults.
 _FACTOR_RANGE_EXAMPLE_PROP = {
     "w_mom": {"type": "ARRAY", "items": {"type": "NUMBER"}},
+    "w_reversal": {"type": "ARRAY", "items": {"type": "NUMBER"}},
+    "w_value": {"type": "ARRAY", "items": {"type": "NUMBER"}},
 }
 
 
@@ -1311,6 +1313,8 @@ def _round_seed_response_schema(
             "properties": choice_props,
         },
     }
+    properties["optimization_strategy"] = {"type": "STRING"}
+    properties["performance_assessment"] = {"type": "STRING"}
     required = ["round_setup"]
     if require_rationale:
         properties["rationale"] = {"type": "STRING"}
@@ -1323,6 +1327,15 @@ def _round_seed_response_schema(
 
 
 _ROUND_SEED_OUTPUT_TOKEN_CEILING = 16384
+
+_ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES = """
+performance_assessment (required): 2–3 sentences, objective outcome quality only (not search plan).
+Use CHAMPION / VS_BENCHMARK / PRIOR_ROUND_* / TARGET / REFINEMENT_BUDGET from learning — same metrics.
+- If in-sample objective or primary metric is below benchmark (VS_BENCHMARK alpha < 0 or clearly worse
+  than benchmark return/Sharpe), state plainly e.g. "本輪樣本內表現未達基準" or "results are below benchmark".
+- If at or above benchmark, acknowledge modestly without hype.
+- Round 1 with no prior champion: note no prior round; judge only what learning provides.
+Separate from optimization_strategy (search plan only). No cheerleading."""
 
 
 def _round_seed_max_output_tokens(*, attempt: int = 0) -> int:
@@ -1380,6 +1393,62 @@ def _weight_summary_line(learning_context: dict[str, Any]) -> str | None:
     return " ".join(parts) if parts else _json_compact(wh)
 
 
+def _round_seed_budget_lines(learning_context: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    ri = learning_context.get("round_index") or learning_context.get("round_number")
+    total = learning_context.get("total_rounds")
+    tpr = learning_context.get("trials_per_round")
+    budget = learning_context.get("total_trial_budget")
+    if ri is not None and (total is not None or tpr is not None):
+        lines.append(
+            "REFINEMENT_BUDGET "
+            + _json_compact(
+                {
+                    "round": ri,
+                    "total_rounds": total,
+                    "trials_this_round": tpr,
+                    "total_trial_budget": budget,
+                }
+            )
+        )
+    phase = learning_context.get("exploration_phase")
+    if phase:
+        lines.append(f"EXPLORATION_PHASE {phase}")
+    target = learning_context.get("target_adjusted_score")
+    if target is not None:
+        lines.append(f"TARGET_IS_OBJECTIVE {target}")
+    return lines
+
+
+def round_seed_factor_range_guidance(
+    *,
+    exploration_phase: str,
+    round_index: int,
+    total_rounds: int,
+) -> str:
+    """Prompt text: wide multi-key explore vs gradual narrow (unit-testable)."""
+    phase = (exploration_phase or "explore").strip().lower()
+    ri = max(1, int(round_index))
+    total = max(1, int(total_rounds))
+    if phase == "explore" or ri <= 1:
+        return (
+            "factor_ranges: include 2–4 numeric factor keys with WIDE intervals "
+            "(use a meaningful slice of global bounds from Constraints — not tight bands "
+            "around one scalar). Round 1 / explore phase: do NOT narrow toward a single "
+            "champion guess; breadth beats precision."
+        )
+    if phase == "narrow":
+        return (
+            "factor_ranges: narrow 1–3 keys that showed sensitivity in PRIOR_FACTOR_RANGES, "
+            "CHAMPION params, or FAILED_TRIALS; keep intervals inside global bounds. "
+            "Optionally keep 1 exploratory key with a moderate-wide band."
+        )
+    return (
+        "factor_ranges: use 2–3 keys — moderately narrow keys linked to champion/failures, "
+        "plus at least one wider exploratory key when trial budget allows."
+    )
+
+
 def _failed_trial_lines(failed: list[dict[str, Any]], limit: int = 5) -> list[str]:
     out: list[str] = []
     for row in failed[:limit]:
@@ -1395,17 +1464,18 @@ def _failed_trial_lines(failed: list[dict[str, Any]], limit: int = 5) -> list[st
 
 
 def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
-    """Structured Pro round-2+ context for generate_ai_round_seed (budget-aware)."""
+    """Structured Pro round context for generate_ai_round_seed (budget-aware)."""
     round_index = int(
         learning_context.get("round_index")
         or learning_context.get("round_number")
         or 1
     )
-    if round_index <= 1:
-        return ""
 
     max_chars = _round_seed_learning_max_chars()
-    lines: list[str] = []
+    lines: list[str] = list(_round_seed_budget_lines(learning_context))
+
+    if round_index <= 1:
+        return _fit_round_seed_block(lines, max_chars)
 
     prev_setup = learning_context.get("prior_round_setup")
     if isinstance(prev_setup, dict) and prev_setup:
@@ -1580,6 +1650,15 @@ def generate_ai_round_seed(
         or 1
     )
     learning_block = _build_round_seed_learning_block(learning_context)
+    total_rounds = int(learning_context.get("total_rounds") or 1)
+    exploration_phase = str(
+        learning_context.get("exploration_phase") or "explore"
+    ).lower()
+    factor_guidance = round_seed_factor_range_guidance(
+        exploration_phase=exploration_phase,
+        round_index=round_index,
+        total_rounds=total_rounds,
+    )
     learning_mode = (
         "round_seed"
         if round_index > 1
@@ -1620,19 +1699,25 @@ Architecture (critical):
    max_turnover_actual, no_trade_tol, turnover_penalty_mult.
    Optional asset-class quotas ({alloc_keys}): include ONLY if you materially change them from defaults.
    Do NOT put factor weights or factor lookbacks in round_setup.
-2) factor_ranges — ONLY keys you narrow vs default Optuna bounds; omit unchanged keys.
+2) factor_ranges — Optuna sampling bounds for this round (see strategy below).
    Allowed numeric keys: {factor_num_keys}. Each value is [low, high] within global bounds.
+   {factor_guidance}
 3) factor_choices — ONLY categorical indicators you fix this round; omit unchanged keys.
    Allowed keys: {factor_cat_keys}.
 
+optimization_strategy (required): 2–4 sentences (English or 中文, match rationale tone) explaining
+why you chose wide vs narrow factor_ranges given REFINEMENT_BUDGET, EXPLORATION_PHASE, champion vs
+benchmark (if any), and TARGET.
+{_ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES}
+
 Do NOT output objective_mode or rebalance_freq (run-level fixed).
 Numeric rule: at most 4 decimal places for every number; never emit long float expansions.
-Round 2+: evolve round_setup and factor_ranges from PRIOR_ROUND_* + CHAMPION + FAILED_TRIALS.
-Narrow factor_ranges toward what worked; beat champion in-sample objective (TARGET) after beating benchmark.
-Round 1: explore broadly within constraints (no prior round).
+Round 2+: evolve round_setup from PRIOR_ROUND_* + CHAMPION; adjust factor_ranges using evidence
+(FAILED_TRIALS, VS_BENCHMARK) — start wide early, narrow gradually in late rounds near TARGET.
+Round 1: wide exploration only — do NOT copy a single narrow band from defaults.
 
 Refinement learning ({learning_mode}):
-{learning_block or "(round 1 — no prior round; explore setup and factor_ranges)"}
+{learning_block or "(round 1 — budget above; no prior round champion block)"}
 
 Direction blueprint:
 - thesis: {direction_plan.get("thesis", "")}
@@ -1642,8 +1727,11 @@ Direction blueprint:
 
 Constraints: {constraints_compact}
 
-Return STRICT JSON only (sparse — omit empty sections):
-{{"rationale":"...", "round_setup":{{...}}, "factor_ranges":{{"w_mom":[0.5,1.5]}}, "factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
+Return STRICT JSON only (sparse — omit empty factor_choices if none):
+{{"rationale":"...", "optimization_strategy":"...", "performance_assessment":"...",
+"round_setup":{{...}},
+"factor_ranges":{{"w_mom":[0.2,1.8],"w_reversal":[0.1,1.2],"w_value":[0.0,1.0]}},
+"factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
 """
     max_retries = max(1, int(settings.gemini_param_seed_max_retries))
 
@@ -1657,7 +1745,8 @@ Return STRICT JSON only (sparse — omit empty sections):
             prompt[:1000]
             + "\nIMPORTANT: single JSON only, max 4 decimals, omit optional alloc weights and "
             "unchanged factor_ranges/factor_choices. "
-            '{"rationale":"...","round_setup":{...},"factor_ranges":{...},"factor_choices":{...}}'
+            '{"rationale":"...","optimization_strategy":"...","performance_assessment":"...",'
+            '"round_setup":{...},"factor_ranges":{...},"factor_choices":{...}}'
         )
         generation_config: dict[str, Any] = {
             "temperature": 0.0,
@@ -1713,10 +1802,13 @@ Return STRICT JSON only (sparse — omit empty sections):
                 "enabled": True,
                 "model": model,
                 "rationale": normalized["rationale"],
+                "optimization_strategy": normalized.get("optimization_strategy", ""),
+                "performance_assessment": normalized.get("performance_assessment", ""),
                 "round_setup": normalized["round_setup"],
                 "factor_ranges": normalized["factor_ranges"],
                 "factor_choices": normalized["factor_choices"],
                 "generation_mode": "pro_round_seed",
+                "exploration_phase": exploration_phase,
                 "error": None,
                 "thinking_level": _resolve_round_seed_thinking_level(),
                 "thinking_config": thinking_config,

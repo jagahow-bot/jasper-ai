@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from app.engine.ai_params import _extract_json, _round_seed_response_schema, normalize_round_seed
+from app.engine.ai_params import (
+    _ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES,
+    _build_round_seed_learning_block,
+    _extract_json,
+    _round_seed_response_schema,
+    round_seed_factor_range_guidance,
+)
+from app.engine.param_taxonomy import normalize_round_seed
 from app.engine.param_bounds import RunBlueprint
 from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
@@ -26,7 +33,10 @@ def test_round_seed_response_schema_shape():
     assert set(schema["required"]) == {"round_setup", "rationale"}
     range_props = props["factor_ranges"]["properties"]
     assert "w_mom" in range_props
-    assert "w_reversal" not in range_props
+    assert "w_reversal" in range_props
+    assert "w_value" in range_props
+    assert "optimization_strategy" in props
+    assert "performance_assessment" in props
 
 
 def test_round_seed_response_schema_compact():
@@ -73,6 +83,82 @@ def test_round_seed_numeric_uses_four_decimal_places():
     assert PARAM_NUMERIC_DECIMALS == 4
     assert _round_seed_numeric(0.123456789) == 0.1235
     assert _round_seed_numeric(252) == 252.0
+
+
+def test_round_seed_performance_assessment_rules_require_objectivity():
+    rules = _ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES
+    assert "performance_assessment" in rules
+    assert "below benchmark" in rules or "未達基準" in rules
+    assert "optimization_strategy" in rules
+    assert "No cheerleading" in rules or "without hype" in rules
+
+
+def test_learning_block_includes_vs_benchmark_for_below_alpha_prompt():
+    block = _build_round_seed_learning_block(
+        {
+            "round_index": 2,
+            "total_rounds": 3,
+            "trials_per_round": 5,
+            "champion": {
+                "train_sharpe": 0.8,
+                "in_sample_objective": 0.05,
+                "benchmark_vs": {
+                    "portfolio_vs_benchmark": {
+                        "alpha": -0.04,
+                        "portfolio_sharpe": 0.8,
+                        "benchmark_total_return_pct": 12.0,
+                    }
+                },
+            },
+            "champion_record_params": {"model_code": "M0001"},
+        }
+    )
+    assert "VS_BENCHMARK" in block
+    assert "-0.04" in block or "-0.040" in block
+
+
+def test_normalize_round_seed_keeps_optimization_strategy():
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    normalized = normalize_round_seed(
+        {
+            "rationale": "r",
+            "optimization_strategy": "Round 1: wide bands on 3 factors.",
+            "round_setup": {"mode": "risk_parity", "lookback_days": 252},
+            "factor_ranges": {"w_mom": [0.2, 1.8], "w_value": [0.0, 1.0]},
+        },
+        blueprint=bp,
+        param_controls={},
+    )
+    assert normalized["optimization_strategy"] == "Round 1: wide bands on 3 factors."
+    assert len(normalized["factor_ranges"]) == 2
+
+
+def test_normalize_round_seed_keeps_performance_assessment():
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    normalized = normalize_round_seed(
+        {
+            "rationale": "r",
+            "optimization_strategy": "Widen momentum.",
+            "performance_assessment": "本輪樣本內表現未達基準，Sharpe 低於 SPY。",
+            "round_setup": {"mode": "risk_parity", "lookback_days": 252},
+        },
+        blueprint=bp,
+        param_controls={},
+    )
+    assert "未達基準" in normalized["performance_assessment"]
+
+
+def test_round_seed_factor_range_guidance_explore_vs_narrow():
+    explore = round_seed_factor_range_guidance(
+        exploration_phase="explore", round_index=1, total_rounds=5
+    )
+    assert "2" in explore and "WIDE" in explore
+    assert "NOT narrow" in explore or "do NOT narrow" in explore
+    narrow = round_seed_factor_range_guidance(
+        exploration_phase="narrow", round_index=5, total_rounds=5
+    )
+    assert "narrow" in narrow.lower()
+    assert "exploratory" in narrow.lower() or "1 exploratory" in narrow
 
 
 def test_taxonomy_key_lists_complete():

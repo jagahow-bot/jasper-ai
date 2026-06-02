@@ -84,6 +84,18 @@ export interface ConvergencePreviewPoint {
   objective_label?: string;
 }
 
+export interface PortfolioVsBenchmark {
+  portfolio_cagr?: number;
+  portfolio_sharpe?: number;
+  portfolio_max_drawdown?: number;
+  benchmark_total_return_pct?: number | null;
+  portfolio_total_return_pct?: number | null;
+  beta?: number | null;
+  alpha?: number | null;
+  information_ratio?: number | null;
+  tracking_error?: number | null;
+}
+
 export interface JobProgress {
   status: JobStatus;
   message: string;
@@ -93,6 +105,9 @@ export interface JobProgress {
   refinement_round?: number;
   refinement_rounds_total?: number;
   convergence_preview?: ConvergencePreviewPoint[] | null;
+  round_benchmark_status?: "above" | "below" | "unknown" | null;
+  round_benchmark_alpha?: number | null;
+  round_portfolio_vs_benchmark?: PortfolioVsBenchmark | null;
 }
 
 export interface PortfolioCandidate {
@@ -196,6 +211,12 @@ export interface ProRoundSnapshot {
   round_setup?: Record<string, unknown>;
   factor_ranges?: Record<string, [number, number] | number[]>;
   factor_choices?: Record<string, string>;
+  optimization_strategy?: string;
+  performance_assessment?: string;
+  benchmark_status?: "above" | "below" | "unknown" | null;
+  beats_benchmark?: boolean | null;
+  benchmark_alpha?: number | null;
+  portfolio_vs_benchmark?: PortfolioVsBenchmark | null;
   candidates: PortfolioCandidate[];
   equity_curve: { date: string; value: number }[];
   efficient_frontier: {

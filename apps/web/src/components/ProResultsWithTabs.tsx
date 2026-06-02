@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
-import type { BacktestRequest, BacktestResult, ProRoundSnapshot } from "@/lib/types";
+import type {
+  BacktestRequest,
+  BacktestResult,
+  PortfolioVsBenchmark,
+  ProRoundSnapshot,
+} from "@/lib/types";
 
 type TabId = "final" | number;
 
@@ -111,6 +116,51 @@ function formatParamLabel(key: string): string {
   return labels[key] ?? key.replace(/_/g, " ");
 }
 
+function formatPct(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  return `${Number(value).toFixed(2)}%`;
+}
+
+function formatAlpha(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  const n = Number(value);
+  if (Math.abs(n) <= 2) return `${(n * 100).toFixed(2)}%`;
+  return n.toFixed(4);
+}
+
+function RoundBenchmarkBanner({
+  status,
+  alpha,
+  pvb,
+  benchmarkTicker,
+}: {
+  status?: ProRoundSnapshot["benchmark_status"];
+  alpha?: number | null;
+  pvb?: PortfolioVsBenchmark | null;
+  benchmarkTicker: string;
+}) {
+  if (status !== "below") return null;
+  const portRet = pvb?.portfolio_total_return_pct;
+  const benchRet = pvb?.benchmark_total_return_pct;
+  const alphaVal = alpha ?? pvb?.alpha ?? null;
+
+  return (
+    <div
+      className="mb-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.12)] p-3"
+      role="status"
+    >
+      <p className="font-pixel text-[9px] text-[var(--amber)]">本輪測試結果不理想</p>
+      <p className="mt-1 font-pixel text-[8px] leading-relaxed text-[var(--fg)]">
+        本輪樣本內表現未達基準（{benchmarkTicker}），建議下一輪擴大探索或調整策略。
+      </p>
+      <p className="mt-2 font-pixel text-[8px] text-[var(--muted)]">
+        組合累積報酬 {formatPct(portRet)} · 基準 {formatPct(benchRet)} · Alpha{" "}
+        {formatAlpha(alphaVal)}
+      </p>
+    </div>
+  );
+}
+
 function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
   const setup = round.round_setup ?? {};
   const ranges = round.factor_ranges ?? {};
@@ -119,12 +169,46 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
   const rangeEntries = Object.entries(ranges).filter(([, v]) => Array.isArray(v) && v.length >= 2);
   const choiceEntries = Object.entries(choices).filter(([, v]) => v != null && v !== "");
 
-  if (!setupEntries.length && !rangeEntries.length && !choiceEntries.length) {
+  const strategy = round.optimization_strategy?.trim();
+  const assessment = round.performance_assessment?.trim();
+  const benchStatus = round.benchmark_status;
+  const assessmentTone =
+    benchStatus === "below"
+      ? "border-[var(--amber)] bg-[rgba(255,176,0,0.08)] text-[var(--fg)]"
+      : benchStatus === "above"
+        ? "border-[var(--border)] bg-[rgba(0,0,0,0.12)] text-[var(--muted)]"
+        : "border-[var(--border)] bg-[rgba(0,0,0,0.12)] text-[var(--muted)]";
+
+  if (
+    !strategy &&
+    !assessment &&
+    !setupEntries.length &&
+    !rangeEntries.length &&
+    !choiceEntries.length
+  ) {
     return null;
   }
 
   return (
     <div className="mt-3 grid gap-3 border border-[var(--border)] bg-[rgba(0,0,0,0.15)] p-3 md:grid-cols-2">
+      {assessment ? (
+        <div className={`md:col-span-2 border p-2 ${assessmentTone}`}>
+          <p
+            className={`mb-1 font-pixel text-[8px] ${
+              benchStatus === "below" ? "text-[var(--amber)]" : "text-[var(--fg)]"
+            }`}
+          >
+            AI performance assessment
+          </p>
+          <p className="font-pixel text-[8px] leading-relaxed">{assessment}</p>
+        </div>
+      ) : null}
+      {strategy ? (
+        <div className="md:col-span-2">
+          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">AI optimization strategy</p>
+          <p className="font-pixel text-[8px] leading-relaxed text-[var(--muted)]">{strategy}</p>
+        </div>
+      ) : null}
       {setupEntries.length ? (
         <div>
           <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">Round setup (fixed all trials)</p>
@@ -274,7 +358,18 @@ export function ProResultsWithTabs(props: Props) {
         {tab !== "final" ? (
           (() => {
             const round = rounds.find((r) => r.round === tab);
-            return round ? <RoundSeedPanel round={round} /> : null;
+            if (!round) return null;
+            return (
+              <>
+                <RoundBenchmarkBanner
+                  status={round.benchmark_status}
+                  alpha={round.benchmark_alpha}
+                  pvb={round.portfolio_vs_benchmark}
+                  benchmarkTicker={result.benchmark ?? "SPY"}
+                />
+                <RoundSeedPanel round={round} />
+              </>
+            );
           })()
         ) : null}
       </div>

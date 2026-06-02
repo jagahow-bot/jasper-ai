@@ -206,3 +206,18 @@ This repository does **not** store cloud credentials. Do not commit `.env.produc
 3. **操作步骤**：复制 `.env.production.example` → `.env.production`，填入 `GEMINI_API_KEY`，执行 `docker compose -f docker-compose.prod.yml up -d --build`，浏览器访问服务器 IP 或域名。
 4. **可选方案**：前端 Vercel（设 `QUANT_API_URL` 指向线上 API）+ 后端 Railway/Fly（Dockerfile 在 `apps/api`，**保持 1 个常驻实例**）。
 5. **不要**把 `.env.production` 提交到 Git；API 的 8001 端口不要直接暴露公网。
+
+### 部署上限（Render / 雲端 POC）
+
+實務上請把下列當成「平台能扛多少」的上限，避免 Demo 中途失敗：
+
+| 項目 | 建議 / 上限 |
+|------|-------------|
+| **API 實例數** | **僅 1 個**常駐實例；多實例或自動擴展會讓進行中的回測 job ID 失效（任務在記憶體內）。 |
+| **記憶體** | API 建議 **≥ 2 GB**（VectorBT / Optuna 編譯與 Pro 回測較吃 RAM）；低於此易 OOM 或極慢。 |
+| **重啟 / 重新部署** | 會清空所有進行中與排隊中的回測（設計如此，尚未接 Redis/DB 佇列）。 |
+| **Render 免費方案** | 閒置後服務可能休眠；醒來後第一個請求較慢，長時間 Pro 多回合請用付費方案並關閉自動休眠（若平台提供）。 |
+| **HTTP 逾時** | 雲端反向代理常有請求時間上限；Pro 試驗數、回合數開太大可能逾時——POC 請用中等 trials / 回合。 |
+| **Gemini** | 受 Google API 配額與 `GEMINI_*_MAX_OUTPUT_TOKENS` 限制；與主機部署無關，但會影響 AI 種子是否截斷。 |
+
+產品內的「單檔上限、換手率上限」等為**策略參數邊界**（回測設定滑桿），與上述**主機部署上限**不同。
