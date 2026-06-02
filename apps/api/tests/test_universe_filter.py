@@ -36,6 +36,20 @@ def test_resolve_universe_filter_prompts_merges_legacy_text():
     assert prompts == ["legacy rule", "rule a"]
 
 
+def test_resolve_universe_filter_prompts_ignores_joined_duplicate_text():
+    from app.models import BacktestRequest, BacktestMode, Objective
+
+    req = BacktestRequest(
+        scenario_id="x",
+        max_weight=0.1,
+        objective=Objective.max_sharpe,
+        backtest_mode=BacktestMode.static,
+        universe_filter_text="rule a; rule b",
+        universe_filter_prompts=["rule a", "rule b"],
+    )
+    assert req.resolved_universe_filter_prompts() == ["rule a", "rule b"]
+
+
 def test_get_universe_asset_classes_always_applied_with_ai_categories():
     """Simulates UI: user picks equity+bond, AI adds us_sector — both must apply."""
     items = get_universe(

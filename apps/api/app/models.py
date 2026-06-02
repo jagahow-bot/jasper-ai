@@ -154,7 +154,12 @@ class BacktestRequest(BaseModel):
         """Merged stacked prompts + legacy single-line filter."""
         from_list = [p.strip() for p in (self.universe_filter_prompts or []) if p and p.strip()]
         legacy = (self.universe_filter_text or "").strip()
+        if not from_list:
+            return [legacy] if legacy else []
         if not legacy:
+            return from_list
+        joined = "; ".join(from_list)
+        if legacy == joined:
             return from_list
         if legacy in from_list:
             return from_list

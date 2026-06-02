@@ -11,7 +11,10 @@ import {
   getUniverseMeta,
   universeFilterFromRequest,
 } from "@/lib/universe";
-import { resolveUniverseFilterPrompts } from "@/lib/universe-filter-merge";
+import {
+  resolveUniverseFilterPrompts,
+  type UniverseFilterRuleResult,
+} from "@/lib/universe-filter-merge";
 import type { BacktestRequest } from "@/lib/types";
 
 type Props = {
@@ -19,20 +22,34 @@ type Props = {
   onChange: (next: BacktestRequest) => void;
 };
 
+function ruleKey(index: number, rule: string) {
+  return `rule-${index}-${rule.slice(0, 32)}`;
+}
+
 export function AssetClassFilter({ value, onChange }: Props) {
   const [draftText, setDraftText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rationale, setRationale] = useState<string | null>(null);
+  const [perRuleResults, setPerRuleResults] = useState<
+    UniverseFilterRuleResult[] | null
+  >(null);
+  const [expandedRules, setExpandedRules] = useState<Record<number, boolean>>(
+    {},
+  );
 
-  const stackedPrompts = resolveUniverseFilterPrompts(value);
+  const pendingRules = resolveUniverseFilterPrompts(value);
   const hasAiApplied =
-    stackedPrompts.length > 0 ||
+    pendingRules.length > 0 ||
     Boolean(value.universe_categories?.length) ||
     Boolean(value.universe_tickers?.length);
 
   useEffect(() => {
-    if (!hasAiApplied) setRationale(null);
+    if (!hasAiApplied) {
+      setRationale(null);
+      setPerRuleResults(null);
+      setExpandedRules({});
+    }
   }, [hasAiApplied]);
 
   const total = getUniverseMeta().count;
@@ -50,21 +67,30 @@ export function AssetClassFilter({ value, onChange }: Props) {
     });
   };
 
+  const syncPrompts = (next: string[]) => {
+    onChange({
+      ...value,
+      universe_filter_prompts: next.length ? next : null,
+      universe_filter_text: next.length ? next.join("; ") : null,
+    });
+  };
+
   const addDraftRule = () => {
     const line = draftText.trim();
     if (!line) return;
-    const next = [...stackedPrompts, line];
-    onChange({
-      ...value,
-      universe_filter_prompts: next,
-      universe_filter_text: next.join("; "),
-    });
+    if (pendingRules.some((r) => r === line)) {
+      setDraftText("");
+      setError(null);
+      return;
+    }
+    syncPrompts([...pendingRules, line]);
     setDraftText("");
     setError(null);
+    setPerRuleResults(null);
   };
 
   const removeRule = (index: number) => {
-    const next = stackedPrompts.filter((_, i) => i !== index);
+    const next = pendingRules.filter((_, i) => i !== index);
     onChange({
       ...value,
       universe_filter_prompts: next.length ? next : null,
@@ -76,13 +102,17 @@ export function AssetClassFilter({ value, onChange }: Props) {
             universe_tickers: null,
           }),
     });
-    if (!next.length) setRationale(null);
+    if (!next.length) {
+      setRationale(null);
+      setPerRuleResults(null);
+      setExpandedRules({});
+    } else {
+      setPerRuleResults(null);
+    }
   };
 
   const applyWithAi = async () => {
-    const prompts = draftText.trim()
-      ? [...stackedPrompts, draftText.trim()]
-      : stackedPrompts;
+    const prompts = pendingRules;
     if (!prompts.length) return;
     setLoading(true);
     setError(null);
@@ -100,6 +130,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
         categories?: string[];
         tickers?: string[];
         rationale?: string;
+        per_rule?: UniverseFilterRuleResult[];
         error?: string;
       };
       if (!res.ok) {
@@ -116,8 +147,11 @@ export function AssetClassFilter({ value, onChange }: Props) {
         universe_filter_prompts: prompts,
         universe_filter_text: prompts.join("; "),
       });
-      setDraftText("");
       setRationale(data.rationale ?? null);
+      setPerRuleResults(data.per_rule ?? null);
+      setExpandedRules(
+        Object.fromEntries(prompts.map((_, i) => [i, prompts.length <= 2])),
+      );
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Filter analysis failed. Try again later.",
@@ -131,6 +165,8 @@ export function AssetClassFilter({ value, onChange }: Props) {
     setDraftText("");
     setRationale(null);
     setError(null);
+    setPerRuleResults(null);
+    setExpandedRules({});
     onChange({
       ...value,
       universe_categories: null,
@@ -138,6 +174,10 @@ export function AssetClassFilter({ value, onChange }: Props) {
       universe_filter_text: null,
       universe_filter_prompts: null,
     });
+  };
+
+  const toggleRuleExpanded = (index: number) => {
+    setExpandedRules((prev) => ({ ...prev, [index]: !prev[index] }));
   };
 
   return (
@@ -196,15 +236,15 @@ export function AssetClassFilter({ value, onChange }: Props) {
           )}
         </div>
         <p className="text-xs text-dim">
-          Add multiple natural-language rules (AND stacked), e.g. sector, duration,
-          exclusions. Apply uses the asset classes selected above.
+          Add one rule at a time with ADD RULE, then APPLY AI FILTER to run all
+          rules together (AND). Each rule stays a separate line in the list.
         </p>
 
-        {stackedPrompts.length > 0 && (
+        {pendingRules.length > 0 && (
           <ol className="space-y-1.5">
-            {stackedPrompts.map((rule, index) => (
+            {pendingRules.map((rule, index) => (
               <li
-                key={`${index}-${rule.slice(0, 24)}`}
+                key={ruleKey(index, rule)}
                 className="flex items-start gap-2 rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-xs"
               >
                 <span className="shrink-0 font-pixel text-[10px] text-[var(--cyan)]">
@@ -234,7 +274,57 @@ export function AssetClassFilter({ value, onChange }: Props) {
         {rationale && (
           <p className="text-xs text-[var(--cyan)]">{rationale}</p>
         )}
-        {value.universe_categories?.length ? (
+        {perRuleResults && perRuleResults.length > 0 && (
+          <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--panel)] p-2">
+            <p className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
+              FILTER RESULTS
+            </p>
+            <p className="text-xs text-dim">
+              Combined pool: {selectedCount} ETF
+              {selectedCount === 1 ? "" : "s"} selected (all rules applied).
+            </p>
+            <ul className="space-y-1">
+              {perRuleResults.map((row) => (
+                <li key={ruleKey(row.rule_index, row.rule_text)} className="text-xs">
+                  <button
+                    type="button"
+                    onClick={() => toggleRuleExpanded(row.rule_index)}
+                    className="flex w-full items-start gap-2 text-left hover:text-[var(--cyan)]"
+                  >
+                    <span className="shrink-0 font-pixel text-[10px] text-[var(--cyan)]">
+                      {row.rule_index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="text-[var(--foreground)]">
+                        &quot;{row.rule_text}&quot;
+                      </span>
+                      <span className="text-dim">
+                        {" "}
+                        → {row.tickers.length} ticker
+                        {row.tickers.length === 1 ? "" : "s"}
+                        {expandedRules[row.rule_index] ? "" : " (expand)"}
+                      </span>
+                    </span>
+                  </button>
+                  {expandedRules[row.rule_index] && (
+                    <div className="mt-1 pl-5 text-dim">
+                      {row.categories?.length ? (
+                        <p>Categories: {row.categories.join(", ")}</p>
+                      ) : null}
+                      <p className="break-words">
+                        Tickers:{" "}
+                        {row.tickers.length
+                          ? row.tickers.join(", ")
+                          : "(none in universe for this rule)"}
+                      </p>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {!perRuleResults && value.universe_categories?.length ? (
           <p className="text-xs text-dim">
             Category tags: {value.universe_categories.join(", ")}
             {value.universe_tickers?.length
@@ -254,9 +344,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
           <button
             type="button"
             onClick={() => void applyWithAi()}
-            disabled={
-              loading || (!draftText.trim() && stackedPrompts.length === 0)
-            }
+            disabled={loading || pendingRules.length === 0}
             className="pixel-btn flex-1 disabled:opacity-40"
           >
             {loading ? "APPLYING…" : "APPLY AI FILTER"}

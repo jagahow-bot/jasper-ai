@@ -7,6 +7,7 @@ import { getUniverseMeta } from "@/lib/universe";
 import { analyzeUniverseFilterFallback } from "@/lib/universe-filter-fallback";
 import {
   buildCombinedFilterPrompt,
+  buildPerRuleFilterResults,
   constrainUniverseFilterOutput,
   mergeUniverseFilterOutputs,
 } from "@/lib/universe-filter-merge";
@@ -50,7 +51,9 @@ export async function POST(req: Request) {
 
   const applyFallback = () => {
     const outputs = prompts.map((p) => analyzeUniverseFilterFallback(p));
-    return mergeUniverseFilterOutputs(outputs, constrainClasses);
+    const merged = mergeUniverseFilterOutputs(outputs, constrainClasses);
+    const per_rule = buildPerRuleFilterResults(prompts, outputs, constrainClasses);
+    return { ...merged, per_rule };
   };
 
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -87,7 +90,13 @@ Rules:
     });
 
     const output = constrainUniverseFilterOutput(object, constrainClasses);
-    return NextResponse.json({ ...output, source: "gemini" });
+    const fallbackOutputs = prompts.map((p) => analyzeUniverseFilterFallback(p));
+    const per_rule = buildPerRuleFilterResults(
+      prompts,
+      fallbackOutputs,
+      constrainClasses,
+    );
+    return NextResponse.json({ ...output, per_rule, source: "gemini" });
   } catch {
     const output = applyFallback();
     return NextResponse.json({ ...output, source: "rules" });

@@ -1,7 +1,16 @@
 import type { AssetClass } from "./constants";
 import { ASSET_CLASSES } from "./constants";
-import { filterUniverse, getUniverseItems } from "./universe";
+import { filterUniverse, getTickers, getUniverseItems } from "./universe";
 import type { UniverseFilterOutput } from "./universe-filter-schema";
+
+export type UniverseFilterRuleResult = {
+  rule_index: number;
+  rule_text: string;
+  asset_classes: AssetClass[];
+  categories?: string[];
+  tickers: string[];
+  rationale?: string;
+};
 
 function intersectSets<T>(sets: Set<T>[]): Set<T> {
   if (!sets.length) return new Set();
@@ -95,7 +104,36 @@ export function resolveUniverseFilterPrompts(req: {
     .map((p) => p.trim())
     .filter(Boolean);
   const legacy = req.universe_filter_text?.trim();
+  if (!fromList.length) return legacy ? [legacy] : [];
   if (!legacy) return fromList;
+  const joined = fromList.join("; ");
+  if (legacy === joined) return fromList;
   if (fromList.includes(legacy)) return fromList;
   return [legacy, ...fromList];
+}
+
+export function buildPerRuleFilterResults(
+  prompts: string[],
+  outputs: UniverseFilterOutput[],
+  userAssetClasses: AssetClass[],
+): UniverseFilterRuleResult[] {
+  return prompts.map((rule_text, rule_index) => {
+    const constrained = constrainUniverseFilterOutput(
+      outputs[rule_index] ?? outputs[outputs.length - 1],
+      userAssetClasses,
+    );
+    const tickers = getTickers({
+      assetClasses: constrained.asset_classes,
+      categories: constrained.categories,
+      tickers: constrained.tickers,
+    });
+    return {
+      rule_index,
+      rule_text,
+      asset_classes: constrained.asset_classes,
+      categories: constrained.categories,
+      tickers,
+      rationale: constrained.rationale,
+    };
+  });
 }
