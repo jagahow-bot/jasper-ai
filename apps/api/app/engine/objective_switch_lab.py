@@ -120,6 +120,60 @@ def build_regime_score_timeline(
 
 FORWARD_HORIZON_DAYS = 21
 REGIME_LABELS = ("risk_off", "neutral", "risk_on")
+MIN_SEGMENT_TRADING_DAYS = 3
+MAX_SEGMENT_EPISODES_LISTED = 80
+
+
+def _regime_expectation_text(regime: str) -> str:
+    if regime == "risk_off":
+        return "lower/negative return or elevated vol"
+    if regime == "risk_on":
+        return "positive return with subdued vol"
+    return "moderate return or mid-range vol"
+
+
+def _active_regime_label(step: dict[str, Any]) -> str:
+    return str(step.get("active_regime") or step["regime"])
+
+
+def parse_regime_episode_segments(
+    timeline: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    """Contiguous active-regime episodes from walk-forward timeline."""
+    if not timeline:
+        return []
+    segments: list[dict[str, str]] = []
+    current = _active_regime_label(timeline[0])
+    start_date = str(timeline[0]["date"])
+    for step in timeline[1:]:
+        regime = _active_regime_label(step)
+        if regime != current:
+            segments.append({"regime": current, "start_date": start_date})
+            current = regime
+            start_date = str(step["date"])
+    segments.append({"regime": current, "start_date": start_date})
+    return segments
+
+
+def _segment_benchmark_stats(
+    bench_ret: pd.Series, start_idx: int, end_idx: int
+) -> dict[str, float] | None:
+    if start_idx is None or end_idx is None or end_idx < start_idx:
+        return None
+    seg_ret = bench_ret.iloc[start_idx : end_idx + 1]
+    if len(seg_ret) < MIN_SEGMENT_TRADING_DAYS:
+        return None
+    compound = float((1.0 + seg_ret).prod() - 1.0)
+    vol = float(seg_ret.std(ddof=0) * np.sqrt(252.0)) if len(seg_ret) > 1 else 0.0
+    cum = (1.0 + seg_ret).cumprod()
+    peak = cum.cummax()
+    max_dd = float((cum / peak - 1.0).min())
+    return {
+        "segment_return": round(compound, 6),
+        "segment_vol": round(vol, 6),
+        "segment_max_drawdown": round(max_dd, 6),
+        "length_days": len(seg_ret),
+    }
 
 
 def _forward_stats(bench_ret: pd.Series, end_idx: int, horizon: int) -> dict[str, float] | None:
@@ -160,24 +214,13 @@ def _alignment_grade(score: float) -> str:
     return "D"
 
 
-def compute_regime_prediction_quality(
+def _compute_forward_21d_diagnostic(
     bench_ret: pd.Series,
     timeline: list[dict[str, Any]],
     *,
     forward_days: int = FORWARD_HORIZON_DAYS,
 ) -> dict[str, Any]:
-    """Forward-looking benchmark diagnostic per walk-forward regime label."""
-    if not timeline:
-        return {
-            "regime_quality": {},
-            "switch_timing": [],
-            "switch_timing_summary": {},
-            "overall_alignment_score": None,
-            "alignment_grade": None,
-            "explanations": ["Insufficient walk-forward steps for regime quality."],
-            "forward_horizon_days": forward_days,
-        }
-
+    """Legacy per-step 21d forward windows (secondary diagnostic only)."""
     date_to_idx = {d.strftime("%Y-%m-%d"): i for i, d in enumerate(bench_ret.index)}
     rows: list[dict[str, Any]] = []
     for step in timeline:
@@ -202,9 +245,8 @@ def compute_regime_prediction_quality(
             "switch_timing": [],
             "switch_timing_summary": {},
             "overall_alignment_score": None,
-            "alignment_grade": None,
-            "explanations": ["No overlapping forward windows for regime quality."],
             "forward_horizon_days": forward_days,
+            "explanations": ["No overlapping forward windows for 21d diagnostic."],
         }
 
     vol_median = float(np.median([r["forward_vol"] for r in rows]))
@@ -226,13 +268,7 @@ def compute_regime_prediction_quality(
                 "avg_forward_return": None,
                 "avg_forward_vol": None,
                 "hit_rate": None,
-                "expectation": (
-                    "lower/negative return or elevated vol"
-                    if regime == "risk_off"
-                    else "positive return with subdued vol"
-                    if regime == "risk_on"
-                    else "moderate return or mid-range vol"
-                ),
+                "expectation": _regime_expectation_text(regime),
             }
             continue
         hits = [
@@ -247,22 +283,14 @@ def compute_regime_prediction_quality(
             ),
             "avg_forward_vol": round(float(np.mean([b["forward_vol"] for b in bucket])), 6),
             "hit_rate": round(hit_rate, 4),
-            "expectation": (
-                "lower/negative return or elevated vol"
-                if regime == "risk_off"
-                else "positive return with subdued vol"
-                if regime == "risk_on"
-                else "moderate return or mid-range vol"
-            ),
+            "expectation": _regime_expectation_text(regime),
         }
         weighted_hits += sum(hits)
         weighted_total += len(hits)
 
     overall_score: float | None = None
-    grade: str | None = None
     if weighted_total > 0:
         overall_score = round(100.0 * weighted_hits / weighted_total, 1)
-        grade = _alignment_grade(overall_score)
 
     switch_timing: list[dict[str, Any]] = []
     for i, step in enumerate(timeline):
@@ -308,39 +336,219 @@ def compute_regime_prediction_quality(
         else None,
     }
 
-    explanations: list[str] = []
+    diag_explanations: list[str] = []
     if overall_score is not None:
-        explanations.append(
-            f"Overall regime–forward benchmark alignment: {overall_score:.0f}/100 (grade {grade}). "
-            f"Based on {int(weighted_total)} walk-forward steps with {forward_days}d forward windows."
+        diag_explanations.append(
+            f"21d-step diagnostic alignment: {overall_score:.0f}/100 over "
+            f"{int(weighted_total)} walk-forward steps."
         )
-    for regime in REGIME_LABELS:
-        q = regime_quality.get(regime, {})
-        if not q.get("sample_count"):
-            continue
-        hr = q.get("hit_rate")
-        explanations.append(
-            f"{regime}: {q['sample_count']} steps, avg forward return "
-            f"{q['avg_forward_return']:+.2%}, hit rate {hr:.0%} vs expectation ({q['expectation']})."
-        )
-    if switch_timing:
-        hr = switch_summary.get("hit_rate")
-        explanations.append(
-            f"After {len(switch_timing)} regime switch(es), forward {forward_days}d aligned with "
-            f"new label {hr:.0%} of the time."
-        )
-    elif timeline:
-        explanations.append("No regime switches in walk-forward window for switch-timing quality.")
 
     return {
         "regime_quality": regime_quality,
         "switch_timing": switch_timing,
         "switch_timing_summary": switch_summary,
         "overall_alignment_score": overall_score,
-        "alignment_grade": grade,
-        "explanations": explanations,
         "forward_horizon_days": forward_days,
         "forward_vol_median": round(vol_median, 6),
+        "explanations": diag_explanations,
+    }
+
+
+def _build_episode_segments(
+    bench_ret: pd.Series,
+    timeline: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Full benchmark stats per contiguous active-regime episode."""
+    raw_segments = parse_regime_episode_segments(timeline)
+    if not raw_segments:
+        return []
+
+    date_to_idx = {d.strftime("%Y-%m-%d"): i for i, d in enumerate(bench_ret.index)}
+    switch_dates = [
+        date_to_idx[str(step["date"])]
+        for step in timeline
+        if step.get("switched") and str(step["date"]) in date_to_idx
+    ]
+
+    episodes: list[dict[str, Any]] = []
+    for i, seg in enumerate(raw_segments):
+        start_idx = date_to_idx.get(seg["start_date"])
+        if start_idx is None:
+            continue
+        if i + 1 < len(raw_segments):
+            next_start = date_to_idx.get(raw_segments[i + 1]["start_date"])
+            end_idx = (next_start - 1) if next_start is not None else len(bench_ret) - 1
+        else:
+            end_idx = len(bench_ret) - 1
+
+        stats = _segment_benchmark_stats(bench_ret, start_idx, end_idx)
+        if stats is None:
+            continue
+
+        start_date = bench_ret.index[start_idx].strftime("%Y-%m-%d")
+        end_date = bench_ret.index[end_idx].strftime("%Y-%m-%d")
+        episodes.append(
+            {
+                "regime": seg["regime"],
+                "start_date": start_date,
+                "end_date": end_date,
+                "length_days": stats["length_days"],
+                "segment_return": stats["segment_return"],
+                "segment_vol": stats["segment_vol"],
+                "segment_max_drawdown": stats["segment_max_drawdown"],
+                "switched_in": start_idx in switch_dates,
+            }
+        )
+    return episodes
+
+
+def compute_regime_prediction_quality(
+    bench_ret: pd.Series,
+    timeline: list[dict[str, Any]],
+    *,
+    forward_days: int = FORWARD_HORIZON_DAYS,
+) -> dict[str, Any]:
+    """Episode-based regime–benchmark alignment; 21d windows kept as secondary diagnostic."""
+    empty = {
+        "regime_quality": {},
+        "segment_episodes": [],
+        "notable_segments": {"longest": [], "failed": []},
+        "overall_alignment_score": None,
+        "alignment_grade": None,
+        "explanations": [],
+        "evaluation_mode": "episode_segments",
+        "segment_vol_median": None,
+        "forward_21d_diagnostic": {},
+    }
+    if not timeline:
+        empty["explanations"] = ["Insufficient walk-forward steps for regime quality."]
+        return empty
+
+    forward_21d = _compute_forward_21d_diagnostic(
+        bench_ret, timeline, forward_days=forward_days
+    )
+    episodes = _build_episode_segments(bench_ret, timeline)
+
+    if not episodes:
+        empty["forward_21d_diagnostic"] = forward_21d
+        empty["explanations"] = [
+            "No benchmark episodes long enough to score (need contiguous active-regime spans)."
+        ]
+        return empty
+
+    vol_median = float(np.median([e["segment_vol"] for e in episodes]))
+    for ep in episodes:
+        ep["aligned_with_regime"] = _regime_expectation_hit(
+            ep["regime"],
+            ep["segment_return"],
+            ep["segment_vol"],
+            vol_median,
+        )
+
+    by_regime: dict[str, list[dict[str, Any]]] = {k: [] for k in REGIME_LABELS}
+    for ep in episodes:
+        regime = ep["regime"]
+        if regime not in by_regime:
+            by_regime[regime] = []
+        by_regime[regime].append(ep)
+
+    regime_quality: dict[str, Any] = {}
+    weighted_hits = 0.0
+    weighted_total = 0.0
+    for regime in REGIME_LABELS:
+        bucket = by_regime.get(regime) or []
+        if not bucket:
+            regime_quality[regime] = {
+                "segment_count": 0,
+                "avg_segment_return": None,
+                "avg_segment_vol": None,
+                "hit_rate": None,
+                "median_length_days": None,
+                "expectation": _regime_expectation_text(regime),
+            }
+            continue
+        hits = [b["aligned_with_regime"] for b in bucket]
+        lengths = [b["length_days"] for b in bucket]
+        hit_rate = float(sum(hits)) / len(hits)
+        regime_quality[regime] = {
+            "segment_count": len(bucket),
+            "avg_segment_return": round(
+                float(np.mean([b["segment_return"] for b in bucket])), 6
+            ),
+            "avg_segment_vol": round(float(np.mean([b["segment_vol"] for b in bucket])), 6),
+            "hit_rate": round(hit_rate, 4),
+            "median_length_days": int(np.median(lengths)),
+            "expectation": _regime_expectation_text(regime),
+        }
+        weighted_hits += sum(hits)
+        weighted_total += len(hits)
+
+    overall_score: float | None = None
+    grade: str | None = None
+    if weighted_total > 0:
+        overall_score = round(100.0 * weighted_hits / weighted_total, 1)
+        grade = _alignment_grade(overall_score)
+
+    failed = [e for e in episodes if not e["aligned_with_regime"]]
+    longest = sorted(episodes, key=lambda e: e["length_days"], reverse=True)[:5]
+    failed_sorted = sorted(
+        failed,
+        key=lambda e: abs(e["segment_return"]),
+        reverse=True,
+    )[:5]
+
+    def _episode_row(e: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "regime": e["regime"],
+            "start_date": e["start_date"],
+            "end_date": e["end_date"],
+            "length_days": e["length_days"],
+            "segment_return": e["segment_return"],
+            "segment_vol": e["segment_vol"],
+            "segment_max_drawdown": e["segment_max_drawdown"],
+            "aligned_with_regime": e["aligned_with_regime"],
+        }
+
+    explanations: list[str] = []
+    if overall_score is not None:
+        explanations.append(
+            f"Episode alignment: {overall_score:.0f}/100 (grade {grade}). "
+            f"Scores {int(weighted_total)} contiguous active-regime span(s) on full benchmark "
+            f"behavior from switch-in until the label changes."
+        )
+    for regime in REGIME_LABELS:
+        q = regime_quality.get(regime, {})
+        if not q.get("segment_count"):
+            continue
+        hr = q.get("hit_rate")
+        med_len = q.get("median_length_days")
+        explanations.append(
+            f"{regime}: {q['segment_count']} episode(s), median {med_len}d, "
+            f"avg return {q['avg_segment_return']:+.2%}, hit rate {hr:.0%} "
+            f"({q['expectation']})."
+        )
+    fwd_score = forward_21d.get("overall_alignment_score")
+    if fwd_score is not None:
+        explanations.append(
+            f"Secondary 21d-forward diagnostic (per walk-forward step): {fwd_score:.0f}/100 — "
+            "see forward_21d_diagnostic for step-level detail."
+        )
+
+    listed_episodes = episodes[:MAX_SEGMENT_EPISODES_LISTED]
+
+    return {
+        "regime_quality": regime_quality,
+        "segment_episodes": [_episode_row(e) for e in listed_episodes],
+        "notable_segments": {
+            "longest": [_episode_row(e) for e in longest],
+            "failed": [_episode_row(e) for e in failed_sorted],
+        },
+        "overall_alignment_score": overall_score,
+        "alignment_grade": grade,
+        "explanations": explanations,
+        "evaluation_mode": "episode_segments",
+        "segment_vol_median": round(vol_median, 6),
+        "forward_21d_diagnostic": forward_21d,
     }
 
 

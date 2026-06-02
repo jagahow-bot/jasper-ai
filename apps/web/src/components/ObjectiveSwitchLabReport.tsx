@@ -142,19 +142,23 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
   const score = quality.overall_alignment_score;
   const grade = quality.alignment_grade;
   const regimes = ["risk_off", "neutral", "risk_on"] as const;
+  const fwd = quality.forward_21d_diagnostic;
+  const notable = quality.notable_segments;
 
   return (
     <div className="pixel-panel p-4">
       <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
-        Regime prediction quality (diagnostic)
+        Regime prediction quality (episode-based)
       </h3>
       <p className="mt-1 text-[10px] text-dim">
-        Forward {quality.forward_horizon_days}d benchmark outcomes after each walk-forward
-        label. Does not replace Sharpe A/B.
+        Scores each contiguous active-regime episode: benchmark return, volatility, and
+        drawdown from the day the label turns on until it switches. This matches how the
+        policy actually holds a regime, unlike a fixed 21-day forward window after every
+        walk-forward step. Does not replace Sharpe A/B.
       </p>
       {score != null && (
         <p className="mt-2 font-terminal text-lg text-[var(--foreground)]">
-          Alignment {score.toFixed(0)}/100
+          Episode alignment {score.toFixed(0)}/100
           {grade ? ` · grade ${grade}` : ""}
         </p>
       )}
@@ -167,19 +171,20 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
         <thead>
           <tr className="text-dim">
             <th className="pb-1">Regime</th>
-            <th>N</th>
-            <th>Avg fwd return</th>
+            <th>Episodes</th>
+            <th>Median days</th>
+            <th>Avg return</th>
             <th>Hit rate</th>
           </tr>
         </thead>
         <tbody>
           {regimes.map((r) => {
             const q = quality.regime_quality[r];
-            if (!q?.sample_count) {
+            if (!q?.segment_count) {
               return (
                 <tr key={r}>
                   <td className="py-0.5">{r}</td>
-                  <td colSpan={3} className="text-dim">
+                  <td colSpan={4} className="text-dim">
                     —
                   </td>
                 </tr>
@@ -188,10 +193,11 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
             return (
               <tr key={r}>
                 <td className="py-0.5">{r}</td>
-                <td>{q.sample_count}</td>
+                <td>{q.segment_count}</td>
+                <td>{q.median_length_days ?? "—"}</td>
                 <td>
-                  {q.avg_forward_return != null
-                    ? `${(q.avg_forward_return * 100).toFixed(2)}%`
+                  {q.avg_segment_return != null
+                    ? `${(q.avg_segment_return * 100).toFixed(2)}%`
                     : "—"}
                 </td>
                 <td>{q.hit_rate != null ? `${(q.hit_rate * 100).toFixed(0)}%` : "—"}</td>
@@ -200,25 +206,71 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
           })}
         </tbody>
       </table>
-      {quality.switch_timing.length > 0 && (
-        <div className="mt-4">
-          <p className="font-pixel text-[8px] text-[var(--amber)]">Switch timing</p>
-          <ul className="mt-2 space-y-1 text-xs text-dim">
-            {quality.switch_timing.map((s) => (
-              <li key={s.date} className={s.aligned_with_new_regime ? "" : "text-[var(--amber)]"}>
-                {s.date}: {s.from_regime} → {s.to_regime} · {s.note}
-              </li>
-            ))}
-          </ul>
-          {quality.switch_timing_summary.hit_rate != null && (
-            <p className="mt-1 text-xs text-dim">
-              Post-switch alignment:{" "}
-              {(quality.switch_timing_summary.hit_rate * 100).toFixed(0)}% (
-              {quality.switch_timing_summary.switch_events} events)
-            </p>
+      {notable && (notable.longest.length > 0 || notable.failed.length > 0) && (
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {notable.longest.length > 0 && (
+            <SegmentList title="Longest episodes" episodes={notable.longest} />
+          )}
+          {notable.failed.length > 0 && (
+            <SegmentList title="Largest misses" episodes={notable.failed} highlightMiss />
           )}
         </div>
       )}
+      {fwd && fwd.forward_horizon_days > 0 && (
+        <div className="mt-4 rounded border border-[var(--border)] p-3">
+          <p className="font-pixel text-[8px] text-dim">
+            Secondary: {fwd.forward_horizon_days}d forward (per step)
+          </p>
+          {fwd.overall_alignment_score != null && (
+            <p className="mt-1 text-xs text-dim">
+              Step-level alignment {fwd.overall_alignment_score.toFixed(0)}/100 — useful to
+              compare with the old method; headline score above uses full episodes.
+            </p>
+          )}
+          {fwd.switch_timing.length > 0 && (
+            <ul className="mt-2 max-h-32 space-y-1 overflow-auto text-xs text-dim">
+              {fwd.switch_timing.map((s) => (
+                <li
+                  key={s.date}
+                  className={s.aligned_with_new_regime ? "" : "text-[var(--amber)]"}
+                >
+                  {s.date}: {s.from_regime} → {s.to_regime} · {s.note}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SegmentList({
+  title,
+  episodes,
+  highlightMiss,
+}: {
+  title: string;
+  episodes: NonNullable<RegimePredictionQuality["notable_segments"]>["longest"];
+  highlightMiss?: boolean;
+}) {
+  return (
+    <div>
+      <p className="font-pixel text-[8px] text-[var(--amber)]">{title}</p>
+      <ul className="mt-2 space-y-1 text-xs text-dim">
+        {episodes.map((ep) => (
+          <li
+            key={`${ep.start_date}-${ep.regime}`}
+            className={
+              highlightMiss && !ep.aligned_with_regime ? "text-[var(--amber)]" : ""
+            }
+          >
+            {ep.start_date} → {ep.end_date} · {ep.regime} · {ep.length_days}d ·{" "}
+            {(ep.segment_return * 100).toFixed(2)}% ·{" "}
+            {ep.aligned_with_regime ? "hit" : "miss"}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

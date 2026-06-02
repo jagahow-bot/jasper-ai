@@ -307,6 +307,26 @@ export interface LabArmMetrics {
 }
 
 export interface RegimeQualityBucket {
+  segment_count: number;
+  avg_segment_return: number | null;
+  avg_segment_vol: number | null;
+  hit_rate: number | null;
+  median_length_days: number | null;
+  expectation: string;
+}
+
+export interface RegimeSegmentEpisode {
+  regime: string;
+  start_date: string;
+  end_date: string;
+  length_days: number;
+  segment_return: number;
+  segment_vol: number;
+  segment_max_drawdown: number;
+  aligned_with_regime: boolean;
+}
+
+export interface Forward21dRegimeBucket {
   sample_count: number;
   avg_forward_return: number | null;
   avg_forward_vol: number | null;
@@ -314,8 +334,8 @@ export interface RegimeQualityBucket {
   expectation: string;
 }
 
-export interface RegimePredictionQuality {
-  regime_quality: Record<string, RegimeQualityBucket>;
+export interface Forward21dDiagnostic {
+  regime_quality: Record<string, Forward21dRegimeBucket>;
   switch_timing: {
     date: string;
     from_regime: string;
@@ -331,10 +351,24 @@ export interface RegimePredictionQuality {
     avg_forward_return: number | null;
   };
   overall_alignment_score: number | null;
-  alignment_grade: string | null;
-  explanations: string[];
   forward_horizon_days: number;
   forward_vol_median?: number;
+  explanations?: string[];
+}
+
+export interface RegimePredictionQuality {
+  regime_quality: Record<string, RegimeQualityBucket>;
+  segment_episodes?: RegimeSegmentEpisode[];
+  notable_segments?: {
+    longest: RegimeSegmentEpisode[];
+    failed: RegimeSegmentEpisode[];
+  };
+  overall_alignment_score: number | null;
+  alignment_grade: string | null;
+  explanations: string[];
+  evaluation_mode?: string;
+  segment_vol_median?: number;
+  forward_21d_diagnostic?: Forward21dDiagnostic;
 }
 
 export interface BenchmarkSeriesPoint {

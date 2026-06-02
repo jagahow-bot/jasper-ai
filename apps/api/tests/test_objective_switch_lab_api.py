@@ -55,6 +55,8 @@ def test_lab_evaluate_endpoint(mock_fetch: object, mock_universe: object) -> Non
     pq = body["regime_prediction_quality"]
     assert "regime_quality" in pq
     assert "overall_alignment_score" in pq
+    assert pq.get("evaluation_mode") == "episode_segments"
+    assert "forward_21d_diagnostic" in pq
     assert isinstance(pq.get("explanations"), list)
     assert isinstance(body["benchmark_series"], list)
     if body["benchmark_series"]:
@@ -142,7 +144,10 @@ def test_lab_evaluate_validation_error(mock_fetch: object, mock_universe: object
 
 
 def test_regime_prediction_quality_structure() -> None:
-    from app.engine.objective_switch_lab import compute_regime_prediction_quality
+    from app.engine.objective_switch_lab import (
+        compute_regime_prediction_quality,
+        parse_regime_episode_segments,
+    )
     from app.engine.regime_policy import walk_forward_regime_timeline
 
     idx = pd.bdate_range("2018-01-01", periods=520)
@@ -150,12 +155,41 @@ def test_regime_prediction_quality_structure() -> None:
     bench_ret = pd.Series(rng.normal(0.0003, 0.01, len(idx)), index=idx)
     _, timeline = walk_forward_regime_timeline(bench_ret, "auto")
     quality = compute_regime_prediction_quality(bench_ret, timeline)
-    assert quality["forward_horizon_days"] == 21
+    assert quality["evaluation_mode"] == "episode_segments"
     assert isinstance(quality["regime_quality"], dict)
     assert "risk_off" in quality["regime_quality"]
+    assert isinstance(quality.get("segment_episodes"), list)
+    assert "forward_21d_diagnostic" in quality
+    fwd = quality["forward_21d_diagnostic"]
+    assert fwd.get("forward_horizon_days") == 21
+    segments = parse_regime_episode_segments(timeline)
+    assert len(segments) >= 1
     if quality["overall_alignment_score"] is not None:
         assert 0 <= quality["overall_alignment_score"] <= 100
         assert quality["alignment_grade"] in ("A", "B", "C", "D")
+
+
+def test_episode_segments_cover_full_regime_span() -> None:
+    from app.engine.objective_switch_lab import (
+        _build_episode_segments,
+        compute_regime_prediction_quality,
+        parse_regime_episode_segments,
+    )
+    from app.engine.regime_policy import walk_forward_regime_timeline
+
+    idx = pd.bdate_range("2020-01-01", periods=300)
+    bench_ret = pd.Series(0.001, index=idx)
+    _, timeline = walk_forward_regime_timeline(bench_ret, "auto", cooldown_steps=2)
+    raw = parse_regime_episode_segments(timeline)
+    episodes = _build_episode_segments(bench_ret, timeline)
+    assert len(episodes) == len(raw)
+    for ep in episodes:
+        assert ep["length_days"] >= 3
+        assert ep["start_date"] <= ep["end_date"]
+        assert "segment_return" in ep
+    quality = compute_regime_prediction_quality(bench_ret, timeline)
+    if quality["segment_episodes"]:
+        assert "aligned_with_regime" in quality["segment_episodes"][0]
 
 
 def test_regime_timeline_cooldown() -> None:
