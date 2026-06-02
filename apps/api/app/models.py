@@ -52,10 +52,8 @@ class ExperimentConfig(BaseModel):
     note: str | None = None
     run_ab_evaluation: bool = Field(
         default=False,
-        description=(
-            "When true (standard mode only), run a second lightweight Optuna pass "
-            "under the switch-suggested objective for A/B comparison."
-        ),
+        deprecated=True,
+        description="Deprecated — use POST /lab/objective-switch/evaluate instead.",
     )
 
 
@@ -284,3 +282,51 @@ class ScenarioCard(BaseModel):
     subtitle: str
     narrative_points: list[str]
     defaults: dict[str, Any]
+
+
+LabRecommendation = Literal["APPLY", "NOT_YET", "NEED_MORE_DATA"]
+
+
+class ObjectiveSwitchLabRequest(BaseModel):
+    """Standalone lab evaluation — never enqueued as a backtest job."""
+
+    start_date: str = "2018-01-01"
+    end_date: str = "2024-12-31"
+    benchmark_ticker: str | None = "SPY"
+    regime_mode: Literal["auto", "risk_off", "neutral", "risk_on"] = "auto"
+    fixed_objective: Objective = Objective.max_sharpe
+    asset_classes: list[str] | None = Field(
+        default=None,
+        description="Universe filter for tradable pool stats only",
+    )
+    enable_oos: bool = True
+    train_ratio: float = Field(default=0.7, ge=0.5, le=0.85)
+    cooldown_steps: int = Field(
+        default=2,
+        ge=0,
+        le=12,
+        description="Min walk-forward steps between objective switches (21d steps)",
+    )
+    confirm_steps: int = Field(
+        default=1,
+        ge=1,
+        le=4,
+        description="Consecutive raw regime confirmations before switching",
+    )
+
+
+class ObjectiveSwitchLabResult(BaseModel):
+    disclaimer: str
+    limitation: str
+    recommendation: LabRecommendation
+    headline: str
+    oos_sharpe_delta_switch_minus_fixed: float | None = None
+    fixed_arm: dict[str, Any]
+    switch_arm: dict[str, Any]
+    regime_timeline: list[dict[str, Any]]
+    current_regime: dict[str, Any]
+    periods: dict[str, Any]
+    benchmark_ticker: str
+    regime_mode: str
+    universe_stats: dict[str, Any]
+    data_meta: dict[str, Any] = Field(default_factory=dict)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -311,6 +311,7 @@ def _rebalance_schedule_dynamic(
     max_turnover: float | None = None,
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
+    allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
 ) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, list[pd.Timestamp], int, dict[str, Any]]:
     rets = _safe_returns(prices)
     n = len(prices.columns)
@@ -349,6 +350,7 @@ def _rebalance_schedule_dynamic(
             continue
         loc = int(prices.index.get_loc(dt))
         end_loc = max(loc, 1)  # exclude rebalance day
+        alloc_step = allocator_resolver(dt) if allocator_resolver else allocator
         updated = False
         try:
             # Factor selection (cross-sectional) over factor lookback.
@@ -389,14 +391,14 @@ def _rebalance_schedule_dynamic(
 
             # Allocation solve on the chosen subset using allocator lookback.
             mu, cov = _estimate_mu_sigma(
-                rets[chosen], lookback_days=allocator.lookback_days, end_loc=end_loc
+                rets[chosen], lookback_days=alloc_step.lookback_days, end_loc=end_loc
             )
             w_sub_prev = w[[col_index[t] for t in chosen]]
             w_sub = solve_weights(
                 mu_annual=mu,
                 cov_annual=cov,
                 max_weight=max_weight,
-                params=allocator,
+                params=alloc_step,
                 w0=w_sub_prev,
             )
             w = np.zeros(n, dtype=float)
@@ -555,6 +557,7 @@ def _simulate_pandas(
     dynamic: bool = False,
     max_weight: float = 0.1,
     allocator: AllocatorParams | None = None,
+    allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     top_n: int = 30,
     factor_params: FactorParams | None = None,
     no_trade_tol: float = 0.0,
@@ -571,6 +574,7 @@ def _simulate_pandas(
             rule=spec.rebalance_rule,
             max_weight=max_weight,
             allocator=alloc,
+            allocator_resolver=allocator_resolver,
             top_n=min(int(top_n), len(prices.columns)),
             factor_params=f_params,
             no_trade_tol=no_trade_tol,
@@ -664,6 +668,7 @@ def simulate_dynamic_portfolio(
     allocator: AllocatorParams,
     top_n: int,
     factor_params: FactorParams | None = None,
+    allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     no_trade_tol: float = 0.0,
     turnover_penalty_mult: float = 1.0,
     max_turnover: float | None = None,
@@ -678,6 +683,7 @@ def simulate_dynamic_portfolio(
         dynamic=True,
         max_weight=max_weight,
         allocator=allocator,
+        allocator_resolver=allocator_resolver,
         top_n=top_n,
         factor_params=factor_params,
         no_trade_tol=no_trade_tol,

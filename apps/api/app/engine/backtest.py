@@ -45,12 +45,6 @@ from app.engine.analytics import build_full_analytics
 from app.engine.ai_params import generate_ai_param_sets, generate_ai_round_seed
 from app.engine.factors import FactorParams, factor_params_from_dict
 from app.engine.ai_universe import refine_universe_with_ai
-from app.engine.experimental_objective_switch import (
-    build_evaluation_summary,
-    is_experimental_objective_switch_enabled,
-    objective_switch_metadata,
-    run_switch_arm_lightweight,
-)
 from app.engine.refinement import (
     assign_pro_round_model_codes,
     assign_search_model_codes,
@@ -100,28 +94,6 @@ def _resolve_objective(raw: str, custom_text: str | None) -> str:
     if any(k in t for k in ("sortino", "下行波動")):
         return "max_sortino"
     return "max_sharpe"
-
-
-def _is_experimental_objective_switch_enabled(req: BacktestRequest) -> bool:
-    return is_experimental_objective_switch_enabled(req)
-
-
-def _experimental_objective_switch_metadata(
-    req: BacktestRequest,
-    prices: pd.DataFrame,
-    benchmark_ticker: str,
-) -> dict[str, Any]:
-    meta = objective_switch_metadata(req, prices, benchmark_ticker)
-    logger.info(
-        "Experimental objective-switch sandbox active: benchmark=%s requested_mode=%s "
-        "regime=%s chosen_objective=%s switches=%s",
-        meta.get("benchmark_ticker"),
-        meta.get("requested_regime_mode"),
-        meta.get("resolved_regime_signal"),
-        meta.get("chosen_objective"),
-        meta.get("regime_switch_count"),
-    )
-    return meta
 
 
 def _champion_report_horizons(
@@ -1427,14 +1399,6 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     prices = prices[tickers]
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
 
-    experimental_meta: dict[str, Any] | None = None
-    if _is_experimental_objective_switch_enabled(req):
-        experimental_meta = _experimental_objective_switch_metadata(
-            req,
-            prices,
-            spec.benchmark_ticker,
-        )
-
     oos = req.enable_oos
     if oos:
         prices_train, prices_val, train_end, val_start = split_train_validation(
@@ -2115,71 +2079,6 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         and not full_m.get("metrics_suspect", False),
     }
 
-    if experimental_meta and candidates:
-        switch_arm_metrics: dict[str, Any] | None = None
-        exp_cfg = req.experiment
-        if (
-            exp_cfg
-            and getattr(exp_cfg, "run_ab_evaluation", False)
-            and not pro_mode
-            and experimental_meta.get("chosen_objective") != objective_effective
-        ):
-            report_progress(
-                trials_completed,
-                trials_completed,
-                "Experimental: running lightweight switch-policy eval arm…",
-            )
-
-            def _assemble_one(
-                *,
-                records: list[tuple[float, dict, dict]],
-                objective: str,
-            ) -> list[PortfolioCandidate]:
-                return _assemble_candidates_from_records(
-                    [records[0]] if records else [],
-                    req=req,
-                    top_n_models=1,
-                    tickers=tickers,
-                    prices=prices,
-                    prices_train=prices_train,
-                    prices_val=prices_val,
-                    oos=oos,
-                    rebalance_rule=rebalance_rule,
-                    spec=spec,
-                    universe_by_ticker=universe_by_ticker,
-                    objective_effective=objective,
-                    train_start=str(prices_train.index[0].date()),
-                    train_end=train_end,
-                    val_start=val_start,
-                    train_ratio=float(req.train_ratio),
-                    assembly_progress=lambda _msg: None,
-                    trial_report_cache=trial_report_cache,
-                )
-
-            switch_arm_metrics = run_switch_arm_lightweight(
-                req=req,
-                switch_objective=str(experimental_meta["chosen_objective"]),
-                prices_train=prices_train,
-                prices_val=prices_val,
-                oos=oos,
-                rebalance_rule=rebalance_rule,
-                spec=spec,
-                universe_by_ticker=universe_by_ticker,
-                param_controls_dict=param_controls_dict,
-                trial_report_cache=trial_report_cache,
-                assemble_top_candidate=lambda records, objective: _assemble_one(
-                    records=records, objective=objective
-                ),
-            )
-
-        experimental_meta["evaluation"] = build_evaluation_summary(
-            req=req,
-            user_objective=objective_effective,
-            experimental_meta=experimental_meta,
-            champion=candidates[0],
-            switch_arm_metrics=switch_arm_metrics,
-        )
-
     return BacktestResult(
         job_id=job_id,
         scenario_id=req.scenario_id,
@@ -2190,5 +2089,5 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         efficient_frontier=frontier,
         narrative_facts=narrative_facts,
         pro_rounds=pro_rounds,
-        experimental=experimental_meta,
+        experimental=None,
     )

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import jobs, scenarios, universe
+from app.routers import jobs, lab_objective_switch, scenarios, universe
 
 app = FastAPI(
     title="JASPER.AI API",
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(scenarios.router)
 app.include_router(universe.router)
 app.include_router(jobs.router)
+app.include_router(lab_objective_switch.router)
 
 
 @app.get("/health")

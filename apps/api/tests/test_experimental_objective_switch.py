@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.engine.backtest import (
-    _experimental_objective_switch_metadata,
-    _is_experimental_objective_switch_enabled,
+from app.engine.experimental_objective_switch import (
+    is_experimental_objective_switch_enabled,
+    objective_switch_metadata,
 )
-from app.engine.experimental_objective_switch import objective_switch_metadata
 from app.models import BacktestRequest, Objective
 
 
@@ -23,7 +22,7 @@ def _minimal_request() -> BacktestRequest:
 
 def test_experiment_gate_disabled_by_default() -> None:
     req = _minimal_request()
-    assert _is_experimental_objective_switch_enabled(req) is False
+    assert is_experimental_objective_switch_enabled(req) is False
 
 
 def test_experiment_gate_enabled_only_with_explicit_flag() -> None:
@@ -37,7 +36,7 @@ def test_experiment_gate_enabled_only_with_explicit_flag() -> None:
             },
         }
     )
-    assert _is_experimental_objective_switch_enabled(req) is True
+    assert is_experimental_objective_switch_enabled(req) is True
 
 
 def test_experiment_metadata_uses_explicit_regime_override() -> None:
@@ -56,7 +55,7 @@ def test_experiment_metadata_uses_explicit_regime_override() -> None:
         index=pd.bdate_range("2024-01-01", periods=4),
     )
 
-    meta = _experimental_objective_switch_metadata(req, prices, "SPY")
+    meta = objective_switch_metadata(req, prices, "SPY")
     assert meta["mode"] == "objective_switch"
     assert meta["enabled"] is True
     assert meta["resolved_regime_signal"] == "risk_on"

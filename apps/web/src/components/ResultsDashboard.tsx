@@ -41,7 +41,6 @@ import {
   extentWithZero,
   tightMaxFromValues,
 } from "@/lib/align-y-axis-zero";
-import { ExperimentalObjectiveEvaluation } from "@/components/ExperimentalObjectiveEvaluation";
 import type { BacktestRequest, BacktestResult } from "@/lib/types";
 import { getUniverseItems } from "@/lib/universe";
 
@@ -460,8 +459,6 @@ export function ResultsDashboard({
     | undefined;
   const convergenceHistory = proRefinement?.convergence_history ?? [];
   const sampleMetrics = top.analytics?.sample_metrics;
-  const experimental = result.experimental;
-
   const dataSource = String(result.narrative_facts.data_source ?? "");
   const trustworthy = result.narrative_facts.metrics_trustworthy === true;
   const dq = result.narrative_facts.data_quality as
@@ -595,32 +592,6 @@ export function ResultsDashboard({
           {result.narrative_facts.improved === true && " · new round best"}
         </div>
       )}
-      {experimental?.enabled && (
-        <ExperimentalObjectiveEvaluation
-          result={result}
-          request={request}
-          onRunAbEvaluation={
-            onQuickTweakAndRun
-              ? () =>
-                  onQuickTweakAndRun(
-                    {
-                      ...request,
-                      experiment: {
-                        ...(request.experiment ?? {
-                          enabled: true,
-                          mode: "objective_switch",
-                          regime_mode: "auto",
-                        }),
-                        run_ab_evaluation: true,
-                      },
-                    },
-                    "Run objective switch A/B evaluation",
-                  )
-              : undefined
-          }
-        />
-      )}
-
       <div className="border-2 border-[var(--border)] bg-[#050508] px-4 py-2 font-terminal text-sm text-dim">
         {optimizationMode === "pro_auto" && !result.narrative_facts.is_round_view ? (
           <>

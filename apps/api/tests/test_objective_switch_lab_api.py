@@ -1,0 +1,89 @@
+from __future__ import annotations
+
+from unittest.mock import patch
+
+import numpy as np
+import pandas as pd
+import pytest
+from fastapi.testclient import TestClient
+
+from main import app
+
+client = TestClient(app)
+
+
+def _synthetic_prices(n: int = 520, n_assets: int = 8) -> pd.DataFrame:
+    idx = pd.bdate_range("2018-01-01", periods=n)
+    rng = np.random.default_rng(42)
+    cols = {f"E{i}": 100 * np.cumprod(1 + rng.normal(0.0003, 0.01, n)) for i in range(n_assets)}
+    cols["SPY"] = 100 * np.cumprod(1 + rng.normal(0.0004, 0.012, n))
+    return pd.DataFrame(cols, index=idx)
+
+
+@patch("app.engine.objective_switch_lab.get_universe")
+@patch("app.engine.objective_switch_lab.fetch_prices")
+def test_lab_evaluate_endpoint(mock_fetch: object, mock_universe: object) -> None:
+    prices = _synthetic_prices()
+    mock_fetch.return_value = (prices, {"data_source": "test"})
+    tickers = [c for c in prices.columns if c != "SPY"]
+    mock_universe.return_value = [
+        {"ticker": t, "asset_class": "equity"} for t in tickers
+    ]
+
+    res = client.post(
+        "/lab/objective-switch/evaluate",
+        json={
+            "start_date": "2018-01-01",
+            "end_date": "2020-06-01",
+            "benchmark_ticker": "SPY",
+            "regime_mode": "auto",
+            "fixed_objective": "max_sharpe",
+            "asset_classes": ["equity", "bond"],
+            "enable_oos": True,
+            "train_ratio": 0.7,
+        },
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["recommendation"] in ("APPLY", "NOT_YET", "NEED_MORE_DATA")
+    assert "fixed_arm" in body
+    assert "switch_arm" in body
+    assert body["fixed_arm"]["objective"] == "max_sharpe"
+    assert isinstance(body["regime_timeline"], list)
+    assert body["limitation"]
+
+
+@patch("app.engine.objective_switch_lab.get_universe")
+@patch("app.engine.objective_switch_lab.fetch_prices")
+def test_lab_evaluate_validation_error(mock_fetch: object, mock_universe: object) -> None:
+    prices = _synthetic_prices(n=40, n_assets=3)
+    mock_fetch.return_value = (prices, {"data_source": "test"})
+    mock_universe.return_value = [
+        {"ticker": "E0", "asset_class": "equity"},
+        {"ticker": "E1", "asset_class": "equity"},
+    ]
+
+    res = client.post(
+        "/lab/objective-switch/evaluate",
+        json={
+            "start_date": "2024-01-01",
+            "end_date": "2024-03-01",
+            "benchmark_ticker": "SPY",
+            "asset_classes": ["equity"],
+        },
+    )
+    assert res.status_code == 400
+
+
+def test_regime_timeline_cooldown() -> None:
+    from app.engine.regime_policy import walk_forward_regime_timeline
+
+    idx = pd.bdate_range("2020-01-01", periods=400)
+    rng = pd.Series(np.linspace(-0.002, 0.003, 400), index=idx)
+    bench_ret = rng
+    switches, timeline = walk_forward_regime_timeline(
+        bench_ret, "auto", cooldown_steps=3, confirm_steps=1
+    )
+    assert isinstance(switches, int)
+    assert len(timeline) > 0
+    assert "objective" in timeline[0]

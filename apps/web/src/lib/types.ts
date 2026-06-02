@@ -281,3 +281,60 @@ export type WizardPhase =
   | "running"
   | "results"
   | "export";
+
+export type LabRecommendation = "APPLY" | "NOT_YET" | "NEED_MORE_DATA";
+
+export interface ObjectiveSwitchLabRequest {
+  start_date: string;
+  end_date: string;
+  benchmark_ticker?: string | null;
+  regime_mode: ExperimentalRegimeMode;
+  fixed_objective: Objective;
+  asset_classes?: string[] | null;
+  enable_oos: boolean;
+  train_ratio: number;
+  cooldown_steps?: number;
+  confirm_steps?: number;
+}
+
+export interface LabArmMetrics {
+  sharpe: number;
+  cagr: number;
+  max_drawdown: number;
+  return_pct?: number;
+}
+
+export interface ObjectiveSwitchLabResult {
+  disclaimer: string;
+  limitation: string;
+  recommendation: LabRecommendation;
+  headline: string;
+  oos_sharpe_delta_switch_minus_fixed: number | null;
+  fixed_arm: {
+    label: string;
+    objective: string;
+    in_sample: LabArmMetrics;
+    out_of_sample: LabArmMetrics | null;
+    switch_count: number;
+  };
+  switch_arm: {
+    label: string;
+    objective: string;
+    in_sample: LabArmMetrics;
+    out_of_sample: LabArmMetrics | null;
+    switch_count: number;
+  };
+  regime_timeline: {
+    date: string;
+    regime: string;
+    objective: string;
+    switched?: boolean;
+    trailing_return?: number;
+    annualized_vol?: number;
+  }[];
+  current_regime: Record<string, unknown>;
+  periods: Record<string, unknown>;
+  benchmark_ticker: string;
+  regime_mode: string;
+  universe_stats: Record<string, unknown>;
+}

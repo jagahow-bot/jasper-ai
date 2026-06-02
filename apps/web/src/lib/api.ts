@@ -2,6 +2,8 @@ import type {
   BacktestRequest,
   BacktestResult,
   JobProgress,
+  ObjectiveSwitchLabRequest,
+  ObjectiveSwitchLabResult,
   ScenarioCard,
 } from "./types";
 
@@ -75,6 +77,15 @@ export async function getJobProgress(jobId: string): Promise<JobProgress> {
 
 export async function getJobResult(jobId: string): Promise<BacktestResult> {
   return fetchJson<BacktestResult>(`/jobs/${jobId}/result`);
+}
+
+export async function evaluateObjectiveSwitchLab(
+  req: ObjectiveSwitchLabRequest,
+): Promise<ObjectiveSwitchLabResult> {
+  return fetchJson<ObjectiveSwitchLabResult>("/lab/objective-switch/evaluate", {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
 }
 
 export function downloadCsv(result: BacktestResult, scenarioTitle: string) {
