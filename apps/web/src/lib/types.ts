@@ -304,6 +304,43 @@ export interface LabArmMetrics {
   return_pct?: number;
 }
 
+export interface RegimeQualityBucket {
+  sample_count: number;
+  avg_forward_return: number | null;
+  avg_forward_vol: number | null;
+  hit_rate: number | null;
+  expectation: string;
+}
+
+export interface RegimePredictionQuality {
+  regime_quality: Record<string, RegimeQualityBucket>;
+  switch_timing: {
+    date: string;
+    from_regime: string;
+    to_regime: string;
+    forward_return: number;
+    forward_vol: number;
+    aligned_with_new_regime: boolean;
+    note: string;
+  }[];
+  switch_timing_summary: {
+    switch_events: number;
+    hit_rate: number | null;
+    avg_forward_return: number | null;
+  };
+  overall_alignment_score: number | null;
+  alignment_grade: string | null;
+  explanations: string[];
+  forward_horizon_days: number;
+  forward_vol_median?: number;
+}
+
+export interface BenchmarkSeriesPoint {
+  date: string;
+  cumulative_return_pct: number;
+  price_index: number;
+}
+
 export interface ObjectiveSwitchLabResult {
   disclaimer: string;
   limitation: string;
@@ -327,11 +364,15 @@ export interface ObjectiveSwitchLabResult {
   regime_timeline: {
     date: string;
     regime: string;
+    active_regime?: string;
     objective: string;
     switched?: boolean;
     trailing_return?: number;
     annualized_vol?: number;
+    raw_regime?: string;
   }[];
+  regime_prediction_quality?: RegimePredictionQuality;
+  benchmark_series?: BenchmarkSeriesPoint[];
   current_regime: Record<string, unknown>;
   periods: Record<string, unknown>;
   benchmark_ticker: string;

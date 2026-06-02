@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+import numpy as np
 import pandas as pd
 
 from app.engine.allocator import AllocatorParams
@@ -35,6 +36,281 @@ LIMITATION_NOTE = (
     "(no Optuna search). Arms differ by objective→allocator mapping at each rebalance; "
     "not comparable to a fully optimized Jasper backtest."
 )
+
+FORWARD_HORIZON_DAYS = 21
+REGIME_LABELS = ("risk_off", "neutral", "risk_on")
+
+
+def _forward_stats(bench_ret: pd.Series, end_idx: int, horizon: int) -> dict[str, float] | None:
+    fwd = bench_ret.iloc[end_idx + 1 : end_idx + 1 + horizon]
+    if len(fwd) < max(5, horizon // 3):
+        return None
+    compound = float((1.0 + fwd).prod() - 1.0)
+    vol = float(fwd.std(ddof=0) * np.sqrt(252.0)) if len(fwd) > 1 else 0.0
+    return {
+        "forward_return": round(compound, 6),
+        "forward_vol": round(vol, 6),
+        "forward_days": len(fwd),
+    }
+
+
+def _regime_expectation_hit(
+    regime: str,
+    forward_return: float,
+    forward_vol: float,
+    vol_median: float,
+) -> bool:
+    if regime == "risk_off":
+        return forward_return < 0.0 or forward_vol >= vol_median
+    if regime == "risk_on":
+        return forward_return > 0.0 and forward_vol < vol_median
+    neutral_band = 0.03
+    vol_lo, vol_hi = vol_median * 0.85, vol_median * 1.15
+    return abs(forward_return) <= neutral_band or (vol_lo <= forward_vol <= vol_hi)
+
+
+def _alignment_grade(score: float) -> str:
+    if score >= 70:
+        return "A"
+    if score >= 55:
+        return "B"
+    if score >= 40:
+        return "C"
+    return "D"
+
+
+def compute_regime_prediction_quality(
+    bench_ret: pd.Series,
+    timeline: list[dict[str, Any]],
+    *,
+    forward_days: int = FORWARD_HORIZON_DAYS,
+) -> dict[str, Any]:
+    """Forward-looking benchmark diagnostic per walk-forward regime label."""
+    if not timeline:
+        return {
+            "regime_quality": {},
+            "switch_timing": [],
+            "switch_timing_summary": {},
+            "overall_alignment_score": None,
+            "alignment_grade": None,
+            "explanations": ["Insufficient walk-forward steps for regime quality."],
+            "forward_horizon_days": forward_days,
+        }
+
+    date_to_idx = {d.strftime("%Y-%m-%d"): i for i, d in enumerate(bench_ret.index)}
+    rows: list[dict[str, Any]] = []
+    for step in timeline:
+        idx = date_to_idx.get(step["date"])
+        if idx is None:
+            continue
+        stats = _forward_stats(bench_ret, idx, forward_days)
+        if stats is None:
+            continue
+        rows.append(
+            {
+                "date": step["date"],
+                "regime": str(step["regime"]),
+                "switched": bool(step.get("switched")),
+                **stats,
+            }
+        )
+
+    if not rows:
+        return {
+            "regime_quality": {},
+            "switch_timing": [],
+            "switch_timing_summary": {},
+            "overall_alignment_score": None,
+            "alignment_grade": None,
+            "explanations": ["No overlapping forward windows for regime quality."],
+            "forward_horizon_days": forward_days,
+        }
+
+    vol_median = float(np.median([r["forward_vol"] for r in rows]))
+    by_regime: dict[str, list[dict[str, Any]]] = {k: [] for k in REGIME_LABELS}
+    for r in rows:
+        regime = r["regime"]
+        if regime not in by_regime:
+            by_regime[regime] = []
+        by_regime[regime].append(r)
+
+    regime_quality: dict[str, Any] = {}
+    weighted_hits = 0.0
+    weighted_total = 0.0
+    for regime in REGIME_LABELS:
+        bucket = by_regime.get(regime) or []
+        if not bucket:
+            regime_quality[regime] = {
+                "sample_count": 0,
+                "avg_forward_return": None,
+                "avg_forward_vol": None,
+                "hit_rate": None,
+                "expectation": (
+                    "lower/negative return or elevated vol"
+                    if regime == "risk_off"
+                    else "positive return with subdued vol"
+                    if regime == "risk_on"
+                    else "moderate return or mid-range vol"
+                ),
+            }
+            continue
+        hits = [
+            _regime_expectation_hit(regime, b["forward_return"], b["forward_vol"], vol_median)
+            for b in bucket
+        ]
+        hit_rate = float(sum(hits)) / len(hits)
+        regime_quality[regime] = {
+            "sample_count": len(bucket),
+            "avg_forward_return": round(
+                float(np.mean([b["forward_return"] for b in bucket])), 6
+            ),
+            "avg_forward_vol": round(float(np.mean([b["forward_vol"] for b in bucket])), 6),
+            "hit_rate": round(hit_rate, 4),
+            "expectation": (
+                "lower/negative return or elevated vol"
+                if regime == "risk_off"
+                else "positive return with subdued vol"
+                if regime == "risk_on"
+                else "moderate return or mid-range vol"
+            ),
+        }
+        weighted_hits += sum(hits)
+        weighted_total += len(hits)
+
+    overall_score: float | None = None
+    grade: str | None = None
+    if weighted_total > 0:
+        overall_score = round(100.0 * weighted_hits / weighted_total, 1)
+        grade = _alignment_grade(overall_score)
+
+    switch_timing: list[dict[str, Any]] = []
+    for i, step in enumerate(timeline):
+        if not step.get("switched"):
+            continue
+        idx = date_to_idx.get(step["date"])
+        if idx is None:
+            continue
+        stats = _forward_stats(bench_ret, idx, forward_days)
+        if stats is None:
+            continue
+        prev_regime = str(timeline[i - 1]["regime"]) if i > 0 else str(step["regime"])
+        new_regime = str(step["regime"])
+        hit = _regime_expectation_hit(
+            new_regime,
+            stats["forward_return"],
+            stats["forward_vol"],
+            vol_median,
+        )
+        switch_timing.append(
+            {
+                "date": step["date"],
+                "from_regime": prev_regime,
+                "to_regime": new_regime,
+                "forward_return": stats["forward_return"],
+                "forward_vol": stats["forward_vol"],
+                "aligned_with_new_regime": hit,
+                "note": (
+                    f"21d forward return {stats['forward_return']:+.2%} "
+                    f"{'matched' if hit else 'did not match'} {new_regime} expectation."
+                ),
+            }
+        )
+
+    switch_hits = [s["aligned_with_new_regime"] for s in switch_timing]
+    switch_summary = {
+        "switch_events": len(switch_timing),
+        "hit_rate": round(float(sum(switch_hits)) / len(switch_hits), 4) if switch_hits else None,
+        "avg_forward_return": round(
+            float(np.mean([s["forward_return"] for s in switch_timing])), 6
+        )
+        if switch_timing
+        else None,
+    }
+
+    explanations: list[str] = []
+    if overall_score is not None:
+        explanations.append(
+            f"Overall regime–forward benchmark alignment: {overall_score:.0f}/100 (grade {grade}). "
+            f"Based on {int(weighted_total)} walk-forward steps with {forward_days}d forward windows."
+        )
+    for regime in REGIME_LABELS:
+        q = regime_quality.get(regime, {})
+        if not q.get("sample_count"):
+            continue
+        hr = q.get("hit_rate")
+        explanations.append(
+            f"{regime}: {q['sample_count']} steps, avg forward return "
+            f"{q['avg_forward_return']:+.2%}, hit rate {hr:.0%} vs expectation ({q['expectation']})."
+        )
+    if switch_timing:
+        hr = switch_summary.get("hit_rate")
+        explanations.append(
+            f"After {len(switch_timing)} regime switch(es), forward {forward_days}d aligned with "
+            f"new label {hr:.0%} of the time."
+        )
+    elif timeline:
+        explanations.append("No regime switches in walk-forward window for switch-timing quality.")
+
+    return {
+        "regime_quality": regime_quality,
+        "switch_timing": switch_timing,
+        "switch_timing_summary": switch_summary,
+        "overall_alignment_score": overall_score,
+        "alignment_grade": grade,
+        "explanations": explanations,
+        "forward_horizon_days": forward_days,
+        "forward_vol_median": round(vol_median, 6),
+    }
+
+
+def build_benchmark_series(
+    bench_ret: pd.Series,
+    timeline: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Cumulative benchmark path and timeline rows enriched for charting."""
+    if bench_ret.empty:
+        return [], timeline
+
+    cum = (1.0 + bench_ret).cumprod()
+    base = float(cum.iloc[0])
+    series = [
+        {
+            "date": d.strftime("%Y-%m-%d"),
+            "cumulative_return_pct": round((float(cum.loc[d]) / base - 1.0) * 100.0, 4),
+            "price_index": round(float(cum.loc[d]) / base * 100.0, 4),
+        }
+        for d in cum.index
+    ]
+
+    enhanced: list[dict[str, Any]] = []
+    active_regime: str | None = None
+    for row in timeline:
+        active_regime = str(row["regime"])
+        enhanced.append(
+            {
+                **row,
+                "active_regime": active_regime,
+            }
+        )
+
+    # Downsample series for UI if very long (keep all timeline points)
+    max_points = 400
+    if len(series) > max_points:
+        stride = max(1, len(series) // max_points)
+        series = series[::stride]
+        if series[-1]["date"] != cum.index[-1].strftime("%Y-%m-%d"):
+            last_d = cum.index[-1]
+            series.append(
+                {
+                    "date": last_d.strftime("%Y-%m-%d"),
+                    "cumulative_return_pct": round(
+                        (float(cum.iloc[-1]) / base - 1.0) * 100.0, 4
+                    ),
+                    "price_index": round(float(cum.iloc[-1]) / base * 100.0, 4),
+                }
+            )
+
+    return series, enhanced
 
 
 def allocator_preset_for_objective(objective: str) -> AllocatorParams:
@@ -276,6 +552,12 @@ def evaluate_objective_switch_lab(
 
     snapshot = current_regime_snapshot(bench_ret, regime_mode)
 
+    train_bench = bench_ret.loc[prices_train.index[0] : prices_train.index[-1]]
+    prediction_quality = compute_regime_prediction_quality(train_bench, timeline)
+    benchmark_series, regime_timeline_enhanced = build_benchmark_series(
+        train_bench, timeline
+    )
+
     return ObjectiveSwitchLabResult(
         disclaimer=LIMITATION_NOTE,
         limitation=LIMITATION_NOTE,
@@ -296,7 +578,9 @@ def evaluate_objective_switch_lab(
             "out_of_sample": switch_oos,
             "switch_count": switch_count,
         },
-        regime_timeline=timeline,
+        regime_timeline=regime_timeline_enhanced,
+        regime_prediction_quality=prediction_quality,
+        benchmark_series=benchmark_series,
         current_regime=snapshot,
         periods={
             "full": {"start": req.start_date, "end": req.end_date},

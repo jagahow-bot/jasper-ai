@@ -1,6 +1,7 @@
 "use client";
 
-import type { ObjectiveSwitchLabResult } from "@/lib/types";
+import { BenchmarkRegimeChart } from "@/components/BenchmarkRegimeChart";
+import type { ObjectiveSwitchLabResult, RegimePredictionQuality } from "@/lib/types";
 
 function fmt(v: number | null | undefined, digits = 3): string {
   if (v == null || Number.isNaN(v)) return "—";
@@ -49,6 +50,25 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
         <ArmCard title="Switch policy" arm={result.switch_arm} showSwitches />
       </div>
 
+      {result.regime_prediction_quality && (
+        <PredictionQualitySection quality={result.regime_prediction_quality} />
+      )}
+
+      {result.benchmark_series && result.benchmark_series.length > 0 && (
+        <div className="pixel-panel p-4">
+          <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
+            Benchmark path vs regime
+          </h3>
+          <div className="mt-3">
+            <BenchmarkRegimeChart
+              benchmarkSeries={result.benchmark_series}
+              regimeTimeline={result.regime_timeline}
+              benchmarkTicker={result.benchmark_ticker}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="pixel-panel p-4">
         <h3 className="font-pixel text-[8px] text-[var(--cyan)]">Regime timeline</h3>
         <div className="mt-3 max-h-48 overflow-auto font-terminal text-xs">
@@ -57,6 +77,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
               <tr className="text-dim">
                 <th className="pb-1">Date</th>
                 <th>Regime</th>
+                <th>Active</th>
                 <th>Objective</th>
                 <th>Vol</th>
               </tr>
@@ -66,6 +87,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
                 <tr key={row.date} className={row.switched ? "text-[var(--amber)]" : ""}>
                   <td className="py-0.5">{row.date}</td>
                   <td>{row.regime}</td>
+                  <td>{row.active_regime ?? row.regime}</td>
                   <td>{row.objective}</td>
                   <td>{fmt(row.annualized_vol, 2)}</td>
                 </tr>
@@ -74,6 +96,91 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PredictionQualitySection({ quality }: { quality: RegimePredictionQuality }) {
+  const score = quality.overall_alignment_score;
+  const grade = quality.alignment_grade;
+  const regimes = ["risk_off", "neutral", "risk_on"] as const;
+
+  return (
+    <div className="pixel-panel p-4">
+      <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
+        Regime prediction quality (diagnostic)
+      </h3>
+      <p className="mt-1 text-[10px] text-dim">
+        Forward {quality.forward_horizon_days}d benchmark outcomes after each walk-forward
+        label. Does not replace Sharpe A/B.
+      </p>
+      {score != null && (
+        <p className="mt-2 font-terminal text-lg text-[var(--foreground)]">
+          Alignment {score.toFixed(0)}/100
+          {grade ? ` · grade ${grade}` : ""}
+        </p>
+      )}
+      <ul className="mt-2 space-y-1 text-xs text-dim">
+        {quality.explanations.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <table className="mt-4 w-full text-left font-terminal text-xs">
+        <thead>
+          <tr className="text-dim">
+            <th className="pb-1">Regime</th>
+            <th>N</th>
+            <th>Avg fwd return</th>
+            <th>Hit rate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {regimes.map((r) => {
+            const q = quality.regime_quality[r];
+            if (!q?.sample_count) {
+              return (
+                <tr key={r}>
+                  <td className="py-0.5">{r}</td>
+                  <td colSpan={3} className="text-dim">
+                    —
+                  </td>
+                </tr>
+              );
+            }
+            return (
+              <tr key={r}>
+                <td className="py-0.5">{r}</td>
+                <td>{q.sample_count}</td>
+                <td>
+                  {q.avg_forward_return != null
+                    ? `${(q.avg_forward_return * 100).toFixed(2)}%`
+                    : "—"}
+                </td>
+                <td>{q.hit_rate != null ? `${(q.hit_rate * 100).toFixed(0)}%` : "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {quality.switch_timing.length > 0 && (
+        <div className="mt-4">
+          <p className="font-pixel text-[8px] text-[var(--amber)]">Switch timing</p>
+          <ul className="mt-2 space-y-1 text-xs text-dim">
+            {quality.switch_timing.map((s) => (
+              <li key={s.date} className={s.aligned_with_new_regime ? "" : "text-[var(--amber)]"}>
+                {s.date}: {s.from_regime} → {s.to_regime} · {s.note}
+              </li>
+            ))}
+          </ul>
+          {quality.switch_timing_summary.hit_rate != null && (
+            <p className="mt-1 text-xs text-dim">
+              Post-switch alignment:{" "}
+              {(quality.switch_timing_summary.hit_rate * 100).toFixed(0)}% (
+              {quality.switch_timing_summary.switch_events} events)
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

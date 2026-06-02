@@ -330,3 +330,6 @@ class ObjectiveSwitchLabResult(BaseModel):
     regime_mode: str
     universe_stats: dict[str, Any]
     data_meta: dict[str, Any] = Field(default_factory=dict)
+    # Regime diagnostic (does not replace Sharpe A/B)
+    regime_prediction_quality: dict[str, Any] = Field(default_factory=dict)
+    benchmark_series: list[dict[str, Any]] = Field(default_factory=list)

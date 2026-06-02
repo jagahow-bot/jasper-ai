@@ -51,6 +51,18 @@ def test_lab_evaluate_endpoint(mock_fetch: object, mock_universe: object) -> Non
     assert body["fixed_arm"]["objective"] == "max_sharpe"
     assert isinstance(body["regime_timeline"], list)
     assert body["limitation"]
+    assert "regime_prediction_quality" in body
+    pq = body["regime_prediction_quality"]
+    assert "regime_quality" in pq
+    assert "overall_alignment_score" in pq
+    assert isinstance(pq.get("explanations"), list)
+    assert isinstance(body["benchmark_series"], list)
+    if body["benchmark_series"]:
+        pt = body["benchmark_series"][0]
+        assert "date" in pt
+        assert "cumulative_return_pct" in pt
+    if body["regime_timeline"]:
+        assert "active_regime" in body["regime_timeline"][0]
 
 
 @patch("app.engine.objective_switch_lab.get_universe")
@@ -73,6 +85,23 @@ def test_lab_evaluate_validation_error(mock_fetch: object, mock_universe: object
         },
     )
     assert res.status_code == 400
+
+
+def test_regime_prediction_quality_structure() -> None:
+    from app.engine.objective_switch_lab import compute_regime_prediction_quality
+    from app.engine.regime_policy import walk_forward_regime_timeline
+
+    idx = pd.bdate_range("2018-01-01", periods=520)
+    rng = np.random.default_rng(7)
+    bench_ret = pd.Series(rng.normal(0.0003, 0.01, len(idx)), index=idx)
+    _, timeline = walk_forward_regime_timeline(bench_ret, "auto")
+    quality = compute_regime_prediction_quality(bench_ret, timeline)
+    assert quality["forward_horizon_days"] == 21
+    assert isinstance(quality["regime_quality"], dict)
+    assert "risk_off" in quality["regime_quality"]
+    if quality["overall_alignment_score"] is not None:
+        assert 0 <= quality["overall_alignment_score"] <= 100
+        assert quality["alignment_grade"] in ("A", "B", "C", "D")
 
 
 def test_regime_timeline_cooldown() -> None:
