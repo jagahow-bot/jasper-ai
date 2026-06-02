@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ASSET_CLASSES,
   ASSET_CLASS_LABELS,
@@ -11,6 +11,7 @@ import {
   getUniverseMeta,
   universeFilterFromRequest,
 } from "@/lib/universe";
+import { resolveUniverseFilterPrompts } from "@/lib/universe-filter-merge";
 import type { BacktestRequest } from "@/lib/types";
 
 type Props = {
@@ -19,12 +20,23 @@ type Props = {
 };
 
 export function AssetClassFilter({ value, onChange }: Props) {
-  const [filterText, setFilterText] = useState(value.universe_filter_text ?? "");
+  const [draftText, setDraftText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rationale, setRationale] = useState<string | null>(null);
 
+  const stackedPrompts = resolveUniverseFilterPrompts(value);
+  const hasAiApplied =
+    stackedPrompts.length > 0 ||
+    Boolean(value.universe_categories?.length) ||
+    Boolean(value.universe_tickers?.length);
+
+  useEffect(() => {
+    if (!hasAiApplied) setRationale(null);
+  }, [hasAiApplied]);
+
   const total = getUniverseMeta().count;
+  const baseCount = countUniverse({ assetClasses: value.asset_classes });
   const selectedCount = countUniverse(universeFilterFromRequest(value));
 
   const toggle = (ac: AssetClass) => {
@@ -35,23 +47,53 @@ export function AssetClassFilter({ value, onChange }: Props) {
     onChange({
       ...value,
       asset_classes: nextClasses.length ? nextClasses : [...ASSET_CLASSES],
-      universe_categories: null,
-      universe_tickers: null,
-      universe_filter_text: null,
     });
-    setRationale(null);
-    setFilterText("");
+  };
+
+  const addDraftRule = () => {
+    const line = draftText.trim();
+    if (!line) return;
+    const next = [...stackedPrompts, line];
+    onChange({
+      ...value,
+      universe_filter_prompts: next,
+      universe_filter_text: next.join("；"),
+    });
+    setDraftText("");
+    setError(null);
+  };
+
+  const removeRule = (index: number) => {
+    const next = stackedPrompts.filter((_, i) => i !== index);
+    onChange({
+      ...value,
+      universe_filter_prompts: next.length ? next : null,
+      universe_filter_text: next.length ? next.join("；") : null,
+      ...(next.length
+        ? {}
+        : {
+            universe_categories: null,
+            universe_tickers: null,
+          }),
+    });
+    if (!next.length) setRationale(null);
   };
 
   const applyWithAi = async () => {
-    if (!filterText.trim()) return;
+    const prompts = draftText.trim()
+      ? [...stackedPrompts, draftText.trim()]
+      : stackedPrompts;
+    if (!prompts.length) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/universe/filter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: filterText.trim() }),
+        body: JSON.stringify({
+          texts: prompts,
+          asset_classes: value.asset_classes,
+        }),
       });
       const data = (await res.json()) as {
         asset_classes?: AssetClass[];
@@ -61,28 +103,30 @@ export function AssetClassFilter({ value, onChange }: Props) {
         error?: string;
       };
       if (!res.ok) {
-        throw new Error(data.error ?? "Filter analysis failed");
+        throw new Error(data.error ?? "篩選分析失敗");
       }
       if (!data.asset_classes?.length) {
-        throw new Error("Filter analysis failed");
+        throw new Error("篩選分析失敗");
       }
       onChange({
         ...value,
         asset_classes: data.asset_classes,
         universe_categories: data.categories?.length ? data.categories : null,
         universe_tickers: data.tickers?.length ? data.tickers : null,
-        universe_filter_text: filterText.trim(),
+        universe_filter_prompts: prompts,
+        universe_filter_text: prompts.join("；"),
       });
+      setDraftText("");
       setRationale(data.rationale ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Filter analysis failed — try again");
+      setError(e instanceof Error ? e.message : "篩選分析失敗，請稍後再試");
     } finally {
       setLoading(false);
     }
   };
 
   const clearCustomFilter = () => {
-    setFilterText("");
+    setDraftText("");
     setRationale(null);
     setError(null);
     onChange({
@@ -90,6 +134,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
       universe_categories: null,
       universe_tickers: null,
       universe_filter_text: null,
+      universe_filter_prompts: null,
     });
   };
 
@@ -97,9 +142,17 @@ export function AssetClassFilter({ value, onChange }: Props) {
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[var(--foreground)]">Universe asset classes</span>
+          <span className="text-sm text-[var(--foreground)]">投資標的資產類別</span>
           <span className="text-xs text-dim">
-            {selectedCount} / {total} tickers
+            {hasAiApplied ? (
+              <>
+                {selectedCount} / {baseCount}（類別內）· 全集 {total}
+              </>
+            ) : (
+              <>
+                {baseCount} / {total} 檔
+              </>
+            )}
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -117,28 +170,56 @@ export function AssetClassFilter({ value, onChange }: Props) {
             );
           })}
         </div>
+        <p className="text-xs text-dim">
+          先以資產類別縮小候選池（目前 {baseCount} 檔）；下方 AI 條件在已選類別範圍內再篩選，不會放寬類別。
+        </p>
       </div>
 
       <div className="space-y-2 border-t border-[var(--border)] pt-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[var(--foreground)]">Custom universe filter</span>
-          {(value.universe_filter_text || value.universe_categories?.length || value.universe_tickers?.length) && (
+          <span className="text-sm text-[var(--foreground)]">AI 投資範圍篩選</span>
+          {hasAiApplied && (
             <button
               type="button"
               onClick={clearCustomFilter}
               className="text-xs text-[var(--cyan)] hover:underline"
             >
-              Clear AI filter
+              清除 AI 篩選
             </button>
           )}
         </div>
         <p className="text-xs text-dim">
-          Describe sectors, sleeves, or exclusions — AI maps to asset classes and category tags.
+          可新增多條自然語言條件（AND 疊加），例如產業、久期、排除項目；套用時會參考上方已選資產類別。
         </p>
+
+        {stackedPrompts.length > 0 && (
+          <ol className="space-y-1.5">
+            {stackedPrompts.map((rule, index) => (
+              <li
+                key={`${index}-${rule.slice(0, 24)}`}
+                className="flex items-start gap-2 rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-xs"
+              >
+                <span className="shrink-0 font-pixel text-[10px] text-[var(--cyan)]">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1 text-[var(--foreground)]">{rule}</span>
+                <button
+                  type="button"
+                  onClick={() => removeRule(index)}
+                  className="shrink-0 text-[var(--magenta)] hover:underline"
+                  aria-label={`移除條件 ${index + 1}`}
+                >
+                  移除
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
+
         <textarea
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-          placeholder='e.g. "US tech and healthcare sectors only", "no bonds", "treasuries and gold only"'
+          value={draftText}
+          onChange={(e) => setDraftText(e.target.value)}
+          placeholder='例如：「僅美國科技與醫療產業」「排除債券」「只要短久期國債」'
           className="pixel-input min-h-20"
         />
         {error && <p className="text-sm text-[var(--magenta)]">{error}</p>}
@@ -147,20 +228,32 @@ export function AssetClassFilter({ value, onChange }: Props) {
         )}
         {value.universe_categories?.length ? (
           <p className="text-xs text-dim">
-            Categories: {value.universe_categories.join(", ")}
+            類別標籤：{value.universe_categories.join(", ")}
             {value.universe_tickers?.length
-              ? ` · ${value.universe_tickers.length} tickers`
+              ? ` · ${value.universe_tickers.length} 檔 ticker`
               : ""}
           </p>
         ) : null}
-        <button
-          type="button"
-          onClick={() => void applyWithAi()}
-          disabled={loading || !filterText.trim()}
-          className="pixel-btn w-full disabled:opacity-40"
-        >
-          {loading ? "Applying…" : "Apply with AI"}
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={addDraftRule}
+            disabled={!draftText.trim()}
+            className="pixel-btn flex-1 disabled:opacity-40"
+          >
+            新增條件
+          </button>
+          <button
+            type="button"
+            onClick={() => void applyWithAi()}
+            disabled={
+              loading || (!draftText.trim() && stackedPrompts.length === 0)
+            }
+            className="pixel-btn flex-1 disabled:opacity-40"
+          >
+            {loading ? "套用中…" : "套用 AI 篩選"}
+          </button>
+        </div>
       </div>
     </div>
   );

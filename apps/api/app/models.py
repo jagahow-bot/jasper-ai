@@ -77,7 +77,11 @@ class BacktestRequest(BaseModel):
     )
     universe_filter_text: str | None = Field(
         default=None,
-        description="Natural-language universe filter the user applied via AI",
+        description="Natural-language universe filter the user applied via AI (legacy single prompt)",
+    )
+    universe_filter_prompts: list[str] | None = Field(
+        default=None,
+        description="Stacked natural-language universe filter rules (AND semantics)",
     )
     enable_oos: bool = Field(
         default=True,
@@ -145,6 +149,16 @@ class BacktestRequest(BaseModel):
         le=3.0,
         description="Multiplier on train-validation gap penalty in scoring",
     )
+
+    def resolved_universe_filter_prompts(self) -> list[str]:
+        """Merged stacked prompts + legacy single-line filter."""
+        from_list = [p.strip() for p in (self.universe_filter_prompts or []) if p and p.strip()]
+        legacy = (self.universe_filter_text or "").strip()
+        if not legacy:
+            return from_list
+        if legacy in from_list:
+            return from_list
+        return [legacy, *from_list]
 
 
 class JobProgress(BaseModel):

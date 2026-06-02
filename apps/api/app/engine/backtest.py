@@ -1983,6 +1983,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "universe_categories_filter": req.universe_categories,
         "universe_tickers_filter": req.universe_tickers,
         "universe_filter_text": req.universe_filter_text,
+        "universe_filter_prompts": req.resolved_universe_filter_prompts(),
         "universe_refine": {
             "source": universe_plan.get("source"),
             "benchmark_ticker": spec.benchmark_ticker,

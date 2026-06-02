@@ -54,6 +54,8 @@ export interface BacktestRequest {
   universe_categories?: string[] | null;
   universe_tickers?: string[] | null;
   universe_filter_text?: string | null;
+  /** Stacked AI universe rules (AND); legacy jobs may only have universe_filter_text */
+  universe_filter_prompts?: string[] | null;
   enable_oos: boolean;
   train_ratio: number;
   fee_bps: number;
