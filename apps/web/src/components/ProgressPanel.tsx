@@ -56,12 +56,15 @@ export function ProgressPanel({ progress }: Props) {
           className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.12)] p-3"
           role="status"
         >
-          <p className="font-pixel text-[9px] text-[var(--amber)]">本輪測試結果不理想</p>
+          <p className="font-pixel text-[9px] text-[var(--amber)]">
+            ROUND UNDERPERFORMED BENCHMARK
+          </p>
           <p className="mt-1 font-pixel text-[8px] leading-relaxed text-[var(--fg)]">
-            本輪樣本內表現未達基準，建議下一輪擴大探索或調整策略。
+            Portfolio return trails the benchmark in this sample. Consider wider
+            exploration or strategy tweaks next round.
           </p>
           <p className="mt-2 font-pixel text-[8px] text-[var(--muted)]">
-            組合累積報酬 {formatPct(pvb?.portfolio_total_return_pct)} · 基準{" "}
+            Portfolio return {formatPct(pvb?.portfolio_total_return_pct)} · Benchmark{" "}
             {formatPct(pvb?.benchmark_total_return_pct)} · Alpha{" "}
             {formatAlpha(progress.round_benchmark_alpha ?? pvb?.alpha)}
           </p>

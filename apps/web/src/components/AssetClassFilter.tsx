@@ -57,7 +57,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
     onChange({
       ...value,
       universe_filter_prompts: next,
-      universe_filter_text: next.join("；"),
+      universe_filter_text: next.join("; "),
     });
     setDraftText("");
     setError(null);
@@ -68,7 +68,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
     onChange({
       ...value,
       universe_filter_prompts: next.length ? next : null,
-      universe_filter_text: next.length ? next.join("；") : null,
+      universe_filter_text: next.length ? next.join("; ") : null,
       ...(next.length
         ? {}
         : {
@@ -103,10 +103,10 @@ export function AssetClassFilter({ value, onChange }: Props) {
         error?: string;
       };
       if (!res.ok) {
-        throw new Error(data.error ?? "篩選分析失敗");
+        throw new Error(data.error ?? "Filter analysis failed");
       }
       if (!data.asset_classes?.length) {
-        throw new Error("篩選分析失敗");
+        throw new Error("Filter analysis failed");
       }
       onChange({
         ...value,
@@ -114,12 +114,14 @@ export function AssetClassFilter({ value, onChange }: Props) {
         universe_categories: data.categories?.length ? data.categories : null,
         universe_tickers: data.tickers?.length ? data.tickers : null,
         universe_filter_prompts: prompts,
-        universe_filter_text: prompts.join("；"),
+        universe_filter_text: prompts.join("; "),
       });
       setDraftText("");
       setRationale(data.rationale ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "篩選分析失敗，請稍後再試");
+      setError(
+        e instanceof Error ? e.message : "Filter analysis failed. Try again later.",
+      );
     } finally {
       setLoading(false);
     }
@@ -142,15 +144,17 @@ export function AssetClassFilter({ value, onChange }: Props) {
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[var(--foreground)]">投資標的資產類別</span>
+          <span className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
+            ASSET CLASSES
+          </span>
           <span className="text-xs text-dim">
             {hasAiApplied ? (
               <>
-                {selectedCount} / {baseCount}（類別內）· 全集 {total}
+                {selectedCount} / {baseCount} (in class) · universe {total}
               </>
             ) : (
               <>
-                {baseCount} / {total} 檔
+                {baseCount} / {total} names
               </>
             )}
           </span>
@@ -171,25 +175,29 @@ export function AssetClassFilter({ value, onChange }: Props) {
           })}
         </div>
         <p className="text-xs text-dim">
-          先以資產類別縮小候選池（目前 {baseCount} 檔）；下方 AI 條件在已選類別範圍內再篩選，不會放寬類別。
+          Narrow the pool by asset class first ({baseCount} names). AI rules below
+          filter within selected classes only—they never widen them.
         </p>
       </div>
 
       <div className="space-y-2 border-t border-[var(--border)] pt-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-[var(--foreground)]">AI 投資範圍篩選</span>
+          <span className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
+            AI UNIVERSE FILTER
+          </span>
           {hasAiApplied && (
             <button
               type="button"
               onClick={clearCustomFilter}
               className="text-xs text-[var(--cyan)] hover:underline"
             >
-              清除 AI 篩選
+              CLEAR AI FILTER
             </button>
           )}
         </div>
         <p className="text-xs text-dim">
-          可新增多條自然語言條件（AND 疊加），例如產業、久期、排除項目；套用時會參考上方已選資產類別。
+          Add multiple natural-language rules (AND stacked), e.g. sector, duration,
+          exclusions. Apply uses the asset classes selected above.
         </p>
 
         {stackedPrompts.length > 0 && (
@@ -207,9 +215,9 @@ export function AssetClassFilter({ value, onChange }: Props) {
                   type="button"
                   onClick={() => removeRule(index)}
                   className="shrink-0 text-[var(--magenta)] hover:underline"
-                  aria-label={`移除條件 ${index + 1}`}
+                  aria-label={`Remove rule ${index + 1}`}
                 >
-                  移除
+                  REMOVE
                 </button>
               </li>
             ))}
@@ -219,7 +227,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
         <textarea
           value={draftText}
           onChange={(e) => setDraftText(e.target.value)}
-          placeholder='例如：「僅美國科技與醫療產業」「排除債券」「只要短久期國債」'
+          placeholder="e.g. US tech and healthcare only; exclude bonds; short-duration Treasuries"
           className="pixel-input min-h-20"
         />
         {error && <p className="text-sm text-[var(--magenta)]">{error}</p>}
@@ -228,9 +236,9 @@ export function AssetClassFilter({ value, onChange }: Props) {
         )}
         {value.universe_categories?.length ? (
           <p className="text-xs text-dim">
-            類別標籤：{value.universe_categories.join(", ")}
+            Category tags: {value.universe_categories.join(", ")}
             {value.universe_tickers?.length
-              ? ` · ${value.universe_tickers.length} 檔 ticker`
+              ? ` · ${value.universe_tickers.length} tickers`
               : ""}
           </p>
         ) : null}
@@ -241,7 +249,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
             disabled={!draftText.trim()}
             className="pixel-btn flex-1 disabled:opacity-40"
           >
-            新增條件
+            ADD RULE
           </button>
           <button
             type="button"
@@ -251,7 +259,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
             }
             className="pixel-btn flex-1 disabled:opacity-40"
           >
-            {loading ? "套用中…" : "套用 AI 篩選"}
+            {loading ? "APPLYING…" : "APPLY AI FILTER"}
           </button>
         </div>
       </div>
