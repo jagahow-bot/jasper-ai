@@ -122,14 +122,17 @@ FORWARD_HORIZON_DAYS = 21
 REGIME_LABELS = ("risk_off", "neutral", "risk_on")
 MIN_SEGMENT_TRADING_DAYS = 3
 MAX_SEGMENT_EPISODES_LISTED = 80
+# Neutral hit: |segment return| within this band (range-bound / low-conviction moves).
+# Vol is display-only; hit/miss uses benchmark return direction or this band only.
+NEUTRAL_RETURN_BAND = 0.03
 
 
 def _regime_expectation_text(regime: str) -> str:
     if regime == "risk_off":
-        return "lower/negative return or elevated vol"
+        return "negative benchmark return over the episode"
     if regime == "risk_on":
         return "positive benchmark return over the episode"
-    return "moderate return or mid-range vol"
+    return f"benchmark |return| ≤ {NEUTRAL_RETURN_BAND:.0%} (range-bound)"
 
 
 def _active_regime_label(step: dict[str, Any]) -> str:
@@ -191,37 +194,33 @@ def _forward_stats(bench_ret: pd.Series, end_idx: int, horizon: int) -> dict[str
 
 def _regime_expectation_hit(
     regime: str,
-    forward_return: float,
-    forward_vol: float,
-    vol_median: float,
+    period_return: float,
+    period_vol: float = 0.0,
+    vol_median: float = 0.0,
 ) -> bool:
+    """Return-based episode alignment; period_vol / vol_median are unused (metadata only)."""
+    del period_vol, vol_median
     if regime == "risk_off":
-        return forward_return < 0.0 or forward_vol >= vol_median
+        return period_return < 0.0
     if regime == "risk_on":
-        # Return direction is primary; vol is informational (see miss_reason / UI hint).
-        return forward_return > 0.0
-    neutral_band = 0.03
-    vol_lo, vol_hi = vol_median * 0.85, vol_median * 1.15
-    return abs(forward_return) <= neutral_band or (vol_lo <= forward_vol <= vol_hi)
+        return period_return > 0.0
+    return abs(period_return) <= NEUTRAL_RETURN_BAND
 
 
 def _regime_expectation_miss_reason(
     regime: str,
     period_return: float,
-    period_vol: float,
-    vol_median: float,
+    period_vol: float = 0.0,
+    vol_median: float = 0.0,
 ) -> str | None:
-    if _regime_expectation_hit(regime, period_return, period_vol, vol_median):
+    del period_vol, vol_median
+    if _regime_expectation_hit(regime, period_return):
         return None
     if regime == "risk_on":
-        if period_return <= 0.0:
-            return "benchmark return not positive"
-        return "volatility above episode median"
+        return "benchmark return not positive"
     if regime == "risk_off":
-        if period_return >= 0.0:
-            return "benchmark return not negative"
-        return "volatility below episode median"
-    return "return and vol outside neutral band"
+        return "benchmark return not negative"
+    return f"benchmark |return| above {NEUTRAL_RETURN_BAND:.0%} neutral band"
 
 
 def _episode_miss_severity(ep: dict[str, Any]) -> float:

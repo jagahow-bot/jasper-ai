@@ -151,10 +151,11 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
         Regime prediction quality (episode-based)
       </h3>
       <p className="mt-1 text-[10px] text-dim">
-        Scores each contiguous active-regime episode: benchmark return, volatility, and
-        drawdown from the day the label turns on until it switches. This matches how the
-        policy actually holds a regime, unlike a fixed 21-day forward window after every
-        walk-forward step. Does not replace Sharpe A/B.
+        Scores each contiguous active-regime episode by benchmark return from the day the
+        label turns on until it switches: risk_on if return &gt; 0, risk_off if return &lt; 0,
+        neutral if |return| ≤ 3%. Volatility and drawdown are shown for context only. This
+        matches how the policy holds a regime, unlike a fixed 21-day forward window per step.
+        Does not replace Sharpe A/B.
       </p>
       {score != null && (
         <p className="mt-2 font-terminal text-lg text-[var(--foreground)]">
@@ -215,10 +216,9 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
             <div>
               <SegmentList title="Largest misses" episodes={notable.failed} highlightMiss />
               <p className="mt-2 text-[10px] text-dim">
-                risk_on is a hit when segment return is positive. A miss with a positive
-                return only appeared under the old rule (volatility above the cross-episode
-                median—common in sharp recoveries). Largest misses are ranked by wrong
-                direction (e.g. risk_on with a falling benchmark), not by return magnitude.
+                Hits are return-based only: risk_on (return &gt; 0), risk_off (return &lt; 0),
+                neutral (|return| ≤ 3%). Largest misses are ranked by wrong direction (e.g.
+                risk_on with a falling benchmark), not by return magnitude.
               </p>
             </div>
           )}
@@ -231,8 +231,9 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
           </p>
           {fwd.overall_alignment_score != null && (
             <p className="mt-1 text-xs text-dim">
-              Step-level alignment {fwd.overall_alignment_score.toFixed(0)}/100 — useful to
-              compare with the old method; headline score above uses full episodes.
+              Step-level alignment {fwd.overall_alignment_score.toFixed(0)}/100 — same
+              return-based rules on {fwd.forward_horizon_days}d forward windows; headline
+              score above uses full episodes.
             </p>
           )}
           {fwd.switch_timing.length > 0 && (

@@ -192,13 +192,27 @@ def test_episode_segments_cover_full_regime_span() -> None:
         assert "aligned_with_regime" in quality["segment_episodes"][0]
 
 
-def test_risk_on_hit_positive_return_despite_high_vol() -> None:
-    from app.engine.objective_switch_lab import _regime_expectation_hit
+def test_regime_expectation_hit_return_based() -> None:
+    from app.engine.objective_switch_lab import (
+        NEUTRAL_RETURN_BAND,
+        _regime_expectation_hit,
+        _regime_expectation_miss_reason,
+    )
 
     vol_median = 0.15
     assert _regime_expectation_hit("risk_on", 0.2187, 0.28, vol_median)
     assert _regime_expectation_hit("risk_on", 0.0752, 0.22, vol_median)
     assert not _regime_expectation_hit("risk_on", -0.05, 0.10, vol_median)
+    assert _regime_expectation_miss_reason("risk_on", -0.05) == "benchmark return not positive"
+
+    assert _regime_expectation_hit("risk_off", -0.12, 0.05, vol_median)
+    assert not _regime_expectation_hit("risk_off", 0.08, 0.30, vol_median)
+    assert _regime_expectation_miss_reason("risk_off", 0.08) == "benchmark return not negative"
+
+    assert _regime_expectation_hit("neutral", 0.01, 0.25, vol_median)
+    assert _regime_expectation_hit("neutral", -NEUTRAL_RETURN_BAND, 0.40, vol_median)
+    assert not _regime_expectation_hit("neutral", 0.05, 0.10, vol_median)
+    assert _regime_expectation_miss_reason("neutral", 0.05) is not None
 
 
 def test_largest_misses_rank_wrong_sign_not_high_positive_return() -> None:
