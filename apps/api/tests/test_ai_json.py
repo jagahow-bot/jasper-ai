@@ -2,7 +2,19 @@
 
 from __future__ import annotations
 
-from app.engine.ai_json import dumps_for_ai, round_ai_float, sanitize_for_ai
+import json
+
+from app.engine.ai_json import (
+    AI_NUMBER_DESCRIPTION,
+    dumps_for_ai,
+    factor_range_item_schema,
+    round_ai_float,
+    sanitize_ai_response,
+    sanitize_for_ai,
+)
+from app.engine.ai_params import _build_round_seed_learning_block, _extract_json
+from app.engine.param_taxonomy import normalize_round_seed, summarize_prior_round_seed
+from app.engine.param_bounds import RunBlueprint
 from app.engine.refinement import summarize_params_for_ai
 
 
@@ -40,7 +52,7 @@ def test_dumps_for_ai_shortens_float_json():
         "mode": "mean_variance",
     }
     raw_len = len(
-        __import__("json").dumps(params, sort_keys=True, default=str)
+        json.dumps(params, sort_keys=True, default=str)
     )
     clean = dumps_for_ai(params)
     assert len(clean) < raw_len
@@ -57,3 +69,134 @@ def test_summarize_params_for_ai_full_no_long_decimals():
     summary = summarize_params_for_ai(params, full=True)
     assert "00000000000" not in summary
     assert len(summary) < 400
+
+
+def test_regime_factor_ranges_nasty_floats_compact_in_prompt(monkeypatch):
+    """Regression: dynamic round seed learning must not bloat with IEEE noise."""
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_round_seed_learning_max_chars", 12000
+    )
+    noise = 0.40000000000000002220446049250313080847263336181640625
+    ctx = {
+        "round_index": 2,
+        "total_rounds": 5,
+        "trials_per_round": 5,
+        "exploration_phase": "explore",
+        "target_adjusted_score": 1.0500000000000003,
+        "prior_round_setup": {
+            "mode": "mean_variance",
+            "lookback_days": 252.0000000001,
+            "shrinkage": noise,
+            "risk_aversion": 2.0000000000000004,
+        },
+        "prior_regime_factor_ranges": {
+            "risk_off": {
+                "w_mom": [noise, 1.2000000000000002],
+                "factor_lookback_days": [126.7, 504.2],
+            },
+            "neutral": {"w_lowvol": [0.0, noise]},
+            "risk_on": {"w_trend": [0.1, 0.9000000000000001]},
+        },
+        "champion": {
+            "in_sample_objective": noise,
+            "train_sharpe": 1.234567890123456,
+            "gap_objective": 0.030000000000000027,
+            "overfitting_risk": "low",
+        },
+        "champion_record_params": {
+            "mode": "mean_variance",
+            "w_mom": noise,
+            "lookback_days": 252,
+        },
+    }
+    block = _build_round_seed_learning_block(ctx)
+    assert "00000000000" not in block
+    assert len(block) < 3500
+    assert "PRIOR_REGIME_FACTOR_RANGES" in block
+    assert "0.4" in block
+
+
+def test_extract_json_sanitizes_gemini_response():
+    noisy = (
+        '{"round_setup":{"shrinkage":0.40000000000000002220446049250313080847263336181640625},'
+        '"regime_factor_ranges":{"risk_off":{"w_mom":[0.0,1.2000000000000002]}}}'
+    )
+    parsed = _extract_json(noisy)
+    assert parsed is not None
+    assert parsed["round_setup"]["shrinkage"] == 0.4
+    assert parsed["regime_factor_ranges"]["risk_off"]["w_mom"] == [0.0, 1.2]
+    assert "00000000000" not in json.dumps(parsed)
+
+
+def test_normalize_round_seed_sanitizes_all_numeric_fields():
+    noise = 0.40000000000000002220446049250313080847263336181640625
+    seed = {
+        "rationale": "test",
+        "round_setup": {
+            "mode": "mean_variance",
+            "lookback_days": 252.9,
+            "shrinkage": noise,
+            "risk_aversion": 2.0000000000000004,
+            "top_n_actual": 10,
+            "max_weight_actual": noise,
+            "max_turnover_actual": 0.3,
+            "no_trade_tol": 0.01,
+            "turnover_penalty_mult": 1.0,
+        },
+        "regime_setups": {
+            "risk_off": {
+                "mode": "min_var",
+                "lookback_days": 252.1,
+                "shrinkage": noise,
+                "risk_aversion": 1.0,
+            },
+            "neutral": {
+                "mode": "mean_variance",
+                "lookback_days": 126,
+                "shrinkage": 0.1,
+                "risk_aversion": 3.0,
+            },
+            "risk_on": {
+                "mode": "mean_variance",
+                "lookback_days": 63,
+                "shrinkage": 0.05,
+                "risk_aversion": 1.5,
+            },
+        },
+        "regime_factor_ranges": {
+            "risk_off": {"w_mom": [0.0, noise], "factor_lookback_days": [126.2, 504.8]},
+            "neutral": {"w_value": [noise, 1.5]},
+            "risk_on": {"w_trend": [0.1, 0.9000000000000001]},
+        },
+        "factor_choices": {},
+    }
+    out = normalize_round_seed(
+        sanitize_ai_response(seed),
+        blueprint=RunBlueprint(max_weight=0.2, max_turnover=1.0, top_n=50),
+        param_controls=None,
+    )
+    dumped = dumps_for_ai(out)
+    assert "00000000000" not in dumped
+    assert out["round_setup"]["shrinkage"] == 0.4
+    assert out["regime_setups"]["risk_off"]["lookback_days"] == 252
+
+
+def test_summarize_prior_round_seed_rounds_factor_ranges():
+    noise = 0.40000000000000002220446049250313080847263336181640625
+    prior = summarize_prior_round_seed(
+        {
+            "factor_ranges": {"w_mom": [0.0, noise]},
+            "regime_factor_ranges": {
+                "neutral": {"w_lowvol": [noise, 1.2000000000000002]}
+            },
+        }
+    )
+    assert prior["factor_ranges"]["w_mom"] == [0.0, 0.4]
+    assert prior["regime_factor_ranges"]["neutral"]["w_lowvol"] == [0.4, 1.2]
+    assert "00000000000" not in dumps_for_ai(prior)
+
+
+def test_factor_range_item_schema_uses_integer_for_days():
+    assert factor_range_item_schema("factor_lookback_days") == {"type": "INTEGER"}
+    assert factor_range_item_schema("w_mom")["type"] == "NUMBER"
+    assert AI_NUMBER_DESCRIPTION in factor_range_item_schema("w_mom")["description"]

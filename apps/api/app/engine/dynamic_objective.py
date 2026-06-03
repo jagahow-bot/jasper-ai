@@ -15,6 +15,7 @@ from app.engine.objective_switch_lab import (
     walk_forward_timeline_for_detector,
 )
 from app.engine.factors import FactorParams
+from app.engine.ai_json import round_ai_float
 from app.engine.regime_policy import (
     REGIME_OBJECTIVE_MAP,
     RegimeSignal,
@@ -69,6 +70,16 @@ def _default_regime_allocator_setup(regime: RegimeSignal) -> dict[str, Any]:
     }
 
 
+def _round_regime_setup_value(key: str, val: Any) -> Any:
+    if key == "mode":
+        return str(val)
+    if key == "lookback_days":
+        return int(round(float(val)))
+    if key in ("shrinkage", "risk_aversion"):
+        return round_ai_float(float(val), key=key)
+    return val
+
+
 def normalize_regime_setups(
     raw: dict[str, Any] | None,
     *,
@@ -85,7 +96,9 @@ def normalize_regime_setups(
         for key in REGIME_ALLOCATOR_KEYS:
             if key not in merged or merged[key] is None:
                 merged[key] = _default_regime_allocator_setup(regime)[key]
-        out[regime] = {k: merged[k] for k in REGIME_ALLOCATOR_KEYS}
+        out[regime] = {
+            k: _round_regime_setup_value(k, merged[k]) for k in REGIME_ALLOCATOR_KEYS
+        }
     return out
 
 

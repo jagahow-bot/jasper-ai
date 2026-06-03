@@ -17,7 +17,7 @@ from app.engine.dynamic_objective import (
     has_regime_matrix,
     normalize_regime_setups,
 )
-from app.engine.ai_json import PARAM_NUMERIC_DECIMALS, round_ai_float
+from app.engine.ai_json import PARAM_NUMERIC_DECIMALS, round_ai_float, sanitize_for_ai
 from app.models import Objective
 
 # Run-level optimization objectives (not allocator modes).
@@ -144,6 +144,38 @@ def _normalize_regime_factor_ranges_seed(
         )
         if completed:
             out[regime] = completed
+    return out
+
+
+def _round_factor_ranges_dict(
+    ranges: dict[str, Any] | None,
+) -> dict[str, list[float | int]]:
+    if not isinstance(ranges, dict):
+        return {}
+    out: dict[str, list[float | int]] = {}
+    for key, raw in ranges.items():
+        if not isinstance(raw, (list, tuple)) or len(raw) < 2:
+            continue
+        out[key] = [
+            _round_seed_numeric(raw[0], key=str(key)),
+            _round_seed_numeric(raw[1], key=str(key)),
+        ]
+    return out
+
+
+def _round_regime_factor_ranges_dict(
+    raw: dict[str, Any] | None,
+) -> dict[str, dict[str, list[float | int]]]:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, dict[str, list[float | int]]] = {}
+    for regime in REGIME_KEYS:
+        per = raw.get(regime)
+        if not isinstance(per, dict):
+            continue
+        rounded = _round_factor_ranges_dict(per)
+        if rounded:
+            out[regime] = rounded
     return out
 
 
@@ -401,7 +433,7 @@ def summarize_prior_round_seed(
             val, bool
         ):
             setup[key] = _round_seed_numeric(val, key=key)
-    ranges = dict(seed_dict.get("factor_ranges") or {})
+    ranges = _round_factor_ranges_dict(seed_dict.get("factor_ranges"))
     choices = dict(seed_dict.get("factor_choices") or {})
     for key, val in list(choices.items()):
         if isinstance(val, str) and len(val) > 120:
@@ -415,6 +447,10 @@ def summarize_prior_round_seed(
         blueprint=RunBlueprint(max_weight=1.0, max_turnover=1.0, top_n=30),
         param_controls=None,
     )
+    if not regime_factor_ranges:
+        regime_factor_ranges = _round_regime_factor_ranges_dict(
+            seed_dict.get("regime_factor_ranges")
+        )
     out: dict[str, Any] = {
         "round_setup": setup,
         "factor_ranges": ranges,
@@ -498,4 +534,5 @@ def normalize_round_seed(
                         param_controls=controls,
                     )
 
-    return out
+    cleaned = sanitize_for_ai(out)
+    return cleaned if isinstance(cleaned, dict) else out

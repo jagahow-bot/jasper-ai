@@ -26,7 +26,15 @@ from app.engine.dynamic_objective import (
     REGIME_KEYS,
     is_dynamic_objective,
 )
-from app.engine.ai_json import dumps_for_ai, sanitize_for_ai
+from app.engine.ai_json import (
+    AI_NUMBER_DESCRIPTION,
+    ai_number_schema,
+    dumps_for_ai,
+    factor_range_item_schema,
+    round_ai_float,
+    sanitize_ai_response,
+    sanitize_for_ai,
+)
 from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
     FACTOR_NUMERIC_KEYS,
@@ -143,9 +151,9 @@ def _extract_json(text: str) -> dict[str, Any] | None:
     try:
         parsed = json.loads(text)
         if isinstance(parsed, dict):
-            return parsed
+            return sanitize_ai_response(parsed)
         if isinstance(parsed, list):
-            return {"rationale": "", "param_sets": parsed}
+            return sanitize_ai_response({"rationale": "", "param_sets": parsed})
         return None
     except Exception:
         pass
@@ -156,16 +164,18 @@ def _extract_json(text: str) -> dict[str, Any] | None:
         try:
             parsed = json.loads(text[l : r + 1])
             if isinstance(parsed, dict):
-                return parsed
+                return sanitize_ai_response(parsed)
             if isinstance(parsed, list):
-                return {"rationale": "", "param_sets": parsed}
+                return sanitize_ai_response({"rationale": "", "param_sets": parsed})
             return None
         except Exception:
             pass
     m = re.search(r"```json\s*(\{[\s\S]*?\})\s*```", text)
     if m:
         try:
-            return json.loads(m.group(1))
+            parsed = json.loads(m.group(1))
+            if isinstance(parsed, dict):
+                return sanitize_ai_response(parsed)
         except Exception:
             return None
     return None
@@ -417,6 +427,8 @@ _PROMPT_STRING_MAX_LEN = 120
 
 
 def _sanitize_prompt_string(value: Any, *, max_len: int = _PROMPT_STRING_MAX_LEN) -> Any:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return round_ai_float(float(value))
     if not isinstance(value, str):
         return value
     s = " ".join(value.split())
@@ -428,12 +440,23 @@ def _sanitize_prompt_string(value: Any, *, max_len: int = _PROMPT_STRING_MAX_LEN
 def _sanitize_prompt_dict(data: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(data, dict):
         return {}
+    cleaned = sanitize_for_ai(data)
+    if not isinstance(cleaned, dict):
+        return {}
     return {
         str(k): _sanitize_prompt_string(v)
         if isinstance(v, str)
         else v
-        for k, v in data.items()
+        for k, v in cleaned.items()
     }
+
+
+def _format_ai_number(value: Any, *, key: str | None = None) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return round_ai_float(float(value), key=key)
+    return value
 
 
 def _gemini_thinking_metadata(
@@ -1231,21 +1254,23 @@ Return STRICT JSON only:
 
 _ROUND_SETUP_SCHEMA_CORE: dict[str, dict[str, str]] = {
     "mode": {"type": "STRING"},
-    "lookback_days": {"type": "NUMBER"},
-    "shrinkage": {"type": "NUMBER"},
-    "risk_aversion": {"type": "NUMBER"},
-    "top_n_actual": {"type": "NUMBER"},
-    "max_weight_actual": {"type": "NUMBER"},
-    "max_turnover_actual": {"type": "NUMBER"},
-    "no_trade_tol": {"type": "NUMBER"},
-    "turnover_penalty_mult": {"type": "NUMBER"},
+    "lookback_days": ai_number_schema(integer=True),
+    "shrinkage": ai_number_schema(),
+    "risk_aversion": ai_number_schema(),
+    "top_n_actual": ai_number_schema(integer=True),
+    "max_weight_actual": ai_number_schema(),
+    "max_turnover_actual": ai_number_schema(),
+    "no_trade_tol": ai_number_schema(),
+    "turnover_penalty_mult": ai_number_schema(),
 }
 
 _REGIME_SLICE_SCHEMA: dict[str, Any] = {
     "type": "OBJECT",
     "properties": {
-        k: {"type": "STRING" if k == "mode" else "NUMBER"}
-        for k in REGIME_ALLOCATOR_KEYS
+        "mode": {"type": "STRING"},
+        "lookback_days": ai_number_schema(integer=True),
+        "shrinkage": ai_number_schema(),
+        "risk_aversion": ai_number_schema(),
     },
 }
 
@@ -1257,7 +1282,7 @@ _REGIME_SETUPS_SCHEMA: dict[str, Any] = {
 _REGIME_FACTOR_SLICE_SCHEMA: dict[str, Any] = {
     "type": "OBJECT",
     "properties": {
-        key: {"type": "ARRAY", "items": {"type": "NUMBER"}}
+        key: {"type": "ARRAY", "items": factor_range_item_schema(key)}
         for key in FACTOR_NUMERIC_KEYS
     },
 }
@@ -1268,7 +1293,7 @@ _REGIME_FACTOR_RANGES_SCHEMA: dict[str, Any] = {
 }
 
 _FACTOR_RANGE_SCHEMA_PROPS: dict[str, Any] = {
-    key: {"type": "ARRAY", "items": {"type": "NUMBER"}}
+    key: {"type": "ARRAY", "items": factor_range_item_schema(key)}
     for key in FACTOR_NUMERIC_KEYS
 }
 
@@ -1413,7 +1438,9 @@ def _round_seed_budget_lines(learning_context: dict[str, Any]) -> list[str]:
         lines.append(f"EXPLORATION_PHASE {phase}")
     target = learning_context.get("target_adjusted_score")
     if target is not None:
-        lines.append(f"TARGET_IS_OBJECTIVE {target}")
+        lines.append(
+            f"TARGET_IS_OBJECTIVE {_format_ai_number(target, key='target_adjusted_score')}"
+        )
     return lines
 
 
@@ -1477,8 +1504,9 @@ def _failed_trial_lines(failed: list[dict[str, Any]], limit: int = 5) -> list[st
         gap = row.get("gap_to_beat", row.get("gap_objective", row.get("gap_sharpe")))
         risk = row.get("risk_level", row.get("overfitting_risk"))
         params = str(row.get("params_summary", "")).strip()
+        gap_s = _format_ai_number(gap, key="gap_to_beat")
         out.append(
-            f"- gap={gap} risk={risk} params={params}"
+            f"- gap={gap_s} risk={risk} params={params}"
         )
     return out
 
@@ -1563,10 +1591,10 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
             champ_lines.append(f"  model_code={model_code}")
         champ_lines.append(
             "  IS metrics: sharpe={sh} cagr={cg} mdd={mdd} objective_value_is={obj}".format(
-                sh=sharpe,
-                cg=cagr,
-                mdd=mdd,
-                obj=is_obj,
+                sh=_format_ai_number(sharpe, key="sharpe"),
+                cg=_format_ai_number(cagr, key="cagr"),
+                mdd=_format_ai_number(mdd, key="max_drawdown"),
+                obj=_format_ai_number(is_obj, key="in_sample_objective"),
             )
         )
         if isinstance(champ, dict):
@@ -1577,8 +1605,8 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
             if oos_obj is not None or gap_obj is not None:
                 champ_lines.append(
                     "  OOS gap: holdout_objective={oos} gap_objective={gap} risk={risk}".format(
-                        oos=oos_obj,
-                        gap=gap_obj,
+                        oos=_format_ai_number(oos_obj, key="out_of_sample_objective"),
+                        gap=_format_ai_number(gap_obj, key="gap_objective"),
                         risk=champ.get("overfitting_risk"),
                     )
                 )
@@ -1625,7 +1653,10 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
 
     target = learning_context.get("target_adjusted_score")
     if target is not None:
-        lines.append(f"TARGET beat champion IS objective (adjusted score) > {target}")
+        lines.append(
+            "TARGET beat champion IS objective (adjusted score) > "
+            f"{_format_ai_number(target, key='target_adjusted_score')}"
+        )
 
     mission = learning_context.get("mission")
     if mission:
@@ -1781,7 +1812,9 @@ benchmark (if any), and TARGET.
 {_ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES}
 
 Do NOT output objective_mode or rebalance_freq (run-level fixed).
-Numeric rule: at most 4 decimal places for every number; never emit long float expansions.
+Numeric rule: at most 4 decimal places for every number; use integers for *_days and top_n_actual;
+never emit long float expansions (write 0.5 not 0.5000000000000001; write 252 not 252.0000000001).
+Example regime_factor_ranges slice: {{"w_mom":[0,1.5],"factor_lookback_days":[126,504]}}.
 Round 2+: evolve round_setup from PRIOR_ROUND_* + CHAMPION; adjust factor_ranges using evidence
 (FAILED_TRIALS, VS_BENCHMARK) — start wide early, narrow gradually in late rounds near TARGET.
 Round 1: wide exploration only — do NOT copy a single narrow band from defaults.
@@ -1873,7 +1906,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
                 last_error = "parse_failed"
                 continue
             normalized = normalize_round_seed(
-                parsed, blueprint=blueprint, param_controls=param_controls
+                sanitize_ai_response(parsed), blueprint=blueprint, param_controls=param_controls
             )
             if not normalized["round_setup"]:
                 last_error = "empty_round_setup"

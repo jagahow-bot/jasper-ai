@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from typing import Any
 
 # Half-up rounding for AI param / Pro round seed numerics (四捨五入到小數第 4 位).
 PARAM_NUMERIC_DECIMALS = 4
+AI_NUMBER_DESCRIPTION = "Max 4 decimal places; no long float expansions."
 
 _INT_KEYS = frozenset(
     {
@@ -15,6 +17,11 @@ _INT_KEYS = frozenset(
         "factor_lookback_days",
         "reversal_lookback_days",
         "value_lookback_days",
+        "round",
+        "total_rounds",
+        "trials_this_round",
+        "total_trial_budget",
+        "rebalance_snapshots",
     }
 )
 
@@ -67,8 +74,23 @@ _METRIC_KEYS = frozenset(
         "benchmark_alpha",
         "round_best_adjusted_score",
         "champion_adjusted_score",
+        "portfolio_total_return_pct",
+        "benchmark_total_return_pct",
+        "weight_pct",
+        "min_gain",
     }
 )
+
+
+def _coerce_scalar(value: Any) -> Any:
+    if hasattr(value, "item"):
+        try:
+            return value.item()
+        except Exception:
+            pass
+    if isinstance(value, Decimal):
+        return float(value)
+    return value
 
 
 def _is_int_key(key: str | None) -> bool:
@@ -94,16 +116,18 @@ def _decimals_for_key(key: str | None) -> int:
 
 def round_ai_float(value: float, *, key: str | None = None) -> int | float:
     """Round one float for AI payloads; preserves Optuna-only paths when unused."""
+    value = float(_coerce_scalar(value))
     if _is_int_key(key):
         return int(round(value))
     decimals = _decimals_for_key(key)
     if decimals <= 0:
         return int(round(value))
-    return round(float(value), decimals)
+    return round(value, decimals)
 
 
 def sanitize_for_ai(value: Any, *, _key: str | None = None) -> Any:
-    """Recursively round floats in dicts/lists destined for Gemini prompts."""
+    """Recursively round floats in dicts/lists destined for Gemini prompts or responses."""
+    value = _coerce_scalar(value)
     if isinstance(value, bool):
         return value
     if isinstance(value, int) and not isinstance(value, bool):
@@ -115,6 +139,21 @@ def sanitize_for_ai(value: Any, *, _key: str | None = None) -> Any:
     if isinstance(value, (list, tuple)):
         return [sanitize_for_ai(v, _key=_key) for v in value]
     return value
+
+
+def sanitize_ai_response(value: Any) -> Any:
+    """Single entry: normalize Gemini JSON after parse (same rules as prompt sanitization)."""
+    return sanitize_for_ai(value)
+
+
+class _AIJSONEncoder(json.JSONEncoder):
+    """Compact JSON for AI payloads — never emit IEEE noise tails."""
+
+    def encode(self, o: Any) -> str:
+        return super().encode(sanitize_for_ai(o))
+
+    def iterencode(self, o: Any, _one_shot: bool = False) -> Any:
+        return super().iterencode(sanitize_for_ai(o), _one_shot)
 
 
 def dumps_for_ai(
@@ -130,7 +169,21 @@ def dumps_for_ai(
         separators=(",", ":"),
         ensure_ascii=ensure_ascii,
         default=str,
+        cls=_AIJSONEncoder,
     )
     if max_len is not None and len(text) > max_len:
         return text[: max_len - 3] + "..."
     return text
+
+
+def factor_range_item_schema(key: str) -> dict[str, str]:
+    """Gemini responseSchema item for one factor bound endpoint."""
+    if _is_int_key(key):
+        return {"type": "INTEGER"}
+    return {"type": "NUMBER", "description": AI_NUMBER_DESCRIPTION}
+
+
+def ai_number_schema(*, integer: bool = False) -> dict[str, str]:
+    if integer:
+        return {"type": "INTEGER"}
+    return {"type": "NUMBER", "description": AI_NUMBER_DESCRIPTION}
