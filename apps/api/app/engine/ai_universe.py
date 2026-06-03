@@ -70,6 +70,19 @@ def _deterministic_refine(
     return selected, _pick_benchmark_from_universe(selected)
 
 
+def _filter_universe_by_asset_classes(
+    universe: list[dict[str, Any]],
+    asset_classes: list[str] | None,
+) -> list[dict[str, Any]]:
+    """Drop tickers outside the user's selected asset classes (defensive re-filter)."""
+    if not asset_classes:
+        return list(universe)
+    allowed = {str(c).strip() for c in asset_classes if str(c).strip()}
+    if not allowed:
+        return list(universe)
+    return [u for u in universe if str(u.get("asset_class", "")) in allowed]
+
+
 def _grouped_categories(universe: list[dict[str, Any]]) -> dict[str, list[str]]:
     grouped: dict[str, list[str]] = {}
     for u in universe:
@@ -104,6 +117,7 @@ def refine_universe_with_ai(
         if pick_representatives_per_category is not None
         else settings.ai_universe_pick_representatives_per_category
     )
+    universe = _filter_universe_by_asset_classes(universe, asset_classes)
     grouped = _grouped_categories(universe)
 
     key = settings.gemini_api_key
@@ -144,6 +158,7 @@ def refine_universe_with_ai(
             "grouped_categories": grouped,
             "benchmark_candidates": _BENCHMARK_CANDIDATES,
             "task": (
+                "The grouped_categories pool is already limited to asset_classes_filter. "
                 "Organize ETFs by category for context only. Do NOT remove or narrow tickers. "
                 "Pick the single best benchmark_ticker for this backtest pool."
             ),

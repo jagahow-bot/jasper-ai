@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from app.engine.ai_universe import _deterministic_refine, refine_universe_with_ai
+from app.engine.ai_universe import (
+    _deterministic_refine,
+    _filter_universe_by_asset_classes,
+    refine_universe_with_ai,
+)
+from app.profiles import get_universe
 
 
 def _sample_universe() -> list[dict]:
@@ -39,6 +44,34 @@ def test_refine_default_keeps_full_pool() -> None:
     assert plan["source"] in {"rules", "ai", "ai_cache"}
     assert plan.get("pick_representatives_per_category") is False
     assert plan.get("grouped_categories")
+
+
+def test_filter_universe_by_asset_classes_strips_out_of_class() -> None:
+    mixed = _sample_universe() + [
+        {"ticker": "GLD", "category": "precious", "asset_class": "commodity"},
+    ]
+    filtered = _filter_universe_by_asset_classes(mixed, ["equity", "bond"])
+    assert {u["ticker"] for u in filtered} == {"SPY", "QQQ", "AGG", "TLT"}
+
+
+def test_refine_strips_leaked_tickers_before_grouping() -> None:
+    """Regression: refine must not send out-of-class tickers to Gemini grouped_categories."""
+    base = get_universe(asset_classes=["equity", "bond"])
+    leaked = list(base) + [
+        {"ticker": "GLD", "category": "precious", "asset_class": "commodity"},
+    ]
+    plan = refine_universe_with_ai(
+        universe=leaked,
+        objective="max_sharpe",
+        asset_classes=["equity", "bond"],
+        pick_representatives_per_category=False,
+    )
+    tickers = {u["ticker"] for u in plan["universe"]}
+    assert "GLD" not in tickers
+    grouped = plan.get("grouped_categories") or {}
+    flat = {t for ts in grouped.values() for t in ts}
+    assert "GLD" not in flat
+    assert plan.get("asset_classes_filter") == ["equity", "bond"]
 
 
 def test_refine_legacy_pick_one_flag() -> None:
