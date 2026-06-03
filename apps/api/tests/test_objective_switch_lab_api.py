@@ -192,9 +192,10 @@ def test_episode_segments_cover_full_regime_span() -> None:
         assert "aligned_with_regime" in quality["segment_episodes"][0]
 
 
-def test_regime_expectation_hit_return_based() -> None:
+def test_regime_expectation_hit_rules() -> None:
     from app.engine.objective_switch_lab import (
         NEUTRAL_RETURN_BAND,
+        RISK_OFF_VOL_ELEVATION_RATIO,
         _regime_expectation_hit,
         _regime_expectation_miss_reason,
     )
@@ -205,9 +206,15 @@ def test_regime_expectation_hit_return_based() -> None:
     assert not _regime_expectation_hit("risk_on", -0.05, 0.10, vol_median)
     assert _regime_expectation_miss_reason("risk_on", -0.05) == "benchmark return not positive"
 
-    assert _regime_expectation_hit("risk_off", -0.12, 0.05, vol_median)
-    assert not _regime_expectation_hit("risk_off", 0.08, 0.30, vol_median)
-    assert _regime_expectation_miss_reason("risk_off", 0.08) == "benchmark return not negative"
+    elevated_vol = vol_median * RISK_OFF_VOL_ELEVATION_RATIO
+    assert _regime_expectation_hit("risk_off", -0.12, elevated_vol, vol_median)
+    assert _regime_expectation_hit("risk_off", 0.08, elevated_vol + 0.01, vol_median)
+    assert not _regime_expectation_hit("risk_off", -0.12, 0.05, vol_median)
+    assert not _regime_expectation_hit("risk_off", 0.08, 0.10, vol_median)
+    assert (
+        _regime_expectation_miss_reason("risk_off", 0.08, 0.10, vol_median)
+        == "vol not elevated vs baseline"
+    )
 
     assert _regime_expectation_hit("neutral", 0.01, 0.25, vol_median)
     assert _regime_expectation_hit("neutral", -NEUTRAL_RETURN_BAND, 0.40, vol_median)

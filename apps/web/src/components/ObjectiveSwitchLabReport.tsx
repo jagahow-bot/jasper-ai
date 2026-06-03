@@ -152,8 +152,9 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
       </h3>
       <p className="mt-1 text-[10px] text-dim">
         Scores each contiguous active-regime episode by benchmark return from the day the
-        label turns on until it switches: risk_on if return &gt; 0, risk_off if return &lt; 0,
-        neutral if |return| ≤ 3%. Volatility and drawdown are shown for context only. This
+        label turns on until it switches: risk_on if return &gt; 0, risk_off if segment
+        ann. vol is clearly elevated vs the lab episode-vol median (≥ 1.15×), neutral if
+        |return| ≤ 3%. Return and drawdown are shown for context. This
         matches how the policy holds a regime, unlike a fixed 21-day forward window per step.
         Does not replace Sharpe A/B.
       </p>
@@ -216,9 +217,9 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
             <div>
               <SegmentList title="Largest misses" episodes={notable.failed} highlightMiss />
               <p className="mt-2 text-[10px] text-dim">
-                Hits are return-based only: risk_on (return &gt; 0), risk_off (return &lt; 0),
-                neutral (|return| ≤ 3%). Largest misses are ranked by wrong direction (e.g.
-                risk_on with a falling benchmark), not by return magnitude.
+                Hits: risk_on (return &gt; 0), risk_off (segment vol ≥ 1.15× episode-vol
+                median), neutral (|return| ≤ 3%). Largest misses are ranked by wrong
+                direction for risk_on/neutral and by vol shortfall for risk_off.
               </p>
             </div>
           )}

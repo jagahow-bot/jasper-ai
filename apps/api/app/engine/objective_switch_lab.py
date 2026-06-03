@@ -123,13 +123,17 @@ REGIME_LABELS = ("risk_off", "neutral", "risk_on")
 MIN_SEGMENT_TRADING_DAYS = 3
 MAX_SEGMENT_EPISODES_LISTED = 80
 # Neutral hit: |segment return| within this band (range-bound / low-conviction moves).
-# Vol is display-only; hit/miss uses benchmark return direction or this band only.
 NEUTRAL_RETURN_BAND = 0.03
+# risk_off hit: segment annualized vol vs baseline (median ann vol of all episodes in this lab run).
+RISK_OFF_VOL_ELEVATION_RATIO = 1.15
 
 
 def _regime_expectation_text(regime: str) -> str:
     if regime == "risk_off":
-        return "negative benchmark return over the episode"
+        return (
+            f"segment ann. vol ≥ {RISK_OFF_VOL_ELEVATION_RATIO:.0%} of episode-vol median "
+            "(elevated vs lab baseline)"
+        )
     if regime == "risk_on":
         return "positive benchmark return over the episode"
     return f"benchmark |return| ≤ {NEUTRAL_RETURN_BAND:.0%} (range-bound)"
@@ -192,16 +196,21 @@ def _forward_stats(bench_ret: pd.Series, end_idx: int, horizon: int) -> dict[str
     }
 
 
+def _risk_off_vol_hit(period_vol: float, vol_median: float) -> bool:
+    if vol_median <= 0.0:
+        return period_vol > 0.0
+    return period_vol >= vol_median * RISK_OFF_VOL_ELEVATION_RATIO
+
+
 def _regime_expectation_hit(
     regime: str,
     period_return: float,
     period_vol: float = 0.0,
     vol_median: float = 0.0,
 ) -> bool:
-    """Return-based episode alignment; period_vol / vol_median are unused (metadata only)."""
-    del period_vol, vol_median
+    """risk_on/neutral: return-based; risk_off: elevated segment vol vs episode-vol median."""
     if regime == "risk_off":
-        return period_return < 0.0
+        return _risk_off_vol_hit(period_vol, vol_median)
     if regime == "risk_on":
         return period_return > 0.0
     return abs(period_return) <= NEUTRAL_RETURN_BAND
@@ -213,24 +222,28 @@ def _regime_expectation_miss_reason(
     period_vol: float = 0.0,
     vol_median: float = 0.0,
 ) -> str | None:
-    del period_vol, vol_median
-    if _regime_expectation_hit(regime, period_return):
+    if _regime_expectation_hit(regime, period_return, period_vol, vol_median):
         return None
     if regime == "risk_on":
         return "benchmark return not positive"
     if regime == "risk_off":
-        return "benchmark return not negative"
+        return "vol not elevated vs baseline"
     return f"benchmark |return| above {NEUTRAL_RETURN_BAND:.0%} neutral band"
 
 
 def _episode_miss_severity(ep: dict[str, Any]) -> float:
-    """Rank misses: wrong sign / regime contradiction before mild vol mismatches."""
+    """Rank misses: wrong sign for risk_on/neutral; vol shortfall for risk_off."""
     regime = str(ep["regime"])
     ret = float(ep["segment_return"])
     if regime == "risk_on":
         return max(0.0, -ret)
     if regime == "risk_off":
-        return max(0.0, ret)
+        baseline = float(ep.get("vol_baseline", 0.0))
+        vol = float(ep.get("segment_vol", 0.0))
+        if baseline <= 0.0:
+            return max(0.0, -vol)
+        threshold = baseline * RISK_OFF_VOL_ELEVATION_RATIO
+        return max(0.0, threshold - vol)
     return abs(ret)
 
 
@@ -468,6 +481,7 @@ def compute_regime_prediction_quality(
 
     vol_median = float(np.median([e["segment_vol"] for e in episodes]))
     for ep in episodes:
+        ep["vol_baseline"] = vol_median
         ep["aligned_with_regime"] = _regime_expectation_hit(
             ep["regime"],
             ep["segment_return"],
