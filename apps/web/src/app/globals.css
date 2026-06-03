@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --font-size-root: 17px;
+  --font-size-root: 18px;
   --background: #030306;
   --foreground: #d4ffd4;
   --surface: #0a0a12;

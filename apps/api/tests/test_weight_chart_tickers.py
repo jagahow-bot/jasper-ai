@@ -27,6 +27,9 @@ def test_select_weight_chart_tickers_caps_other_across_dates():
     hist = list(dates)
     keep = select_weight_chart_tickers(schedule, hist)
     assert len(keep) <= WEIGHT_CHART_MAX_SLEEVES
+    # Each period's 100% sleeve must be visible (not lumped into Other).
+    for i in range(5):
+        assert f"T{i}" in keep
     from app.engine.portfolio import _max_other_weight_for_tickers
 
     assert _max_other_weight_for_tickers(schedule, hist, keep) <= WEIGHT_CHART_MAX_OTHER + 1e-9

@@ -26,11 +26,13 @@ MAX_DAILY_RETURN = 0.25
 MIN_ANNUAL_VOL = 0.03
 MAX_REPORTED_SHARPE = 6.0
 
-# Stacked weight chart: show main sleeves; bound "Other" at any rebalance date.
+# Stacked weight chart: show main sleeves per rebalance; bound "Other" when possible.
 WEIGHT_CHART_MAX_OTHER = 0.18
 WEIGHT_CHART_MAX_SLEEVES = 20
 WEIGHT_CHART_MIN_SLEEVES = 8
 WEIGHT_CHART_PEAK_FLOOR = 0.01
+WEIGHT_CHART_PEAK_MASTER = 0.02
+WEIGHT_CHART_PER_DATE_TOP = 10
 
 
 def _max_other_weight_for_tickers(
@@ -55,20 +57,45 @@ def select_weight_chart_tickers(
     schedule: pd.DataFrame,
     hist_dates: list[pd.Timestamp],
 ) -> list[str]:
-    """Top sleeves by peak weight; expand until Other <= WEIGHT_CHART_MAX_OTHER when possible."""
+    """Union main holdings each rebalance date + master-style peak sleeves; cap Other when possible."""
     max_s = schedule.max(axis=0).sort_values(ascending=False)
-    ordered = list(max_s.index)
-    keep: list[str] = list(max_s.head(WEIGHT_CHART_MIN_SLEEVES).index)
+    ordered = [str(t) for t in max_s.index]
+    keep_set: set[str] = set()
+
+    for dt in hist_dates:
+        if dt not in schedule.index:
+            continue
+        w_row = schedule.loc[dt].sort_values(ascending=False)
+        for t, w in w_row.items():
+            if float(w) >= WEIGHT_CHART_PEAK_FLOOR:
+                keep_set.add(str(t))
+        for t in w_row.head(WEIGHT_CHART_PER_DATE_TOP).index:
+            keep_set.add(str(t))
+
     for t, peak in max_s.items():
-        if float(peak) >= WEIGHT_CHART_PEAK_FLOOR and t not in keep:
-            keep.append(t)
-    keep_set = set(keep)
+        if float(peak) >= WEIGHT_CHART_PEAK_MASTER:
+            keep_set.add(str(t))
+
+    if len(keep_set) < WEIGHT_CHART_MIN_SLEEVES:
+        for t in max_s.head(min(12, len(max_s))).index:
+            keep_set.add(str(t))
+
+    keep_list = [t for t in ordered if t in keep_set]
+    if len(keep_list) > WEIGHT_CHART_MAX_SLEEVES:
+        keep_list = keep_list[:WEIGHT_CHART_MAX_SLEEVES]
+        keep_set = set(keep_list)
+
     for t in ordered:
         if len(keep_set) >= WEIGHT_CHART_MAX_SLEEVES:
             break
         if t not in keep_set:
             keep_set.add(t)
-        if _max_other_weight_for_tickers(schedule, hist_dates, list(keep_set)) <= WEIGHT_CHART_MAX_OTHER:
+        if (
+            _max_other_weight_for_tickers(
+                schedule, hist_dates, [x for x in ordered if x in keep_set]
+            )
+            <= WEIGHT_CHART_MAX_OTHER
+        ):
             break
     return [t for t in ordered if t in keep_set][:WEIGHT_CHART_MAX_SLEEVES]
 
@@ -404,17 +431,21 @@ def _rebalance_schedule_dynamic(
         factor_step = (
             factor_params_resolver(dt) if factor_params_resolver else factor_params
         )
+        f_lb = int(
+            max(
+                factor_step.lookback_days,
+                factor_step.reversal_lookback_days,
+                factor_step.value_lookback_days,
+                60,
+            )
+        )
+        min_ready_loc = max(60, f_lb, int(alloc_step.lookback_days))
+        if end_loc < min_ready_loc:
+            schedule.loc[dt] = w_prev
+            continue
         updated = False
         try:
             # Factor selection (cross-sectional) over factor lookback.
-            f_lb = int(
-                max(
-                    factor_step.lookback_days,
-                    factor_step.reversal_lookback_days,
-                    factor_step.value_lookback_days,
-                    60,
-                )
-            )
             f_start = max(0, end_loc - f_lb)
             px_w = prices.iloc[f_start:end_loc]
             rt_w = rets.iloc[f_start:end_loc]

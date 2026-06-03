@@ -1,9 +1,12 @@
 export const FONT_SIZE_STORAGE_KEY = "jasper-font-size-root";
 
 /** Root rem base sizes (px on html). */
-export const FONT_SIZE_STEPS = [15, 16, 17, 18, 19, 20] as const;
+export const FONT_SIZE_STEPS = [16, 17, 18, 19, 20, 21] as const;
 
-export const FONT_SIZE_DEFAULT = 17;
+/** Previous default before global bump (migrate stored preference once). */
+export const FONT_SIZE_LEGACY_DEFAULT = 17;
+
+export const FONT_SIZE_DEFAULT = 18;
 
 export type FontSizePx = (typeof FONT_SIZE_STEPS)[number];
 
@@ -62,9 +65,15 @@ export function readStoredFontSize(): FontSizePx | null {
   }
 }
 
+function migrateStoredFontSize(stored: FontSizePx | null): FontSizePx {
+  if (stored === FONT_SIZE_LEGACY_DEFAULT) {
+    return FONT_SIZE_DEFAULT;
+  }
+  return stored ?? FONT_SIZE_DEFAULT;
+}
+
 export function initFontSizeFromStorage(): FontSizePx {
-  const stored = readStoredFontSize();
-  const px = stored ?? FONT_SIZE_DEFAULT;
+  const px = migrateStoredFontSize(readStoredFontSize());
   applyFontSizeRoot(px);
   return px;
 }
