@@ -136,7 +136,27 @@ def _regime_expectation_text(regime: str) -> str:
         )
     if regime == "risk_on":
         return "positive benchmark return over the episode"
-    return f"benchmark |return| ≤ {NEUTRAL_RETURN_BAND:.0%} (range-bound)"
+    return (
+        "after risk_on: return ≤ 0 or below prior risk_on segment return; "
+        "after risk_off: segment ann. vol below prior risk_off segment; "
+        f"else |return| ≤ {NEUTRAL_RETURN_BAND:.0%}"
+    )
+
+
+def _neutral_expectation_hit(
+    period_return: float,
+    period_vol: float,
+    *,
+    prior_regime: str | None,
+    prior_segment_return: float | None,
+    prior_segment_vol: float | None,
+) -> bool:
+    """Neutral episodes are scored relative to the immediately preceding episode."""
+    if prior_regime == "risk_on" and prior_segment_return is not None:
+        return period_return <= 0.0 or period_return < prior_segment_return
+    if prior_regime == "risk_off" and prior_segment_vol is not None:
+        return period_vol < prior_segment_vol
+    return abs(period_return) <= NEUTRAL_RETURN_BAND
 
 
 def _active_regime_label(step: dict[str, Any]) -> str:
@@ -207,13 +227,23 @@ def _regime_expectation_hit(
     period_return: float,
     period_vol: float = 0.0,
     vol_median: float = 0.0,
+    *,
+    prior_regime: str | None = None,
+    prior_segment_return: float | None = None,
+    prior_segment_vol: float | None = None,
 ) -> bool:
-    """risk_on/neutral: return-based; risk_off: elevated segment vol vs episode-vol median."""
+    """risk_on: positive return; risk_off: elevated vol; neutral: relative to prior episode."""
     if regime == "risk_off":
         return _risk_off_vol_hit(period_vol, vol_median)
     if regime == "risk_on":
         return period_return > 0.0
-    return abs(period_return) <= NEUTRAL_RETURN_BAND
+    return _neutral_expectation_hit(
+        period_return,
+        period_vol,
+        prior_regime=prior_regime,
+        prior_segment_return=prior_segment_return,
+        prior_segment_vol=prior_segment_vol,
+    )
 
 
 def _regime_expectation_miss_reason(
@@ -221,18 +251,37 @@ def _regime_expectation_miss_reason(
     period_return: float,
     period_vol: float = 0.0,
     vol_median: float = 0.0,
+    *,
+    prior_regime: str | None = None,
+    prior_segment_return: float | None = None,
+    prior_segment_vol: float | None = None,
 ) -> str | None:
-    if _regime_expectation_hit(regime, period_return, period_vol, vol_median):
+    if _regime_expectation_hit(
+        regime,
+        period_return,
+        period_vol,
+        vol_median,
+        prior_regime=prior_regime,
+        prior_segment_return=prior_segment_return,
+        prior_segment_vol=prior_segment_vol,
+    ):
         return None
     if regime == "risk_on":
         return "benchmark return not positive"
     if regime == "risk_off":
         return "vol not elevated vs baseline"
-    return f"benchmark |return| above {NEUTRAL_RETURN_BAND:.0%} neutral band"
+    if prior_regime == "risk_on":
+        return "return did not weaken vs prior risk_on segment"
+    if prior_regime == "risk_off":
+        return "segment vol did not decrease vs prior risk_off segment"
+    return (
+        f"benchmark |return| above {NEUTRAL_RETURN_BAND:.0%} neutral band "
+        "(no prior risk_on/risk_off episode)"
+    )
 
 
 def _episode_miss_severity(ep: dict[str, Any]) -> float:
-    """Rank misses: wrong sign for risk_on/neutral; vol shortfall for risk_off."""
+    """Rank misses: wrong sign for risk_on; vol shortfall for risk_off; neutral vs prior."""
     regime = str(ep["regime"])
     ret = float(ep["segment_return"])
     if regime == "risk_on":
@@ -244,7 +293,15 @@ def _episode_miss_severity(ep: dict[str, Any]) -> float:
             return max(0.0, -vol)
         threshold = baseline * RISK_OFF_VOL_ELEVATION_RATIO
         return max(0.0, threshold - vol)
-    return abs(ret)
+    prior_regime = ep.get("prior_regime")
+    if prior_regime == "risk_on" and ep.get("prior_segment_return") is not None:
+        prior_ret = float(ep["prior_segment_return"])
+        return max(0.0, ret) + max(0.0, ret - prior_ret)
+    if prior_regime == "risk_off" and ep.get("prior_segment_vol") is not None:
+        prior_vol = float(ep["prior_segment_vol"])
+        vol = float(ep.get("segment_vol", 0.0))
+        return max(0.0, vol - prior_vol)
+    return max(0.0, abs(ret) - NEUTRAL_RETURN_BAND)
 
 
 def _alignment_grade(score: float) -> str:
@@ -480,19 +537,32 @@ def compute_regime_prediction_quality(
         return empty
 
     vol_median = float(np.median([e["segment_vol"] for e in episodes]))
-    for ep in episodes:
+    for i, ep in enumerate(episodes):
+        prior = episodes[i - 1] if i > 0 else None
+        prior_regime = str(prior["regime"]) if prior else None
+        prior_return = float(prior["segment_return"]) if prior else None
+        prior_vol = float(prior["segment_vol"]) if prior else None
         ep["vol_baseline"] = vol_median
+        ep["prior_regime"] = prior_regime
+        ep["prior_segment_return"] = prior_return
+        ep["prior_segment_vol"] = prior_vol
         ep["aligned_with_regime"] = _regime_expectation_hit(
             ep["regime"],
             ep["segment_return"],
             ep["segment_vol"],
             vol_median,
+            prior_regime=prior_regime,
+            prior_segment_return=prior_return,
+            prior_segment_vol=prior_vol,
         )
         ep["miss_reason"] = _regime_expectation_miss_reason(
             ep["regime"],
             ep["segment_return"],
             ep["segment_vol"],
             vol_median,
+            prior_regime=prior_regime,
+            prior_segment_return=prior_return,
+            prior_segment_vol=prior_vol,
         )
 
     by_regime: dict[str, list[dict[str, Any]]] = {k: [] for k in REGIME_LABELS}

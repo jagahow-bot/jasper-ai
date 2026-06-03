@@ -167,12 +167,13 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
         Regime prediction quality (episode-based)
       </h3>
       <p className="mt-1 text-[10px] text-dim">
-        Scores each contiguous active-regime episode by benchmark return from the day the
-        label turns on until it switches: risk_on if return &gt; 0, risk_off if segment
-        ann. vol is clearly elevated vs the lab episode-vol median (≥ 1.15×), neutral if
-        |return| ≤ 3%. Return and drawdown are shown for context. This
-        matches how the policy holds a regime, unlike a fixed 21-day forward window per step.
-        Does not replace Sharpe A/B.
+        Scores each contiguous active-regime episode by benchmark behavior from switch-in
+        until the label changes: risk_on if return &gt; 0; risk_off if segment ann. vol ≥
+        1.15× the lab episode-vol median; neutral relative to the prior episode—after
+        risk_on, return ≤ 0 or below the prior risk_on segment return; after risk_off,
+        segment vol below the prior risk_off segment; otherwise |return| ≤ 3%. Return and
+        drawdown are for context. Unlike a fixed 21-day forward window per step. Does not
+        replace Sharpe A/B.
       </p>
       {score != null && (
         <p className="mt-2 font-terminal text-lg text-[var(--foreground)]">
@@ -234,8 +235,10 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
               <SegmentList title="Largest misses" episodes={notable.failed} highlightMiss />
               <p className="mt-2 text-[10px] text-dim">
                 Hits: risk_on (return &gt; 0), risk_off (segment vol ≥ 1.15× episode-vol
-                median), neutral (|return| ≤ 3%). Largest misses are ranked by wrong
-                direction for risk_on/neutral and by vol shortfall for risk_off.
+                median), neutral (weakened after risk_on, calmer vol after risk_off, else
+                |return| ≤ 3%). Largest misses rank by return shortfall (risk_on), vol
+                shortfall (risk_off), or continued strength / insufficient vol drop
+                (neutral).
               </p>
             </div>
           )}

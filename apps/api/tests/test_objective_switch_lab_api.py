@@ -216,10 +216,91 @@ def test_regime_expectation_hit_rules() -> None:
         == "vol not elevated vs baseline"
     )
 
+    # Neutral fallback (first episode or prior neutral / unknown)
     assert _regime_expectation_hit("neutral", 0.01, 0.25, vol_median)
     assert _regime_expectation_hit("neutral", -NEUTRAL_RETURN_BAND, 0.40, vol_median)
+    assert _regime_expectation_hit(
+        "neutral", 0.01, 0.25, vol_median, prior_regime="neutral", prior_segment_return=0.05
+    )
     assert not _regime_expectation_hit("neutral", 0.05, 0.10, vol_median)
-    assert _regime_expectation_miss_reason("neutral", 0.05) is not None
+    assert (
+        "no prior risk_on/risk_off"
+        in (_regime_expectation_miss_reason("neutral", 0.05) or "")
+    )
+
+    # Neutral after risk_on: weakened (lower return than prior segment, or non-positive)
+    assert _regime_expectation_hit(
+        "neutral",
+        0.05,
+        0.20,
+        vol_median,
+        prior_regime="risk_on",
+        prior_segment_return=0.08,
+    )
+    assert _regime_expectation_hit(
+        "neutral",
+        -0.01,
+        0.20,
+        vol_median,
+        prior_regime="risk_on",
+        prior_segment_return=0.08,
+    )
+    assert not _regime_expectation_hit(
+        "neutral",
+        0.10,
+        0.20,
+        vol_median,
+        prior_regime="risk_on",
+        prior_segment_return=0.08,
+    )
+    assert not _regime_expectation_hit(
+        "neutral",
+        0.03,
+        0.20,
+        vol_median,
+        prior_regime="risk_on",
+        prior_segment_return=-0.02,
+    )
+    assert (
+        _regime_expectation_miss_reason(
+            "neutral",
+            0.10,
+            0.20,
+            vol_median,
+            prior_regime="risk_on",
+            prior_segment_return=0.08,
+        )
+        == "return did not weaken vs prior risk_on segment"
+    )
+
+    # Neutral after risk_off: segment vol below prior risk_off segment
+    assert _regime_expectation_hit(
+        "neutral",
+        0.02,
+        0.12,
+        vol_median,
+        prior_regime="risk_off",
+        prior_segment_vol=0.20,
+    )
+    assert not _regime_expectation_hit(
+        "neutral",
+        0.02,
+        0.22,
+        vol_median,
+        prior_regime="risk_off",
+        prior_segment_vol=0.20,
+    )
+    assert (
+        _regime_expectation_miss_reason(
+            "neutral",
+            0.02,
+            0.22,
+            vol_median,
+            prior_regime="risk_off",
+            prior_segment_vol=0.20,
+        )
+        == "segment vol did not decrease vs prior risk_off segment"
+    )
 
 
 def test_largest_misses_rank_wrong_sign_not_high_positive_return() -> None:
