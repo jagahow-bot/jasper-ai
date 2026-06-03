@@ -41,6 +41,13 @@ import {
   extentWithZero,
   tightMaxFromValues,
 } from "@/lib/align-y-axis-zero";
+import {
+  buildPerformanceCompareRows,
+  candidateModelKey,
+  candidateRowKey,
+  performanceCompareRowsByChartKey,
+  performanceCompareTickLabel,
+} from "@/lib/performance-compare-chart";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -48,17 +55,6 @@ import type {
   DynamicObjectiveTimelinePoint,
 } from "@/lib/types";
 import { getUniverseItems } from "@/lib/universe";
-
-function candidateRowKey(
-  c: { model_code?: string | null; rank?: number },
-  index: number,
-): string {
-  return `${c.model_code ?? "M?"}-r${c.rank ?? index}-i${index}`;
-}
-
-function candidateModelKey(c: { model_code?: string | null; rank?: number }): string {
-  return c.model_code ?? `R${c.rank}`;
-}
 
 function resolveChampionModelKey(
   candidates: BacktestResult["candidates"],
@@ -382,57 +378,28 @@ export function ResultsDashboard({
 
   const preserveTrialOrder = Boolean(result.narrative_facts.is_round_view);
 
-  const candidateCompare = useMemo(() => {
-    const orderedCandidates = preserveTrialOrder
-      ? [...result.candidates]
-      : [...result.candidates].sort((a, b) =>
-          compareModelCode(
-            a.model_code ?? `M?${a.rank}`,
-            b.model_code ?? `M?${b.rank}`,
-          ),
-        );
-    const modelRows = orderedCandidates.map((c, i) => {
-        const modelKey = candidateModelKey(c);
-        return {
-          chartKey: candidateRowKey(c, i),
-          name: c.model_code ?? `C${c.rank}`,
-          model_code: c.model_code ?? `M?`,
-          modelKey,
-          rank: c.rank,
-          isChampion: championModelKey != null && modelKey === championModelKey,
-          isBenchmark: false,
-          sharpe: c.sharpe,
-          sortino: c.sortino ?? 0,
-          cagr_pct: (c.cagr ?? 0) * 100,
-          mdd_pct: Math.abs((c.max_drawdown ?? 0) * 100),
-        };
-      });
-    if (!benchmarkBarMetrics) return modelRows;
-    const bmSharpe = Number(benchmarkBarMetrics.sharpe ?? 0);
-    const bmSortino = Number(benchmarkBarMetrics.sortino ?? bmSharpe);
-    return [
-      ...modelRows,
-      {
-        chartKey: `bench-${benchTicker}`,
-        name: benchTicker,
-        model_code: benchTicker,
-        modelKey: `bench:${benchTicker}`,
-        rank: 0,
-        isChampion: false,
-        isBenchmark: true,
-        sharpe: bmSharpe,
-        sortino: bmSortino,
-        cagr_pct: Number(benchmarkBarMetrics.cagr ?? 0) * 100,
-        mdd_pct: Math.abs(Number(benchmarkBarMetrics.max_drawdown ?? 0) * 100),
-      },
-    ];
-  }, [
-    result.candidates,
-    championModelKey,
-    benchmarkBarMetrics,
-    benchTicker,
-    preserveTrialOrder,
-  ]);
+  const candidateCompare = useMemo(
+    () =>
+      buildPerformanceCompareRows({
+        candidates: result.candidates,
+        championModelKey,
+        preserveTrialOrder,
+        benchmarkBarMetrics,
+        benchTicker,
+      }),
+    [
+      result.candidates,
+      championModelKey,
+      benchmarkBarMetrics,
+      benchTicker,
+      preserveTrialOrder,
+    ],
+  );
+
+  const performanceCompareByChartKey = useMemo(
+    () => performanceCompareRowsByChartKey(candidateCompare),
+    [candidateCompare],
+  );
 
   const [performanceLeftDomain, performanceRightDomain] = useMemo(() => {
     const leftVals = candidateCompare.flatMap((r) => [r.cagr_pct, r.mdd_pct]);
@@ -955,12 +922,11 @@ export function ResultsDashboard({
               dataKey="chartKey"
               stroke="#94a3b8"
               fontSize={12}
-              tickFormatter={(_, index) => {
-                const row = candidateCompare[index];
-                if (!row) return "";
-                if (row.isBenchmark) return row.name;
-                return row.isChampion ? `${row.name} ★` : row.name;
-              }}
+              tickFormatter={(chartKey) =>
+                performanceCompareTickLabel(
+                  performanceCompareByChartKey.get(String(chartKey)),
+                )
+              }
             />
             <Tooltip
               content={({ active, payload }) => {
