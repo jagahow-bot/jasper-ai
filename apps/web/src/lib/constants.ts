@@ -104,6 +104,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const OBJECTIVE_LABELS: Record<string, string> = {
+  dynamic: "Dynamic (regime-based)",
   max_sharpe: "Max Sharpe",
   max_return: "Max CAGR",
   min_max_drawdown: "Min Max DD",
@@ -113,5 +114,4 @@ export const OBJECTIVE_LABELS: Record<string, string> = {
   max_diversification: "Max Diversification",
   mean_variance_utility: "Mean-Variance Utility",
   custom: "Custom objective",
-  dynamic: "Dynamic (regime-based)",
 };
