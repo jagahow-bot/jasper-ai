@@ -324,6 +324,7 @@ export interface RegimeSegmentEpisode {
   segment_vol: number;
   segment_max_drawdown: number;
   aligned_with_regime: boolean;
+  miss_reason?: string | null;
 }
 
 export interface Forward21dRegimeBucket {

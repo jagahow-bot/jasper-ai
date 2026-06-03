@@ -212,7 +212,15 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
             <SegmentList title="Longest episodes" episodes={notable.longest} />
           )}
           {notable.failed.length > 0 && (
-            <SegmentList title="Largest misses" episodes={notable.failed} highlightMiss />
+            <div>
+              <SegmentList title="Largest misses" episodes={notable.failed} highlightMiss />
+              <p className="mt-2 text-[10px] text-dim">
+                risk_on is a hit when segment return is positive. A miss with a positive
+                return only appeared under the old rule (volatility above the cross-episode
+                median—common in sharp recoveries). Largest misses are ranked by wrong
+                direction (e.g. risk_on with a falling benchmark), not by return magnitude.
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -268,6 +276,7 @@ function SegmentList({
             {ep.start_date} → {ep.end_date} · {ep.regime} · {ep.length_days}d ·{" "}
             {(ep.segment_return * 100).toFixed(2)}% ·{" "}
             {ep.aligned_with_regime ? "hit" : "miss"}
+            {!ep.aligned_with_regime && ep.miss_reason ? ` (${ep.miss_reason})` : ""}
           </li>
         ))}
       </ul>

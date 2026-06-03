@@ -192,6 +192,46 @@ def test_episode_segments_cover_full_regime_span() -> None:
         assert "aligned_with_regime" in quality["segment_episodes"][0]
 
 
+def test_risk_on_hit_positive_return_despite_high_vol() -> None:
+    from app.engine.objective_switch_lab import _regime_expectation_hit
+
+    vol_median = 0.15
+    assert _regime_expectation_hit("risk_on", 0.2187, 0.28, vol_median)
+    assert _regime_expectation_hit("risk_on", 0.0752, 0.22, vol_median)
+    assert not _regime_expectation_hit("risk_on", -0.05, 0.10, vol_median)
+
+
+def test_largest_misses_rank_wrong_sign_not_high_positive_return() -> None:
+    from app.engine.objective_switch_lab import (
+        _episode_miss_severity,
+        compute_regime_prediction_quality,
+    )
+
+    idx = pd.bdate_range("2020-01-01", periods=120)
+    rng = np.random.default_rng(99)
+    bench_ret = pd.Series(rng.normal(0.0005, 0.02, len(idx)), index=idx)
+    timeline = [
+        {
+            "date": d.strftime("%Y-%m-%d"),
+            "regime": "risk_on",
+            "active_regime": "risk_on",
+            "switched": i == 0,
+            "objective": "max_sharpe",
+        }
+        for i, d in enumerate(idx)
+    ]
+    quality = compute_regime_prediction_quality(bench_ret, timeline)
+    failed = quality.get("notable_segments", {}).get("failed") or []
+    for ep in failed:
+        if ep["regime"] == "risk_on" and ep["segment_return"] > 0:
+            pytest.fail(
+                "risk_on episode with positive return should not appear in largest misses"
+            )
+    if len(failed) >= 2:
+        severities = [_episode_miss_severity(ep) for ep in failed]
+        assert severities == sorted(severities, reverse=True)
+
+
 def test_regime_timeline_cooldown() -> None:
     from app.engine.regime_policy import walk_forward_regime_timeline
 

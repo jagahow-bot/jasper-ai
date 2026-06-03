@@ -128,7 +128,7 @@ def _regime_expectation_text(regime: str) -> str:
     if regime == "risk_off":
         return "lower/negative return or elevated vol"
     if regime == "risk_on":
-        return "positive return with subdued vol"
+        return "positive benchmark return over the episode"
     return "moderate return or mid-range vol"
 
 
@@ -198,10 +198,41 @@ def _regime_expectation_hit(
     if regime == "risk_off":
         return forward_return < 0.0 or forward_vol >= vol_median
     if regime == "risk_on":
-        return forward_return > 0.0 and forward_vol < vol_median
+        # Return direction is primary; vol is informational (see miss_reason / UI hint).
+        return forward_return > 0.0
     neutral_band = 0.03
     vol_lo, vol_hi = vol_median * 0.85, vol_median * 1.15
     return abs(forward_return) <= neutral_band or (vol_lo <= forward_vol <= vol_hi)
+
+
+def _regime_expectation_miss_reason(
+    regime: str,
+    period_return: float,
+    period_vol: float,
+    vol_median: float,
+) -> str | None:
+    if _regime_expectation_hit(regime, period_return, period_vol, vol_median):
+        return None
+    if regime == "risk_on":
+        if period_return <= 0.0:
+            return "benchmark return not positive"
+        return "volatility above episode median"
+    if regime == "risk_off":
+        if period_return >= 0.0:
+            return "benchmark return not negative"
+        return "volatility below episode median"
+    return "return and vol outside neutral band"
+
+
+def _episode_miss_severity(ep: dict[str, Any]) -> float:
+    """Rank misses: wrong sign / regime contradiction before mild vol mismatches."""
+    regime = str(ep["regime"])
+    ret = float(ep["segment_return"])
+    if regime == "risk_on":
+        return max(0.0, -ret)
+    if regime == "risk_off":
+        return max(0.0, ret)
+    return abs(ret)
 
 
 def _alignment_grade(score: float) -> str:
@@ -444,6 +475,12 @@ def compute_regime_prediction_quality(
             ep["segment_vol"],
             vol_median,
         )
+        ep["miss_reason"] = _regime_expectation_miss_reason(
+            ep["regime"],
+            ep["segment_return"],
+            ep["segment_vol"],
+            vol_median,
+        )
 
     by_regime: dict[str, list[dict[str, Any]]] = {k: [] for k in REGIME_LABELS}
     for ep in episodes:
@@ -491,14 +528,10 @@ def compute_regime_prediction_quality(
 
     failed = [e for e in episodes if not e["aligned_with_regime"]]
     longest = sorted(episodes, key=lambda e: e["length_days"], reverse=True)[:5]
-    failed_sorted = sorted(
-        failed,
-        key=lambda e: abs(e["segment_return"]),
-        reverse=True,
-    )[:5]
+    failed_sorted = sorted(failed, key=_episode_miss_severity, reverse=True)[:5]
 
     def _episode_row(e: dict[str, Any]) -> dict[str, Any]:
-        return {
+        row = {
             "regime": e["regime"],
             "start_date": e["start_date"],
             "end_date": e["end_date"],
@@ -508,6 +541,9 @@ def compute_regime_prediction_quality(
             "segment_max_drawdown": e["segment_max_drawdown"],
             "aligned_with_regime": e["aligned_with_regime"],
         }
+        if e.get("miss_reason"):
+            row["miss_reason"] = e["miss_reason"]
+        return row
 
     explanations: list[str] = []
     if overall_score is not None:
