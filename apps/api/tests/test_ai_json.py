@@ -11,6 +11,8 @@ from app.engine.ai_json import (
     round_ai_float,
     sanitize_ai_response,
     sanitize_for_ai,
+    sanitize_json_text_for_log,
+    truncate_json_numeric_literals,
 )
 from app.engine.ai_params import _build_round_seed_learning_block, _extract_json
 from app.engine.param_taxonomy import normalize_round_seed, summarize_prior_round_seed
@@ -200,3 +202,63 @@ def test_factor_range_item_schema_uses_integer_for_days():
     assert factor_range_item_schema("factor_lookback_days") == {"type": "INTEGER"}
     assert factor_range_item_schema("w_mom")["type"] == "NUMBER"
     assert AI_NUMBER_DESCRIPTION in factor_range_item_schema("w_mom")["description"]
+
+
+def test_truncate_json_numeric_literals_long_float():
+    long_val = "1.5000" + "1234567890" * 200
+    raw = f'{{"w_value":[0.0,{long_val}]}}'
+    cleaned = truncate_json_numeric_literals(raw)
+    assert len(cleaned) < len(raw)
+    parsed = json.loads(cleaned)
+    assert parsed["w_value"][1] == 1.5
+
+
+def test_sanitize_json_text_for_log_truncates_bloat():
+    long_val = "0.4" + "0" * 500
+    excerpt = sanitize_json_text_for_log(f'{{"shrinkage":{long_val}}}')
+    assert len(excerpt) <= 240
+    assert "00000000000" not in excerpt
+
+
+def test_dynamic_sparse_regime_seed_normalized_size_under_threshold():
+    """Regression: completed dynamic seed must stay well under Gemini output budget."""
+    from app.engine.param_taxonomy import normalize_round_seed
+
+    blueprint = RunBlueprint(max_weight=0.15, max_turnover=0.5, top_n=20)
+    sparse_ai = {
+        "rationale": "Round 1 dynamic explore.",
+        "optimization_strategy": "Wide bands on momentum and low-vol per regime.",
+        "performance_assessment": "No prior champion.",
+        "round_setup": {
+            "mode": "max_sharpe",
+            "lookback_days": 252,
+            "shrinkage": 0.15,
+            "risk_aversion": 3.0,
+            "top_n_actual": 20,
+            "max_weight_actual": 0.15,
+            "max_turnover_actual": 0.5,
+            "no_trade_tol": 0.005,
+            "turnover_penalty_mult": 1.0,
+        },
+        "regime_setups": {
+            "risk_off": {"mode": "min_max_drawdown", "risk_aversion": 6.0, "shrinkage": 0.25},
+            "risk_on": {"mode": "max_return", "risk_aversion": 1.5, "shrinkage": 0.05},
+        },
+        "factor_choices": {
+            "mom_indicator": "risk_adjusted_return",
+            "trend_indicator": "exponential_moving_average",
+        },
+        "regime_factor_ranges": {
+            "risk_off": {"w_mom": [0.0, 0.8], "w_lowvol": [0.5, 1.5]},
+            "risk_on": {"w_mom": [0.8, 1.5], "w_trend": [0.2, 1.0]},
+        },
+    }
+    out = normalize_round_seed(
+        sanitize_ai_response(sparse_ai),
+        blueprint=blueprint,
+        param_controls=None,
+    )
+    serialized = dumps_for_ai(out)
+    assert len(serialized) < 3500
+    assert out["regime_factor_ranges"]["risk_off"]["w_mom"] == [0.0, 0.8]
+    assert "factor_lookback_days" in out["regime_factor_ranges"]["risk_off"]

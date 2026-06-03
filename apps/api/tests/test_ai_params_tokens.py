@@ -500,6 +500,8 @@ def test_generate_ai_round_seed_dynamic_includes_regime_setups_schema(monkeypatc
     schema = captured["json"]["generationConfig"]["responseSchema"]
     assert "regime_setups" in schema["properties"]
     assert "regime_setups" in schema["required"]
+    assert "regime_factor_ranges" in schema["properties"]
+    assert schema["properties"]["regime_factor_ranges"]["properties"]["risk_off"]["properties"] == {}
     assert out["regime_setups"]["risk_on"]["lookback_days"] == 63
     prompt = captured["json"]["contents"][0]["parts"][0]["text"]
     assert "obj=dynamic" in prompt

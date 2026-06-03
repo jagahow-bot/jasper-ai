@@ -49,6 +49,17 @@ def test_round_seed_response_schema_compact():
     assert props["factor_choices"]["properties"] == {}
 
 
+def test_round_seed_response_schema_dynamic_sparse_regime_ranges():
+    schema = _round_seed_response_schema(
+        require_rationale=True, include_regime_matrix=True
+    )
+    props = schema["properties"]
+    assert props["factor_ranges"]["properties"] == {}
+    regime_props = props["regime_factor_ranges"]["properties"]
+    assert set(regime_props.keys()) == {"risk_off", "neutral", "risk_on"}
+    assert regime_props["risk_off"]["properties"] == {}
+
+
 def test_normalize_round_seed_clips_ranges():
     bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
     raw = {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from decimal import Decimal
 from typing import Any
 
@@ -144,6 +145,80 @@ def sanitize_for_ai(value: Any, *, _key: str | None = None) -> Any:
 def sanitize_ai_response(value: Any) -> Any:
     """Single entry: normalize Gemini JSON after parse (same rules as prompt sanitization)."""
     return sanitize_for_ai(value)
+
+
+# Gemini occasionally emits multi-kilobyte numeric literals; cap before json.loads.
+_MAX_JSON_NUMERIC_LITERAL_LEN = 24
+_JSON_NUMBER_TAIL_RE = re.compile(r"(\.\d{5,})")
+
+
+def truncate_json_numeric_literals(text: str, *, max_literal_len: int | None = None) -> str:
+    """Truncate overlong JSON numeric literals before parse (prevents MAX_TOKENS salvage failures)."""
+    cap = max_literal_len or _MAX_JSON_NUMERIC_LITERAL_LEN
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "-" and i + 1 < n and text[i + 1].isdigit():
+            start = i
+            i += 1
+            while i < n and text[i].isdigit():
+                i += 1
+            if i < n and text[i] == ".":
+                i += 1
+                while i < n and text[i].isdigit():
+                    i += 1
+            if i < n and text[i] in "eE":
+                i += 1
+                if i < n and text[i] in "+-":
+                    i += 1
+                while i < n and text[i].isdigit():
+                    i += 1
+            literal = text[start:i]
+            if len(literal) > cap:
+                try:
+                    literal = str(round_ai_float(float(literal)))
+                except ValueError:
+                    literal = literal[:cap]
+            out.append(literal)
+            continue
+        if ch.isdigit():
+            start = i
+            while i < n and text[i].isdigit():
+                i += 1
+            if i < n and text[i] == ".":
+                i += 1
+                while i < n and text[i].isdigit():
+                    i += 1
+            if i < n and text[i] in "eE":
+                i += 1
+                if i < n and text[i] in "+-":
+                    i += 1
+                while i < n and text[i].isdigit():
+                    i += 1
+            literal = text[start:i]
+            if len(literal) > cap:
+                try:
+                    literal = str(round_ai_float(float(literal)))
+                except ValueError:
+                    literal = literal[:cap]
+            out.append(literal)
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def sanitize_json_text_for_log(text: str, *, max_len: int = 240) -> str:
+    """Compact Gemini raw JSON for retry/error logs (truncate float bloat first)."""
+    cleaned = truncate_json_numeric_literals(text.strip())
+    cleaned = _JSON_NUMBER_TAIL_RE.sub(
+        lambda m: m.group(1)[:5].rstrip("0") or ".0",
+        cleaned,
+    )
+    one_line = cleaned.replace("\n", " ")
+    return one_line if len(one_line) <= max_len else one_line[: max_len - 3] + "..."
 
 
 class _AIJSONEncoder(json.JSONEncoder):

@@ -34,6 +34,8 @@ from app.engine.ai_json import (
     round_ai_float,
     sanitize_ai_response,
     sanitize_for_ai,
+    sanitize_json_text_for_log,
+    truncate_json_numeric_literals,
 )
 from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
@@ -128,7 +130,7 @@ def _param_response_schema(*, minimal: bool, require_rationale: bool) -> dict[st
 
 def _salvage_truncated_json(text: str) -> dict[str, Any] | None:
     """Best-effort parse when Gemini stops mid-object (MAX_TOKENS)."""
-    text = text.strip()
+    text = truncate_json_numeric_literals(text.strip())
     if not text.startswith("{"):
         return None
     repaired = text.rstrip(",")
@@ -147,7 +149,7 @@ def _salvage_truncated_json(text: str) -> dict[str, Any] | None:
 
 
 def _extract_json(text: str) -> dict[str, Any] | None:
-    text = text.strip()
+    text = truncate_json_numeric_literals(text.strip())
     try:
         parsed = json.loads(text)
         if isinstance(parsed, dict):
@@ -1051,7 +1053,7 @@ Return STRICT JSON only:
                     if parsed:
                         break
                     continue
-                local_last = text[:240].replace("\n", " ")
+                local_last = sanitize_json_text_for_log(text)
                 parsed = _extract_json(text)
                 if parsed:
                     break
@@ -1292,6 +1294,14 @@ _REGIME_FACTOR_RANGES_SCHEMA: dict[str, Any] = {
     "properties": {r: _REGIME_FACTOR_SLICE_SCHEMA for r in REGIME_KEYS},
 }
 
+# Sparse schema: AI emits 2–4 focus keys per regime; server completes the rest.
+_REGIME_FACTOR_RANGES_SCHEMA_SPARSE: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        r: {"type": "OBJECT", "properties": {}} for r in REGIME_KEYS
+    },
+}
+
 _FACTOR_RANGE_SCHEMA_PROPS: dict[str, Any] = {
     key: {"type": "ARRAY", "items": factor_range_item_schema(key)}
     for key in FACTOR_NUMERIC_KEYS
@@ -1307,7 +1317,9 @@ def _round_seed_response_schema(
     """Structured output for Pro round seed — sparse objects to limit JSON size."""
     setup_props = dict(_ROUND_SETUP_SCHEMA_CORE)
     range_props: dict[str, Any] = (
-        {} if compact else dict(_FACTOR_RANGE_SCHEMA_PROPS)
+        {}
+        if compact or include_regime_matrix
+        else dict(_FACTOR_RANGE_SCHEMA_PROPS)
     )
     choice_props = (
         {}
@@ -1331,8 +1343,7 @@ def _round_seed_response_schema(
     }
     if include_regime_matrix:
         properties["regime_setups"] = dict(_REGIME_SETUPS_SCHEMA)
-        if not compact:
-            properties["regime_factor_ranges"] = dict(_REGIME_FACTOR_RANGES_SCHEMA)
+        properties["regime_factor_ranges"] = dict(_REGIME_FACTOR_RANGES_SCHEMA_SPARSE)
     properties["optimization_strategy"] = {"type": "STRING"}
     properties["performance_assessment"] = {"type": "STRING"}
     required = ["round_setup"]
@@ -1482,15 +1493,14 @@ def round_seed_regime_factor_range_guidance(
     total_rounds: int,
 ) -> str:
     """Prompt text for per-regime factor_ranges when dynamic objective + regime matrix."""
-    base = round_seed_factor_range_guidance(
-        exploration_phase=exploration_phase,
-        round_index=round_index,
-        total_rounds=total_rounds,
-    )
     regimes = ", ".join(REGIME_KEYS)
+    focus_keys = ", ".join(FACTOR_NUMERIC_KEYS)
     return (
-        f"regime_factor_ranges (REQUIRED for dynamic): nested map keyed by {regimes}; "
-        f"each slice holds the same numeric keys as factor_ranges. {base} "
+        f"regime_factor_ranges (REQUIRED for dynamic): nested map keyed by {regimes}. "
+        f"Each slice: 2–4 FOCUS numeric keys only ({focus_keys}) where that regime "
+        "differs from defaults — server completes ALL omitted keys per regime from global "
+        "bounds (same as sparse factor_ranges). Do NOT enumerate every key × 3 regimes. "
+        "Omit a regime slice when defaults apply (especially neutral). "
         "Risk-off may favor defensive/low-vol bands; risk-on may allow higher momentum/trend. "
         "Do NOT use top-level factor_ranges when regime_factor_ranges is present."
     )
@@ -1814,7 +1824,8 @@ benchmark (if any), and TARGET.
 Do NOT output objective_mode or rebalance_freq (run-level fixed).
 Numeric rule: at most 4 decimal places for every number; use integers for *_days and top_n_actual;
 never emit long float expansions (write 0.5 not 0.5000000000000001; write 252 not 252.0000000001).
-Example regime_factor_ranges slice: {{"w_mom":[0,1.5],"factor_lookback_days":[126,504]}}.
+Example regime_factor_ranges (sparse — 2 focus keys, server fills rest):
+{{"risk_off":{{"w_mom":[0,0.8],"w_lowvol":[0.5,1.5]}},"risk_on":{{"w_mom":[0.8,1.5],"w_trend":[0.2,1]}}}}.
 Round 2+: evolve round_setup from PRIOR_ROUND_* + CHAMPION; adjust factor_ranges using evidence
 (FAILED_TRIALS, VS_BENCHMARK) — start wide early, narrow gradually in late rounds near TARGET.
 Round 1: wide exploration only — do NOT copy a single narrow band from defaults.
@@ -1834,7 +1845,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
 {{"rationale":"...", "optimization_strategy":"...", "performance_assessment":"...",
 "round_setup":{{...}},
 {('"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
-{('"regime_factor_ranges":{"risk_off":{"w_mom":[lo,hi],...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else '"factor_ranges":{"<each numeric factor key>":[low,high], ...},')}
+{('"regime_factor_ranges":{"risk_off":{"w_mom":[lo,hi],"w_lowvol":[lo,hi]},"risk_on":{"w_mom":[lo,hi],...}},' if dynamic_matrix else '"factor_ranges":{"<2-4 focus numeric keys>":[low,high], ...},')}
 "factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
 """
     max_retries = max(1, int(settings.gemini_param_seed_max_retries))
@@ -1850,7 +1861,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
             '"round_setup":{...},'
             + (
                 '"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},'
-                '"regime_factor_ranges":{"risk_off":{...},"neutral":{...},"risk_on":{...}},'
+                '"regime_factor_ranges":{"risk_off":{"w_mom":[lo,hi],...},"risk_on":{...}},'
                 if dynamic_matrix
                 else '"factor_ranges":{...},'
             )
