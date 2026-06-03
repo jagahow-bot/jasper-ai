@@ -76,6 +76,56 @@ def select_weight_chart_tickers(
     ]
 
 
+def first_trading_day_on_or_after(index: pd.DatetimeIndex, start: str) -> pd.Timestamp:
+    ts = pd.Timestamp(start)
+    sub = index[index >= ts]
+    if len(sub) == 0:
+        raise ValueError(f"report_start {start} is after the last price row")
+    return pd.Timestamp(sub[0])
+
+
+def trim_prices_to_report_window(prices: pd.DataFrame, report_start: str) -> pd.DataFrame:
+    """Rows on/after the user's backtest start (metrics/UI window)."""
+    anchor = first_trading_day_on_or_after(prices.index, report_start)
+    return prices.loc[anchor:].copy()
+
+
+def _apply_report_start_window(
+    metrics: dict[str, Any],
+    prices: pd.DataFrame,
+    spec: BacktestSpec,
+    report_start: str | None,
+) -> dict[str, Any]:
+    if not report_start:
+        return metrics
+    anchor = first_trading_day_on_or_after(prices.index, report_start)
+    start_str = anchor.strftime("%Y-%m-%d")
+    wh = [
+        row
+        for row in (metrics.get("weight_history") or [])
+        if str(row.get("date", "")) >= start_str
+    ]
+    if anchor <= prices.index[0]:
+        out = dict(metrics)
+        out["weight_history"] = wh
+        return out
+
+    port_ret = metrics["port_ret"].loc[anchor:]
+    equity_full = metrics["equity"]
+    eq_base = float(equity_full.loc[anchor])
+    if not np.isfinite(eq_base) or eq_base <= 0:
+        eq_base = 1.0
+    equity = equity_full.loc[anchor:] / eq_base
+
+    sliced = _compute_metrics(port_ret, equity, spec)
+    out = dict(metrics)
+    out.update(sliced)
+    out["equity"] = equity
+    out["port_ret"] = port_ret
+    out["weight_history"] = wh
+    return out
+
+
 def split_train_validation(
     prices: pd.DataFrame, train_ratio: float
 ) -> tuple[pd.DataFrame, pd.DataFrame, str, str]:
@@ -653,6 +703,7 @@ def _simulate_pandas(
     max_turnover: float | None = None,
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
+    report_start: str | None = None,
 ) -> dict[str, Any]:
     if dynamic:
         alloc = allocator or AllocatorParams(mode="min_var")
@@ -711,7 +762,13 @@ def _simulate_pandas(
     metrics["factor_summary"] = factor_summary
     # Historical weights for UI: rebalance snapshots; all material sleeves (minimal Other).
     sch = schedule.fillna(0.0)
-    hist_dates = [prices.index[0], *rebalance_dates]
+    hist_anchor = (
+        first_trading_day_on_or_after(prices.index, report_start)
+        if report_start
+        else prices.index[0]
+    )
+    hist_dates = [hist_anchor, *rebalance_dates]
+    hist_dates = [d for d in hist_dates if d >= hist_anchor]
     hist_unique = sorted(list(dict.fromkeys(hist_dates)))
     if len(hist_unique) > 36:
         step = max(1, len(hist_unique) // 36)
@@ -737,13 +794,19 @@ def _simulate_pandas(
     cap_audit = (factor_summary or {}).get("weight_cap_audit")
     if cap_audit:
         metrics["weight_cap_audit"] = cap_audit
-    return metrics
+    return _apply_report_start_window(metrics, prices, spec, report_start)
 
 
 def simulate_portfolio(
-    prices: pd.DataFrame, weights: np.ndarray, spec: BacktestSpec = DEFAULT_SPEC
+    prices: pd.DataFrame,
+    weights: np.ndarray,
+    spec: BacktestSpec = DEFAULT_SPEC,
+    *,
+    report_start: str | None = None,
 ) -> dict[str, Any]:
-    return _simulate_pandas(prices, weights, spec)
+    return _simulate_pandas(
+        prices, weights, spec, report_start=report_start
+    )
 
 
 def simulate_dynamic_portfolio(
@@ -762,6 +825,7 @@ def simulate_dynamic_portfolio(
     max_turnover: float | None = None,
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
+    report_start: str | None = None,
 ) -> dict[str, Any]:
     w0 = np.ones(len(prices.columns), dtype=float) / max(len(prices.columns), 1)
     return _simulate_pandas(
@@ -781,6 +845,7 @@ def simulate_dynamic_portfolio(
         max_turnover=max_turnover,
         universe_by_ticker=universe_by_ticker,
         class_budget=class_budget,
+        report_start=report_start,
     )
 
 

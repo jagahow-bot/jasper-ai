@@ -15,6 +15,7 @@ from app.engine.portfolio import (
     _normalize_rebalance_rule,
     simulate_dynamic_portfolio,
     split_train_validation,
+    trim_prices_to_report_window,
 )
 from app.engine.regime_policy import (
     RegimeSignal,
@@ -801,6 +802,8 @@ def _arm_metrics(metrics: dict[str, Any], objective: str) -> dict[str, Any]:
 def _simulate_arm(
     prices: pd.DataFrame,
     *,
+    prices_sim_panel: pd.DataFrame,
+    report_start: str,
     spec: BacktestSpec,
     bench_ret: pd.Series,
     regime_mode: str,
@@ -823,7 +826,7 @@ def _simulate_arm(
     )
     factor_lb = resolver(prices.index[-1]).lookback_days
     metrics = simulate_dynamic_portfolio(
-        prices,
+        prices_sim_panel,
         spec=spec,
         max_weight=LAB_MAX_WEIGHT,
         allocator=resolver(prices.index[0]),
@@ -831,6 +834,7 @@ def _simulate_arm(
         top_n=min(LAB_TOP_N, len(prices.columns)),
         factor_params=FactorParams(lookback_days=int(factor_lb)),
         universe_by_ticker=universe_by_ticker,
+        report_start=report_start,
     )
     label_objective = fixed_objective or objective or "max_sharpe"
     return _arm_metrics(metrics, label_objective), timeline, switch_count
@@ -886,7 +890,8 @@ def evaluate_objective_switch_lab(
         raise ValueError("Too few tradable tickers after price load")
 
     port_cols = [t for t in tickers if t in prices.columns]
-    prices_port = prices[port_cols].copy()
+    prices_sim_panel = prices[port_cols].copy()
+    prices_port = trim_prices_to_report_window(prices_sim_panel, req.start_date)
     bench_ret = prices[bench].pct_change().dropna()
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in port_cols}
 
@@ -897,7 +902,7 @@ def evaluate_objective_switch_lab(
         )
     else:
         prices_train, prices_val = prices_port, prices_port.iloc[0:0]
-        train_end = str(prices.index[-1].date())
+        train_end = str(prices_port.index[-1].date())
         val_start = train_end
 
     cooldown = int(req.cooldown_steps)
@@ -905,8 +910,11 @@ def evaluate_objective_switch_lab(
     fast_risk_off_exit = bool(req.fast_risk_off_exit) and detector_version == "v2"
 
     train_bench_slice = bench_ret.loc[prices_train.index[0] : prices_train.index[-1]]
+    train_report = str(prices_train.index[0].date())
     fixed_is, _, _ = _simulate_arm(
         prices_train,
+        prices_sim_panel=prices_sim_panel,
+        report_start=train_report,
         spec=spec,
         bench_ret=train_bench_slice,
         regime_mode=regime_mode,
@@ -920,6 +928,8 @@ def evaluate_objective_switch_lab(
     )
     switch_is, timeline, switch_count = _simulate_arm(
         prices_train,
+        prices_sim_panel=prices_sim_panel,
+        report_start=train_report,
         spec=spec,
         bench_ret=train_bench_slice,
         regime_mode=regime_mode,
@@ -936,8 +946,11 @@ def evaluate_objective_switch_lab(
     switch_oos: dict[str, Any] | None = None
     if req.enable_oos and len(prices_val) > 60:
         val_bench = bench_ret.loc[prices_val.index[0] : prices_val.index[-1]]
+        val_report = str(prices_val.index[0].date())
         fixed_oos, _, _ = _simulate_arm(
             prices_val,
+            prices_sim_panel=prices_sim_panel,
+            report_start=val_report,
             spec=spec,
             bench_ret=val_bench,
             regime_mode=regime_mode,
@@ -951,6 +964,8 @@ def evaluate_objective_switch_lab(
         )
         switch_oos, _, _ = _simulate_arm(
             prices_val,
+            prices_sim_panel=prices_sim_panel,
+            report_start=val_report,
             spec=spec,
             bench_ret=val_bench,
             regime_mode=regime_mode,

@@ -31,6 +31,7 @@ from app.engine.portfolio import (
     metrics_for_horizon_window,
     simulate_dynamic_portfolio,
     split_train_validation,
+    trim_prices_to_report_window,
 )
 from app.engine.spec import DEFAULT_SPEC, BacktestSpec
 from app.models import (
@@ -279,6 +280,7 @@ def _record_objective_sort_value(
 def _run_iterative_search(
     req: BacktestRequest,
     *,
+    prices_sim_panel: pd.DataFrame,
     prices_train: pd.DataFrame,
     prices_val: pd.DataFrame,
     oos: bool,
@@ -569,6 +571,7 @@ def _run_iterative_search(
         )
         round_records = run_optuna_search(
             prices_train,
+            prices_sim_panel=prices_sim_panel,
             max_weight=req.max_weight,
             min_weight=req.min_weight,
             max_turnover=req.max_turnover,
@@ -1174,6 +1177,7 @@ def _assemble_candidates_from_records(
     top_n_models: int,
     tickers: list[str],
     prices: pd.DataFrame,
+    prices_sim_panel: pd.DataFrame,
     prices_train: pd.DataFrame,
     prices_val: pd.DataFrame,
     oos: bool,
@@ -1280,14 +1284,27 @@ def _assemble_candidates_from_records(
                         f"Packaging {model_code} ({rank}/{n_models}): "
                         f"cache incomplete ({', '.join(missing)}) — running backtest(s)…"
                     )
+            report_full = str(prices.index[0].date())
             if need_train:
                 train_kw = apply_allocator_resolver(sim_kw, prices_train, resolver)
-                train_m = simulate_dynamic_portfolio(prices_train, **train_kw)
+                train_m = simulate_dynamic_portfolio(
+                    prices_sim_panel,
+                    report_start=str(prices_train.index[0].date()),
+                    **train_kw,
+                )
             if need_val:
                 val_kw = apply_allocator_resolver(sim_kw, prices_val, resolver)
-                val_m = simulate_dynamic_portfolio(prices_val, **val_kw)
+                val_m = simulate_dynamic_portfolio(
+                    prices_sim_panel,
+                    report_start=str(prices_val.index[0].date()),
+                    **val_kw,
+                )
             if need_full:
-                full_m_rank = simulate_dynamic_portfolio(prices, **sim_kw)
+                full_m_rank = simulate_dynamic_portfolio(
+                    prices_sim_panel,
+                    report_start=report_full,
+                    **sim_kw,
+                )
         full_curve_rank = equity_curve_series(full_m_rank["equity"])
         candidates.append(
             _build_candidate(
@@ -1571,8 +1588,9 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     tickers = [t for t in tickers if t in prices.columns]
     if len(tickers) < 5:
         raise ValueError("Too few tradable tickers after filter; widen asset classes or extend dates")
+    prices_sim_panel = prices[tickers].copy()
     prices_with_benchmark = prices.copy()
-    prices = prices[tickers]
+    prices = trim_prices_to_report_window(prices_sim_panel, req.start_date)
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
 
     dynamic_ctx: dict[str, Any] | None = None
@@ -1679,6 +1697,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         )
         records, convergence_history, refinement_meta = _run_iterative_search(
             req,
+            prices_sim_panel=prices_sim_panel,
             prices_train=prices_train,
             prices_val=prices_val,
             oos=oos,
@@ -1759,6 +1778,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
 
         records = run_optuna_search(
             prices_train,
+            prices_sim_panel=prices_sim_panel,
             max_weight=req.max_weight,
             min_weight=req.min_weight,
             max_turnover=req.max_turnover,
@@ -1831,6 +1851,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         top_n_models=top_n_models,
         tickers=tickers,
         prices=prices,
+        prices_sim_panel=prices_sim_panel,
         prices_train=prices_train,
         prices_val=prices_val,
         oos=oos,
@@ -1928,6 +1949,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 top_n_models=pr_top_n,
                 tickers=tickers,
                 prices=prices,
+                prices_sim_panel=prices_sim_panel,
                 prices_train=prices_train,
                 prices_val=prices_val,
                 oos=oos,
@@ -2108,7 +2130,11 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         prices,
         dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None,
     )
-    full_m = simulate_dynamic_portfolio(prices, **champion_sim_kw)
+    full_m = simulate_dynamic_portfolio(
+        prices_sim_panel,
+        report_start=str(prices.index[0].date()),
+        **champion_sim_kw,
+    )
     equity_curve = equity_curve_series(full_m["equity"])
 
     frontier = _build_frontier_from_records(records, trials_completed)

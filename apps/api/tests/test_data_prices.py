@@ -9,6 +9,7 @@ import pytest
 from app.engine.data import (
     _exclude_late_listing_columns,
     _trim_leading_incomplete_rows,
+    price_download_start,
 )
 from app.engine.portfolio import split_train_validation
 
@@ -24,6 +25,10 @@ def _make_panel(
     spy = pd.Series(100.0, index=early_idx).astype(float)
     late = pd.Series(50.0, index=late_idx).astype(float)
     return pd.DataFrame({"SPY": spy, "LATE": late})
+
+
+def test_price_download_start_before_requested_backtest_start():
+    assert pd.Timestamp(price_download_start("2016-01-01")) < pd.Timestamp("2016-01-01")
 
 
 def test_late_listing_excluded_instead_of_truncating_panel():

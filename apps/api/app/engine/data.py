@@ -12,6 +12,8 @@ import pandas as pd
 
 YFINANCE_CHUNK = 25
 MIN_TRADING_DAYS = 504
+# Calendar days to fetch before the UI start so factor/allocator lookbacks are ready on day 1.
+PRICE_PREP_BUFFER_CALENDAR_DAYS = 840
 MAX_MISSING_COL = 0.15
 MIN_ROW_COVERAGE = 0.75
 # Symbols listed after requested start + this slack are dropped (not used to trim the panel).
@@ -92,6 +94,15 @@ def _trim_leading_incomplete_rows(prices: pd.DataFrame) -> pd.DataFrame:
     return prices.loc[first:].copy()
 
 
+def price_download_start(
+    requested_start: str,
+    *,
+    buffer_days: int = PRICE_PREP_BUFFER_CALENDAR_DAYS,
+) -> str:
+    """Earliest calendar date for yfinance download (warmup before backtest start)."""
+    return str((pd.Timestamp(requested_start) - pd.Timedelta(days=int(buffer_days))).date())
+
+
 def _save_cached_prices(path: Path, prices: pd.DataFrame) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -103,8 +114,10 @@ def _save_cached_prices(path: Path, prices: pd.DataFrame) -> None:
 def fetch_prices(tickers: list[str], start: str, end: str, benchmark: str) -> tuple[pd.DataFrame, dict[str, Any]]:
     import yfinance as yf
 
+    requested_start = start
+    download_start = price_download_start(requested_start)
     download_tickers = list(dict.fromkeys([*tickers, benchmark]))
-    cpath = _cache_path(_cache_key(tickers, start, end, benchmark))
+    cpath = _cache_path(_cache_key(tickers, requested_start, end, benchmark))
     cached = _load_cached_prices(cpath)
     if cached is not None and not cached.empty:
         prices = cached.copy()
@@ -115,7 +128,7 @@ def fetch_prices(tickers: list[str], start: str, end: str, benchmark: str) -> tu
             chunk = download_tickers[i : i + YFINANCE_CHUNK]
             data = yf.download(
                 chunk,
-                start=start,
+                start=download_start,
                 end=end,
                 auto_adjust=True,
                 progress=False,
@@ -142,7 +155,7 @@ def fetch_prices(tickers: list[str], start: str, end: str, benchmark: str) -> tu
 
     # Per-column forward fill (do NOT require all columns on same day)
     prices = prices.ffill()
-    prices, excluded_late = _exclude_late_listing_columns(prices, start)
+    prices, excluded_late = _exclude_late_listing_columns(prices, requested_start)
 
     valid_cols: list[str] = []
     for col in prices.columns:
@@ -174,7 +187,8 @@ def fetch_prices(tickers: list[str], start: str, end: str, benchmark: str) -> tu
         "data_source": data_source,
         "rows": len(prices),
         "columns": len(prices.columns),
-        "requested_start": start,
+        "requested_start": requested_start,
+        "warmup_download_start": download_start,
         "start": effective_start,
         "end": str(prices.index[-1].date()),
         "benchmark_included": benchmark in prices.columns,

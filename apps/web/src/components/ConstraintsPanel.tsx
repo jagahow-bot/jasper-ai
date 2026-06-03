@@ -294,6 +294,10 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
             onChange={(e) => onChange({ ...value, start_date: e.target.value })}
             className="pixel-input"
           />
+          <p className="text-xs text-dim">
+            Prices load ~2+ years before this date for lookbacks; day-one weights use that
+            prep (not an equal-weight placeholder).
+          </p>
         </label>
         <label className="block space-y-2">
           <span className="text-sm">End</span>

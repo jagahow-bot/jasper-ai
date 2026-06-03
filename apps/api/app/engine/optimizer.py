@@ -111,6 +111,7 @@ def run_optuna_search(
     asset_classes: list[str] | None = None,
     trial_report_cache: TrialReportCache | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
+    prices_sim_panel: pd.DataFrame | None = None,
 ) -> list[tuple[float, dict, dict]]:
     records: list[tuple[float, dict, dict]] = []
     best_value: float | None = None
@@ -564,6 +565,8 @@ def run_optuna_search(
             trial_params_pre, asset_classes=asset_classes
         )
 
+        sim_panel = prices_sim_panel if prices_sim_panel is not None else prices_train
+        report_train = str(prices_train.index[0].date())
         prices_score = prices_train
         if not use_is_only and has_holdout:
             prices_score = pd.concat([prices_train, prices_val])
@@ -588,7 +591,11 @@ def run_optuna_search(
             factor_params_resolver=factor_params_resolver,
         )
         try:
-            metrics = simulate_dynamic_portfolio(prices_score, **sim_common)
+            metrics = simulate_dynamic_portfolio(
+                sim_panel,
+                report_start=report_train,
+                **sim_common,
+            )
         except Exception:
             return INFEASIBLE_SCORE
 
@@ -658,13 +665,18 @@ def run_optuna_search(
                     train_m_holdout = metrics
                 else:
                     train_m_holdout = simulate_dynamic_portfolio(
-                        prices_train,
+                        sim_panel,
+                        report_start=report_train,
                         **sim_common,
                     )
                 val_common = dict(sim_common)
                 if allocator_resolver is not None and len(prices_val) > 0:
                     val_common["allocator"] = allocator_resolver(prices_val.index[0])
-                val_m = simulate_dynamic_portfolio(prices_val, **val_common)
+                val_m = simulate_dynamic_portfolio(
+                    sim_panel,
+                    report_start=str(prices_val.index[0].date()),
+                    **val_common,
+                )
             except Exception:
                 train_m_holdout = train_m_holdout if use_is_only else None
                 val_m = None
