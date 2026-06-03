@@ -1120,6 +1120,27 @@ export function ResultsDashboard({
         ) : null}
       </ChartCard>
 
+      <ChartCard title="Portfolio trajectory & holdings">
+        {dynamicObjectiveChart ? (
+          <p className="mb-3 text-xs text-dim">
+            含 walk-forward 市場狀態與作用中最佳化目標色帶（與累積報酬、權重圖連動游標）。
+            Pro ★ 冠軍：有 holdout 時以樣本內{" "}
+            <span className="text-[var(--amber)]">max Sharpe</span>（
+            <code className="text-[10px]">objective_value_is</code>
+            ）排序，非各再平衡步驟的即時目標分數。
+          </p>
+        ) : null}
+        <LinkedEquityWeightChart
+          equityCurve={equity}
+          benchmarkCurve={benchmarkEquity}
+          benchmarkLabel={benchTicker}
+          weightHistory={historySeries}
+          weightTickers={weightHistoryTickers}
+          colors={COLORS}
+          regimeTimeline={dynamicObjectiveChart?.timeline}
+        />
+      </ChartCard>
+
       <ChartCard title="Efficient frontier (samples)">
         <ResponsiveContainer width="100%" height={260}>
           <ScatterChart>
@@ -1272,27 +1293,6 @@ export function ResultsDashboard({
             </div>
           </div>
         </div>
-      </ChartCard>
-
-      <ChartCard title="Portfolio trajectory & holdings">
-        {dynamicObjectiveChart ? (
-          <p className="mb-3 text-xs text-dim">
-            含 walk-forward 市場狀態與作用中最佳化目標色帶（與累積報酬、權重圖連動游標）。
-            Pro ★ 冠軍：有 holdout 時以樣本內{" "}
-            <span className="text-[var(--amber)]">max Sharpe</span>（
-            <code className="text-[10px]">objective_value_is</code>
-            ）排序，非各再平衡步驟的即時目標分數。
-          </p>
-        ) : null}
-        <LinkedEquityWeightChart
-          equityCurve={equity}
-          benchmarkCurve={benchmarkEquity}
-          benchmarkLabel={benchTicker}
-          weightHistory={historySeries}
-          weightTickers={weightHistoryTickers}
-          colors={COLORS}
-          regimeTimeline={dynamicObjectiveChart?.timeline}
-        />
       </ChartCard>
 
       <ChartCard title="Latest allocation (holdings)">
