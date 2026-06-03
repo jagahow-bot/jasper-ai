@@ -117,6 +117,10 @@ def build_regime_score_timeline(
             row["risk_off_score"] = step["risk_off_score"]
             row["risk_on_score"] = step["risk_on_score"]
             row["neutral_score"] = step.get("neutral_score")
+        if step.get("raw_regime"):
+            row["raw_regime"] = step["raw_regime"]
+        if step.get("score_winner"):
+            row["score_winner"] = step["score_winner"]
         rows.append(row)
     return rows
 

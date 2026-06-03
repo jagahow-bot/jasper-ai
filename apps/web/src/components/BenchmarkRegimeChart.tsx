@@ -26,6 +26,7 @@ import {
 
 const MAIN_CHART_HEIGHT = 220;
 const STRIP_CHART_HEIGHT = 24;
+const RAW_STRIP_CHART_HEIGHT = 10;
 
 const REGIME_COLORS: Record<string, string> = {
   risk_off: "rgba(255, 80, 80, 0.12)",
@@ -72,6 +73,15 @@ function BenchmarkRegimeTooltip({
         {typeof value === "number" ? `${value.toFixed(2)}%` : "—"}
       </p>
       {regime && <p className="text-dim">Active regime: {regime}</p>}
+      {(() => {
+        let raw: string | null = null;
+        for (const row of regimeTimeline) {
+          const rowTs = parseDateTs(row.date);
+          if (Number.isNaN(rowTs) || rowTs > ts) break;
+          if (row.raw_regime) raw = row.raw_regime;
+        }
+        return raw ? <p className="text-dim">Raw regime: {raw}</p> : null;
+      })()}
     </div>
   );
 }
@@ -91,7 +101,11 @@ export function BenchmarkRegimeChart({
   }
 
   const { min: domainMin, max: domainMax } = domain;
-  const bands = regimeBandRanges(regimeTimeline, domainMax);
+  const bands = regimeBandRanges(regimeTimeline, domainMax, "active_regime");
+  const hasRaw = regimeTimeline.some((r) => r.raw_regime);
+  const rawBands = hasRaw
+    ? regimeBandRanges(regimeTimeline, domainMax, "raw_regime")
+    : [];
   const chartData = benchmarkSeries.map((p) => ({
     ...p,
     ts: parseDateTs(p.date),
@@ -159,12 +173,42 @@ export function BenchmarkRegimeChart({
                 : REGIME_STRIP_COLORS[b.regime] ?? "var(--border)";
               return (
                 <ReferenceArea
-                  key={row.date}
+                  key={`active-${row.date}`}
                   x1={b.startTs}
                   x2={b.endTs}
                   y1={0}
                   y2={1}
                   fill={fill}
+                  strokeOpacity={0}
+                  ifOverflow="hidden"
+                />
+              );
+            })}
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+
+      {rawBands.length > 0 && (
+        <ResponsiveContainer width="100%" height={RAW_STRIP_CHART_HEIGHT}>
+          <LineChart
+            {...CHART_SYNC}
+            data={stripAnchor}
+            margin={LAB_CHART_MARGIN}
+          >
+            <XAxis {...xAxis} hide />
+            <YAxis hide domain={[0, 1]} width={LAB_Y_AXIS_WIDTH} />
+            {rawBands.map((b, i) => {
+              const row = regimeTimeline[i];
+              const fill = REGIME_STRIP_COLORS[b.regime] ?? "var(--border)";
+              return (
+                <ReferenceArea
+                  key={`raw-${row.date}`}
+                  x1={b.startTs}
+                  x2={b.endTs}
+                  y1={0}
+                  y2={1}
+                  fill={fill}
+                  fillOpacity={0.45}
                   strokeOpacity={0}
                   ifOverflow="hidden"
                 />
@@ -193,9 +237,9 @@ export function BenchmarkRegimeChart({
         </span>
       </div>
       <p className="text-[10px] text-dim">
-        Top: {benchmarkTicker} cumulative return (%). Background bands = active regime (21d
-        walk-forward + confirm/cooldown), not raw score winner. Bottom strip = regime steps
-        (amber = switch). Hover syncs with the regime scores chart below when shown.
+        Top: {benchmarkTicker} cumulative return (%). Background bands = active regime
+        (hysteresis). Middle strip = active steps (amber = switch). Thin bottom strip = raw
+        arbitration when available. Hover syncs with the regime scores chart below when shown.
       </p>
     </div>
   );

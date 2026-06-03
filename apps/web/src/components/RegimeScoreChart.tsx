@@ -43,8 +43,12 @@ function RegimeScoreTooltip({
   if (!active || !payload?.length) return null;
   const ts = Number(label);
   if (!Number.isFinite(ts)) return null;
-  const row = payload[0]?.payload as { active?: string } | undefined;
+  const row = payload[0]?.payload as
+    | { active?: string; raw?: string; scoreWinner?: string }
+    | undefined;
   const activeRegime = row?.active ?? null;
+  const rawRegime = row?.raw ?? null;
+  const scoreWinner = row?.scoreWinner ?? null;
 
   return (
     <div
@@ -60,8 +64,14 @@ function RegimeScoreTooltip({
             {typeof p.value === "number" ? p.value.toFixed(3) : "—"}
           </p>
         ))}
+      {scoreWinner && (
+        <p className="text-dim">Score winner at step: {scoreWinner}</p>
+      )}
+      {rawRegime && (
+        <p className="text-dim">Raw regime (arbitration): {rawRegime}</p>
+      )}
       {activeRegime && (
-        <p className="text-dim">Active regime: {activeRegime}</p>
+        <p className="text-dim">Active regime (hysteresis): {activeRegime}</p>
       )}
     </div>
   );
@@ -96,6 +106,8 @@ export function RegimeScoreChart({
     risk_on: row.risk_on_score ?? null,
     neutral: row.neutral_score ?? null,
     active: row.active_regime,
+    raw: row.raw_regime ?? null,
+    scoreWinner: row.score_winner ?? null,
     switched: row.switched,
   }));
   const xAxis = labXAxisProps(domainMin, domainMax);
@@ -142,9 +154,9 @@ export function RegimeScoreChart({
         </LineChart>
       </ResponsiveContainer>
       <p className="text-[10px] text-dim">
-        63d indicator scores at each walk-forward step (lines). Tooltip active regime =
-        hysteresis label (may differ when fast exit or cooldown applies). Hover syncs with
-        the benchmark chart above.
+        63d indicator scores at each walk-forward step (lines). Tooltip: score winner (margin
+        arbitration), raw regime, and active regime after hysteresis. Hover syncs with the
+        benchmark chart above.
       </p>
     </div>
   );

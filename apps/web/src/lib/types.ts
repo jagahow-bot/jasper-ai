@@ -385,6 +385,8 @@ export interface RegimeScoreTimelinePoint {
   risk_on_score?: number;
   neutral_score?: number | null;
   active_regime: string;
+  raw_regime?: string;
+  score_winner?: string;
   switched: boolean;
 }
 

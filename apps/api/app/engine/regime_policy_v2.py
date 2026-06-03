@@ -24,6 +24,10 @@ VOL_PEAK_DECAY_PCT = 0.15
 VOL_PEAK_DECAY_MAX_SCORE_REDUCTION = 0.35
 # Fast exit to risk_on requires 63d risk-off to have eased (not just short-window rebound).
 RISK_OFF_FAST_RELEASE_CEILING = 0.55
+# Score-dominant arbitration: winner must lead by margin (replaces off>=on ties).
+SCORE_ARBITRATION_MARGIN = 0.05
+# Strong off dominance: fast hysteresis into risk_off from risk_on.
+SCORE_STRONG_DOMINANCE_MARGIN = 0.12
 
 
 def default_detector_version() -> str:
@@ -180,11 +184,27 @@ def compute_regime_scores(
     }
 
 
+def score_winner_regime(
+    scores: dict[str, float],
+    *,
+    margin: float = SCORE_ARBITRATION_MARGIN,
+) -> RegimeSignal:
+    """Raw score winner at a step (no min_confidence gate)."""
+    off = float(scores.get("risk_off_score", 0.0))
+    on = float(scores.get("risk_on_score", 0.0))
+    if off > on + margin:
+        return "risk_off"
+    if on > off + margin:
+        return "risk_on"
+    return "neutral"
+
+
 def arbitrate_regime(
     scores: dict[str, float],
     requested_mode: str,
     *,
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
+    score_margin: float = SCORE_ARBITRATION_MARGIN,
 ) -> RegimeSignal:
     if requested_mode == "risk_off":
         return "risk_off"
@@ -195,11 +215,59 @@ def arbitrate_regime(
 
     off = float(scores.get("risk_off_score", 0.0))
     on = float(scores.get("risk_on_score", 0.0))
-    if off >= on and off >= min_confidence:
+    winner = score_winner_regime(scores, margin=score_margin)
+    if winner == "risk_off" and off >= min_confidence:
         return "risk_off"
-    if on > off and on >= min_confidence:
+    if winner == "risk_on" and on >= min_confidence:
         return "risk_on"
     return "neutral"
+
+
+def _enforce_raw_no_risk_on_when_off_dominates(
+    raw: RegimeSignal,
+    scores: dict[str, float],
+) -> RegimeSignal:
+    """Never label raw risk_on when 63d risk_off score still leads."""
+    off = float(scores.get("risk_off_score", 0.0))
+    on = float(scores.get("risk_on_score", 0.0))
+    if off > on and raw == "risk_on":
+        return "neutral"
+    return raw
+
+
+def _hysteresis_for_active_regime(
+    active: RegimeSignal | None,
+    raw: RegimeSignal,
+    scores: dict[str, float],
+    *,
+    cooldown_steps: int,
+    confirm_steps: int,
+) -> tuple[RegimeSignal, int, int]:
+    """
+    Score-dominant hysteresis: block leaving risk_off while off leads; fast-enter
+    risk_off from risk_on when off leads by STRONG margin.
+    """
+    off = float(scores.get("risk_off_score", 0.0))
+    on = float(scores.get("risk_on_score", 0.0))
+    effective_raw = raw
+    required_confirm = confirm_steps
+    required_cooldown = _cooldown_for_transition(active, raw, cooldown_steps)
+
+    if active == "risk_off" and raw != "risk_off" and off > on:
+        effective_raw = "risk_off"
+
+    elif (
+        active == "risk_on"
+        and raw == "risk_off"
+        and off > on + SCORE_STRONG_DOMINANCE_MARGIN
+    ):
+        required_confirm = 1
+        required_cooldown = 0
+    elif active == "risk_on" and raw == "risk_off" and off > on + SCORE_ARBITRATION_MARGIN:
+        required_confirm = min(confirm_steps, 1)
+        required_cooldown = min(required_cooldown, 1)
+
+    return effective_raw, required_cooldown, required_confirm
 
 
 def resolve_regime_signal_v2(
@@ -344,26 +412,33 @@ def walk_forward_regime_timeline_v2(
                 min_confidence=min_confidence,
                 rebound_return_threshold=rebound_return_threshold,
             )
+        raw = _enforce_raw_no_risk_on_when_off_dominates(raw, scores)
+        effective_raw, required_cooldown, required_confirm = _hysteresis_for_active_regime(
+            active,
+            raw,
+            scores,
+            cooldown_steps=cooldown_steps,
+            confirm_steps=confirm_steps,
+        )
         end_date = bench_ret.index[end]
         switched = False
-        required_cooldown = _cooldown_for_transition(active, raw, cooldown_steps)
 
         if active is None:
-            active = raw
+            active = effective_raw
             pending = None
             pending_count = 0
             steps_since_switch = cooldown_steps
-        elif raw != active:
-            if raw == pending:
+        elif effective_raw != active:
+            if effective_raw == pending:
                 pending_count += 1
             else:
-                pending = raw
+                pending = effective_raw
                 pending_count = 1
             if (
-                pending_count >= confirm_steps
+                pending_count >= required_confirm
                 and steps_since_switch >= required_cooldown
             ):
-                active = raw
+                active = effective_raw
                 pending = None
                 pending_count = 0
                 steps_since_switch = 0
@@ -383,6 +458,7 @@ def walk_forward_regime_timeline_v2(
                 "regime": active,
                 "objective": objective_for_regime(active),
                 "raw_regime": raw,
+                "score_winner": score_winner_regime(scores),
                 "switched": switched,
                 "risk_off_score": scores["risk_off_score"],
                 "risk_on_score": scores["risk_on_score"],

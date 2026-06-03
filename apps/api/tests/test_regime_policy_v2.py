@@ -6,10 +6,12 @@ import pandas as pd
 
 from app.engine.regime_policy_v2 import (
     RISK_OFF_WEIGHTS,
+    SCORE_ARBITRATION_MARGIN,
     _allows_fast_exit_to_risk_on,
     arbitrate_regime,
     compute_regime_scores,
     resolve_regime_signal_v2,
+    score_winner_regime,
     walk_forward_regime_timeline_v2,
 )
 
@@ -33,6 +35,22 @@ def test_arbitration_picks_highest_above_confidence() -> None:
     ) == "risk_on"
     assert arbitrate_regime(
         {"risk_off_score": 0.35, "risk_on_score": 0.38}, "auto", min_confidence=0.42
+    ) == "neutral"
+
+
+def test_score_winner_requires_margin_not_tie() -> None:
+    assert score_winner_regime(
+        {"risk_off_score": 0.52, "risk_on_score": 0.50}, margin=SCORE_ARBITRATION_MARGIN
+    ) == "neutral"
+    assert score_winner_regime(
+        {"risk_off_score": 0.8, "risk_on_score": 0.2}, margin=SCORE_ARBITRATION_MARGIN
+    ) == "risk_off"
+
+
+def test_arbitration_no_risk_off_on_near_tie() -> None:
+    """Former off>=on tie could pick risk_off; margin keeps neutral."""
+    assert arbitrate_regime(
+        {"risk_off_score": 0.44, "risk_on_score": 0.42}, "auto", min_confidence=0.42
     ) == "neutral"
 
 
@@ -158,6 +176,49 @@ def test_fast_exit_no_risk_on_when_63d_risk_off_dominates() -> None:
         on = float(row["risk_on_score"])
         if off > on and off >= 0.55:
             assert row["raw_regime"] != "risk_on"
+
+
+def test_strong_off_scores_force_active_risk_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When 63d off dominates on for 3+ steps, active must leave risk_on for risk_off."""
+    idx = pd.bdate_range("2020-01-01", periods=200)
+    bench_ret = pd.Series(0.001, index=idx)
+    dominant = {
+        "risk_off_score": 0.8,
+        "risk_on_score": 0.2,
+        "neutral_score": 0.2,
+    }
+    mild_on = {
+        "risk_off_score": 0.35,
+        "risk_on_score": 0.55,
+        "neutral_score": 0.45,
+    }
+    call = {"n": 0}
+
+    def fake_resolve(
+        window: pd.Series,
+        requested_mode: str,
+        **kwargs: object,
+    ) -> tuple[str, dict[str, float]]:
+        call["n"] += 1
+        if call["n"] == 1:
+            return "risk_on", mild_on
+        return "risk_off", dominant
+
+    monkeypatch.setattr(
+        "app.engine.regime_policy_v2.resolve_regime_signal_v2",
+        fake_resolve,
+    )
+    _, timeline = walk_forward_regime_timeline_v2(
+        bench_ret,
+        "auto",
+        cooldown_steps=2,
+        confirm_steps=2,
+        fast_risk_off_exit=False,
+    )
+    assert len(timeline) >= 3
+    assert timeline[0]["regime"] == "risk_on"
+    assert all(row["regime"] == "risk_off" for row in timeline[1:4])
+    assert all(row["raw_regime"] == "risk_off" for row in timeline[1:4])
 
 
 def test_vol_peak_decay_lowers_risk_off_score_on_easing_vol() -> None:

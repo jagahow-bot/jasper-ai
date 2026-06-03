@@ -73,11 +73,16 @@ export type RegimeBandRange = { startTs: number; endTs: number; regime: string }
 export function regimeBandRanges(
   timeline: ObjectiveSwitchLabResult["regime_timeline"],
   domainMax: number,
+  regimeKey: "active_regime" | "raw_regime" = "active_regime",
 ): RegimeBandRange[] {
   if (!timeline.length) return [];
   const bands: RegimeBandRange[] = [];
   for (let i = 0; i < timeline.length; i++) {
-    const regime = timeline[i].active_regime ?? timeline[i].regime;
+    const row = timeline[i];
+    const regime =
+      regimeKey === "raw_regime"
+        ? row.raw_regime ?? row.regime
+        : row.active_regime ?? row.regime;
     const startTs = parseDateTs(timeline[i].date);
     const endTs =
       i + 1 < timeline.length ? parseDateTs(timeline[i + 1].date) : domainMax;
