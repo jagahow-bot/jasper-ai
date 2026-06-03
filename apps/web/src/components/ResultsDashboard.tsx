@@ -348,13 +348,27 @@ export function ResultsDashboard({
         : (fromFacts?.length ? fromFacts : fromChampion);
     if (!timeline.length) return null;
 
-    const benchmarkSeries = (
+    let benchmarkSeries = (
       result.dynamic_objective_benchmark_series?.length
         ? result.dynamic_objective_benchmark_series
         : (result.narrative_facts.dynamic_objective_benchmark_series as
             | BenchmarkSeriesPoint[]
             | undefined)
     ) ?? [];
+
+    if (!benchmarkSeries.length) {
+      const benchByDate = new Map(
+        benchmarkEquity.map((p) => [p.date, Number(p.value) - 100]),
+      );
+      const dateSource = equity.length ? equity : benchmarkEquity;
+      if (dateSource.length) {
+        benchmarkSeries = dateSource.map((p, i) => ({
+          date: p.date,
+          cumulative_return_pct: benchByDate.get(p.date) ?? 0,
+          price_index: i + 1,
+        }));
+      }
+    }
 
     return { timeline, benchmarkSeries };
   }, [
@@ -363,6 +377,8 @@ export function ResultsDashboard({
     result.dynamic_objective_benchmark_series,
     result.narrative_facts,
     selected?.analytics,
+    benchmarkEquity,
+    equity,
   ]);
 
   const preserveTrialOrder = Boolean(result.narrative_facts.is_round_view);
@@ -1092,6 +1108,31 @@ export function ResultsDashboard({
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+
+        {dynamicObjectiveChart && (
+          <div className="mt-5 border-t-2 border-[var(--border)] pt-4">
+            <h4 className="mb-1 font-pixel text-[8px] text-neon glow-title">
+              動態目標時間軸
+            </h4>
+            <p className="mb-3 text-xs text-dim">
+              Jasper 依 walk-forward 步驟切換最佳化目標；背景色帶僅顯示作用中目標（與上方績效曲線連動游標）。
+            </p>
+            {(result.narrative_facts.dynamic_objectives_used as string[] | undefined)
+              ?.length ? (
+              <p className="mb-2 text-xs text-dim">
+                本次使用目標：{" "}
+                {(result.narrative_facts.dynamic_objectives_used as string[]).join(
+                  "、",
+                )}
+              </p>
+            ) : null}
+            <DynamicObjectiveTimelineChart
+              benchmarkSeries={dynamicObjectiveChart.benchmarkSeries}
+              timeline={dynamicObjectiveChart.timeline}
+              benchmarkTicker={benchTicker}
+            />
+          </div>
+        )}
       </ChartCard>
 
       <ChartCard title="Efficient frontier (samples)">
@@ -1305,47 +1346,6 @@ export function ResultsDashboard({
           </div>
         )}
       </ChartCard>
-
-      {dynamicObjectiveChart && (
-        <div className="pixel-panel border-[var(--cyan)] p-5">
-          <h3 className="font-pixel text-xs text-neon glow-title">
-            DYNAMIC OBJECTIVE TIMELINE
-          </h3>
-          <p className="mt-1 text-xs text-dim">
-            Jasper selects objective based on market conditions (regime V2 on benchmark).
-          </p>
-          {(result.narrative_facts.current_regime as { regime?: string; objective?: string } | undefined) && (
-            <p className="mt-2 text-xs text-dim">
-              End of sample:{" "}
-              <span className="text-[var(--cyan)]">
-                {String(
-                  (result.narrative_facts.current_regime as { regime?: string }).regime ?? "—",
-                )}
-              </span>
-              {" → "}
-              <span className="text-neon">
-                {String(
-                  (result.narrative_facts.current_regime as { objective?: string }).objective ??
-                    "—",
-                )}
-              </span>
-            </p>
-          )}
-          {(result.narrative_facts.dynamic_objectives_used as string[] | undefined)?.length ? (
-            <p className="mt-1 text-xs text-dim">
-              Objectives used:{" "}
-              {(result.narrative_facts.dynamic_objectives_used as string[]).join(", ")}
-            </p>
-          ) : null}
-          <div className="mt-4">
-            <DynamicObjectiveTimelineChart
-              benchmarkSeries={dynamicObjectiveChart.benchmarkSeries}
-              timeline={dynamicObjectiveChart.timeline}
-              benchmarkTicker={benchTicker}
-            />
-          </div>
-        </div>
-      )}
 
       <InstitutionalReport candidate={top} benchmark={benchTicker} />
 

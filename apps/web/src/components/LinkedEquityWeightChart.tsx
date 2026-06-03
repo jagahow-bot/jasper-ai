@@ -14,8 +14,15 @@ import {
   YAxis,
 } from "recharts";
 import { ChartTooltip } from "@/components/ChartTooltip";
+import {
+  JASPER_PERFORMANCE_CHART_SYNC,
+  LAB_CHART_MARGIN,
+  LAB_Y_AXIS_WIDTH,
+  labXAxisProps,
+  parseDateTs,
+} from "@/lib/benchmark-chart-scale";
 
-const SYNC_ID = "equity-weight-linked";
+const WEIGHT_SYNC_ID = "equity-weight-linked";
 
 type EquityPoint = { date: string; value: number };
 
@@ -45,12 +52,21 @@ export function LinkedEquityWeightChart({
       const benchNorm = benchByDate.get(row.date);
       return {
         date: row.date,
+        ts: parseDateTs(row.date),
         portfolio: portNorm - 100,
         benchmark:
           benchNorm != null && Number.isFinite(benchNorm) ? benchNorm - 100 : null,
       };
     });
   }, [equityCurve, benchmarkCurve]);
+
+  const equityDateDomain = useMemo(() => {
+    const stamps = equityChartData
+      .map((r) => r.ts)
+      .filter((t) => Number.isFinite(t));
+    if (!stamps.length) return null;
+    return { min: Math.min(...stamps), max: Math.max(...stamps) };
+  }, [equityChartData]);
 
   const weightChartData = useMemo(() => {
     if (!weightHistory.length) return [];
@@ -106,19 +122,28 @@ export function LinkedEquityWeightChart({
               Cumulative return % · portfolio vs {benchmarkLabel}
             </p>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={equityChartData} syncId={SYNC_ID}>
+              <LineChart
+                {...JASPER_PERFORMANCE_CHART_SYNC}
+                data={equityChartData}
+                margin={LAB_CHART_MARGIN}
+              >
                 <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
                 <XAxis
-                  dataKey="date"
-                  stroke="#94a3b8"
-                  fontSize={10}
-                  minTickGap={28}
-                  tickFormatter={tickFmt}
+                  {...(equityDateDomain
+                    ? labXAxisProps(equityDateDomain.min, equityDateDomain.max)
+                    : {
+                        dataKey: "date" as const,
+                        stroke: "#94a3b8",
+                        fontSize: 10,
+                        minTickGap: 28,
+                        tickFormatter: tickFmt,
+                      })}
                 />
                 <YAxis
                   domain={["auto", "auto"]}
                   stroke="#94a3b8"
                   fontSize={11}
+                  width={LAB_Y_AXIS_WIDTH}
                   tickFormatter={(v) => `${Number(v).toFixed(1)}%`}
                 />
                 <Tooltip
@@ -158,7 +183,7 @@ export function LinkedEquityWeightChart({
               Weight history (stacked)
             </p>
             <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={weightChartData} syncId={SYNC_ID}>
+              <AreaChart data={weightChartData} syncId={WEIGHT_SYNC_ID}>
                 <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"

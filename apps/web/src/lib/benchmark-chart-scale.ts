@@ -7,8 +7,15 @@ import type {
 
 /** Shared sync + layout for Objective Switch Lab benchmark + score charts. */
 export const LAB_CHART_SYNC_ID = "objectiveSwitchLab";
-/** Backtest report: dynamic objective timeline + optional regime strip. */
-export const DYNAMIC_OBJECTIVE_CHART_SYNC_ID = "dynamicObjectiveBacktest";
+/** Results dashboard: equity performance + dynamic objective timeline (linked hover). */
+export const JASPER_PERFORMANCE_SYNC_ID = "jasperPerformance";
+/** @deprecated Use JASPER_PERFORMANCE_SYNC_ID */
+export const DYNAMIC_OBJECTIVE_CHART_SYNC_ID = JASPER_PERFORMANCE_SYNC_ID;
+
+export const JASPER_PERFORMANCE_CHART_SYNC = {
+  syncId: JASPER_PERFORMANCE_SYNC_ID,
+  syncMethod: "value" as const,
+};
 export const LAB_CHART_MARGIN = { top: 8, right: 8, left: 0, bottom: 0 };
 export const LAB_Y_AXIS_WIDTH = 44;
 
@@ -100,22 +107,29 @@ export function dateRatio(ts: number, min: number, max: number): number {
   return (ts - min) / (max - min);
 }
 
+/** Neon-tinted objective bands (main chart background). */
 export const OBJECTIVE_BAND_COLORS: Record<string, string> = {
-  max_sharpe: "rgba(96, 165, 250, 0.16)",
-  max_return: "rgba(52, 211, 153, 0.16)",
-  min_max_drawdown: "rgba(248, 113, 113, 0.16)",
+  max_sharpe: "rgba(0, 245, 255, 0.32)",
+  max_return: "rgba(57, 255, 20, 0.32)",
+  min_max_drawdown: "rgba(255, 43, 214, 0.32)",
 };
 
 export const OBJECTIVE_STRIP_COLORS: Record<string, string> = {
-  max_sharpe: "rgba(96, 165, 250, 0.55)",
-  max_return: "rgba(52, 211, 153, 0.55)",
-  min_max_drawdown: "rgba(248, 113, 113, 0.55)",
+  max_sharpe: "rgba(0, 245, 255, 0.85)",
+  max_return: "rgba(57, 255, 20, 0.85)",
+  min_max_drawdown: "rgba(255, 43, 214, 0.85)",
 };
 
 export const OBJECTIVE_DISPLAY_LABELS: Record<string, string> = {
   max_sharpe: "Max Sharpe",
   max_return: "Max Return",
   min_max_drawdown: "Min Max Drawdown",
+};
+
+export const OBJECTIVE_DISPLAY_LABELS_ZH: Record<string, string> = {
+  max_sharpe: "最大夏普",
+  max_return: "最大報酬",
+  min_max_drawdown: "最小最大回撤",
 };
 
 export type ObjectiveBandRange = { startTs: number; endTs: number; objective: string };

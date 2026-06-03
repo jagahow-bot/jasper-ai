@@ -2,19 +2,17 @@
 
 import {
   activeObjectiveAtTs,
-  activeRegimeAtTs,
   computeSharedDateDomain,
-  DYNAMIC_OBJECTIVE_CHART_SYNC_ID,
   formatAxisDate,
+  JASPER_PERFORMANCE_CHART_SYNC,
   LAB_CHART_MARGIN,
   LAB_Y_AXIS_WIDTH,
   labXAxisProps,
   OBJECTIVE_BAND_COLORS,
-  OBJECTIVE_DISPLAY_LABELS,
+  OBJECTIVE_DISPLAY_LABELS_ZH,
   OBJECTIVE_STRIP_COLORS,
   objectiveBandRanges,
   parseDateTs,
-  regimeBandRanges,
 } from "@/lib/benchmark-chart-scale";
 import type {
   BenchmarkSeriesPoint,
@@ -34,18 +32,6 @@ import {
 
 const MAIN_CHART_HEIGHT = 220;
 const OBJECTIVE_STRIP_HEIGHT = 24;
-const REGIME_STRIP_HEIGHT = 20;
-
-const REGIME_COLORS: Record<string, string> = {
-  risk_off: "rgba(255, 80, 80, 0.45)",
-  neutral: "rgba(255, 176, 0, 0.45)",
-  risk_on: "rgba(0, 220, 180, 0.45)",
-};
-
-const CHART_SYNC = {
-  syncId: DYNAMIC_OBJECTIVE_CHART_SYNC_ID,
-  syncMethod: "value" as const,
-};
 
 type Props = {
   benchmarkSeries: BenchmarkSeriesPoint[];
@@ -64,27 +50,20 @@ function DynamicObjectiveTooltip({
   if (!Number.isFinite(ts)) return null;
   const value = payload[0]?.value;
   const objective = activeObjectiveAtTs(ts, timeline);
-  const regime = activeRegimeAtTs(
-    ts,
-    timeline as { date: string; regime: string; objective: string }[],
-  );
 
   return (
     <div
       className="rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-[11px]"
       style={{ fontSize: 11 }}
     >
-      <p className="text-[var(--foreground)]">Date: {formatAxisDate(ts)}</p>
+      <p className="text-[var(--foreground)]">日期：{formatAxisDate(ts)}</p>
       {objective && (
         <p className="text-dim">
-          Active objective:{" "}
-          {OBJECTIVE_DISPLAY_LABELS[objective] ?? objective}
+          目標：{OBJECTIVE_DISPLAY_LABELS_ZH[objective] ?? objective}
         </p>
       )}
-      {regime && <p className="text-dim">Regime: {regime}</p>}
       <p className="text-dim">
-        Cumulative return:{" "}
-        {typeof value === "number" ? `${value.toFixed(2)}%` : "—"}
+        報酬率：{typeof value === "number" ? `${value.toFixed(2)}%` : "—"}
       </p>
     </div>
   );
@@ -96,18 +75,16 @@ export function DynamicObjectiveTimelineChart({
   benchmarkTicker,
 }: Props) {
   if (!benchmarkSeries.length) {
-    return <p className="text-xs text-dim">No benchmark series for chart.</p>;
+    return <p className="text-xs text-dim">尚無基準序列可繪圖。</p>;
   }
 
-  const regimeTimeline = timeline as Parameters<typeof computeSharedDateDomain>[1];
-  const domain = computeSharedDateDomain(benchmarkSeries, regimeTimeline);
+  const domain = computeSharedDateDomain(benchmarkSeries, timeline);
   if (!domain) {
-    return <p className="text-xs text-dim">No valid dates for chart.</p>;
+    return <p className="text-xs text-dim">無有效日期可繪圖。</p>;
   }
 
   const { min: domainMin, max: domainMax } = domain;
   const objectiveBands = objectiveBandRanges(timeline, domainMax);
-  const regimeBands = regimeBandRanges(regimeTimeline, domainMax, "active_regime");
   const chartData = benchmarkSeries.map((p) => ({
     ...p,
     ts: parseDateTs(p.date),
@@ -124,7 +101,11 @@ export function DynamicObjectiveTimelineChart({
   return (
     <div className="space-y-1">
       <ResponsiveContainer width="100%" height={MAIN_CHART_HEIGHT}>
-        <LineChart {...CHART_SYNC} data={chartData} margin={LAB_CHART_MARGIN}>
+        <LineChart
+          {...JASPER_PERFORMANCE_CHART_SYNC}
+          data={chartData}
+          margin={LAB_CHART_MARGIN}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
           <XAxis {...xAxis} />
           <YAxis
@@ -149,14 +130,18 @@ export function DynamicObjectiveTimelineChart({
             stroke="var(--cyan)"
             dot={false}
             strokeWidth={1.5}
-            name={`${benchmarkTicker} cum. %`}
+            name={`${benchmarkTicker} 累積 %`}
           />
         </LineChart>
       </ResponsiveContainer>
 
       {timeline.length > 0 && (
         <ResponsiveContainer width="100%" height={OBJECTIVE_STRIP_HEIGHT}>
-          <LineChart {...CHART_SYNC} data={stripAnchor} margin={LAB_CHART_MARGIN}>
+          <LineChart
+            {...JASPER_PERFORMANCE_CHART_SYNC}
+            data={stripAnchor}
+            margin={LAB_CHART_MARGIN}
+          >
             <XAxis {...xAxis} hide />
             <YAxis hide domain={[0, 1]} width={LAB_Y_AXIS_WIDTH} />
             {objectiveBands.map((b, i) => {
@@ -181,32 +166,6 @@ export function DynamicObjectiveTimelineChart({
         </ResponsiveContainer>
       )}
 
-      {regimeBands.length > 0 && (
-        <ResponsiveContainer width="100%" height={REGIME_STRIP_HEIGHT}>
-          <LineChart {...CHART_SYNC} data={stripAnchor} margin={LAB_CHART_MARGIN}>
-            <XAxis {...xAxis} hide />
-            <YAxis hide domain={[0, 1]} width={LAB_Y_AXIS_WIDTH} />
-            {regimeBands.map((b, i) => {
-              const row = timeline[i];
-              const fill = REGIME_COLORS[b.regime] ?? "var(--border)";
-              return (
-                <ReferenceArea
-                  key={`reg-${row.date}`}
-                  x1={b.startTs}
-                  x2={b.endTs}
-                  y1={0}
-                  y2={1}
-                  fill={fill}
-                  fillOpacity={0.55}
-                  strokeOpacity={0}
-                  ifOverflow="hidden"
-                />
-              );
-            })}
-          </LineChart>
-        </ResponsiveContainer>
-      )}
-
       <div className="flex flex-wrap gap-3 text-[10px] text-dim">
         {objectivesInRun.map((obj) => (
           <span key={obj} className="inline-flex items-center gap-1">
@@ -217,35 +176,12 @@ export function DynamicObjectiveTimelineChart({
                   OBJECTIVE_BAND_COLORS[obj] ?? "var(--border)",
               }}
             />
-            {OBJECTIVE_DISPLAY_LABELS[obj] ?? obj}
+            {OBJECTIVE_DISPLAY_LABELS_ZH[obj] ?? obj}
           </span>
         ))}
-        <span className="inline-flex items-center gap-1">
-          <span
-            className="inline-block h-2 w-3 rounded-sm border border-[var(--border)]"
-            style={{ backgroundColor: "var(--amber)" }}
-          />
-          objective switch
-        </span>
-        {regimeBands.length > 0 && (
-          <>
-            <span className="text-dim">· regime strip:</span>
-            {Object.entries(REGIME_COLORS).map(([regime, color]) => (
-              <span key={regime} className="inline-flex items-center gap-1">
-                <span
-                  className="inline-block h-2 w-2 rounded-sm"
-                  style={{ backgroundColor: color }}
-                />
-                {regime}
-              </span>
-            ))}
-          </>
-        )}
       </div>
       <p className="text-[10px] text-dim">
-        Top: {benchmarkTicker} cumulative return (%). Background = effective objective per
-        walk-forward step. Middle strip = objective (amber = switch). Bottom strip = market
-        regime when shown. Linked hover across panels.
+        上：{benchmarkTicker} 累積報酬（%），背景色為各 walk-forward 步驟的作用中目標。下：目標色帶（琥珀色＝切換）。與上方績效圖連動游標。
       </p>
     </div>
   );
