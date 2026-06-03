@@ -1335,11 +1335,13 @@ def _round_seed_response_schema(
             "properties": choice_props,
         },
     }
-    if include_regime_matrix and not compact:
+    if include_regime_matrix:
         properties["regime_setups"] = dict(_REGIME_SETUPS_SCHEMA)
     properties["optimization_strategy"] = {"type": "STRING"}
     properties["performance_assessment"] = {"type": "STRING"}
     required = ["round_setup"]
+    if include_regime_matrix:
+        required.append("regime_setups")
     if require_rationale:
         properties["rationale"] = {"type": "STRING"}
         required.append("rationale")
@@ -1777,6 +1779,7 @@ Constraints: {constraints_compact}
 Return STRICT JSON only (sparse — omit empty factor_choices if none):
 {{"rationale":"...", "optimization_strategy":"...", "performance_assessment":"...",
 "round_setup":{{...}},
+{('"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
 "factor_ranges":{{"w_mom":[0.2,1.8],"w_reversal":[0.1,1.2],"w_value":[0.0,1.0]}},
 "factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
 """
@@ -1788,12 +1791,21 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
     last_error = ""
     for attempt in range(max_retries):
         compact = attempt > 0
+        compact_tail = (
+            '{"rationale":"...","optimization_strategy":"...","performance_assessment":"...",'
+            '"round_setup":{...},'
+            + (
+                '"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},'
+                if dynamic_matrix
+                else ""
+            )
+            + '"factor_ranges":{...},"factor_choices":{...}}'
+        )
         req_prompt = prompt if not compact else (
             prompt[:1000]
             + "\nIMPORTANT: single JSON only, max 4 decimals, omit optional alloc weights and "
             "unchanged factor_ranges/factor_choices. "
-            '{"rationale":"...","optimization_strategy":"...","performance_assessment":"...",'
-            '"round_setup":{...},"factor_ranges":{...},"factor_choices":{...}}'
+            + compact_tail
         )
         generation_config: dict[str, Any] = {
             "temperature": 0.0,

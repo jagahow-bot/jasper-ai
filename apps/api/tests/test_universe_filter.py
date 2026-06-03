@@ -22,18 +22,28 @@ def test_get_universe_ticker_whitelist_within_asset_classes():
 
 
 def test_get_universe_supplement_unions_onto_base():
-    """Base from equity+bond; supplement adds commodity ticker outside base classes."""
+    """Supplements within allowed asset classes union onto the base pool."""
     base = get_universe(asset_classes=["equity", "bond"])
     base_set = {u["ticker"] for u in base}
-    supplement = ["GLD"]
+    supplement = ["AGG"]
     combined = get_universe(
         asset_classes=["equity", "bond"],
         supplement_tickers=supplement,
     )
     combined_set = {u["ticker"] for u in combined}
     assert base_set.issubset(combined_set)
-    assert "GLD" in combined_set
+    assert "AGG" in combined_set
     assert len(combined) >= len(base)
+
+
+def test_get_universe_supplement_skips_outside_asset_classes():
+    base = get_universe(asset_classes=["equity", "bond"])
+    combined = get_universe(
+        asset_classes=["equity", "bond"],
+        supplement_tickers=["GLD"],
+    )
+    assert "GLD" not in {u["ticker"] for u in combined}
+    assert len(combined) == len(base)
 
 
 def test_get_universe_supplement_dedupes_existing_base():
@@ -66,9 +76,13 @@ def test_pin_guaranteed_supplements_after_refine_dedupe():
     from app.profiles import pin_guaranteed_supplements
 
     refined = [{"ticker": "SPY", "asset_class": "equity", "category": "us_broad"}]
-    pinned = pin_guaranteed_supplements(refined, ["GLD", "BTAL"])
+    pinned = pin_guaranteed_supplements(
+        refined, ["AGG", "BTAL"], asset_classes=["equity", "bond", "alternative"]
+    )
     tickers = {u["ticker"] for u in pinned}
-    assert tickers == {"SPY", "GLD", "BTAL"}
+    assert "SPY" in tickers
+    assert "AGG" in tickers
+    assert "BTAL" in tickers
 
 
 def test_resolve_universe_filter_prompts_ignores_joined_duplicate_text():

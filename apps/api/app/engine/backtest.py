@@ -398,6 +398,8 @@ def _run_iterative_search(
             trials_per_round=n_trials,
             total_trial_budget=est_trials,
         )
+        if use_regime_matrix:
+            learning_context["dynamic_regime_matrix"] = True
         if champion_record and round_idx > 0:
             n_failed = len(learning_context.get("failed_challengers", []))
             report_progress(
@@ -423,7 +425,7 @@ def _run_iterative_search(
             )
 
         ai_generation = generate_ai_round_seed(
-            objective=trial_objective,
+            objective=objective_effective,
             rebalance_freq=rebalance_rule,
             max_weight_cap=req.max_weight,
             max_turnover_cap=req.max_turnover,
@@ -472,11 +474,19 @@ def _run_iterative_search(
                     convergence_history[-24:],
                 )
         else:
+            regime_note = ""
+            if has_regime_matrix(regime_setups):
+                modes = [
+                    f"{r}:{regime_setups[r].get('mode')}"
+                    for r in ("risk_off", "neutral", "risk_on")
+                    if isinstance(regime_setups.get(r), dict)
+                ]
+                regime_note = f"regime matrix ({', '.join(modes)}) + "
             report_progress(
                 global_trial,
                 est_trials,
                 f"Round {round_idx + 1}: AI round seed "
-                f"({'regime matrix + ' if has_regime_matrix(regime_setups) else ''}"
+                f"({regime_note}"
                 f"setup + {len(factor_ranges)} factor ranges)",
                 champion_record[2]["sharpe"] if champion_record else None,
                 round_idx + 1,
@@ -1444,11 +1454,13 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     universe_plan = refine_universe_with_ai(
         universe=universe,
         objective=trial_objective if dynamic_mode else objective_effective,
+        asset_classes=req.asset_classes,
     )
     # Pinned supplements survive category dedupe during refine (保證名單).
     universe = pin_guaranteed_supplements(
         universe_plan["universe"],
         guaranteed_supplements or None,
+        asset_classes=req.asset_classes,
     )
     universe_pool_count = len(universe)
     universe_meta = get_universe_meta()
@@ -2109,7 +2121,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "rebalance_count": full_m.get("rebalance_count"),
         "rebalance_applied": full_m.get("rebalance_applied"),
         "rebalance_skipped": full_m.get("rebalance_skipped"),
-        "universe_size": universe_meta["count"],
+        "universe_size": universe_pool_count,
+        "universe_catalog_size": universe_meta["count"],
         "tradable_count": len(tickers),
         "asset_classes_filter": req.asset_classes,
         "universe_categories_filter": req.universe_categories,
@@ -2122,6 +2135,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             "benchmark_ticker": spec.benchmark_ticker,
             "selected_count": len(tickers),
             "pool_count": universe_pool_count,
+            "asset_classes_filter": universe_plan.get("asset_classes_filter")
+            or req.asset_classes,
             "rationale": universe_plan.get("rationale"),
             "grouped_categories": universe_plan.get("grouped_categories"),
             "pick_representatives_per_category": universe_plan.get(

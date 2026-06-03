@@ -97,7 +97,12 @@ export function combinedUniverseFromRequest(req: {
   const base = getTickers({ assetClasses: req.asset_classes });
   const sup = (req.universe_supplement_tickers ?? []).filter(Boolean);
   if (!sup.length) return { assetClasses: req.asset_classes };
-  const merged = [...new Set([...base, ...sup])];
+  const allowed = new Set(req.asset_classes);
+  const supInClass = filterUniverse(getUniverseItems(), {
+    assetClasses: req.asset_classes,
+    tickers: sup,
+  }).map((u) => u.ticker);
+  const merged = [...new Set([...base, ...supInClass])];
   return { tickers: merged };
 }
 

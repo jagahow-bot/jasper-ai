@@ -37,7 +37,10 @@ def get_universe(
         base = [u for u in base if u.get("asset_class") in allowed]
 
     if supplement_tickers:
-        return _union_supplement_items(base, all_items, supplement_tickers)
+        allowed = set(asset_classes) if asset_classes else None
+        return _union_supplement_items(
+            base, all_items, supplement_tickers, allowed_asset_classes=allowed
+        )
 
     items = base
     if categories:
@@ -53,6 +56,8 @@ def _union_supplement_items(
     base: list[dict[str, Any]],
     all_items: list[dict[str, Any]],
     supplement_tickers: list[str],
+    *,
+    allowed_asset_classes: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Union AI-filter supplement tickers onto the asset-class base pool."""
     sup_set = {str(t).upper() for t in supplement_tickers}
@@ -60,15 +65,20 @@ def _union_supplement_items(
     out = list(base)
     for u in all_items:
         t = str(u.get("ticker", "")).upper()
-        if t in sup_set and t not in seen:
-            out.append(u)
-            seen.add(t)
+        if t not in sup_set or t in seen:
+            continue
+        if allowed_asset_classes and str(u.get("asset_class", "")) not in allowed_asset_classes:
+            continue
+        out.append(u)
+        seen.add(t)
     return out
 
 
 def pin_guaranteed_supplements(
     refined_universe: list[dict[str, Any]],
     supplement_tickers: list[str] | None,
+    *,
+    asset_classes: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Re-attach AI filter supplement tickers after refine_universe_with_ai.
 
@@ -79,7 +89,13 @@ def pin_guaranteed_supplements(
     if not supplement_tickers:
         return refined_universe
     all_items = load_universe_file()["universe"]
-    return _union_supplement_items(refined_universe, all_items, supplement_tickers)
+    allowed = set(asset_classes) if asset_classes else None
+    return _union_supplement_items(
+        refined_universe,
+        all_items,
+        supplement_tickers,
+        allowed_asset_classes=allowed,
+    )
 
 
 def _count_field(items: list[dict[str, Any]], key: str) -> dict[str, int]:

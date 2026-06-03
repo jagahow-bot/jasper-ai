@@ -85,6 +85,7 @@ def refine_universe_with_ai(
     *,
     universe: list[dict[str, Any]],
     objective: str,
+    asset_classes: list[str] | None = None,
     pick_representatives_per_category: bool | None = None,
 ) -> dict[str, Any]:
     """Filter universe by asset classes (caller) and suggest benchmark.
@@ -113,6 +114,7 @@ def refine_universe_with_ai(
             "benchmark_ticker": b,
             "source": "rules",
             "grouped_categories": grouped,
+            "asset_classes_filter": asset_classes or [],
             "pick_representatives_per_category": pick_reps,
         }
 
@@ -138,6 +140,7 @@ def refine_universe_with_ai(
     else:
         prompt = {
             "objective": objective,
+            "asset_classes_filter": asset_classes or [],
             "grouped_categories": grouped,
             "benchmark_candidates": _BENCHMARK_CANDIDATES,
             "task": (
@@ -216,6 +219,7 @@ def refine_universe_with_ai(
             "source": "ai",
             "rationale": obj.get("rationale"),
             "grouped_categories": grouped,
+            "asset_classes_filter": asset_classes or [],
             "category_notes": obj.get("category_notes"),
             "pick_representatives_per_category": pick_reps,
         }
@@ -229,5 +233,6 @@ def refine_universe_with_ai(
             "benchmark_ticker": b,
             "source": "rules",
             "grouped_categories": grouped,
+            "asset_classes_filter": asset_classes or [],
             "pick_representatives_per_category": pick_reps,
         }

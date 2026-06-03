@@ -416,3 +416,91 @@ def test_generate_ai_round_seed_max_tokens_returns_disabled(monkeypatch):
     )
     assert out["enabled"] is False
     assert out["error"] == "gemini_max_tokens"
+
+
+def test_generate_ai_round_seed_dynamic_includes_regime_setups_schema(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3-flash-preview")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_thinking_level", "off")
+    captured: dict = {}
+
+    class _FakeResp:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "candidates": [
+                    {
+                        "finishReason": "STOP",
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "rationale": "dynamic seed",
+                                            "optimization_strategy": "explore",
+                                            "performance_assessment": "round 1",
+                                            "round_setup": {
+                                                "mode": "mean_variance",
+                                                "lookback_days": 252,
+                                                "shrinkage": 0.1,
+                                                "risk_aversion": 2.0,
+                                                "top_n_actual": 10,
+                                                "max_weight_actual": 0.15,
+                                                "max_turnover_actual": 0.3,
+                                                "no_trade_tol": 0.01,
+                                                "turnover_penalty_mult": 1.0,
+                                            },
+                                            "regime_setups": {
+                                                "risk_off": {
+                                                    "mode": "min_var",
+                                                    "lookback_days": 252,
+                                                    "shrinkage": 0.2,
+                                                    "risk_aversion": 1.0,
+                                                },
+                                                "neutral": {
+                                                    "mode": "mean_variance",
+                                                    "lookback_days": 126,
+                                                    "shrinkage": 0.1,
+                                                    "risk_aversion": 3.0,
+                                                },
+                                                "risk_on": {
+                                                    "mode": "mean_variance",
+                                                    "lookback_days": 63,
+                                                    "shrinkage": 0.05,
+                                                    "risk_aversion": 1.5,
+                                                },
+                                            },
+                                            "factor_ranges": {"w_mom": [0.1, 1.2]},
+                                            "factor_choices": {},
+                                        }
+                                    )
+                                }
+                            ]
+                        },
+                    }
+                ]
+            }
+
+    def _fake_post(_url: str, *, json: dict | None = None, **_: object) -> _FakeResp:
+        captured["json"] = json
+        return _FakeResp()
+
+    monkeypatch.setattr("app.engine.ai_params.httpx.post", _fake_post)
+    out = generate_ai_round_seed(
+        objective="dynamic",
+        rebalance_freq="W-FRI",
+        max_weight_cap=0.2,
+        max_turnover_cap=0.5,
+        top_n_cap=20,
+        tradable_count=50,
+    )
+    assert out["enabled"] is True
+    schema = captured["json"]["generationConfig"]["responseSchema"]
+    assert "regime_setups" in schema["properties"]
+    assert "regime_setups" in schema["required"]
+    assert out["regime_setups"]["risk_on"]["lookback_days"] == 63
+    prompt = captured["json"]["contents"][0]["parts"][0]["text"]
+    assert "obj=dynamic" in prompt
+    assert "regime_setups" in prompt
