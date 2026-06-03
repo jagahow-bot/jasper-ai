@@ -66,9 +66,10 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
           </p>
           {highTrialCount && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">
-              High trial counts run many backtests. When round-1 batch or challengers
-              exceed 10, Gemini is capped to ~8 AI seeds per round (one batched API
-              call); remaining trials in that round use Optuna&apos;s sampler only.
+              High trial counts run many backtests. Pro uses one Gemini round seed per
+              refinement round (shared setup + factor ranges); Optuna runs all trials in
+              that round within those bounds. The ~8 AI param-seed cap applies only to
+              standard optimization (trial slider), not Pro.
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
