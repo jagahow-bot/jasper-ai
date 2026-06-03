@@ -26,10 +26,10 @@ from app.engine.dynamic_objective import (
     REGIME_KEYS,
     is_dynamic_objective,
 )
+from app.engine.ai_json import dumps_for_ai, sanitize_for_ai
 from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
     FACTOR_NUMERIC_KEYS,
-    PARAM_NUMERIC_DECIMALS,
     SETUP_PARAM_KEYS,
     normalize_round_seed,
 )
@@ -46,43 +46,6 @@ from app.engine.refinement import summarize_params_for_ai
 
 _dir_lock = threading.Lock()
 _direction_cache: dict[str, dict[str, Any]] = {}
-
-_NUMERIC_PARAM_KEYS = frozenset(
-    {
-        "lookback_days",
-        "shrinkage",
-        "risk_aversion",
-        "max_weight_actual",
-        "top_n_actual",
-        "factor_lookback_days",
-        "reversal_lookback_days",
-        "value_lookback_days",
-        "no_trade_tol",
-        "turnover_penalty_mult",
-        "max_turnover_actual",
-        "w_mom",
-        "w_reversal",
-        "w_value",
-        "w_lowvol",
-        "w_trend",
-        "w_drawdown",
-        "w_equity",
-        "w_bond",
-        "w_commodity",
-        "w_real_estate",
-        "w_alternative",
-        "w_equity_us",
-        "w_equity_intl",
-        "w_equity_em",
-        "w_bond_us",
-        "w_bond_intl",
-        "w_bond_credit",
-        "w_commodity_precious",
-        "w_commodity_broad",
-        "w_reit_us",
-        "w_reit_intl",
-    }
-)
 
 _INDICATOR_SCHEMA_PROPS: dict[str, dict[str, str]] = {
     "mom_indicator": {"type": "STRING"},
@@ -121,13 +84,8 @@ _PARAM_SET_CORE_PROPS: dict[str, dict[str, str]] = {
 
 
 def _round_param_numbers(s: dict[str, Any]) -> dict[str, Any]:
-    out: dict[str, Any] = {}
-    for k, v in s.items():
-        if k in _NUMERIC_PARAM_KEYS and isinstance(v, (int, float)):
-            out[k] = round(float(v), PARAM_NUMERIC_DECIMALS)
-        else:
-            out[k] = v
-    return out
+    cleaned = sanitize_for_ai(s)
+    return cleaned if isinstance(cleaned, dict) else dict(s)
 
 
 def _param_set_response_schema(*, minimal: bool) -> dict[str, Any]:
@@ -522,31 +480,31 @@ def _champion_research_lines(learning_context: dict[str, Any]) -> list[str]:
     if isinstance(outputs, dict) and outputs:
         lines.append(
             "  in_sample_outputs="
-            + _compact_line(json.dumps(outputs, sort_keys=True, default=str), 420)
+            + _compact_line(dumps_for_ai(outputs), 420)
         )
     wh = cr.get("weight_history")
     if isinstance(wh, dict) and wh:
         lines.append(
             "  weight_history="
-            + _compact_line(json.dumps(wh, sort_keys=True, default=str), 520)
+            + _compact_line(dumps_for_ai(wh), 520)
         )
     bench = cr.get("benchmark_comparison")
     if isinstance(bench, dict) and bench:
         lines.append(
             "  benchmark_comparison="
-            + _compact_line(json.dumps(bench, sort_keys=True, default=str), 620)
+            + _compact_line(dumps_for_ai(bench), 620)
         )
     holdout = cr.get("holdout_outputs")
     if isinstance(holdout, dict) and holdout:
         lines.append(
             "  holdout_outputs="
-            + _compact_line(json.dumps(holdout, sort_keys=True, default=str), 300)
+            + _compact_line(dumps_for_ai(holdout), 300)
         )
     eq = cr.get("equity_summary")
     if isinstance(eq, dict) and eq:
         lines.append(
             "  equity_summary="
-            + _compact_line(json.dumps(eq, sort_keys=True, default=str), 200)
+            + _compact_line(dumps_for_ai(eq), 200)
         )
     return lines
 
@@ -662,7 +620,7 @@ def _build_learning_context_block(
         if isinstance(wh_cr, dict) and wh_cr:
             lines.append(
                 "weight_history="
-                + _compact_line(json.dumps(wh_cr, sort_keys=True, default=str), 200 if slim else 360)
+                + _compact_line(dumps_for_ai(wh_cr), 200 if slim else 360)
             )
     avoid = learning_context.get("params_to_avoid")
     if isinstance(avoid, list) and avoid:
@@ -1374,7 +1332,7 @@ def _round_seed_learning_max_chars() -> int:
 
 
 def _json_compact(obj: Any) -> str:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
+    return dumps_for_ai(obj)
 
 
 def _fit_round_seed_block(lines: list[str], max_chars: int) -> str:

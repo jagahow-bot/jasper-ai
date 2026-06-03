@@ -17,13 +17,11 @@ from app.engine.dynamic_objective import (
     has_regime_matrix,
     normalize_regime_setups,
 )
+from app.engine.ai_json import PARAM_NUMERIC_DECIMALS, round_ai_float
 from app.models import Objective
 
 # Run-level optimization objectives (not allocator modes).
 RUN_OBJECTIVE_MODE_VALUES: frozenset[str] = frozenset(m.value for m in Objective)
-
-# Half-up rounding for AI param / Pro round seed numerics (四捨五入到小數第 4 位).
-PARAM_NUMERIC_DECIMALS = 4
 
 ALLOCATOR_MODE_KEY = "mode"
 
@@ -175,7 +173,10 @@ def complete_factor_ranges(
                 if key.endswith("_days"):
                     out[key] = [int(lo), int(hi)]
                 else:
-                    out[key] = [_round_seed_numeric(lo), _round_seed_numeric(hi)]
+                    out[key] = [
+                        _round_seed_numeric(lo, key=key),
+                        _round_seed_numeric(hi, key=key),
+                    ]
                 continue
         defaults = DEFAULT_FACTOR_BOUNDS.get(key)
         if defaults is None:
@@ -189,7 +190,10 @@ def complete_factor_ranges(
         if key.endswith("_days"):
             out[key] = [int(lo), int(hi)]
         else:
-            out[key] = [_round_seed_numeric(lo), _round_seed_numeric(hi)]
+            out[key] = [
+                _round_seed_numeric(lo, key=key),
+                _round_seed_numeric(hi, key=key),
+            ]
     return out
 
 
@@ -278,9 +282,9 @@ def build_pro_round_param_controls(
     return controls
 
 
-def _round_seed_numeric(value: Any) -> Any:
+def _round_seed_numeric(value: Any, *, key: str | None = None) -> Any:
     if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return round(float(value), PARAM_NUMERIC_DECIMALS)
+        return round_ai_float(float(value), key=key)
     return value
 
 
@@ -321,7 +325,7 @@ def summarize_prior_round_seed(
         elif key != ALLOCATOR_MODE_KEY and isinstance(val, (int, float)) and not isinstance(
             val, bool
         ):
-            setup[key] = _round_seed_numeric(val)
+            setup[key] = _round_seed_numeric(val, key=key)
     ranges = dict(seed_dict.get("factor_ranges") or {})
     choices = dict(seed_dict.get("factor_choices") or {})
     for key, val in list(choices.items()):
@@ -368,7 +372,7 @@ def normalize_round_seed(
                 elif key == ALLOCATOR_MODE_KEY:
                     out["round_setup"][key] = str(val)
                 else:
-                    out["round_setup"][key] = _round_seed_numeric(val)
+                    out["round_setup"][key] = _round_seed_numeric(val, key=key)
 
     raw_ranges = seed.get("factor_ranges") or {}
     if isinstance(raw_ranges, dict):

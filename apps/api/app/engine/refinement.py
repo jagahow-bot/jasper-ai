@@ -12,6 +12,7 @@ BenchmarkStatus = Literal["above", "below", "unknown"]
 from app.engine.analytics import benchmark_relative
 from app.engine.dynamic_objective import is_dynamic_objective
 from app.engine.objectives import compute_objective_score, objective_label
+from app.engine.ai_json import dumps_for_ai, round_ai_float, sanitize_for_ai
 from app.engine.param_taxonomy import summarize_prior_round_seed
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
 
@@ -588,12 +589,18 @@ def _benchmark_comparison_summary(
             )
             if len(port_eq) > 1
             else None,
-            "beta": rel.get("beta"),
-            "alpha": rel.get("alpha") or rel.get("alpha_annual"),
-            "information_ratio": rel.get("information_ratio"),
-            "tracking_error": rel.get("tracking_error"),
-            "up_capture": rel.get("up_capture"),
-            "down_capture": rel.get("down_capture"),
+            **{
+                k: round_ai_float(float(v), key=k)
+                for k, v in {
+                    "beta": rel.get("beta"),
+                    "alpha": rel.get("alpha") or rel.get("alpha_annual"),
+                    "information_ratio": rel.get("information_ratio"),
+                    "tracking_error": rel.get("tracking_error"),
+                    "up_capture": rel.get("up_capture"),
+                    "down_capture": rel.get("down_capture"),
+                }.items()
+                if v is not None
+            },
         }
     except Exception:
         pass
@@ -905,7 +912,7 @@ def build_gemini_learning_context(
         ),
     }
 
-    return {
+    ctx = {
         "mission": (
             f"Round {round_number}: study the CHAMPION RESEARCH dossier (params, outputs, "
             f"weight history, benchmark comparison over the in-sample window). "
@@ -953,6 +960,8 @@ def build_gemini_learning_context(
             "then surpass the champion objective, without copying failed parameter sets."
         ),
     }
+    cleaned = sanitize_for_ai(ctx)
+    return cleaned if isinstance(cleaned, dict) else ctx
 
 
 def summarize_params_for_ai(params: dict[str, Any], *, full: bool = False) -> str:
@@ -968,7 +977,7 @@ def summarize_params_for_ai(params: dict[str, Any], *, full: bool = False) -> st
         }
         compact = {k: v for k, v in params.items() if k not in skip}
         try:
-            return json.dumps(compact, sort_keys=True, default=str)[:900]
+            return dumps_for_ai(compact, max_len=900)
         except Exception:
             pass
     keys = (
@@ -993,5 +1002,13 @@ def summarize_params_for_ai(params: dict[str, Any], *, full: bool = False) -> st
         "max_turnover_actual",
         "rebalance_freq",
     )
-    parts = [f"{k}={params.get(k)}" for k in keys if k in params]
+    parts: list[str] = []
+    for k in keys:
+        if k not in params:
+            continue
+        v = params[k]
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            parts.append(f"{k}={round_ai_float(float(v), key=k)}")
+        else:
+            parts.append(f"{k}={v}")
     return ", ".join(parts) if parts else str(params)[:120]
