@@ -447,10 +447,28 @@ export function LinkedEquityWeightChart({
                 tickFormatter={(v) => `${(Number(v) * 100).toFixed(0)}%`}
               />
               <Tooltip
-                content={<ChartTooltip valueIsPct valueDecimals={2} />}
+                allowEscapeViewBox={{ x: true, y: true }}
+                wrapperStyle={{ zIndex: 10050, pointerEvents: "none" }}
+                content={
+                  <ChartTooltip
+                    valueIsPct
+                    valueDecimals={2}
+                    sortByValue
+                    usePortal
+                  />
+                }
                 labelFormatter={formatChartTooltipLabel}
               />
-              <Legend wrapperStyle={{ fontSize: legendFont }} />
+              <Legend
+                wrapperStyle={{
+                  fontSize: legendFont,
+                  maxHeight: 128,
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  paddingRight: 6,
+                  lineHeight: 1.35,
+                }}
+              />
               {weightTickers.map((t, i) => (
                 <Area
                   key={t}

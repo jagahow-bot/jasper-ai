@@ -1,4 +1,4 @@
-"""Weight history sleeves: bounded Other band across rebalance dates."""
+"""Weight history sleeves: minimal Other across rebalance dates."""
 
 from __future__ import annotations
 
@@ -7,17 +7,15 @@ import pandas as pd
 
 from app.engine.portfolio import (
     WEIGHT_CHART_MAX_OTHER,
-    WEIGHT_CHART_MAX_SLEEVES,
     _max_other_weight_for_tickers,
     select_weight_chart_tickers,
 )
 
 
-def test_select_weight_chart_tickers_caps_other_across_dates():
+def test_select_weight_chart_tickers_includes_all_material_sleeves():
     dates = pd.bdate_range("2020-01-01", periods=6)
     cols = [f"T{i}" for i in range(12)]
     data = np.zeros((len(dates), len(cols)))
-    # One date: many small weights → large Other if too few sleeves shown.
     data[3, :] = [0.12, 0.11, 0.10, 0.09, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.02, 0.01]
     data[0, 0] = 1.0
     data[1, 1] = 1.0
@@ -27,15 +25,13 @@ def test_select_weight_chart_tickers_caps_other_across_dates():
     schedule = pd.DataFrame(data, index=dates, columns=cols)
     hist = list(dates)
     keep = select_weight_chart_tickers(schedule, hist)
-    assert len(keep) <= WEIGHT_CHART_MAX_SLEEVES
-    # Each period's 100% sleeve must be visible (not lumped into Other).
-    for i in range(5):
-        assert f"T{i}" in keep
+    for t in cols:
+        assert t in keep
     assert _max_other_weight_for_tickers(schedule, hist, keep) <= WEIGHT_CHART_MAX_OTHER + 1e-9
 
 
 def test_select_weight_chart_rotation_union_not_peak_truncated():
-    """User report: many legend sleeves but 40–60% Other after cohort rotation."""
+    """Many legend sleeves but large Other after cohort rotation — include full union."""
     dates = pd.bdate_range("2020-01-01", periods=8)
     early = [f"E{i}" for i in range(11)]
     late = [f"L{i}" for i in range(11)]
@@ -52,6 +48,26 @@ def test_select_weight_chart_rotation_union_not_peak_truncated():
     for t in late:
         assert t in keep
     assert _max_other_weight_for_tickers(schedule, hist, keep) <= 1e-9
+
+
+def test_select_weight_chart_tickers_30_rotating_holdings_other_under_one_pct():
+    """30+ rotating cohorts: Other stays below 1% on every rebalance date."""
+    n_holdings = 32
+    n_periods = 10
+    dates = pd.bdate_range("2020-01-01", periods=n_periods)
+    cols = [f"H{i:02d}" for i in range(n_holdings)]
+    data = np.zeros((n_periods, n_holdings))
+    block = 8
+    for p in range(n_periods):
+        start = (p * block) % n_holdings
+        active = [cols[(start + j) % n_holdings] for j in range(block)]
+        for t in active:
+            data[p, cols.index(t)] = 1.0 / block
+    schedule = pd.DataFrame(data, index=dates, columns=cols)
+    hist = list(dates)
+    keep = select_weight_chart_tickers(schedule, hist)
+    assert len(keep) == n_holdings
+    assert _max_other_weight_for_tickers(schedule, hist, keep) < 0.01
 
 
 def test_weight_history_integration_other_bounded():
@@ -79,4 +95,4 @@ def test_weight_history_integration_other_bounded():
     assert tickers
     for row in wh:
         other = float(row.get("OTHER", 0.0))
-        assert other <= WEIGHT_CHART_MAX_OTHER + 1e-6
+        assert other < 0.01 + 1e-6

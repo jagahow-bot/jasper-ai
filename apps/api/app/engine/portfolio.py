@@ -26,10 +26,9 @@ MAX_DAILY_RETURN = 0.25
 MIN_ANNUAL_VOL = 0.03
 MAX_REPORTED_SHARPE = 6.0
 
-# Stacked weight chart: union holdings visible each rebalance; bound Other when >25 sleeves.
-WEIGHT_CHART_MAX_OTHER = 0.05
-WEIGHT_CHART_MAX_SLEEVES = 25
-WEIGHT_CHART_MIN_PCT = 0.005
+# Stacked weight chart: show every material sleeve; Other only for rounding dust.
+WEIGHT_CHART_MAX_OTHER = 0.01
+WEIGHT_CHART_MIN_PCT = 0.001
 WEIGHT_CHART_DEFAULT_TOP_N = 15
 
 
@@ -57,43 +56,24 @@ def select_weight_chart_tickers(
     *,
     top_n: int = WEIGHT_CHART_DEFAULT_TOP_N,
 ) -> list[str]:
-    """Union per-date top-N, any sleeve >=0.5%, and positive weights; cap Other at 5% when possible."""
-    max_s = schedule.max(axis=0).sort_values(ascending=False)
-    ordered = [str(t) for t in max_s.index if float(max_s[t]) > WEIGHT_EPS]
-    per_date_top = max(int(top_n), WEIGHT_CHART_DEFAULT_TOP_N)
+    """Union of every sleeve with weight >= min display threshold on any rebalance snapshot."""
+    del top_n  # retained for API compatibility; no sleeve-count cap
     keep_set: set[str] = set()
-
     for dt in hist_dates:
         if dt not in schedule.index:
             continue
-        w_row = schedule.loc[dt].sort_values(ascending=False)
-        positive = w_row[w_row > WEIGHT_EPS]
-        for t in positive.head(per_date_top).index:
-            keep_set.add(str(t))
-        for t, w in positive.items():
-            if float(w) >= WEIGHT_CHART_MIN_PCT:
+        w_row = schedule.loc[dt]
+        for t, w in w_row.items():
+            fw = float(w)
+            if fw > WEIGHT_EPS and fw >= WEIGHT_CHART_MIN_PCT:
                 keep_set.add(str(t))
 
-    union = [t for t in ordered if t in keep_set]
-    if not union:
-        return list(ordered[: min(WEIGHT_CHART_MAX_SLEEVES, len(ordered))])
-
-    if len(union) <= WEIGHT_CHART_MAX_SLEEVES:
-        return union
-
-    selected: list[str] = []
-    for t in ordered:
-        if t not in keep_set:
-            continue
-        selected.append(t)
-        if len(selected) >= WEIGHT_CHART_MAX_SLEEVES:
-            break
-        if _max_other_weight_for_tickers(schedule, hist_dates, selected) <= WEIGHT_CHART_MAX_OTHER:
-            break
-
-    if not selected:
-        return union[:WEIGHT_CHART_MAX_SLEEVES]
-    return selected[:WEIGHT_CHART_MAX_SLEEVES]
+    max_s = schedule.max(axis=0).sort_values(ascending=False)
+    return [
+        str(t)
+        for t in max_s.index
+        if str(t) in keep_set and float(max_s[t]) >= WEIGHT_CHART_MIN_PCT
+    ]
 
 
 def split_train_validation(
@@ -729,7 +709,7 @@ def _simulate_pandas(
     metrics["rebalance_freq"] = _normalize_rebalance_rule(spec.rebalance_rule)
     metrics["rebalance_dates"] = [d.strftime("%Y-%m-%d") for d in rebalance_dates]
     metrics["factor_summary"] = factor_summary
-    # Historical weights for UI: rebalance snapshots; top-K sleeves with bounded Other band.
+    # Historical weights for UI: rebalance snapshots; all material sleeves (minimal Other).
     sch = schedule.fillna(0.0)
     hist_dates = [prices.index[0], *rebalance_dates]
     hist_unique = sorted(list(dict.fromkeys(hist_dates)))
