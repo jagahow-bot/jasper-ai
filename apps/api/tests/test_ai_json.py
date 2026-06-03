@@ -14,7 +14,11 @@ from app.engine.ai_json import (
     sanitize_json_text_for_log,
     truncate_json_numeric_literals,
 )
-from app.engine.ai_params import _build_round_seed_learning_block, _extract_json
+from app.engine.ai_params import (
+    _build_round_seed_learning_block,
+    _extract_json,
+    _round_seed_response_schema,
+)
 from app.engine.param_taxonomy import normalize_round_seed, summarize_prior_round_seed
 from app.engine.param_bounds import RunBlueprint
 from app.engine.refinement import summarize_params_for_ai
@@ -220,14 +224,31 @@ def test_sanitize_json_text_for_log_truncates_bloat():
     assert "00000000000" not in excerpt
 
 
-def test_dynamic_sparse_regime_seed_normalized_size_under_threshold():
-    """Regression: completed dynamic seed must stay well under Gemini output budget."""
-    from app.engine.param_taxonomy import normalize_round_seed
+def _full_regime_factor_slice() -> dict[str, list[float | int]]:
+    from app.engine.param_taxonomy import FACTOR_NUMERIC_KEYS
+
+    out: dict[str, list[float | int]] = {}
+    for key in FACTOR_NUMERIC_KEYS:
+        if key.endswith("_days"):
+            out[key] = [126, 504]
+        else:
+            out[key] = [0.0, 1.5]
+    return out
+
+
+def test_dynamic_full_regime_seed_schema_and_compact_json_size():
+    """Full per-regime factor keys (3×FACTOR_NUMERIC_KEYS) fit with compact numerics."""
+    from app.engine.param_taxonomy import (
+        FACTOR_NUMERIC_KEYS,
+        REGIME_KEYS,
+        normalize_round_seed,
+    )
 
     blueprint = RunBlueprint(max_weight=0.15, max_turnover=0.5, top_n=20)
-    sparse_ai = {
+    slice_full = _full_regime_factor_slice()
+    full_ai = {
         "rationale": "Round 1 dynamic explore.",
-        "optimization_strategy": "Wide bands on momentum and low-vol per regime.",
+        "optimization_strategy": "Wide bands per regime on all factor keys.",
         "performance_assessment": "No prior champion.",
         "round_setup": {
             "mode": "max_sharpe",
@@ -242,23 +263,29 @@ def test_dynamic_sparse_regime_seed_normalized_size_under_threshold():
         },
         "regime_setups": {
             "risk_off": {"mode": "min_max_drawdown", "risk_aversion": 6.0, "shrinkage": 0.25},
+            "neutral": {"mode": "mean_variance", "risk_aversion": 3.0, "shrinkage": 0.15},
             "risk_on": {"mode": "max_return", "risk_aversion": 1.5, "shrinkage": 0.05},
         },
         "factor_choices": {
             "mom_indicator": "risk_adjusted_return",
             "trend_indicator": "exponential_moving_average",
         },
-        "regime_factor_ranges": {
-            "risk_off": {"w_mom": [0.0, 0.8], "w_lowvol": [0.5, 1.5]},
-            "risk_on": {"w_mom": [0.8, 1.5], "w_trend": [0.2, 1.0]},
-        },
+        "regime_factor_ranges": {r: dict(slice_full) for r in REGIME_KEYS},
     }
+    schema = _round_seed_response_schema(include_regime_matrix=True)
+    regime_schema = schema["properties"]["regime_factor_ranges"]["properties"]
+    for regime in REGIME_KEYS:
+        assert set(regime_schema[regime]["properties"]) == set(FACTOR_NUMERIC_KEYS)
+
     out = normalize_round_seed(
-        sanitize_ai_response(sparse_ai),
+        sanitize_ai_response(full_ai),
         blueprint=blueprint,
         param_controls=None,
     )
     serialized = dumps_for_ai(out)
-    assert len(serialized) < 3500
-    assert out["regime_factor_ranges"]["risk_off"]["w_mom"] == [0.0, 0.8]
-    assert "factor_lookback_days" in out["regime_factor_ranges"]["risk_off"]
+    assert len(serialized) < 12000
+    for regime in REGIME_KEYS:
+        assert set(out["regime_factor_ranges"][regime].keys()) == set(
+            FACTOR_NUMERIC_KEYS
+        )
+    assert out["regime_factor_ranges"]["risk_off"]["w_mom"] == [0.0, 1.5]

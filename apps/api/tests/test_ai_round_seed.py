@@ -8,19 +8,18 @@ from app.engine.ai_params import (
     _extract_json,
     _round_seed_response_schema,
     round_seed_factor_range_guidance,
-)
-from app.engine.param_taxonomy import (
-    FACTOR_NUMERIC_KEYS,
-    complete_factor_ranges,
-    normalize_round_seed,
+    round_seed_regime_factor_range_guidance,
 )
 from app.engine.param_bounds import RunBlueprint
 from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
     FACTOR_NUMERIC_KEYS,
     PARAM_NUMERIC_DECIMALS,
+    REGIME_KEYS,
     SETUP_PARAM_KEYS,
     _round_seed_numeric,
+    complete_factor_ranges,
+    normalize_round_seed,
 )
 
 
@@ -49,15 +48,28 @@ def test_round_seed_response_schema_compact():
     assert props["factor_choices"]["properties"] == {}
 
 
-def test_round_seed_response_schema_dynamic_sparse_regime_ranges():
+def test_round_seed_response_schema_dynamic_full_regime_ranges():
     schema = _round_seed_response_schema(
         require_rationale=True, include_regime_matrix=True
     )
     props = schema["properties"]
     assert props["factor_ranges"]["properties"] == {}
     regime_props = props["regime_factor_ranges"]["properties"]
-    assert set(regime_props.keys()) == {"risk_off", "neutral", "risk_on"}
-    assert regime_props["risk_off"]["properties"] == {}
+    assert set(regime_props.keys()) == set(REGIME_KEYS)
+    for regime in REGIME_KEYS:
+        assert set(regime_props[regime]["properties"].keys()) == set(
+            FACTOR_NUMERIC_KEYS
+        )
+
+
+def test_round_seed_regime_factor_range_guidance_requires_all_keys():
+    guidance = round_seed_regime_factor_range_guidance(
+        exploration_phase="explore", round_index=1, total_rounds=5
+    )
+    assert "EVERY" in guidance
+    assert "2–4" not in guidance
+    assert "FOCUS" not in guidance
+    assert "risk_off" in guidance and "risk_on" in guidance
 
 
 def test_normalize_round_seed_clips_ranges():

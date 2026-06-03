@@ -45,8 +45,9 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
             Champion-challenger rounds. AI proposes params from history; Optuna
             scores on in-sample objective until the run stalls. With{" "}
             <strong className="text-[var(--fg)]">Dynamic</strong> objective, each Pro
-            round can seed a per-regime allocator matrix (risk-off / neutral / risk-on)
-            and optional per-regime factor search bounds; Optuna samples prefixed params
+            round seeds a per-regime allocator matrix (risk-off / neutral / risk-on)
+            and full per-regime factor search bounds (all numeric factors × three regimes);
+            Optuna samples prefixed params
             (e.g. risk_off__w_mom) and simulation applies the active regime slice each rebalance.
           </p>
         </div>
@@ -71,7 +72,7 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
           {highTrialCount && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">
               High trial counts run many backtests. Pro uses one Gemini round seed per
-              refinement round (shared setup, optional regime matrix and per-regime factor
+              refinement round (shared setup, regime matrix, and complete per-regime factor
               ranges for Dynamic); Optuna runs all trials in that round within those bounds.
               The ~8 AI param-seed cap applies only to standard optimization (trial
               slider), not Pro.

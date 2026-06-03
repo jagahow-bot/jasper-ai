@@ -501,8 +501,23 @@ def test_generate_ai_round_seed_dynamic_includes_regime_setups_schema(monkeypatc
     assert "regime_setups" in schema["properties"]
     assert "regime_setups" in schema["required"]
     assert "regime_factor_ranges" in schema["properties"]
-    assert schema["properties"]["regime_factor_ranges"]["properties"]["risk_off"]["properties"] == {}
+    risk_off_props = schema["properties"]["regime_factor_ranges"]["properties"][
+        "risk_off"
+    ]["properties"]
+    assert set(risk_off_props.keys()) == {
+        "factor_lookback_days",
+        "reversal_lookback_days",
+        "value_lookback_days",
+        "w_mom",
+        "w_reversal",
+        "w_value",
+        "w_lowvol",
+        "w_trend",
+        "w_drawdown",
+    }
     assert out["regime_setups"]["risk_on"]["lookback_days"] == 63
     prompt = captured["json"]["contents"][0]["parts"][0]["text"]
     assert "obj=dynamic" in prompt
     assert "regime_setups" in prompt
+    assert "EVERY" in prompt
+    assert "2–4 FOCUS" not in prompt

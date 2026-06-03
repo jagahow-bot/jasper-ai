@@ -1294,14 +1294,6 @@ _REGIME_FACTOR_RANGES_SCHEMA: dict[str, Any] = {
     "properties": {r: _REGIME_FACTOR_SLICE_SCHEMA for r in REGIME_KEYS},
 }
 
-# Sparse schema: AI emits 2–4 focus keys per regime; server completes the rest.
-_REGIME_FACTOR_RANGES_SCHEMA_SPARSE: dict[str, Any] = {
-    "type": "OBJECT",
-    "properties": {
-        r: {"type": "OBJECT", "properties": {}} for r in REGIME_KEYS
-    },
-}
-
 _FACTOR_RANGE_SCHEMA_PROPS: dict[str, Any] = {
     key: {"type": "ARRAY", "items": factor_range_item_schema(key)}
     for key in FACTOR_NUMERIC_KEYS
@@ -1314,7 +1306,7 @@ def _round_seed_response_schema(
     compact: bool = False,
     include_regime_matrix: bool = False,
 ) -> dict[str, Any]:
-    """Structured output for Pro round seed — sparse objects to limit JSON size."""
+    """Structured output for Pro round seed (full factor keys when regime matrix)."""
     setup_props = dict(_ROUND_SETUP_SCHEMA_CORE)
     range_props: dict[str, Any] = (
         {}
@@ -1343,7 +1335,7 @@ def _round_seed_response_schema(
     }
     if include_regime_matrix:
         properties["regime_setups"] = dict(_REGIME_SETUPS_SCHEMA)
-        properties["regime_factor_ranges"] = dict(_REGIME_FACTOR_RANGES_SCHEMA_SPARSE)
+        properties["regime_factor_ranges"] = dict(_REGIME_FACTOR_RANGES_SCHEMA)
     properties["optimization_strategy"] = {"type": "STRING"}
     properties["performance_assessment"] = {"type": "STRING"}
     required = ["round_setup"]
@@ -1494,14 +1486,30 @@ def round_seed_regime_factor_range_guidance(
 ) -> str:
     """Prompt text for per-regime factor_ranges when dynamic objective + regime matrix."""
     regimes = ", ".join(REGIME_KEYS)
-    focus_keys = ", ".join(FACTOR_NUMERIC_KEYS)
+    all_keys = ", ".join(FACTOR_NUMERIC_KEYS)
+    phase = (exploration_phase or "explore").strip().lower()
+    ri = max(1, int(round_index))
+    if phase == "explore" or ri <= 1:
+        width = (
+            f"EVERY numeric key ({all_keys}) in EACH regime ({regimes}) with WIDE "
+            "[low, high] intervals (meaningful slice of global bounds). Round 1 / explore: "
+            "do NOT narrow toward a single champion guess."
+        )
+    elif phase == "narrow":
+        width = (
+            f"EVERY key ({all_keys}) in EACH regime; narrow intervals on keys that showed "
+            "sensitivity in PRIOR_REGIME_FACTOR_RANGES or CHAMPION; keep other keys moderately wide."
+        )
+    else:
+        width = (
+            f"EVERY key ({all_keys}) in EACH regime; moderately narrow on champion-linked "
+            "factors per regime, wider on the rest when trial budget allows."
+        )
     return (
         f"regime_factor_ranges (REQUIRED for dynamic): nested map keyed by {regimes}. "
-        f"Each slice: 2–4 FOCUS numeric keys only ({focus_keys}) where that regime "
-        "differs from defaults — server completes ALL omitted keys per regime from global "
-        "bounds (same as sparse factor_ranges). Do NOT enumerate every key × 3 regimes. "
-        "Omit a regime slice when defaults apply (especially neutral). "
-        "Risk-off may favor defensive/low-vol bands; risk-on may allow higher momentum/trend. "
+        f"{width} Server fills only keys you omit (fallback) — you must still output all keys "
+        f"in risk_off, neutral, and risk_on. Risk-off may favor defensive/low-vol bands; "
+        "risk-on may allow higher momentum/trend. "
         "Do NOT use top-level factor_ranges when regime_factor_ranges is present."
     )
 
@@ -1824,8 +1832,9 @@ benchmark (if any), and TARGET.
 Do NOT output objective_mode or rebalance_freq (run-level fixed).
 Numeric rule: at most 4 decimal places for every number; use integers for *_days and top_n_actual;
 never emit long float expansions (write 0.5 not 0.5000000000000001; write 252 not 252.0000000001).
-Example regime_factor_ranges (sparse — 2 focus keys, server fills rest):
-{{"risk_off":{{"w_mom":[0,0.8],"w_lowvol":[0.5,1.5]}},"risk_on":{{"w_mom":[0.8,1.5],"w_trend":[0.2,1]}}}}.
+Example regime_factor_ranges (all numeric keys per regime; compact numbers only):
+{{"risk_off":{{"w_mom":[0,0.8],"w_lowvol":[0.5,1.5],"factor_lookback_days":[126,504],...}},
+"neutral":{{...all keys...}},"risk_on":{{...all keys...}}}}.
 Round 2+: evolve round_setup from PRIOR_ROUND_* + CHAMPION; adjust factor_ranges using evidence
 (FAILED_TRIALS, VS_BENCHMARK) — start wide early, narrow gradually in late rounds near TARGET.
 Round 1: wide exploration only — do NOT copy a single narrow band from defaults.
@@ -1841,11 +1850,11 @@ Direction blueprint:
 
 Constraints: {constraints_compact}
 
-Return STRICT JSON only (sparse — omit empty factor_choices if none):
+Return STRICT JSON only (omit empty factor_choices if none):
 {{"rationale":"...", "optimization_strategy":"...", "performance_assessment":"...",
 "round_setup":{{...}},
 {('"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
-{('"regime_factor_ranges":{"risk_off":{"w_mom":[lo,hi],"w_lowvol":[lo,hi]},"risk_on":{"w_mom":[lo,hi],...}},' if dynamic_matrix else '"factor_ranges":{"<2-4 focus numeric keys>":[low,high], ...},')}
+{('"regime_factor_ranges":{"risk_off":{"<every numeric key>":[lo,hi],...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else f'"factor_ranges":{{"<every numeric key>":[low,high], ...}},')}
 "factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
 """
     max_retries = max(1, int(settings.gemini_param_seed_max_retries))
@@ -1869,8 +1878,10 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
         )
         req_prompt = prompt if not compact else (
             prompt[:1000]
-            + "\nIMPORTANT: single JSON only, max 4 decimals, omit optional alloc weights and "
-            "unchanged factor_ranges/factor_choices. "
+            + "\nIMPORTANT: single JSON only, max 4 decimals, integers for *_days, omit optional "
+            "alloc weights and unchanged factor_choices only; keep full factor_ranges"
+            + (" / regime_factor_ranges (all keys × all regimes)." if dynamic_matrix else ".")
+            + " "
             + compact_tail
         )
         generation_config: dict[str, Any] = {

@@ -237,7 +237,7 @@ def complete_factor_ranges(
     blueprint: RunBlueprint,
     param_controls: dict[str, dict] | None,
 ) -> dict[str, list[float | int]]:
-    """Ensure every factor numeric has an Optuna range (AI sparse output → global defaults)."""
+    """Ensure every factor numeric has an Optuna range (fallback when AI omits keys)."""
     controls = normalize_param_controls(param_controls, blueprint)
     out: dict[str, list[float | int]] = {}
     for key in FACTOR_NUMERIC_KEYS:
