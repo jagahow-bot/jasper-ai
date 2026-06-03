@@ -36,7 +36,7 @@ from app.engine.factors import (
 from app.engine.portfolio import simulate_dynamic_portfolio
 from app.engine.weights import min_holdings_for_cap
 from app.engine.objectives import compute_objective_score, metrics_snapshot
-from app.engine.refinement import apply_overfitting_penalty, assess_overfitting
+from app.engine.refinement import assess_overfitting
 from app.engine.param_bounds import (
     RunBlueprint,
     cap_search_high,
@@ -94,9 +94,7 @@ def run_optuna_search(
     ) = None,
     universe_by_ticker: dict[str, dict] | None = None,
     prices_val: pd.DataFrame | None = None,
-    overfitting_penalty_weight: float = 0.0,
     champion_seed: dict | None = None,
-    apply_holdout_penalty: bool = False,
     select_on_is: bool = False,
     asset_classes: list[str] | None = None,
     trial_report_cache: TrialReportCache | None = None,
@@ -539,9 +537,8 @@ def run_optuna_search(
             oos_enabled=oos_active,
             objective_mode=objective_mode,
         )
-        adjusted, penalty_applied = apply_overfitting_penalty(
-            score, assessment, overfitting_penalty_weight
-        )
+        adjusted = float(score)
+        penalty_applied = float(assessment.get("penalty", 0.0))
         is_m = train_m_holdout or metrics
         metrics["train_metrics"] = metrics_snapshot(is_m, objective_mode=objective_mode)
         if val_m:

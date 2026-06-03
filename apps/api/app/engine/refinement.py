@@ -476,18 +476,6 @@ def assess_overfitting(
     }
 
 
-def apply_overfitting_penalty(
-    raw_score: float,
-    assessment: dict[str, Any],
-    weight: float,
-) -> tuple[float, float]:
-    """Return (adjusted_score, penalty_applied)."""
-    if weight <= 0 or not assessment.get("oos_enabled"):
-        return raw_score, 0.0
-    penalty = float(assessment.get("penalty", 0.0)) * float(weight)
-    return raw_score - penalty, penalty
-
-
 def _failure_pattern_summary(failed: list[dict[str, Any]]) -> str:
     if not failed:
         return "No failed challengers recorded yet."

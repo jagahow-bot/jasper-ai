@@ -86,7 +86,6 @@ export interface BacktestRequest {
   refinement_max_rounds?: number;
   refinement_patience?: number;
   refinement_min_improvement?: number;
-  overfitting_penalty_weight?: number;
   experiment?: ExperimentRequest;
 }
 

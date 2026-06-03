@@ -61,7 +61,6 @@ function buildDefaultRequest(): BacktestRequest {
     refinement_max_rounds: 8,
     refinement_patience: 2,
     refinement_min_improvement: 0.01,
-    overfitting_penalty_weight: 0.5,
   };
 }
 

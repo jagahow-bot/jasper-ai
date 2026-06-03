@@ -174,12 +174,6 @@ class BacktestRequest(BaseModel):
         le=1.0,
         description="Minimum adjusted-score gain to count as improvement",
     )
-    overfitting_penalty_weight: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=3.0,
-        description="Multiplier on train-validation gap penalty in scoring",
-    )
     experiment: ExperimentConfig | None = Field(
         default=None,
         description="Optional sandbox experiment config; ignored unless explicitly enabled.",

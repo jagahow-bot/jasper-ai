@@ -297,8 +297,6 @@ def _run_iterative_search(
     max_rounds = int(req.refinement_max_rounds)
     patience = int(req.refinement_patience)
     min_gain = float(req.refinement_min_improvement)
-    penalty_w = float(req.overfitting_penalty_weight)
-
     # Round 2+ enqueue champion re-sim as an extra Optuna trial on top of challengers.
     est_trials = batch0 + (challengers + 1) * max(0, max_rounds - 1)
     all_records: list[tuple[float, dict, dict]] = []
@@ -542,9 +540,7 @@ def _run_iterative_search(
             progress_cb=optuna_progress,
             universe_by_ticker=universe_by_ticker,
             prices_val=prices_val if oos and len(prices_val) > 60 else None,
-            overfitting_penalty_weight=penalty_w if oos else 0.0,
             champion_seed=champion_seed,
-            apply_holdout_penalty=bool(oos and penalty_w > 0),
             select_on_is=bool(oos and len(prices_val) > 60),
             asset_classes=req.asset_classes,
             trial_report_cache=trial_report_cache,
@@ -1659,10 +1655,6 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             progress_cb=optuna_progress,
             universe_by_ticker=universe_by_ticker,
             prices_val=prices_val if oos and len(prices_val) > 60 else None,
-            overfitting_penalty_weight=float(req.overfitting_penalty_weight)
-            if oos
-            else 0.0,
-            apply_holdout_penalty=bool(oos and req.overfitting_penalty_weight > 0),
             select_on_is=bool(oos and len(prices_val) > 60),
             asset_classes=req.asset_classes,
             trial_report_cache=trial_report_cache,
@@ -2063,7 +2055,6 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                     if isinstance(row, dict)
                 ],
                 "convergence_history": convergence_history,
-                "overfitting_penalty_weight": req.overfitting_penalty_weight,
                 "refinement_batch_size": req.refinement_batch_size,
                 "refinement_challengers_per_round": req.refinement_challengers_per_round,
                 "refinement_max_rounds": req.refinement_max_rounds,

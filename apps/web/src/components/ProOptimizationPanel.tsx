@@ -43,7 +43,7 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
           </h4>
           <p className="mt-2 text-sm text-dim">
             Champion-challenger rounds. AI proposes params from history; Optuna
-            scores with OOS gap penalty until objective stalls.
+            scores on in-sample objective until the run stalls.
           </p>
         </div>
         <label className="flex shrink-0 cursor-pointer items-center gap-2">
@@ -166,31 +166,6 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
               />
             </label>
           </div>
-          <label className="block space-y-1">
-            <span className="flex justify-between text-xs text-[var(--foreground)]">
-              <span>Overfit penalty</span>
-              <span className="font-terminal text-base text-[var(--amber)]">
-                {(value.overfitting_penalty_weight ?? 0.5).toFixed(1)}
-              </span>
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.1}
-              value={value.overfitting_penalty_weight ?? 0.5}
-              onChange={(e) =>
-                onChange({
-                  ...value,
-                  overfitting_penalty_weight: Number(e.target.value),
-                })
-              }
-              className="w-full"
-            />
-            <p className="text-xs text-dim">
-              Penalizes in-sample vs holdout objective gap during trial scoring.
-            </p>
-          </label>
           {!value.enable_oos && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">
               Tip: enable holdout split so trials rank on in-sample only and the convergence chart shows IS vs OOS.

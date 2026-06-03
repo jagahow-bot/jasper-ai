@@ -81,7 +81,6 @@ def _minimal_request(**overrides) -> BacktestRequest:
         "refinement_max_rounds": 3,
         "refinement_patience": 2,
         "refinement_min_improvement": 0.01,
-        "overfitting_penalty_weight": 0.0,
         "param_controls": {},
     }
     base.update(overrides)
