@@ -1,6 +1,20 @@
 "use client";
 
-import type { RegimeScoreTimelinePoint } from "@/lib/types";
+import {
+  computeSharedDateDomain,
+  formatAxisDate,
+  LAB_CHART_MARGIN,
+  LAB_CHART_SYNC_ID,
+  LAB_Y_AXIS_WIDTH,
+  labXAxisProps,
+  parseDateTs,
+} from "@/lib/benchmark-chart-scale";
+import type {
+  BenchmarkSeriesPoint,
+  ObjectiveSwitchLabResult,
+  RegimeScoreTimelinePoint,
+} from "@/lib/types";
+import type { TooltipProps } from "recharts";
 import {
   CartesianGrid,
   Legend,
@@ -12,11 +26,52 @@ import {
   YAxis,
 } from "recharts";
 
+const SCORE_CHART_HEIGHT = 180;
+const CHART_SYNC = { syncId: LAB_CHART_SYNC_ID, syncMethod: "value" as const };
+
 type Props = {
   scoreTimeline: RegimeScoreTimelinePoint[];
+  benchmarkSeries?: BenchmarkSeriesPoint[];
+  regimeTimeline?: ObjectiveSwitchLabResult["regime_timeline"];
 };
 
-export function RegimeScoreChart({ scoreTimeline }: Props) {
+function RegimeScoreTooltip({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) {
+  if (!active || !payload?.length) return null;
+  const ts = Number(label);
+  if (!Number.isFinite(ts)) return null;
+  const row = payload[0]?.payload as { active?: string } | undefined;
+  const activeRegime = row?.active ?? null;
+
+  return (
+    <div
+      className="rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-[11px]"
+      style={{ fontSize: 11 }}
+    >
+      <p className="text-[var(--foreground)]">Date: {formatAxisDate(ts)}</p>
+      {payload
+        .filter((p) => p.dataKey !== "switched")
+        .map((p) => (
+          <p key={String(p.dataKey)} className="text-dim">
+            {p.name ?? p.dataKey}:{" "}
+            {typeof p.value === "number" ? p.value.toFixed(3) : "—"}
+          </p>
+        ))}
+      {activeRegime && (
+        <p className="text-dim">Active regime: {activeRegime}</p>
+      )}
+    </div>
+  );
+}
+
+export function RegimeScoreChart({
+  scoreTimeline,
+  benchmarkSeries = [],
+  regimeTimeline = [],
+}: Props) {
   if (!scoreTimeline.length) {
     return (
       <p className="text-xs text-dim">
@@ -25,38 +80,39 @@ export function RegimeScoreChart({ scoreTimeline }: Props) {
     );
   }
 
+  const domain = computeSharedDateDomain(
+    benchmarkSeries,
+    regimeTimeline,
+    scoreTimeline,
+  );
+  if (!domain) {
+    return <p className="text-xs text-dim">No valid dates for score chart.</p>;
+  }
+
+  const { min: domainMin, max: domainMax } = domain;
   const data = scoreTimeline.map((row) => ({
-    date: row.date,
+    ts: parseDateTs(row.date),
     risk_off: row.risk_off_score ?? null,
     risk_on: row.risk_on_score ?? null,
     neutral: row.neutral_score ?? null,
     active: row.active_regime,
     switched: row.switched,
   }));
+  const xAxis = labXAxisProps(domainMin, domainMax);
 
   return (
     <div className="space-y-2">
-      <ResponsiveContainer width="100%" height={180}>
-        <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+      <ResponsiveContainer width="100%" height={SCORE_CHART_HEIGHT}>
+        <LineChart {...CHART_SYNC} data={data} margin={LAB_CHART_MARGIN}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey="date" tick={{ fontSize: 9, fill: "var(--dim)" }} minTickGap={40} />
+          <XAxis {...xAxis} />
           <YAxis
             domain={[0, 1]}
             tick={{ fontSize: 9, fill: "var(--dim)" }}
-            width={32}
+            width={LAB_Y_AXIS_WIDTH}
             tickFormatter={(v) => Number(v).toFixed(1)}
           />
-          <Tooltip
-            contentStyle={{
-              background: "var(--panel)",
-              border: "1px solid var(--border)",
-              fontSize: 11,
-            }}
-            formatter={(value: number, name: string) => [
-              value != null ? value.toFixed(3) : "—",
-              name,
-            ]}
-          />
+          <Tooltip content={<RegimeScoreTooltip />} />
           <Legend wrapperStyle={{ fontSize: 10 }} />
           <Line
             type="monotone"
@@ -86,8 +142,8 @@ export function RegimeScoreChart({ scoreTimeline }: Props) {
         </LineChart>
       </ResponsiveContainer>
       <p className="text-[10px] text-dim">
-        Walk-forward scores before arbitration and cooldown. Active regime in the table below
-        may differ when both scores are below confidence or during confirmation.
+        Walk-forward scores before arbitration and cooldown. Hover syncs with the benchmark
+        chart above on the same calendar axis.
       </p>
     </div>
   );

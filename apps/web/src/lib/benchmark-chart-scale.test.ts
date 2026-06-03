@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeRegimeAtTs,
   computeSharedDateDomain,
   dateRatio,
   parseDateTs,
@@ -28,6 +29,36 @@ describe("benchmark-chart-scale", () => {
       (step - min) / (max - min),
       5,
     );
+  });
+
+  it("includes score timeline dates in shared domain", () => {
+    const domain = computeSharedDateDomain(
+      [{ date: "2024-06-01", cumulative_return_pct: 0, price_index: 100 }],
+      [],
+      [{ date: "2024-01-01", active_regime: "neutral", switched: false }],
+    );
+    expect(domain!.min).toBe(parseDateTs("2024-01-01"));
+    expect(domain!.max).toBe(parseDateTs("2024-06-01"));
+  });
+
+  it("resolves active regime at hovered timestamp", () => {
+    const timeline = [
+      { date: "2024-01-01", regime: "neutral", objective: "balanced" },
+      {
+        date: "2024-04-01",
+        regime: "risk_on",
+        active_regime: "risk_on",
+        objective: "max_return",
+      },
+      {
+        date: "2024-07-01",
+        regime: "risk_off",
+        active_regime: "risk_off",
+        objective: "min_dd",
+      },
+    ];
+    expect(activeRegimeAtTs(parseDateTs("2024-05-15"), timeline)).toBe("risk_on");
+    expect(activeRegimeAtTs(parseDateTs("2024-07-01"), timeline)).toBe("risk_off");
   });
 
   it("extends last regime band to domain max", () => {

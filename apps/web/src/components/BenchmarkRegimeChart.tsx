@@ -1,12 +1,18 @@
 "use client";
 
 import {
-  computeSharedDateDomain,
+  activeRegimeAtTs,
   formatAxisDate,
+  LAB_CHART_MARGIN,
+  LAB_CHART_SYNC_ID,
+  LAB_Y_AXIS_WIDTH,
+  labXAxisProps,
   parseDateTs,
   regimeBandRanges,
+  computeSharedDateDomain,
 } from "@/lib/benchmark-chart-scale";
 import type { BenchmarkSeriesPoint, ObjectiveSwitchLabResult } from "@/lib/types";
+import type { TooltipProps } from "recharts";
 import {
   CartesianGrid,
   Line,
@@ -18,9 +24,6 @@ import {
   YAxis,
 } from "recharts";
 
-const SYNC_ID = "benchmarkRegime";
-const CHART_MARGIN = { top: 8, right: 8, left: 0, bottom: 0 };
-const Y_AXIS_WIDTH = 44;
 const MAIN_CHART_HEIGHT = 220;
 const STRIP_CHART_HEIGHT = 24;
 
@@ -36,21 +39,41 @@ const REGIME_STRIP_COLORS: Record<string, string> = {
   risk_on: "rgba(0, 220, 180, 0.55)",
 };
 
+const CHART_SYNC = { syncId: LAB_CHART_SYNC_ID, syncMethod: "value" as const };
+
 type Props = {
   benchmarkSeries: BenchmarkSeriesPoint[];
   regimeTimeline: ObjectiveSwitchLabResult["regime_timeline"];
   benchmarkTicker: string;
 };
 
-function sharedXAxisProps(min: number, max: number) {
-  return {
-    type: "number" as const,
-    domain: [min, max] as [number, number],
-    scale: "time" as const,
-    tick: { fontSize: 9, fill: "var(--dim)" },
-    minTickGap: 40,
-    tickFormatter: (ts: number) => formatAxisDate(ts),
-  };
+function BenchmarkRegimeTooltip({
+  active,
+  payload,
+  label,
+  regimeTimeline,
+}: TooltipProps<number, string> & {
+  regimeTimeline: ObjectiveSwitchLabResult["regime_timeline"];
+}) {
+  if (!active || !payload?.length) return null;
+  const ts = Number(label);
+  if (!Number.isFinite(ts)) return null;
+  const value = payload[0]?.value;
+  const regime = activeRegimeAtTs(ts, regimeTimeline);
+
+  return (
+    <div
+      className="rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-[11px]"
+      style={{ fontSize: 11 }}
+    >
+      <p className="text-[var(--foreground)]">Date: {formatAxisDate(ts)}</p>
+      <p className="text-dim">
+        Cumulative return:{" "}
+        {typeof value === "number" ? `${value.toFixed(2)}%` : "—"}
+      </p>
+      {regime && <p className="text-dim">Active regime: {regime}</p>}
+    </div>
+  );
 }
 
 export function BenchmarkRegimeChart({
@@ -77,20 +100,21 @@ export function BenchmarkRegimeChart({
     { ts: domainMin, v: 0 },
     { ts: domainMax, v: 1 },
   ];
+  const xAxis = labXAxisProps(domainMin, domainMax);
 
   return (
     <div className="space-y-1">
       <ResponsiveContainer width="100%" height={MAIN_CHART_HEIGHT}>
         <LineChart
-          syncId={SYNC_ID}
+          {...CHART_SYNC}
           data={chartData}
-          margin={CHART_MARGIN}
+          margin={LAB_CHART_MARGIN}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey="ts" {...sharedXAxisProps(domainMin, domainMax)} />
+          <XAxis {...xAxis} />
           <YAxis
             tick={{ fontSize: 9, fill: "var(--dim)" }}
-            width={Y_AXIS_WIDTH}
+            width={LAB_Y_AXIS_WIDTH}
             tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
           />
           {bands.map((b) => (
@@ -104,13 +128,9 @@ export function BenchmarkRegimeChart({
             />
           ))}
           <Tooltip
-            contentStyle={{
-              background: "var(--panel)",
-              border: "1px solid var(--border)",
-              fontSize: 11,
-            }}
-            formatter={(value: number) => [`${value.toFixed(2)}%`, "Cum. return"]}
-            labelFormatter={(label) => formatAxisDate(Number(label))}
+            content={
+              <BenchmarkRegimeTooltip regimeTimeline={regimeTimeline} />
+            }
           />
           <Line
             type="monotone"
@@ -125,9 +145,13 @@ export function BenchmarkRegimeChart({
 
       {regimeTimeline.length > 0 && (
         <ResponsiveContainer width="100%" height={STRIP_CHART_HEIGHT}>
-          <LineChart syncId={SYNC_ID} data={stripAnchor} margin={CHART_MARGIN}>
-            <XAxis dataKey="ts" {...sharedXAxisProps(domainMin, domainMax)} hide />
-            <YAxis hide domain={[0, 1]} width={Y_AXIS_WIDTH} />
+          <LineChart
+            {...CHART_SYNC}
+            data={stripAnchor}
+            margin={LAB_CHART_MARGIN}
+          >
+            <XAxis {...xAxis} hide />
+            <YAxis hide domain={[0, 1]} width={LAB_Y_AXIS_WIDTH} />
             {bands.map((b, i) => {
               const row = regimeTimeline[i];
               const fill = row.switched
@@ -170,8 +194,8 @@ export function BenchmarkRegimeChart({
       </div>
       <p className="text-[10px] text-dim">
         Top: {benchmarkTicker} cumulative return (%). Background bands = active regime per
-        walk-forward step. Bottom strip = regime steps (amber = switch). Both panels share
-        the same calendar x-axis.
+        walk-forward step. Bottom strip = regime steps (amber = switch). Hover syncs with
+        the regime scores chart below when shown.
       </p>
     </div>
   );

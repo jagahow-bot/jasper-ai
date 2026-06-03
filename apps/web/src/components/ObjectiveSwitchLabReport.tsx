@@ -67,33 +67,49 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
         <PredictionQualitySection quality={result.regime_prediction_quality} />
       )}
 
-      {result.benchmark_series && result.benchmark_series.length > 0 && (
-        <div className="pixel-panel p-4">
-          <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
-            Benchmark path vs regime
-          </h3>
-          <div className="mt-3">
-            <BenchmarkRegimeChart
-              benchmarkSeries={result.benchmark_series}
-              regimeTimeline={result.regime_timeline}
-              benchmarkTicker={result.benchmark_ticker}
-            />
-          </div>
+      {((result.benchmark_series && result.benchmark_series.length > 0) ||
+        (result.detector_version === "v2" &&
+          result.regime_score_timeline &&
+          result.regime_score_timeline.length > 0)) && (
+        <div className="pixel-panel p-4 space-y-6">
+          {result.benchmark_series && result.benchmark_series.length > 0 && (
+            <div>
+              <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
+                Benchmark path vs regime
+              </h3>
+              <div className="mt-3">
+                <BenchmarkRegimeChart
+                  benchmarkSeries={result.benchmark_series}
+                  regimeTimeline={result.regime_timeline}
+                  benchmarkTicker={result.benchmark_ticker}
+                />
+              </div>
+            </div>
+          )}
+          {result.detector_version === "v2" &&
+            result.regime_score_timeline &&
+            result.regime_score_timeline.length > 0 && (
+              <div>
+                <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
+                  Regime scores vs active label
+                </h3>
+                <div className="mt-3">
+                  <RegimeScoreChart
+                    scoreTimeline={result.regime_score_timeline}
+                    benchmarkSeries={result.benchmark_series ?? []}
+                    regimeTimeline={result.regime_timeline}
+                  />
+                </div>
+              </div>
+            )}
+          {result.benchmark_series?.length &&
+            result.regime_score_timeline?.length && (
+              <p className="text-[10px] text-dim">
+                Hover either chart — cursor and tooltip sync by date across both panels.
+              </p>
+            )}
         </div>
       )}
-
-      {result.detector_version === "v2" &&
-        result.regime_score_timeline &&
-        result.regime_score_timeline.length > 0 && (
-          <div className="pixel-panel p-4">
-            <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
-              Regime scores vs active label
-            </h3>
-            <div className="mt-3">
-              <RegimeScoreChart scoreTimeline={result.regime_score_timeline} />
-            </div>
-          </div>
-        )}
 
       <div className="pixel-panel p-4">
         <h3 className="font-pixel text-[8px] text-[var(--cyan)]">Regime timeline</h3>
