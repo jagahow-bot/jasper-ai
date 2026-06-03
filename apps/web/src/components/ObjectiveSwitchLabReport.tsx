@@ -55,6 +55,9 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
           {result.detector_version === "v2"
             ? " — risk-on / risk-off indicator scores with arbitration"
             : " — legacy return & volatility thresholds"}
+          {result.detector_version === "v2" && result.fast_risk_off_exit && (
+            <> · Fast risk-off exit on rebound (21d)</>
+          )}
         </p>
       )}
 

@@ -317,6 +317,13 @@ class ObjectiveSwitchLabRequest(BaseModel):
         default="v2",
         description="Regime heuristic: v1 threshold rules, v2 scored indicators + arbitration",
     )
+    fast_risk_off_exit: bool = Field(
+        default=True,
+        description=(
+            "V2 only: faster exit from risk_off on 21d rebound (dual window, vol decay, "
+            "asymmetric cooldown). Ignored for v1."
+        ),
+    )
 
 
 class ObjectiveSwitchLabResult(BaseModel):
@@ -338,4 +345,5 @@ class ObjectiveSwitchLabResult(BaseModel):
     regime_prediction_quality: dict[str, Any] = Field(default_factory=dict)
     benchmark_series: list[dict[str, Any]] = Field(default_factory=list)
     detector_version: str = "v2"
+    fast_risk_off_exit: bool | None = None
     regime_score_timeline: list[dict[str, Any]] = Field(default_factory=list)

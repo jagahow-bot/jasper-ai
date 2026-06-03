@@ -17,6 +17,11 @@ from app.engine.regime_policy import (
 DEFAULT_MIN_CONFIDENCE = 0.42
 DEFAULT_STEP_DAYS = 21
 DEFAULT_LOOKBACK_DAYS = 63
+# Asymmetric risk_off exit: short window rebound + vol decay (63d entry unchanged).
+SHORT_LOOKBACK_DAYS = 21
+REBOUND_RETURN_THRESHOLD = 0.02
+VOL_PEAK_DECAY_PCT = 0.15
+VOL_PEAK_DECAY_MAX_SCORE_REDUCTION = 0.35
 
 
 def default_detector_version() -> str:
@@ -85,10 +90,41 @@ RISK_OFF_WEIGHTS = {
 }
 
 
+def _annualized_vol(series: pd.Series) -> float:
+    if len(series) <= 1:
+        return 0.0
+    return float(series.std(ddof=0) * np.sqrt(252.0))
+
+
+def _vol_decay_risk_off_adjustment(
+    window: pd.Series,
+    risk_off_score: float,
+    *,
+    peak_decay_pct: float = VOL_PEAK_DECAY_PCT,
+) -> float:
+    """While 63d vol stays elevated, reduce risk_off_score if ann vol fell from trailing peak."""
+    if len(window) < 10:
+        return risk_off_score
+    rolling = window.rolling(21, min_periods=10).std(ddof=0) * np.sqrt(252.0)
+    rolling = rolling.dropna()
+    if len(rolling) < 2:
+        return risk_off_score
+    peak = float(rolling.max())
+    current = float(rolling.iloc[-1])
+    if peak <= 0.0:
+        return risk_off_score
+    drop_pct = (peak - current) / peak
+    if drop_pct < peak_decay_pct:
+        return risk_off_score
+    reduction = _clamp01(drop_pct / 0.30) * VOL_PEAK_DECAY_MAX_SCORE_REDUCTION
+    return _clamp01(risk_off_score - reduction)
+
+
 def compute_regime_scores(
     window: pd.Series,
     *,
     vol_history: pd.Series | None = None,
+    apply_vol_peak_decay: bool = False,
 ) -> dict[str, float]:
     """
     Independent risk-off and risk-on scores in [0, 1].
@@ -124,6 +160,8 @@ def compute_regime_scores(
         + RISK_OFF_WEIGHTS["negative_return_streak"]
         * _negative_return_streak_score(window)
     )
+    if apply_vol_peak_decay:
+        risk_off_score = _vol_decay_risk_off_adjustment(window, risk_off_score)
 
     risk_on_score = _clamp01(
         0.34 * _return_momentum_score(trailing_return)
@@ -168,10 +206,74 @@ def resolve_regime_signal_v2(
     *,
     vol_history: pd.Series | None = None,
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
+    apply_vol_peak_decay: bool = False,
 ) -> tuple[RegimeSignal, dict[str, float]]:
-    scores = compute_regime_scores(window, vol_history=vol_history)
+    scores = compute_regime_scores(
+        window,
+        vol_history=vol_history,
+        apply_vol_peak_decay=apply_vol_peak_decay,
+    )
     regime = arbitrate_regime(scores, requested_mode, min_confidence=min_confidence)
     return regime, scores
+
+
+def _cooldown_for_transition(
+    active: RegimeSignal | None,
+    candidate: RegimeSignal,
+    cooldown_steps: int,
+) -> int:
+    """Exiting risk_off uses shorter cooldown than entering (asymmetric hysteresis)."""
+    if active == "risk_off" and candidate in ("risk_on", "neutral"):
+        return max(1, cooldown_steps - 1)
+    return cooldown_steps
+
+
+def _apply_fast_risk_off_exit_raw(
+    raw: RegimeSignal,
+    scores: dict[str, float],
+    *,
+    active: RegimeSignal | None,
+    short_window: pd.Series,
+    short_scores: dict[str, float],
+    prior_annualized_vol: float | None,
+    requested_mode: str,
+    min_confidence: float,
+    rebound_return_threshold: float = REBOUND_RETURN_THRESHOLD,
+) -> RegimeSignal:
+    """
+    When active is risk_off, 63d scores lag V-rebounds. Short 21d window + fast release
+    can pull raw toward neutral/risk_on without weakening risk_on entry detection.
+    """
+    if requested_mode != "auto" or active != "risk_off":
+        return raw
+    if len(short_window) < SHORT_LOOKBACK_DAYS // 2:
+        return raw
+
+    short_return = float(short_window.sum())
+    short_vol = _annualized_vol(short_window)
+    vol_falling = (
+        prior_annualized_vol is not None
+        and prior_annualized_vol > 0.0
+        and short_vol < prior_annualized_vol * 0.98
+    )
+    short_on = float(short_scores.get("risk_on_score", 0.0))
+    short_off = float(short_scores.get("risk_off_score", 0.0))
+
+    # Dual window: strong short-term rebound favors exit from risk_off.
+    if (
+        short_return > rebound_return_threshold
+        and short_on > short_off
+        and short_on >= min_confidence * 0.85
+    ):
+        return arbitrate_regime(short_scores, requested_mode, min_confidence=min_confidence)
+
+    # Fast release: rebound return + vol easing even if 63d risk_off_score still high.
+    if short_return > rebound_return_threshold and vol_falling:
+        if short_on >= min_confidence:
+            return "risk_on"
+        return "neutral"
+
+    return raw
 
 
 def walk_forward_regime_timeline_v2(
@@ -183,6 +285,9 @@ def walk_forward_regime_timeline_v2(
     cooldown_steps: int = 2,
     confirm_steps: int = 1,
     min_confidence: float = DEFAULT_MIN_CONFIDENCE,
+    fast_risk_off_exit: bool = True,
+    short_lookback_days: int = SHORT_LOOKBACK_DAYS,
+    rebound_return_threshold: float = REBOUND_RETURN_THRESHOLD,
 ) -> tuple[int, list[dict[str, Any]]]:
     """Walk-forward V2 labels with score timeline and hysteresis on active regime."""
     if len(bench_ret) < lookback_days + step_days:
@@ -194,6 +299,7 @@ def walk_forward_regime_timeline_v2(
     pending_count = 0
     steps_since_switch = cooldown_steps
     switch_count = 0
+    prior_step_vol: float | None = None
 
     for end in range(lookback_days, len(bench_ret), step_days):
         window = bench_ret.iloc[end - lookback_days : end]
@@ -203,9 +309,30 @@ def walk_forward_regime_timeline_v2(
             requested_mode,
             vol_history=vol_history,
             min_confidence=min_confidence,
+            apply_vol_peak_decay=fast_risk_off_exit,
         )
+        if fast_risk_off_exit:
+            short_start = max(0, end - short_lookback_days)
+            short_window = bench_ret.iloc[short_start:end]
+            short_scores = compute_regime_scores(
+                short_window,
+                vol_history=vol_history,
+                apply_vol_peak_decay=True,
+            )
+            raw = _apply_fast_risk_off_exit_raw(
+                raw,
+                scores,
+                active=active,
+                short_window=short_window,
+                short_scores=short_scores,
+                prior_annualized_vol=prior_step_vol,
+                requested_mode=requested_mode,
+                min_confidence=min_confidence,
+                rebound_return_threshold=rebound_return_threshold,
+            )
         end_date = bench_ret.index[end]
         switched = False
+        required_cooldown = _cooldown_for_transition(active, raw, cooldown_steps)
 
         if active is None:
             active = raw
@@ -218,7 +345,10 @@ def walk_forward_regime_timeline_v2(
             else:
                 pending = raw
                 pending_count = 1
-            if pending_count >= confirm_steps and steps_since_switch >= cooldown_steps:
+            if (
+                pending_count >= confirm_steps
+                and steps_since_switch >= required_cooldown
+            ):
                 active = raw
                 pending = None
                 pending_count = 0
@@ -231,9 +361,8 @@ def walk_forward_regime_timeline_v2(
 
         steps_since_switch += 1
         trailing_return = float(window.sum()) if len(window) else 0.0
-        annualized_vol = (
-            float(window.std(ddof=0) * np.sqrt(252.0)) if len(window) > 1 else 0.0
-        )
+        annualized_vol = _annualized_vol(window)
+        prior_step_vol = annualized_vol
         timeline.append(
             {
                 "date": end_date.strftime("%Y-%m-%d"),

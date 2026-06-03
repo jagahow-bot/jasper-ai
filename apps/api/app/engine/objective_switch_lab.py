@@ -57,6 +57,7 @@ def walk_forward_timeline_for_detector(
     detector_version: str,
     cooldown_steps: int,
     confirm_steps: int,
+    fast_risk_off_exit: bool = True,
 ) -> tuple[int, list[dict[str, Any]]]:
     if detector_version == "v1":
         return walk_forward_regime_timeline(
@@ -70,6 +71,7 @@ def walk_forward_timeline_for_detector(
         requested_mode,
         cooldown_steps=cooldown_steps,
         confirm_steps=confirm_steps,
+        fast_risk_off_exit=fast_risk_off_exit,
     )
 
 
@@ -738,6 +740,7 @@ def _build_allocator_resolver(
     confirm_steps: int = 1,
     fixed_objective: str | None = None,
     detector_version: str = "v2",
+    fast_risk_off_exit: bool = True,
 ) -> tuple[Callable[[pd.Timestamp], AllocatorParams], list[dict[str, Any]], int]:
     """Resolver for switch arm; fixed arm passes fixed_objective."""
     switch_count, timeline = walk_forward_timeline_for_detector(
@@ -746,6 +749,7 @@ def _build_allocator_resolver(
         detector_version=detector_version,
         cooldown_steps=cooldown_steps,
         confirm_steps=confirm_steps,
+        fast_risk_off_exit=fast_risk_off_exit,
     )
     by_date = {row["date"]: row for row in timeline}
     dates_sorted = sorted(by_date.keys())
@@ -802,6 +806,7 @@ def _simulate_arm(
     confirm_steps: int,
     universe_by_ticker: dict[str, dict[str, Any]],
     detector_version: str = "v2",
+    fast_risk_off_exit: bool = True,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], int]:
     resolver, timeline, switch_count = _build_allocator_resolver(
         bench_ret,
@@ -810,6 +815,7 @@ def _simulate_arm(
         cooldown_steps=cooldown_steps,
         confirm_steps=confirm_steps,
         detector_version=detector_version,
+        fast_risk_off_exit=fast_risk_off_exit,
     )
     factor_lb = resolver(prices.index[-1]).lookback_days
     metrics = simulate_dynamic_portfolio(
@@ -892,6 +898,7 @@ def evaluate_objective_switch_lab(
 
     cooldown = int(req.cooldown_steps)
     confirm = int(req.confirm_steps)
+    fast_risk_off_exit = bool(req.fast_risk_off_exit) and detector_version == "v2"
 
     train_bench_slice = bench_ret.loc[prices_train.index[0] : prices_train.index[-1]]
     fixed_is, _, _ = _simulate_arm(
@@ -905,6 +912,7 @@ def evaluate_objective_switch_lab(
         confirm_steps=confirm,
         universe_by_ticker=universe_by_ticker,
         detector_version=detector_version,
+        fast_risk_off_exit=fast_risk_off_exit,
     )
     switch_is, timeline, switch_count = _simulate_arm(
         prices_train,
@@ -917,6 +925,7 @@ def evaluate_objective_switch_lab(
         confirm_steps=confirm,
         universe_by_ticker=universe_by_ticker,
         detector_version=detector_version,
+        fast_risk_off_exit=fast_risk_off_exit,
     )
 
     fixed_oos: dict[str, Any] | None = None
@@ -934,6 +943,7 @@ def evaluate_objective_switch_lab(
             confirm_steps=confirm,
             universe_by_ticker=universe_by_ticker,
             detector_version=detector_version,
+            fast_risk_off_exit=fast_risk_off_exit,
         )
         switch_oos, _, _ = _simulate_arm(
             prices_val,
@@ -946,6 +956,7 @@ def evaluate_objective_switch_lab(
             confirm_steps=confirm,
             universe_by_ticker=universe_by_ticker,
             detector_version=detector_version,
+            fast_risk_off_exit=fast_risk_off_exit,
         )
 
     oos_delta: float | None = None
@@ -1007,6 +1018,7 @@ def evaluate_objective_switch_lab(
         regime_prediction_quality=prediction_quality,
         benchmark_series=benchmark_series,
         detector_version=detector_version,
+        fast_risk_off_exit=fast_risk_off_exit if detector_version == "v2" else None,
         regime_score_timeline=score_timeline,
         current_regime=snapshot,
         periods={

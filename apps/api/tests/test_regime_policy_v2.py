@@ -80,3 +80,58 @@ def test_stress_window_elevates_risk_off_score() -> None:
     stress_scores = compute_regime_scores(crash)
     calm_scores = compute_regime_scores(calm)
     assert stress_scores["risk_off_score"] > calm_scores["risk_off_score"]
+
+
+def _synthetic_v_rebound_series() -> pd.Series:
+    """Crash then sharp V-rebound: 63d lookback lags exit without fast release."""
+    idx = pd.bdate_range("2019-01-01", periods=420)
+    crash = np.concatenate(
+        [
+            np.linspace(0.0, -0.035, 42),
+            np.full(21, -0.012),
+        ]
+    )
+    rebound = np.concatenate(
+        [
+            np.linspace(0.018, 0.004, 21),
+            np.full(63, 0.0035),
+            np.full(63, 0.0025),
+        ]
+    )
+    tail = np.full(len(idx) - len(crash) - len(rebound), 0.0012)
+    ret = np.concatenate([crash, rebound, tail])
+    return pd.Series(ret[: len(idx)], index=idx)
+
+
+def _risk_off_steps(timeline: list[dict]) -> int:
+    return sum(1 for row in timeline if row["regime"] == "risk_off")
+
+
+def test_v_rebound_exits_risk_off_faster_with_fast_exit() -> None:
+    bench_ret = _synthetic_v_rebound_series()
+    _, slow = walk_forward_regime_timeline_v2(
+        bench_ret,
+        "auto",
+        cooldown_steps=2,
+        confirm_steps=1,
+        fast_risk_off_exit=False,
+    )
+    _, fast = walk_forward_regime_timeline_v2(
+        bench_ret,
+        "auto",
+        cooldown_steps=2,
+        confirm_steps=1,
+        fast_risk_off_exit=True,
+    )
+    assert len(slow) > 0 and len(fast) > 0
+    assert _risk_off_steps(fast) < _risk_off_steps(slow)
+
+
+def test_vol_peak_decay_lowers_risk_off_score_on_easing_vol() -> None:
+    idx = pd.bdate_range("2020-01-01", periods=63)
+    high = pd.Series(np.random.default_rng(1).normal(0.0, 0.04, 42), index=idx[:42])
+    calm = pd.Series(np.random.default_rng(2).normal(0.002, 0.008, 21), index=idx[42:])
+    window = pd.concat([high, calm])
+    base = compute_regime_scores(window, apply_vol_peak_decay=False)
+    decayed = compute_regime_scores(window, apply_vol_peak_decay=True)
+    assert decayed["risk_off_score"] <= base["risk_off_score"]

@@ -297,6 +297,7 @@ export interface ObjectiveSwitchLabRequest {
   cooldown_steps?: number;
   confirm_steps?: number;
   regime_detector_version?: RegimeDetectorVersion;
+  fast_risk_off_exit?: boolean;
 }
 
 export interface LabArmMetrics {
@@ -423,6 +424,7 @@ export interface ObjectiveSwitchLabResult {
   regime_prediction_quality?: RegimePredictionQuality;
   benchmark_series?: BenchmarkSeriesPoint[];
   detector_version?: RegimeDetectorVersion;
+  fast_risk_off_exit?: boolean | null;
   regime_score_timeline?: RegimeScoreTimelinePoint[];
   current_regime: Record<string, unknown>;
   periods: Record<string, unknown>;

@@ -44,6 +44,7 @@ const DEFAULT_LAB: ObjectiveSwitchLabRequest = {
   cooldown_steps: 2,
   confirm_steps: 1,
   regime_detector_version: "v2",
+  fast_risk_off_exit: true,
 };
 
 export default function ObjectiveSwitchLabPage() {
