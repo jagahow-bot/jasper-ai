@@ -420,6 +420,9 @@ export function LinkedEquityWeightChart({
         <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
             Holding weights (stacked)
+            <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
+              · Hover chart for holdings
+            </span>
           </p>
           <ResponsiveContainer width="100%" height={WEIGHT_HEIGHT}>
             <AreaChart
@@ -458,16 +461,6 @@ export function LinkedEquityWeightChart({
                   />
                 }
                 labelFormatter={formatChartTooltipLabel}
-              />
-              <Legend
-                wrapperStyle={{
-                  fontSize: legendFont,
-                  maxHeight: 128,
-                  overflowY: "auto",
-                  overflowX: "hidden",
-                  paddingRight: 6,
-                  lineHeight: 1.35,
-                }}
               />
               {weightTickers.map((t, i) => (
                 <Area
