@@ -99,6 +99,7 @@ def run_optuna_search(
     select_on_is: bool = False,
     asset_classes: list[str] | None = None,
     trial_report_cache: TrialReportCache | None = None,
+    allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
 ) -> list[tuple[float, dict, dict]]:
     records: list[tuple[float, dict, dict]] = []
     best_value: float | None = None
@@ -432,20 +433,26 @@ def run_optuna_search(
         prices_score = prices_train
         if not use_is_only and has_holdout:
             prices_score = pd.concat([prices_train, prices_val])
+        alloc_step = (
+            allocator_resolver(prices_score.index[0])
+            if allocator_resolver is not None
+            else alloc
+        )
+        sim_common = dict(
+            spec=trial_spec,
+            max_weight=actual_cap,
+            allocator=alloc_step,
+            top_n=int(top_n_actual),
+            factor_params=f_params,
+            no_trade_tol=float(no_trade_tol),
+            turnover_penalty_mult=float(turnover_penalty_mult),
+            max_turnover=float(max_turnover_actual),
+            universe_by_ticker=universe_by_ticker,
+            class_budget=class_budget,
+            allocator_resolver=allocator_resolver,
+        )
         try:
-            metrics = simulate_dynamic_portfolio(
-                prices_score,
-                spec=trial_spec,
-                max_weight=actual_cap,
-                allocator=alloc,
-                top_n=int(top_n_actual),
-                factor_params=f_params,
-                no_trade_tol=float(no_trade_tol),
-                turnover_penalty_mult=float(turnover_penalty_mult),
-                max_turnover=float(max_turnover_actual),
-                universe_by_ticker=universe_by_ticker,
-                class_budget=class_budget,
-            )
+            metrics = simulate_dynamic_portfolio(prices_score, **sim_common)
         except Exception:
             return INFEASIBLE_SCORE
 
@@ -513,30 +520,12 @@ def run_optuna_search(
                 else:
                     train_m_holdout = simulate_dynamic_portfolio(
                         prices_train,
-                        spec=trial_spec,
-                        max_weight=actual_cap,
-                        allocator=alloc,
-                        top_n=int(top_n_actual),
-                        factor_params=f_params,
-                        no_trade_tol=float(no_trade_tol),
-                        turnover_penalty_mult=float(turnover_penalty_mult),
-                        max_turnover=float(max_turnover_actual),
-                        universe_by_ticker=universe_by_ticker,
-                        class_budget=class_budget,
+                        **sim_common,
                     )
-                val_m = simulate_dynamic_portfolio(
-                    prices_val,
-                    spec=trial_spec,
-                    max_weight=actual_cap,
-                    allocator=alloc,
-                    top_n=int(top_n_actual),
-                    factor_params=f_params,
-                    no_trade_tol=float(no_trade_tol),
-                    turnover_penalty_mult=float(turnover_penalty_mult),
-                    max_turnover=float(max_turnover_actual),
-                    universe_by_ticker=universe_by_ticker,
-                    class_budget=class_budget,
-                )
+                val_common = dict(sim_common)
+                if allocator_resolver is not None and len(prices_val) > 0:
+                    val_common["allocator"] = allocator_resolver(prices_val.index[0])
+                val_m = simulate_dynamic_portfolio(prices_val, **val_common)
             except Exception:
                 train_m_holdout = train_m_holdout if use_is_only else None
                 val_m = None

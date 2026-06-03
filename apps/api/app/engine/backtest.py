@@ -35,6 +35,7 @@ from app.engine.spec import DEFAULT_SPEC, BacktestSpec
 from app.models import (
     BacktestRequest,
     BacktestResult,
+    DynamicObjectiveTimelinePoint,
     OptimizationMode,
     PortfolioCandidate,
     ProRoundSnapshot,
@@ -66,6 +67,16 @@ from app.engine.refinement import (
 )
 from app.engine.report_sim_cache import TrialReportCache
 from app.engine.weights import effective_max_weight_cap
+from app.engine.dynamic_objective import (
+    DYNAMIC_OBJECTIVE,
+    apply_allocator_resolver,
+    build_dynamic_backtest_chart_payload,
+    build_dynamic_objective_context,
+    is_dynamic_objective,
+    resolve_regime_mode,
+    serialize_dynamic_timeline,
+    trial_scoring_objective,
+)
 
 WEIGHT_EPS = 0.001
 
@@ -78,6 +89,8 @@ def _is_pro_mode(req: BacktestRequest) -> bool:
 
 
 def _resolve_objective(raw: str, custom_text: str | None) -> str:
+    if raw == DYNAMIC_OBJECTIVE:
+        return DYNAMIC_OBJECTIVE
     if raw != "custom":
         return raw
     t = (custom_text or "").lower()
@@ -251,6 +264,8 @@ def _record_objective_sort_value(
         return float(metrics.get("sharpe", 0.0)) - 0.2 * abs(
             float(metrics.get("max_drawdown", 0.0))
         )
+    if objective_effective == DYNAMIC_OBJECTIVE:
+        return float(metrics.get("sharpe", score))
     return float(score)
 
 
@@ -267,8 +282,13 @@ def _run_iterative_search(
     param_controls_dict: dict[str, dict],
     report_progress,
     trial_report_cache: TrialReportCache | None = None,
+    dynamic_ctx: dict[str, Any] | None = None,
 ) -> tuple[list[tuple[float, dict, dict]], list[dict[str, Any]], dict[str, Any]]:
     """Champion-challenger rounds until plateau or max rounds."""
+    trial_objective = trial_scoring_objective(objective_effective)
+    allocator_resolver = (
+        dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
+    )
     batch0 = int(req.refinement_batch_size)
     challengers = int(req.refinement_challengers_per_round)
     max_rounds = int(req.refinement_max_rounds)
@@ -395,7 +415,7 @@ def _run_iterative_search(
             )
 
         ai_generation = generate_ai_round_seed(
-            objective=objective_effective,
+            objective=trial_objective,
             rebalance_freq=rebalance_rule,
             max_weight_cap=req.max_weight,
             max_turnover_cap=req.max_turnover,
@@ -508,7 +528,7 @@ def _run_iterative_search(
             max_weight=req.max_weight,
             max_turnover=req.max_turnover,
             top_n=req.top_n,
-            objective=objective_effective,
+            objective=trial_objective,
             trials=n_trials,
             round_setup=round_setup,
             factor_ranges=factor_ranges,
@@ -524,6 +544,7 @@ def _run_iterative_search(
             select_on_is=bool(oos and len(prices_val) > 60),
             asset_classes=req.asset_classes,
             trial_report_cache=trial_report_cache,
+            allocator_resolver=allocator_resolver,
         )
 
         tagged_round_records: list[tuple[float, dict, dict]] = []
@@ -1057,6 +1078,7 @@ def _assemble_candidates_from_records(
     fallback_next_model_no: list[int] | None = None,
     assembly_progress: Callable[[str], None] | None = None,
     trial_report_cache: TrialReportCache | None = None,
+    dynamic_ctx: dict[str, Any] | None = None,
 ) -> list[PortfolioCandidate]:
     """Build report-ready PortfolioCandidate rows for top trials.
 
@@ -1068,6 +1090,8 @@ def _assemble_candidates_from_records(
     n_models = len(top)
     val_required = bool(oos and len(prices_val) > 60)
     fallback_no = fallback_next_model_no or _fallback_model_no_from_records(records)
+    resolver = dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
+    metrics_objective = trial_scoring_objective(objective_effective)
     candidates: list[PortfolioCandidate] = []
     for rank, (_, params, _) in enumerate(top, start=1):
         params = dict(params)
@@ -1082,17 +1106,21 @@ def _assemble_candidates_from_records(
         trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
             _sim_inputs_from_params(params, req, rebalance_rule, spec)
         )
-        sim_kw = dict(
-            spec=trial_spec,
-            max_weight=cap,
-            allocator=alloc,
-            top_n=top_n_actual,
-            factor_params=f_params,
-            no_trade_tol=no_trade_tol,
-            turnover_penalty_mult=turnover_penalty_mult,
-            max_turnover=max_turnover_actual,
-            universe_by_ticker=universe_by_ticker,
-            class_budget=class_budget,
+        sim_kw = apply_allocator_resolver(
+            dict(
+                spec=trial_spec,
+                max_weight=cap,
+                allocator=alloc,
+                top_n=top_n_actual,
+                factor_params=f_params,
+                no_trade_tol=no_trade_tol,
+                turnover_penalty_mult=turnover_penalty_mult,
+                max_turnover=max_turnover_actual,
+                universe_by_ticker=universe_by_ticker,
+                class_budget=class_budget,
+            ),
+            prices,
+            resolver,
         )
 
         bundle = (
@@ -1142,9 +1170,11 @@ def _assemble_candidates_from_records(
                         f"cache incomplete ({', '.join(missing)}) — running backtest(s)…"
                     )
             if need_train:
-                train_m = simulate_dynamic_portfolio(prices_train, **sim_kw)
+                train_kw = apply_allocator_resolver(sim_kw, prices_train, resolver)
+                train_m = simulate_dynamic_portfolio(prices_train, **train_kw)
             if need_val:
-                val_m = simulate_dynamic_portfolio(prices_val, **sim_kw)
+                val_kw = apply_allocator_resolver(sim_kw, prices_val, resolver)
+                val_m = simulate_dynamic_portfolio(prices_val, **val_kw)
             if need_full:
                 full_m_rank = simulate_dynamic_portfolio(prices, **sim_kw)
         full_curve_rank = equity_curve_series(full_m_rank["equity"])
@@ -1161,13 +1191,27 @@ def _assemble_candidates_from_records(
                 prices,
                 universe_by_ticker,
                 trial_spec,
-                objective_effective=objective_effective,
+                objective_effective=metrics_objective
+                if not is_dynamic_objective(objective_effective)
+                else objective_effective,
                 train_start=train_start,
                 train_end=train_end,
                 val_start=val_start,
                 train_ratio=train_ratio,
             )
         )
+        if is_dynamic_objective(objective_effective) and dynamic_ctx:
+            cand = candidates[-1]
+            analytics = dict(cand.analytics or {})
+            sm = dict(analytics.get("sample_metrics") or {})
+            sm["objective"] = objective_effective
+            sm["objective_label"] = objective_label(objective_effective)
+            sm["trial_scoring_objective"] = metrics_objective
+            sm["dynamic_objective_timeline"] = serialize_dynamic_timeline(
+                dynamic_ctx.get("regime_timeline") or []
+            )
+            analytics["sample_metrics"] = sm
+            candidates[-1] = cand.model_copy(update={"analytics": analytics})
     return candidates
 
 
@@ -1353,6 +1397,13 @@ def _find_record_by_params(
 
 def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> BacktestResult:
     objective_effective = _resolve_objective(req.objective.value, req.objective_custom_text)
+    dynamic_mode = is_dynamic_objective(objective_effective)
+    trial_objective = trial_scoring_objective(objective_effective)
+    regime_mode = resolve_regime_mode(
+        str(req.experiment.regime_mode)
+        if req.experiment and req.experiment.enabled
+        else None
+    )
     guaranteed_supplements = list(req.universe_supplement_tickers or [])
     universe = get_universe(
         req.asset_classes,
@@ -1360,7 +1411,10 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         req.universe_tickers,
         supplement_tickers=guaranteed_supplements or None,
     )
-    universe_plan = refine_universe_with_ai(universe=universe, objective=objective_effective)
+    universe_plan = refine_universe_with_ai(
+        universe=universe,
+        objective=trial_objective if dynamic_mode else objective_effective,
+    )
     # Pinned supplements survive category dedupe during refine (保證名單).
     universe = pin_guaranteed_supplements(
         universe_plan["universe"],
@@ -1396,8 +1450,23 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     tickers = [t for t in tickers if t in prices.columns]
     if len(tickers) < 5:
         raise ValueError("Too few tradable tickers after filter; widen asset classes or extend dates")
+    prices_with_benchmark = prices.copy()
     prices = prices[tickers]
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
+
+    dynamic_ctx: dict[str, Any] | None = None
+    if dynamic_mode:
+        dynamic_ctx = build_dynamic_objective_context(
+            prices_with_benchmark,
+            spec.benchmark_ticker,
+            regime_mode=regime_mode,
+            fast_risk_off_exit=True,
+        )
+        if len(dynamic_ctx.get("objectives_used") or []) < 1:
+            raise ValueError(
+                "Dynamic objective needs enough benchmark history for regime walk-forward; "
+                "extend the date range or change benchmark."
+            )
 
     oos = req.enable_oos
     if oos:
@@ -1449,6 +1518,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "fixed": objective_effective,
         "options": [objective_effective],
     }
+    if dynamic_mode:
+        param_controls_dict["objective_mode"]["options"] = [DYNAMIC_OBJECTIVE]
     param_controls_dict["rebalance_freq"] = {
         "mode": "fixed",
         "fixed": rebalance_rule,
@@ -1465,7 +1536,12 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         0,
         req.trials if not pro_mode else req.refinement_batch_size,
         f"Loaded {len(tickers)} tickers, {data_meta['rows']} trading days. "
-        f"Each rebalance: factor Top-N screen + allocator weights (not static weights).",
+        f"Each rebalance: factor Top-N screen + allocator weights (not static weights)."
+        + (
+            " Dynamic objective: regime V2 sets allocator preset per rebalance."
+            if dynamic_mode
+            else ""
+        ),
     )
 
     if pro_mode:
@@ -1492,6 +1568,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             param_controls_dict=param_controls_dict,
             report_progress=report_progress,
             trial_report_cache=trial_report_cache,
+            dynamic_ctx=dynamic_ctx,
         )
         ai_generation = {
             "enabled": True,
@@ -1513,7 +1590,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         )
         ai_generation = generate_ai_param_sets(
             n=req.trials,
-            objective=objective_effective,
+            objective=trial_objective,
             rebalance_freq=rebalance_rule,
             max_weight_cap=req.max_weight,
             max_turnover_cap=req.max_turnover,
@@ -1564,7 +1641,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             max_weight=req.max_weight,
             max_turnover=req.max_turnover,
             top_n=req.top_n,
-            objective=objective_effective,
+            objective=trial_objective,
             trials=req.trials,
             ai_seed_param_sets=ai_param_sets,
             param_controls=param_controls_dict,
@@ -1579,6 +1656,9 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             select_on_is=bool(oos and len(prices_val) > 60),
             asset_classes=req.asset_classes,
             trial_report_cache=trial_report_cache,
+            allocator_resolver=(
+                dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
+            ),
         )
         assign_search_model_codes(records, next_model_no=[1])
         for _, params, _ in records:
@@ -1646,8 +1726,11 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         train_ratio=float(req.train_ratio),
         assembly_progress=final_assembly_progress,
         trial_report_cache=trial_report_cache,
+        dynamic_ctx=dynamic_ctx,
     )
-    candidates = _rerank_candidates_by_objective(candidates, objective_effective)
+    candidates = _rerank_candidates_by_objective(
+        candidates, trial_objective if dynamic_mode else objective_effective
+    )
     if pro_mode:
         final_champion_params = refinement_meta.get("final_champion_params")
         if isinstance(final_champion_params, dict):
@@ -1740,10 +1823,12 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 train_ratio=float(req.train_ratio),
                 assembly_progress=pro_round_assembly_progress,
                 trial_report_cache=trial_report_cache,
+                dynamic_ctx=dynamic_ctx,
             )
             pro_round_assembly_progress("ranking packaged models by objective…")
             pr_candidates = _rerank_candidates_by_objective(
-                pr_candidates, objective_effective
+                pr_candidates,
+                trial_objective if dynamic_mode else objective_effective,
             )
             cand_codes = {
                 str((c.params or {}).get("model_code", ""))
@@ -1875,26 +1960,30 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     best_f_params = factor_params_from_dict(
         best_params, default_lookback=best_alloc.lookback_days
     )
-    full_m = simulate_dynamic_portfolio(
-        prices,
-        spec=BacktestSpec(
-            benchmark_ticker=spec.benchmark_ticker,
-            risk_free_rate=spec.risk_free_rate,
-            fee_bps=spec.fee_bps,
-            rebalance_rule=str(best_params.get("rebalance_freq", rebalance_rule)),
-            min_holdings=spec.min_holdings,
-            max_holdings=spec.max_holdings,
+    champion_sim_kw = apply_allocator_resolver(
+        dict(
+            spec=BacktestSpec(
+                benchmark_ticker=spec.benchmark_ticker,
+                risk_free_rate=spec.risk_free_rate,
+                fee_bps=spec.fee_bps,
+                rebalance_rule=str(best_params.get("rebalance_freq", rebalance_rule)),
+                min_holdings=spec.min_holdings,
+                max_holdings=spec.max_holdings,
+            ),
+            max_weight=best_cap,
+            allocator=best_alloc,
+            top_n=best_top_n_actual,
+            factor_params=best_f_params,
+            no_trade_tol=best_no_trade_tol,
+            turnover_penalty_mult=best_turnover_penalty_mult,
+            max_turnover=best_max_turnover,
+            universe_by_ticker=universe_by_ticker,
+            class_budget=best_class_budget,
         ),
-        max_weight=best_cap,
-        allocator=best_alloc,
-        top_n=best_top_n_actual,
-        factor_params=best_f_params,
-        no_trade_tol=best_no_trade_tol,
-        turnover_penalty_mult=best_turnover_penalty_mult,
-        max_turnover=best_max_turnover,
-        universe_by_ticker=universe_by_ticker,
-        class_budget=best_class_budget,
+        prices,
+        dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None,
     )
+    full_m = simulate_dynamic_portfolio(prices, **champion_sim_kw)
     equity_curve = equity_curve_series(full_m["equity"])
 
     frontier = _build_frontier_from_records(records, trials_completed)
@@ -1913,6 +2002,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "max_diversification": "Max Diversification",
         "mean_variance_utility": "Mean-Variance Utility",
         "custom": "Custom Objective",
+        "dynamic": "Dynamic (regime-based)",
     }
     narrative_facts: dict[str, Any] = {
         "scenario_id": req.scenario_id,
@@ -1939,6 +2029,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "objective_input": req.objective.value,
         "objective_custom_text": req.objective_custom_text,
         "objective_label": objective_map.get(objective_effective, objective_effective),
+        "trial_scoring_objective": trial_objective if dynamic_mode else objective_effective,
+        "dynamic_objective_enabled": dynamic_mode,
         "data_source": data_meta["data_source"],
         "data_quality": data_meta,
         "engine": "optuna+pandas+pro" if pro_mode else "optuna+pandas",
@@ -1976,7 +2068,10 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "trial_scores_select_on_is": bool(oos and len(prices_val) > 60),
         "train_ratio": float(req.train_ratio) if oos else None,
         "oos_leaderboard": (
-            _oos_leaderboard(candidates, objective_effective=objective_effective)
+            _oos_leaderboard(
+                candidates,
+                objective_effective=trial_objective if dynamic_mode else objective_effective,
+            )
             if oos and len(prices_val) > 60
             else None
         ),
@@ -2078,6 +2173,36 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "metrics_trustworthy": data_meta["data_source"] == "yfinance"
         and not full_m.get("metrics_suspect", False),
     }
+    dynamic_timeline: list[DynamicObjectiveTimelinePoint] | None = None
+    dynamic_benchmark_series: list[dict[str, Any]] | None = None
+    if dynamic_ctx:
+        snap = dynamic_ctx.get("current_regime") or {}
+        timeline_rows, benchmark_series = build_dynamic_backtest_chart_payload(
+            prices_with_benchmark,
+            spec.benchmark_ticker,
+            dynamic_ctx.get("regime_timeline") or [],
+        )
+        dynamic_timeline = [DynamicObjectiveTimelinePoint(**row) for row in timeline_rows]
+        dynamic_benchmark_series = benchmark_series
+        narrative_facts["dynamic_objective_mode"] = True
+        narrative_facts["dynamic_objective_timeline"] = timeline_rows
+        narrative_facts["dynamic_objective_benchmark_series"] = benchmark_series
+        narrative_facts["dynamic_objectives_used"] = dynamic_ctx.get("objectives_used")
+        narrative_facts["regime_switch_count"] = dynamic_ctx.get("regime_switch_count")
+        narrative_facts["current_regime"] = {
+            "regime": snap.get("regime"),
+            "objective": snap.get("objective"),
+            "detector_version": dynamic_ctx.get("detector_version"),
+            "benchmark_ticker": dynamic_ctx.get("benchmark_ticker"),
+            "regime_mode": dynamic_ctx.get("regime_mode"),
+            "fast_risk_off_exit": dynamic_ctx.get("fast_risk_off_exit"),
+        }
+        narrative_facts["backtest_methodology"] = (
+            str(narrative_facts.get("backtest_methodology", ""))
+            + " Dynamic objective: regime detector v2 (walk-forward on benchmark) "
+            "maps risk_off→min max drawdown, neutral→max Sharpe, risk_on→max return; "
+            "Optuna trial ranking uses max Sharpe on in-sample."
+        )
 
     return BacktestResult(
         job_id=job_id,
@@ -2090,4 +2215,6 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         narrative_facts=narrative_facts,
         pro_rounds=pro_rounds,
         experimental=None,
+        dynamic_objective_timeline=dynamic_timeline,
+        dynamic_objective_benchmark_series=dynamic_benchmark_series,
     )

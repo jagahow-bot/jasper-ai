@@ -14,6 +14,7 @@ class Objective(str, Enum):
     max_diversification = "max_diversification"
     mean_variance_utility = "mean_variance_utility"
     custom = "custom"
+    dynamic = "dynamic"
 
 
 class BacktestMode(str, Enum):
@@ -236,6 +237,16 @@ class PortfolioCandidate(BaseModel):
     information_ratio: float | None = None
 
 
+class DynamicObjectiveTimelinePoint(BaseModel):
+    """Walk-forward regime step with effective allocator objective."""
+
+    date: str
+    regime: str
+    objective: str
+    switched: bool = False
+    raw_regime: str | None = None
+
+
 class ProRoundSnapshot(BaseModel):
     """One Pro refinement round, same report shape as the final result."""
 
@@ -274,6 +285,8 @@ class BacktestResult(BaseModel):
     narrative_facts: dict[str, Any]
     pro_rounds: list[ProRoundSnapshot] | None = None
     experimental: dict[str, Any] | None = None
+    dynamic_objective_timeline: list[DynamicObjectiveTimelinePoint] | None = None
+    dynamic_objective_benchmark_series: list[dict[str, Any]] | None = None
 
 
 class ScenarioCard(BaseModel):

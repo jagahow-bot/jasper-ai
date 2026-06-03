@@ -20,6 +20,7 @@ import {
   ZAxis,
 } from "recharts";
 import { ChartTooltip } from "@/components/ChartTooltip";
+import { DynamicObjectiveTimelineChart } from "@/components/DynamicObjectiveTimelineChart";
 import { InstitutionalReport } from "@/components/InstitutionalReport";
 import { LinkedEquityWeightChart } from "@/components/LinkedEquityWeightChart";
 import {
@@ -41,7 +42,12 @@ import {
   extentWithZero,
   tightMaxFromValues,
 } from "@/lib/align-y-axis-zero";
-import type { BacktestRequest, BacktestResult } from "@/lib/types";
+import type {
+  BacktestRequest,
+  BacktestResult,
+  BenchmarkSeriesPoint,
+  DynamicObjectiveTimelinePoint,
+} from "@/lib/types";
 import { getUniverseItems } from "@/lib/universe";
 
 function candidateRowKey(
@@ -319,6 +325,45 @@ export function ResultsDashboard({
       | undefined;
     return spec?.benchmark_metrics ?? null;
   }, [result.narrative_facts.backtest_spec]);
+
+  const dynamicObjectiveChart = useMemo(() => {
+    const isDynamic =
+      request.objective === "dynamic" ||
+      result.narrative_facts.objective === "dynamic" ||
+      result.narrative_facts.dynamic_objective_mode === true;
+    if (!isDynamic) return null;
+
+    const fromResult = result.dynamic_objective_timeline ?? [];
+    const fromFacts = result.narrative_facts.dynamic_objective_timeline as
+      | DynamicObjectiveTimelinePoint[]
+      | undefined;
+    const fromChampion = (
+      (selected?.analytics as {
+        sample_metrics?: { dynamic_objective_timeline?: DynamicObjectiveTimelinePoint[] };
+      })?.sample_metrics?.dynamic_objective_timeline ?? []
+    );
+    const timeline =
+      fromResult.length > 0
+        ? fromResult
+        : (fromFacts?.length ? fromFacts : fromChampion);
+    if (!timeline.length) return null;
+
+    const benchmarkSeries = (
+      result.dynamic_objective_benchmark_series?.length
+        ? result.dynamic_objective_benchmark_series
+        : (result.narrative_facts.dynamic_objective_benchmark_series as
+            | BenchmarkSeriesPoint[]
+            | undefined)
+    ) ?? [];
+
+    return { timeline, benchmarkSeries };
+  }, [
+    request.objective,
+    result.dynamic_objective_timeline,
+    result.dynamic_objective_benchmark_series,
+    result.narrative_facts,
+    selected?.analytics,
+  ]);
 
   const preserveTrialOrder = Boolean(result.narrative_facts.is_round_view);
 
@@ -1260,6 +1305,47 @@ export function ResultsDashboard({
           </div>
         )}
       </ChartCard>
+
+      {dynamicObjectiveChart && (
+        <div className="pixel-panel border-[var(--cyan)] p-5">
+          <h3 className="font-pixel text-xs text-neon glow-title">
+            DYNAMIC OBJECTIVE TIMELINE
+          </h3>
+          <p className="mt-1 text-xs text-dim">
+            Jasper selects objective based on market conditions (regime V2 on benchmark).
+          </p>
+          {(result.narrative_facts.current_regime as { regime?: string; objective?: string } | undefined) && (
+            <p className="mt-2 text-xs text-dim">
+              End of sample:{" "}
+              <span className="text-[var(--cyan)]">
+                {String(
+                  (result.narrative_facts.current_regime as { regime?: string }).regime ?? "—",
+                )}
+              </span>
+              {" → "}
+              <span className="text-neon">
+                {String(
+                  (result.narrative_facts.current_regime as { objective?: string }).objective ??
+                    "—",
+                )}
+              </span>
+            </p>
+          )}
+          {(result.narrative_facts.dynamic_objectives_used as string[] | undefined)?.length ? (
+            <p className="mt-1 text-xs text-dim">
+              Objectives used:{" "}
+              {(result.narrative_facts.dynamic_objectives_used as string[]).join(", ")}
+            </p>
+          ) : null}
+          <div className="mt-4">
+            <DynamicObjectiveTimelineChart
+              benchmarkSeries={dynamicObjectiveChart.benchmarkSeries}
+              timeline={dynamicObjectiveChart.timeline}
+              benchmarkTicker={benchTicker}
+            />
+          </div>
+        </div>
+      )}
 
       <InstitutionalReport candidate={top} benchmark={benchTicker} />
 

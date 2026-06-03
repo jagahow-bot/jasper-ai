@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeObjectiveAtTs,
   activeRegimeAtTs,
   computeSharedDateDomain,
   dateRatio,
+  objectiveBandRanges,
   parseDateTs,
   regimeBandRanges,
 } from "./benchmark-chart-scale";
@@ -71,6 +73,32 @@ describe("benchmark-chart-scale", () => {
       max,
     );
     expect(bands).toHaveLength(2);
+    expect(bands[1].endTs).toBe(max);
+  });
+
+  it("resolves active objective at hovered timestamp", () => {
+    const timeline = [
+      { date: "2024-01-01", regime: "neutral", objective: "max_sharpe" },
+      { date: "2024-04-01", regime: "risk_on", objective: "max_return" },
+      { date: "2024-07-01", regime: "risk_off", objective: "min_max_drawdown" },
+    ];
+    expect(activeObjectiveAtTs(parseDateTs("2024-05-15"), timeline)).toBe("max_return");
+    expect(activeObjectiveAtTs(parseDateTs("2024-08-01"), timeline)).toBe(
+      "min_max_drawdown",
+    );
+  });
+
+  it("extends last objective band to domain max", () => {
+    const max = parseDateTs("2024-12-31");
+    const bands = objectiveBandRanges(
+      [
+        { date: "2024-06-01", regime: "risk_on", objective: "max_return" },
+        { date: "2024-09-01", regime: "risk_off", objective: "min_max_drawdown" },
+      ],
+      max,
+    );
+    expect(bands).toHaveLength(2);
+    expect(bands[1].objective).toBe("min_max_drawdown");
     expect(bands[1].endTs).toBe(max);
   });
 });

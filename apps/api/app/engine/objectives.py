@@ -33,6 +33,8 @@ def compute_objective_score(objective_mode: str, metrics: dict[str, Any]) -> flo
         return float(metrics.get("sharpe", 0.0)) - 0.2 * abs(
             float(metrics.get("max_drawdown", 0.0))
         )
+    if objective_mode == "dynamic":
+        return float(metrics.get("sharpe", 0.0))
     return float(metrics.get("sharpe", 0.0))
 
 
@@ -58,5 +60,6 @@ def objective_label(objective_mode: str) -> str:
         "max_diversification": "Diversification score",
         "mean_variance_utility": "Mean-var utility",
         "custom": "Custom score",
+        "dynamic": "Dynamic (regime-based)",
     }
     return labels.get(objective_mode, objective_mode)

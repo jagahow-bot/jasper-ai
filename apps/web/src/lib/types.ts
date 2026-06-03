@@ -9,7 +9,8 @@ export type Objective =
   | "risk_parity_erc"
   | "max_diversification"
   | "mean_variance_utility"
-  | "custom";
+  | "custom"
+  | "dynamic";
 export type BacktestMode = "static";
 /** standard = 固定試驗次數；pro_auto = 冠軍-挑戰者迭代收斂 */
 export type OptimizationMode = "standard" | "pro_auto";
@@ -259,6 +260,8 @@ export interface BacktestResult {
     params?: Record<string, unknown>;
   }[];
   narrative_facts: Record<string, unknown>;
+  dynamic_objective_timeline?: DynamicObjectiveTimelinePoint[] | null;
+  dynamic_objective_benchmark_series?: BenchmarkSeriesPoint[] | null;
   pro_rounds?: ProRoundSnapshot[] | null;
   experimental?: {
     mode?: string;
@@ -377,6 +380,14 @@ export interface BenchmarkSeriesPoint {
   date: string;
   cumulative_return_pct: number;
   price_index: number;
+}
+
+export interface DynamicObjectiveTimelinePoint {
+  date: string;
+  regime: string;
+  objective: string;
+  switched?: boolean;
+  raw_regime?: string | null;
 }
 
 export interface RegimeScoreTimelinePoint {
