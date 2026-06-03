@@ -149,6 +149,17 @@ body::after {
     background: rgba(255, 176, 0, 0.08);
   }
 
+  .pixel-badge-link {
+    @apply inline-flex items-center font-pixel transition;
+    text-decoration: none;
+  }
+
+  .pixel-badge-link:hover {
+    border-color: var(--neon);
+    background: rgba(57, 255, 20, 0.12);
+    color: var(--neon);
+  }
+
   .pixel-input {
     @apply w-full border-2 bg-[#050508] px-3 py-2 text-sm;
     border-color: var(--border);

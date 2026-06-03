@@ -214,7 +214,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b-2 border-[var(--border)] bg-[var(--surface)] shadow-[0_4px_24px_rgba(0,0,0,0.45)]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:py-4">
           <div className="min-w-0">
             <h1 className="font-pixel text-sm glow-title text-neon md:text-base">
               JASPER.AI
@@ -227,19 +227,22 @@ export default function HomePage() {
             <FontSizeControl />
             {apiOnline === false && (
               <span
-                className="pixel-badge-warn max-w-xs"
+                className="pixel-badge pixel-badge-warn max-w-xs"
                 title="Run npm run dev from repo root"
               >
                 API offline
               </span>
             )}
             {apiOnline === true && (
-              <span className="pixel-badge-cyan">API linked</span>
+              <span className="pixel-badge pixel-badge-cyan">API linked</span>
             )}
             <span className="pixel-badge">
               {universeMeta.count} ETFs
             </span>
-            <a href="/lab/objective-switch" className="pixel-btn text-[8px]">
+            <a
+              href="/lab/objective-switch"
+              className="pixel-badge pixel-badge-link"
+            >
               Objective Switch Lab
             </a>
           </div>

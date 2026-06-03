@@ -99,8 +99,10 @@ export default function ObjectiveSwitchLabPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <FontSizeControl />
-            {apiOnline === true && <span className="pixel-badge-cyan">API linked</span>}
-            <Link href="/" className="pixel-btn text-[8px]">
+            {apiOnline === true && (
+              <span className="pixel-badge pixel-badge-cyan">API linked</span>
+            )}
+            <Link href="/" className="pixel-badge pixel-badge-link">
               ← Main Jasper
             </Link>
           </div>
