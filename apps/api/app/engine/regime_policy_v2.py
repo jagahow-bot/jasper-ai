@@ -78,6 +78,13 @@ def _drawdown_stress_score(max_dd: float) -> float:
     return _clamp01((-max_dd - 0.025) / 0.12)
 
 
+RISK_OFF_WEIGHTS = {
+    "vol_level": 0.60,
+    "drawdown_stress": 0.25,
+    "negative_return_streak": 0.15,
+}
+
+
 def compute_regime_scores(
     window: pd.Series,
     *,
@@ -86,6 +93,9 @@ def compute_regime_scores(
     """
     Independent risk-off and risk-on scores in [0, 1].
     Neutral is implied when arbitration cannot pick a confident winner.
+
+    risk_off_score weights (vol-primary): 60% vol_level, 25% drawdown_stress,
+    15% negative_return_streak.
     """
     if len(window) == 0:
         return {
@@ -109,9 +119,10 @@ def compute_regime_scores(
             vol_level = max(vol_level, _clamp01((pct - 0.55) / 0.35))
 
     risk_off_score = _clamp01(
-        0.38 * vol_level
-        + 0.34 * _drawdown_stress_score(max_dd)
-        + 0.28 * _negative_return_streak_score(window)
+        RISK_OFF_WEIGHTS["vol_level"] * vol_level
+        + RISK_OFF_WEIGHTS["drawdown_stress"] * _drawdown_stress_score(max_dd)
+        + RISK_OFF_WEIGHTS["negative_return_streak"]
+        * _negative_return_streak_score(window)
     )
 
     risk_on_score = _clamp01(

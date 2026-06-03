@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import pytest
 import numpy as np
 import pandas as pd
 
 from app.engine.regime_policy_v2 import (
+    RISK_OFF_WEIGHTS,
     arbitrate_regime,
     compute_regime_scores,
     resolve_regime_signal_v2,
@@ -50,6 +52,25 @@ def test_walk_forward_includes_scores() -> None:
     assert "risk_off_score" in row
     assert "risk_on_score" in row
     assert row["regime"] in ("risk_off", "neutral", "risk_on")
+
+
+def test_risk_off_weights_vol_primary() -> None:
+    assert RISK_OFF_WEIGHTS == {
+        "vol_level": 0.60,
+        "drawdown_stress": 0.25,
+        "negative_return_streak": 0.15,
+    }
+    assert sum(RISK_OFF_WEIGHTS.values()) == pytest.approx(1.0)
+
+
+def test_high_vol_window_scores_higher_risk_off_than_low_vol() -> None:
+    idx = pd.bdate_range("2020-01-01", periods=63)
+    rng = np.random.default_rng(42)
+    low_vol = pd.Series(rng.normal(0.0001, 0.003, len(idx)), index=idx)
+    high_vol = pd.Series(rng.normal(0.0001, 0.035, len(idx)), index=idx)
+    low_scores = compute_regime_scores(low_vol)
+    high_scores = compute_regime_scores(high_vol)
+    assert high_scores["risk_off_score"] > low_scores["risk_off_score"]
 
 
 def test_stress_window_elevates_risk_off_score() -> None:
