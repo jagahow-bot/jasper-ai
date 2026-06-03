@@ -28,6 +28,15 @@ export function formatAxisDate(ts: number): string {
   return new Date(ts).toISOString().slice(0, 10);
 }
 
+/** Recharts tooltip/x labels: numeric ms timestamps → YYYY-MM-DD. */
+export function formatChartTooltipLabel(label: unknown): string {
+  const ts = Number(label);
+  if (Number.isFinite(ts) && ts > 1e11) return formatAxisDate(ts);
+  const s = String(label ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return s || "—";
+}
+
 /** Shared x-domain from benchmark path and walk-forward regime steps. */
 export function computeSharedDateDomain(
   benchmarkSeries: BenchmarkSeriesPoint[],
@@ -130,6 +139,24 @@ export const OBJECTIVE_DISPLAY_LABELS_ZH: Record<string, string> = {
   max_sharpe: "最大夏普",
   max_return: "最大報酬",
   min_max_drawdown: "最小最大回撤",
+};
+
+export const REGIME_BAND_COLORS: Record<string, string> = {
+  risk_off: "rgba(255, 80, 80, 0.14)",
+  neutral: "rgba(255, 176, 0, 0.1)",
+  risk_on: "rgba(0, 220, 180, 0.12)",
+};
+
+export const REGIME_STRIP_COLORS: Record<string, string> = {
+  risk_off: "rgba(255, 80, 80, 0.55)",
+  neutral: "rgba(255, 176, 0, 0.55)",
+  risk_on: "rgba(0, 220, 180, 0.55)",
+};
+
+export const REGIME_DISPLAY_LABELS_ZH: Record<string, string> = {
+  risk_off: "風險趨避",
+  neutral: "中性",
+  risk_on: "風險偏好",
 };
 
 export type ObjectiveBandRange = { startTs: number; endTs: number; objective: string };

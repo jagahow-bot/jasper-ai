@@ -58,3 +58,14 @@ def test_simulate_dynamic_respects_min_holding_weight():
     assert len(active) >= 1
     assert float(active.min()) >= 0.05 - 1e-6 or len(active) == 1
     assert float(last_w.sum()) <= 1.0 + 1e-6
+
+
+def test_weight_history_chart_floor_is_not_min_weight():
+    """UI weight sleeves use 2% peak-weight floor, not min_weight (avoids huge Other band)."""
+    from pathlib import Path
+
+    text = Path(__file__).resolve().parents[1].joinpath(
+        "app", "engine", "portfolio.py"
+    ).read_text(encoding="utf-8")
+    assert "hist_floor = float(min_weight)" not in text
+    assert "hist_floor = 0.02" in text

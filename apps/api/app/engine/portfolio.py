@@ -636,7 +636,8 @@ def _simulate_pandas(
     sch = schedule.fillna(0.0)
     max_s = sch.max(axis=0).sort_values(ascending=False)
     # Keep names that were ever meaningful sleeves, not only current holdings.
-    hist_floor = float(min_weight) if dynamic and float(min_weight) > 0 else 0.02
+    # Chart sleeves: stable 2% peak-weight floor (not min_weight — that only affects allocation).
+    hist_floor = 0.02
     keep_tickers = [t for t, v in max_s.items() if float(v) >= hist_floor]
     if len(keep_tickers) < 8:
         keep_tickers = list(max_s.head(min(12, len(max_s))).index)

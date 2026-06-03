@@ -4,12 +4,19 @@ import {
   activeRegimeAtTs,
   computeSharedDateDomain,
   dateRatio,
+  formatChartTooltipLabel,
   objectiveBandRanges,
   parseDateTs,
   regimeBandRanges,
 } from "./benchmark-chart-scale";
 
 describe("benchmark-chart-scale", () => {
+  it("formats millisecond tooltip labels as ISO dates", () => {
+    const ts = parseDateTs("2025-04-11");
+    expect(formatChartTooltipLabel(ts)).toBe("2025-04-11");
+    expect(formatChartTooltipLabel("2025-04-11")).toBe("2025-04-11");
+  });
+
   it("uses min/max across benchmark and regime dates", () => {
     const domain = computeSharedDateDomain(
       [

@@ -2,27 +2,44 @@
 
 import { useMemo } from "react";
 import {
+  activeObjectiveAtTs,
+  activeRegimeAtTs,
+  computeSharedDateDomain,
+  formatChartTooltipLabel,
+  JASPER_PERFORMANCE_CHART_SYNC,
+  LAB_CHART_MARGIN,
+  LAB_Y_AXIS_WIDTH,
+  labXAxisProps,
+  OBJECTIVE_BAND_COLORS,
+  OBJECTIVE_DISPLAY_LABELS_ZH,
+  objectiveBandRanges,
+  parseDateTs,
+  REGIME_BAND_COLORS,
+  REGIME_DISPLAY_LABELS_ZH,
+  REGIME_STRIP_COLORS,
+  regimeBandRanges,
+} from "@/lib/benchmark-chart-scale";
+import type { DynamicObjectiveTimelinePoint } from "@/lib/types";
+import type { TooltipProps } from "recharts";
+import {
   Area,
   AreaChart,
   CartesianGrid,
   Legend,
   Line,
   LineChart,
+  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import { ChartTooltip } from "@/components/ChartTooltip";
-import {
-  JASPER_PERFORMANCE_CHART_SYNC,
-  LAB_CHART_MARGIN,
-  LAB_Y_AXIS_WIDTH,
-  labXAxisProps,
-  parseDateTs,
-} from "@/lib/benchmark-chart-scale";
 
-const WEIGHT_SYNC_ID = "equity-weight-linked";
+const EQUITY_HEIGHT = 220;
+const REGIME_STRIP_HEIGHT = 22;
+const OBJECTIVE_STRIP_HEIGHT = 22;
+const WEIGHT_HEIGHT = 260;
 
 type EquityPoint = { date: string; value: number };
 
@@ -33,7 +50,58 @@ type Props = {
   weightHistory: ({ date: string } & Record<string, number | string>)[];
   weightTickers: string[];
   colors: string[];
+  /** Walk-forward regime / objective steps (dynamic Jasper). */
+  regimeTimeline?: DynamicObjectiveTimelinePoint[];
 };
+
+function PortfolioEquityTooltip({
+  active,
+  payload,
+  label,
+  timeline,
+}: TooltipProps<number, string> & {
+  timeline: DynamicObjectiveTimelinePoint[];
+}) {
+  if (!active || !payload?.length) return null;
+  const ts = Number(label);
+  const dateLabel = formatChartTooltipLabel(label);
+  const regime =
+    timeline.length && Number.isFinite(ts)
+      ? activeRegimeAtTs(ts, timeline)
+      : null;
+  const objective =
+    timeline.length && Number.isFinite(ts)
+      ? activeObjectiveAtTs(ts, timeline)
+      : null;
+
+  return (
+    <div className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2 text-xs min-w-[160px]">
+      <div className="mb-1 font-pixel text-[8px] text-[var(--amber)]">{dateLabel}</div>
+      {regime && (
+        <p className="text-dim">
+          市場狀態：{REGIME_DISPLAY_LABELS_ZH[regime] ?? regime}
+        </p>
+      )}
+      {objective && (
+        <p className="text-dim">
+          作用中目標：{OBJECTIVE_DISPLAY_LABELS_ZH[objective] ?? objective}
+        </p>
+      )}
+      <ul className="mt-1 space-y-0.5">
+        {payload.map((row, i) => (
+          <li key={`${row.dataKey ?? i}`} className="flex justify-between gap-3">
+            <span className="text-dim" style={{ color: row.color }}>
+              {row.name ?? row.dataKey}
+            </span>
+            <span className="text-neon font-semibold">
+              {typeof row.value === "number" ? `${row.value.toFixed(2)}%` : "—"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export function LinkedEquityWeightChart({
   equityCurve,
@@ -42,7 +110,10 @@ export function LinkedEquityWeightChart({
   weightHistory,
   weightTickers,
   colors,
+  regimeTimeline = [],
 }: Props) {
+  const timeline = regimeTimeline;
+
   const equityChartData = useMemo(() => {
     const benchByDate = new Map(
       (benchmarkCurve ?? []).map((r) => [r.date, Number(r.value)]),
@@ -60,14 +131,6 @@ export function LinkedEquityWeightChart({
     });
   }, [equityCurve, benchmarkCurve]);
 
-  const equityDateDomain = useMemo(() => {
-    const stamps = equityChartData
-      .map((r) => r.ts)
-      .filter((t) => Number.isFinite(t));
-    if (!stamps.length) return null;
-    return { min: Math.min(...stamps), max: Math.max(...stamps) };
-  }, [equityChartData]);
-
   const weightChartData = useMemo(() => {
     if (!weightHistory.length) return [];
     const enrich = (row: { date: string } & Record<string, number | string>) => {
@@ -77,6 +140,7 @@ export function LinkedEquityWeightChart({
       );
       return {
         ...row,
+        ts: parseDateTs(String(row.date)),
         OTHER: Number(
           (row as Record<string, unknown>).OTHER ?? Math.max(0, 1 - sumShown),
         ),
@@ -97,135 +161,296 @@ export function LinkedEquityWeightChart({
     return weightHistory.map((row) => enrich(row));
   }, [weightHistory, weightTickers, equityCurve]);
 
+  const sharedDomain = useMemo(() => {
+    const benchForDomain = equityChartData.map((r) => ({
+      date: r.date,
+      cumulative_return_pct: r.portfolio,
+      price_index: 0,
+    }));
+    return computeSharedDateDomain(benchForDomain, timeline);
+  }, [equityChartData, timeline]);
+
+  const objectiveBands = useMemo(() => {
+    if (!timeline.length || !sharedDomain) return [];
+    return objectiveBandRanges(timeline, sharedDomain.max);
+  }, [timeline, sharedDomain]);
+
+  const regimeBands = useMemo(() => {
+    if (!timeline.length || !sharedDomain) return [];
+    return regimeBandRanges(timeline, sharedDomain.max, "active_regime");
+  }, [timeline, sharedDomain]);
+
+  const xAxisProps = useMemo(() => {
+    if (!sharedDomain) return null;
+    return labXAxisProps(sharedDomain.min, sharedDomain.max);
+  }, [sharedDomain]);
+
+  const stripAnchor = useMemo(() => {
+    if (!sharedDomain) return [];
+    return [
+      { ts: sharedDomain.min, v: 0 },
+      { ts: sharedDomain.max, v: 1 },
+    ];
+  }, [sharedDomain]);
+
   const hasEquity = equityChartData.length > 0;
   const hasWeights = weightChartData.length > 0 && weightTickers.length > 0;
   const hasBenchmark = equityChartData.some(
     (r) => r.benchmark != null && Number.isFinite(r.benchmark),
   );
+  const hasTimeline = timeline.length > 0;
+  const regimesInRun = [
+    ...new Set(timeline.map((r) => r.regime).filter(Boolean)),
+  ];
+  const objectivesInRun = [
+    ...new Set(timeline.map((r) => r.objective).filter(Boolean)),
+  ];
 
   if (!hasEquity && !hasWeights) {
-    return <p className="text-xs text-dim">No equity or weight history for this model.</p>;
+    return (
+      <p className="text-xs text-dim">No equity or weight history for this model.</p>
+    );
   }
 
-  const tickFmt = (v: unknown) => String(v).slice(2);
-
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <p className="text-[11px] text-dim">
-        Hover either chart — cursor syncs by date so you can read portfolio return and
-        holdings at the same rebalance.
+        游標連動：績效曲線、市場狀態／目標色帶與持倉權重共用同一日期軸。
       </p>
-      <div className="grid gap-4 xl:grid-cols-1">
-        {hasEquity && (
-          <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
-            <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
-              Cumulative return % · portfolio vs {benchmarkLabel}
-            </p>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart
-                {...JASPER_PERFORMANCE_CHART_SYNC}
-                data={equityChartData}
-                margin={LAB_CHART_MARGIN}
-              >
-                <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
-                <XAxis
-                  {...(equityDateDomain
-                    ? labXAxisProps(equityDateDomain.min, equityDateDomain.max)
-                    : {
-                        dataKey: "date" as const,
-                        stroke: "#94a3b8",
-                        fontSize: 10,
-                        minTickGap: 28,
-                        tickFormatter: tickFmt,
-                      })}
-                />
-                <YAxis
-                  domain={["auto", "auto"]}
-                  stroke="#94a3b8"
-                  fontSize={11}
-                  width={LAB_Y_AXIS_WIDTH}
-                  tickFormatter={(v) => `${Number(v).toFixed(1)}%`}
-                />
-                <Tooltip
-                  content={<ChartTooltip valueDecimals={2} valueIsPct={false} />}
-                  labelFormatter={(label) => `date ${String(label)}`}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="portfolio"
-                  name="Portfolio"
-                  stroke="#39ff14"
-                  dot={false}
-                  strokeWidth={2}
-                  connectNulls
-                />
-                {hasBenchmark && (
-                  <Line
-                    type="monotone"
-                    dataKey="benchmark"
-                    name={benchmarkLabel}
-                    stroke="#ffb000"
-                    dot={false}
-                    strokeWidth={2}
-                    strokeDasharray="6 4"
-                    connectNulls
-                  />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
 
-        {hasWeights && (
-          <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
-            <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
-              Weight history (stacked)
-            </p>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={weightChartData} syncId={WEIGHT_SYNC_ID}>
-                <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
+      {hasEquity && (
+        <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
+          <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
+            累積報酬 % · 組合 vs {benchmarkLabel}
+          </p>
+          <ResponsiveContainer width="100%" height={EQUITY_HEIGHT}>
+            <LineChart
+              {...JASPER_PERFORMANCE_CHART_SYNC}
+              data={equityChartData}
+              margin={LAB_CHART_MARGIN}
+            >
+              <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
+              {xAxisProps ? (
+                <XAxis {...xAxisProps} />
+              ) : (
                 <XAxis
                   dataKey="date"
                   stroke="#94a3b8"
                   fontSize={10}
                   minTickGap={28}
-                  tickFormatter={tickFmt}
+                  tickFormatter={(v) => String(v).slice(2)}
                 />
-                <YAxis
-                  domain={[0, 1]}
+              )}
+              <YAxis
+                domain={["auto", "auto"]}
+                stroke="#94a3b8"
+                fontSize={11}
+                width={LAB_Y_AXIS_WIDTH}
+                tickFormatter={(v) => `${Number(v).toFixed(1)}%`}
+              />
+              {regimeBands.map((b) => (
+                <ReferenceArea
+                  key={`reg-${b.startTs}-${b.regime}`}
+                  x1={b.startTs}
+                  x2={b.endTs}
+                  fill={REGIME_BAND_COLORS[b.regime] ?? "transparent"}
+                  strokeOpacity={0}
+                  ifOverflow="hidden"
+                />
+              ))}
+              {objectiveBands.map((b) => (
+                <ReferenceArea
+                  key={`obj-${b.startTs}-${b.objective}`}
+                  x1={b.startTs}
+                  x2={b.endTs}
+                  fill={OBJECTIVE_BAND_COLORS[b.objective] ?? "transparent"}
+                  strokeOpacity={0}
+                  ifOverflow="hidden"
+                />
+              ))}
+              <Tooltip
+                content={
+                  hasTimeline ? (
+                    <PortfolioEquityTooltip timeline={timeline} />
+                  ) : (
+                    <ChartTooltip valueDecimals={2} valueIsPct={false} />
+                  )
+                }
+                labelFormatter={formatChartTooltipLabel}
+              />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="portfolio"
+                name="Portfolio"
+                stroke="#39ff14"
+                dot={false}
+                strokeWidth={2}
+                connectNulls
+              />
+              {hasBenchmark && (
+                <Line
+                  type="monotone"
+                  dataKey="benchmark"
+                  name={benchmarkLabel}
+                  stroke="#ffb000"
+                  dot={false}
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  connectNulls
+                />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+
+          {hasTimeline && xAxisProps && stripAnchor.length > 0 && (
+            <>
+              <ResponsiveContainer width="100%" height={REGIME_STRIP_HEIGHT}>
+                <LineChart
+                  {...JASPER_PERFORMANCE_CHART_SYNC}
+                  data={stripAnchor}
+                  margin={LAB_CHART_MARGIN}
+                >
+                  <XAxis {...xAxisProps} hide />
+                  <YAxis hide domain={[0, 1]} width={LAB_Y_AXIS_WIDTH} />
+                  {regimeBands.map((b, i) => {
+                    const row = timeline[i];
+                    const fill = row?.switched
+                      ? "var(--amber)"
+                      : REGIME_STRIP_COLORS[b.regime] ?? "var(--border)";
+                    return (
+                      <ReferenceArea
+                        key={`reg-strip-${row?.date ?? i}`}
+                        x1={b.startTs}
+                        x2={b.endTs}
+                        y1={0}
+                        y2={1}
+                        fill={fill}
+                        strokeOpacity={0}
+                        ifOverflow="hidden"
+                      />
+                    );
+                  })}
+                </LineChart>
+              </ResponsiveContainer>
+              <ResponsiveContainer width="100%" height={OBJECTIVE_STRIP_HEIGHT}>
+                <LineChart
+                  {...JASPER_PERFORMANCE_CHART_SYNC}
+                  data={stripAnchor}
+                  margin={LAB_CHART_MARGIN}
+                >
+                  <XAxis {...xAxisProps} hide />
+                  <YAxis hide domain={[0, 1]} width={LAB_Y_AXIS_WIDTH} />
+                  {objectiveBands.map((b, i) => {
+                    const row = timeline[i];
+                    const fill = row?.switched
+                      ? "var(--amber)"
+                      : OBJECTIVE_BAND_COLORS[b.objective] ?? "var(--border)";
+                    return (
+                      <ReferenceArea
+                        key={`obj-strip-${row?.date ?? i}`}
+                        x1={b.startTs}
+                        x2={b.endTs}
+                        y1={0}
+                        y2={1}
+                        fill={fill}
+                        strokeOpacity={0}
+                        ifOverflow="hidden"
+                      />
+                    );
+                  })}
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="mt-1 flex flex-wrap gap-3 px-1 text-[10px] text-dim">
+                {regimesInRun.map((regime) => (
+                  <span key={regime} className="inline-flex items-center gap-1">
+                    <span
+                      className="inline-block h-2 w-3 rounded-sm border border-[var(--border)]"
+                      style={{
+                        backgroundColor:
+                          REGIME_STRIP_COLORS[regime] ?? "var(--border)",
+                      }}
+                    />
+                    {REGIME_DISPLAY_LABELS_ZH[regime] ?? regime}
+                  </span>
+                ))}
+                {objectivesInRun.map((obj) => (
+                  <span key={obj} className="inline-flex items-center gap-1">
+                    <span
+                      className="inline-block h-2 w-3 rounded-sm border border-[var(--border)]"
+                      style={{
+                        backgroundColor:
+                          OBJECTIVE_BAND_COLORS[obj] ?? "var(--border)",
+                      }}
+                    />
+                    {OBJECTIVE_DISPLAY_LABELS_ZH[obj] ?? obj}
+                  </span>
+                ))}
+                <span className="text-[var(--amber)]">琥珀＝切換</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {hasWeights && (
+        <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
+          <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
+            持倉權重歷史（堆疊）
+          </p>
+          <ResponsiveContainer width="100%" height={WEIGHT_HEIGHT}>
+            <AreaChart
+              {...JASPER_PERFORMANCE_CHART_SYNC}
+              data={weightChartData}
+              margin={LAB_CHART_MARGIN}
+            >
+              <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
+              {xAxisProps ? (
+                <XAxis {...xAxisProps} />
+              ) : (
+                <XAxis
+                  dataKey="date"
                   stroke="#94a3b8"
                   fontSize={10}
-                  tickFormatter={(v) => `${(Number(v) * 100).toFixed(0)}%`}
+                  minTickGap={28}
+                  tickFormatter={(v) => String(v).slice(2)}
                 />
-                <Tooltip
-                  content={<ChartTooltip valueIsPct valueDecimals={2} />}
-                  labelFormatter={(label) => `date ${String(label)}`}
-                />
-                <Legend wrapperStyle={{ fontSize: 10 }} />
-                {weightTickers.map((t, i) => (
-                  <Area
-                    key={t}
-                    type="monotone"
-                    dataKey={t}
-                    stackId="weights"
-                    stroke={colors[i % colors.length]}
-                    fill={colors[i % colors.length]}
-                  />
-                ))}
+              )}
+              <YAxis
+                domain={[0, 1]}
+                stroke="#94a3b8"
+                fontSize={10}
+                width={LAB_Y_AXIS_WIDTH}
+                tickFormatter={(v) => `${(Number(v) * 100).toFixed(0)}%`}
+              />
+              <Tooltip
+                content={<ChartTooltip valueIsPct valueDecimals={2} />}
+                labelFormatter={formatChartTooltipLabel}
+              />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              {weightTickers.map((t, i) => (
                 <Area
-                  key="OTHER"
+                  key={t}
                   type="monotone"
-                  dataKey="OTHER"
+                  dataKey={t}
                   stackId="weights"
-                  stroke="#64748b"
-                  fill="#64748b"
+                  stroke={colors[i % colors.length]}
+                  fill={colors[i % colors.length]}
                 />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
+              ))}
+              <Area
+                key="OTHER"
+                type="monotone"
+                dataKey="OTHER"
+                name="Other"
+                stackId="weights"
+                stroke="#64748b"
+                fill="#64748b"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 }

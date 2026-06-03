@@ -1,5 +1,6 @@
 "use client";
 
+import { formatChartTooltipLabel } from "@/lib/benchmark-chart-scale";
 import type { TooltipProps } from "recharts";
 
 type Row = {
@@ -30,7 +31,8 @@ export function ChartTooltip({
   if (!active || !payload?.length) return null;
 
   const rows = payload as Row[];
-  const heading = title ?? (label != null ? String(label) : undefined);
+  const heading =
+    title ?? (label != null ? formatChartTooltipLabel(label) : undefined);
 
   const fmt = (v: unknown) => {
     if (v == null || v === "") return "—";

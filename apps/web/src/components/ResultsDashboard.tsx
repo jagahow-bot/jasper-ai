@@ -20,7 +20,6 @@ import {
   ZAxis,
 } from "recharts";
 import { ChartTooltip } from "@/components/ChartTooltip";
-import { DynamicObjectiveTimelineChart } from "@/components/DynamicObjectiveTimelineChart";
 import { InstitutionalReport } from "@/components/InstitutionalReport";
 import { LinkedEquityWeightChart } from "@/components/LinkedEquityWeightChart";
 import {
@@ -1109,30 +1108,16 @@ export function ResultsDashboard({
           </BarChart>
         </ResponsiveContainer>
 
-        {dynamicObjectiveChart && (
-          <div className="mt-5 border-t-2 border-[var(--border)] pt-4">
-            <h4 className="mb-1 font-pixel text-[8px] text-neon glow-title">
-              動態目標時間軸
-            </h4>
-            <p className="mb-3 text-xs text-dim">
-              Jasper 依 walk-forward 步驟切換最佳化目標；背景色帶僅顯示作用中目標（與上方績效曲線連動游標）。
-            </p>
-            {(result.narrative_facts.dynamic_objectives_used as string[] | undefined)
-              ?.length ? (
-              <p className="mb-2 text-xs text-dim">
-                本次使用目標：{" "}
-                {(result.narrative_facts.dynamic_objectives_used as string[]).join(
-                  "、",
-                )}
-              </p>
-            ) : null}
-            <DynamicObjectiveTimelineChart
-              benchmarkSeries={dynamicObjectiveChart.benchmarkSeries}
-              timeline={dynamicObjectiveChart.timeline}
-              benchmarkTicker={benchTicker}
-            />
-          </div>
-        )}
+        {dynamicObjectiveChart &&
+        (result.narrative_facts.dynamic_objectives_used as string[] | undefined)
+          ?.length ? (
+          <p className="mt-3 text-xs text-dim">
+            動態目標：{" "}
+            {(result.narrative_facts.dynamic_objectives_used as string[]).join("、")}
+            {" "}
+            · 市場狀態與目標色帶見下方「投資組合軌跡與持倉」。
+          </p>
+        ) : null}
       </ChartCard>
 
       <ChartCard title="Efficient frontier (samples)">
@@ -1289,7 +1274,16 @@ export function ResultsDashboard({
         </div>
       </ChartCard>
 
-      <ChartCard title="Equity · benchmark · weights (linked hover)">
+      <ChartCard title="Portfolio trajectory & holdings">
+        {dynamicObjectiveChart ? (
+          <p className="mb-3 text-xs text-dim">
+            含 walk-forward 市場狀態與作用中最佳化目標色帶（與累積報酬、權重圖連動游標）。
+            Pro ★ 冠軍：有 holdout 時以樣本內{" "}
+            <span className="text-[var(--amber)]">max Sharpe</span>（
+            <code className="text-[10px]">objective_value_is</code>
+            ）排序，非各再平衡步驟的即時目標分數。
+          </p>
+        ) : null}
         <LinkedEquityWeightChart
           equityCurve={equity}
           benchmarkCurve={benchmarkEquity}
@@ -1297,6 +1291,7 @@ export function ResultsDashboard({
           weightHistory={historySeries}
           weightTickers={weightHistoryTickers}
           colors={COLORS}
+          regimeTimeline={dynamicObjectiveChart?.timeline}
         />
       </ChartCard>
 

@@ -266,7 +266,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         </select>
         <p className="text-xs text-dim">
           {value.objective === "dynamic"
-            ? "Jasper selects the optimization objective from market regime (V2 detector on your benchmark): risk-off → min drawdown, neutral → max Sharpe, risk-on → max return. Trial ranking still uses in-sample max Sharpe when holdout is on."
+            ? "Jasper switches the allocator objective each rebalance from benchmark regime (V2): risk-off → min drawdown, neutral → max Sharpe, risk-on → max return. Pro champion selection still ranks trials on a single in-sample score (max Sharpe via trial_scoring_objective / objective_value_is when holdout is on)—not a blend of per-step objectives."
             : "Optuna trials and Pro champions always score on in-sample when holdout is on; out-of-sample and full-period metrics are shown for comparison only."}
         </p>
       </label>

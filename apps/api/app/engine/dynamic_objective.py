@@ -39,7 +39,12 @@ def is_dynamic_objective(objective: str) -> bool:
 
 
 def trial_scoring_objective(objective_effective: str) -> str:
-    """Optuna ranks trials on a stable score; dynamic mode uses max_sharpe."""
+    """Scalar used for Optuna + Pro champion ranking (``objective_value_is``).
+
+    Dynamic mode still switches allocator objective per rebalance (regime map), but
+    trials and champions are compared on one in-sample score: max Sharpe on the
+    full dynamic backtest—not a per-step blend of regime objectives.
+    """
     return "max_sharpe" if is_dynamic_objective(objective_effective) else objective_effective
 
 
