@@ -348,3 +348,36 @@ def is_feasible(w: np.ndarray, max_weight: float, min_names: int) -> bool:
     return bool(w.max() <= max_weight + 1e-4 and active >= min_names)
 
 
+
+
+
+def apply_min_holding_weight(
+    w: np.ndarray,
+    min_weight: float,
+    *,
+    max_weight: float | None = None,
+) -> np.ndarray:
+    """Zero dust below min_weight, renormalize survivors (implicit cash), optionally re-cap."""
+    floor = float(max(min_weight, 0.0))
+    w = np.asarray(w, dtype=float).copy()
+    w = np.maximum(w, 0.0)
+    if floor <= 0.0:
+        return w
+    mask = w >= floor - 1e-12
+    if not mask.any():
+        i = int(np.argmax(w))
+        w[:] = 0.0
+        w[i] = 1.0
+        return w
+    w = np.where(mask, w, 0.0)
+    s = float(w.sum())
+    if s < 1e-12:
+        active = np.where(mask)[0]
+        w[active] = 1.0 / float(len(active))
+    else:
+        w /= s
+    if max_weight is not None and float(max_weight) < 1.0 - 1e-12:
+        w = project_max_weight(w, float(max_weight))
+    return w
+
+

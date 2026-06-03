@@ -62,6 +62,15 @@ class BacktestRequest(BaseModel):
     scenario_id: str
     # User-facing cap. Engine/Optuna may choose a stricter cap <= this value.
     max_weight: float = Field(ge=0.0, le=1.0)
+    min_weight: float = Field(
+        default=0.005,
+        ge=0.0,
+        le=0.05,
+        description=(
+            "Minimum holding weight after allocation; smaller positions are dropped "
+            "and survivors renormalized before simulation/display"
+        ),
+    )
     objective: Objective
     backtest_mode: BacktestMode = BacktestMode.static
     start_date: str = "2018-01-01"

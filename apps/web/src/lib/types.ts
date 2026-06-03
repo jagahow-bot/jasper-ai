@@ -55,6 +55,8 @@ export interface ScenarioCard {
 export interface BacktestRequest {
   scenario_id: string;
   max_weight: number;
+  /** Minimum holding weight; smaller positions dropped before sim/display */
+  min_weight?: number;
   objective: Objective;
   backtest_mode: BacktestMode;
   start_date: string;

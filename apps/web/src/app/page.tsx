@@ -38,6 +38,7 @@ function buildDefaultRequest(): BacktestRequest {
   return {
     scenario_id: "custom",
     max_weight: 0.5,
+    min_weight: 0.005,
     objective: "max_sharpe",
     backtest_mode: "static",
     start_date: "2018-01-01",

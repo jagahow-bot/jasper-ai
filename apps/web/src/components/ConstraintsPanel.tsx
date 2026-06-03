@@ -170,6 +170,27 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
 
       <label className="block space-y-2">
         <span className="text-sm">
+          Min holding weight: {((value.min_weight ?? 0.005) * 100).toFixed(1)}%
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={50}
+          step={1}
+          value={Math.round((value.min_weight ?? 0.005) * 1000)}
+          onChange={(e) =>
+            onChange({ ...value, min_weight: Number(e.target.value) / 1000 })
+          }
+          className="w-full"
+        />
+        <p className="text-xs text-dim">
+          Positions below this weight are dropped each rebalance; remaining weights are
+          renormalized (dust effectively stays in cash).
+        </p>
+      </label>
+
+      <label className="block space-y-2">
+        <span className="text-sm">
           Max turnover / rebalance: {Math.round(value.max_turnover * 100)}%
         </span>
         <input

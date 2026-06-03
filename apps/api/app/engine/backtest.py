@@ -139,11 +139,14 @@ def _champion_report_horizons(
     }
 
 
-def _weights_dict(tickers: list[str], w: np.ndarray) -> dict[str, float]:
+def _weights_dict(
+    tickers: list[str], w: np.ndarray, *, min_weight: float = WEIGHT_EPS
+) -> dict[str, float]:
+    floor = float(max(min_weight, WEIGHT_EPS))
     return {
         tickers[i]: round(float(w[i]), 4)
         for i in range(len(tickers))
-        if w[i] > WEIGHT_EPS
+        if w[i] >= floor - 1e-12
     }
 
 
@@ -526,6 +529,7 @@ def _run_iterative_search(
         round_records = run_optuna_search(
             prices_train,
             max_weight=req.max_weight,
+            min_weight=req.min_weight,
             max_turnover=req.max_turnover,
             top_n=req.top_n,
             objective=trial_objective,
@@ -846,10 +850,13 @@ def _build_candidate(
     train_end: str | None = None,
     val_start: str | None = None,
     train_ratio: float | None = None,
+    min_weight: float = WEIGHT_EPS,
 ) -> PortfolioCandidate:
     primary = train_m if oos_enabled else full_m
     weights = _weights_dict(
-        tickers, np.asarray(full_m.get("last_weights"), dtype=float)
+        tickers,
+        np.asarray(full_m.get("last_weights"), dtype=float),
+        min_weight=min_weight,
     )
     port_ret: pd.Series = full_m["port_ret"]
     equity: pd.Series = full_m["equity"]
@@ -1110,6 +1117,7 @@ def _assemble_candidates_from_records(
             dict(
                 spec=trial_spec,
                 max_weight=cap,
+                min_weight=req.min_weight,
                 allocator=alloc,
                 top_n=top_n_actual,
                 factor_params=f_params,
@@ -1198,6 +1206,7 @@ def _assemble_candidates_from_records(
                 train_end=train_end,
                 val_start=val_start,
                 train_ratio=train_ratio,
+                min_weight=req.min_weight,
             )
         )
         if is_dynamic_objective(objective_effective) and dynamic_ctx:
@@ -1639,6 +1648,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         records = run_optuna_search(
             prices_train,
             max_weight=req.max_weight,
+            min_weight=req.min_weight,
             max_turnover=req.max_turnover,
             top_n=req.top_n,
             objective=trial_objective,
@@ -1971,6 +1981,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 max_holdings=spec.max_holdings,
             ),
             max_weight=best_cap,
+            min_weight=req.min_weight,
             allocator=best_alloc,
             top_n=best_top_n_actual,
             factor_params=best_f_params,
@@ -2024,6 +2035,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "validation_sharpe": best.validation_sharpe,
         "validation_max_drawdown": best.validation_max_drawdown,
         "max_weight_constraint": req.max_weight,
+        "min_weight_constraint": req.min_weight,
         "max_turnover_constraint": req.max_turnover,
         "objective": objective_effective,
         "objective_input": req.objective.value,

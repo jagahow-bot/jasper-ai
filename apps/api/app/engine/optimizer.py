@@ -76,6 +76,7 @@ def run_optuna_search(
     prices_train: pd.DataFrame,
     *,
     max_weight: float,
+    min_weight: float = 0.0,
     max_turnover: float,
     top_n: int,
     objective: str,
@@ -441,6 +442,7 @@ def run_optuna_search(
         sim_common = dict(
             spec=trial_spec,
             max_weight=actual_cap,
+            min_weight=float(min_weight),
             allocator=alloc_step,
             top_n=int(top_n_actual),
             factor_params=f_params,

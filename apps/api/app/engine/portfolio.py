@@ -11,6 +11,7 @@ import pandas as pd
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
 from app.engine.allocator import AllocatorParams, solve_weights
 from app.engine.weights import (
+    apply_min_holding_weight,
     audit_weight_cap,
     max_weight_violation_amount,
     min_holdings_for_cap,
@@ -304,6 +305,7 @@ def _rebalance_schedule_dynamic(
     *,
     rule: str,
     max_weight: float,
+    min_weight: float = 0.0,
     allocator: AllocatorParams,
     top_n: int,
     factor_params: FactorParams,
@@ -321,6 +323,7 @@ def _rebalance_schedule_dynamic(
         index=prices.index, columns=prices.columns, dtype=float
     )
     w = project_max_weight(np.ones(n) / max(n, 1), max_weight)
+    w = apply_min_holding_weight(w, min_weight, max_weight=max_weight)
     schedule.iloc[0] = w
     cap_audit_rows.append(
         audit_weight_cap(
@@ -412,6 +415,7 @@ def _rebalance_schedule_dynamic(
                 no_trade_tol=no_trade_tol,
                 max_turnover=max_turnover,
             )
+            w = apply_min_holding_weight(w, min_weight, max_weight=max_weight)
             row_audit = audit_weight_cap(
                 w,
                 max_weight,
@@ -464,6 +468,7 @@ def _rebalance_schedule_dynamic(
             "first_violation_date": violations[0].get("date") if violations else None,
             "feasible": len(violations) == 0 and not worst_row.get("violation", False),
             "min_holdings_for_cap": min_holdings_for_cap(max_weight, floor=2),
+            "min_weight_param": round(float(min_weight), 6),
             "tradable_count": n,
             "rebalance_snapshots": cap_audit_rows[-24:],
         },
@@ -556,6 +561,7 @@ def _simulate_pandas(
     *,
     dynamic: bool = False,
     max_weight: float = 0.1,
+    min_weight: float = 0.0,
     allocator: AllocatorParams | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     top_n: int = 30,
@@ -573,6 +579,7 @@ def _simulate_pandas(
             prices,
             rule=spec.rebalance_rule,
             max_weight=max_weight,
+            min_weight=min_weight,
             allocator=alloc,
             allocator_resolver=allocator_resolver,
             top_n=min(int(top_n), len(prices.columns)),
@@ -623,7 +630,8 @@ def _simulate_pandas(
     sch = schedule.fillna(0.0)
     max_s = sch.max(axis=0).sort_values(ascending=False)
     # Keep names that were ever meaningful sleeves, not only current holdings.
-    keep_tickers = [t for t, v in max_s.items() if float(v) >= 0.02]
+    hist_floor = float(min_weight) if dynamic and float(min_weight) > 0 else 0.02
+    keep_tickers = [t for t, v in max_s.items() if float(v) >= hist_floor]
     if len(keep_tickers) < 8:
         keep_tickers = list(max_s.head(min(12, len(max_s))).index)
     else:
@@ -665,6 +673,7 @@ def simulate_dynamic_portfolio(
     *,
     spec: BacktestSpec = DEFAULT_SPEC,
     max_weight: float,
+    min_weight: float = 0.0,
     allocator: AllocatorParams,
     top_n: int,
     factor_params: FactorParams | None = None,
@@ -682,6 +691,7 @@ def simulate_dynamic_portfolio(
         spec,
         dynamic=True,
         max_weight=max_weight,
+        min_weight=min_weight,
         allocator=allocator,
         allocator_resolver=allocator_resolver,
         top_n=top_n,
