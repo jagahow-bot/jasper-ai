@@ -11,6 +11,7 @@ from app.engine.dynamic_objective import (
     is_dynamic_objective,
     trial_scoring_objective,
 )
+from app.engine.objectives import DYNAMIC_COMPREHENSIVE_SCORING
 from app.engine.backtest import _resolve_objective
 from app.models import Objective
 
@@ -29,7 +30,7 @@ def _synthetic_panel(n: int = 520, n_assets: int = 8) -> pd.DataFrame:
 def test_resolve_dynamic_objective() -> None:
     assert _resolve_objective("dynamic", None) == DYNAMIC_OBJECTIVE
     assert is_dynamic_objective(DYNAMIC_OBJECTIVE)
-    assert trial_scoring_objective(DYNAMIC_OBJECTIVE) == "max_sharpe"
+    assert trial_scoring_objective(DYNAMIC_OBJECTIVE) == DYNAMIC_COMPREHENSIVE_SCORING
     assert trial_scoring_objective("max_return") == "max_return"
 
 

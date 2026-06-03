@@ -26,6 +26,52 @@ MAX_DAILY_RETURN = 0.25
 MIN_ANNUAL_VOL = 0.03
 MAX_REPORTED_SHARPE = 6.0
 
+# Stacked weight chart: show main sleeves; bound "Other" at any rebalance date.
+WEIGHT_CHART_MAX_OTHER = 0.18
+WEIGHT_CHART_MAX_SLEEVES = 20
+WEIGHT_CHART_MIN_SLEEVES = 8
+WEIGHT_CHART_PEAK_FLOOR = 0.01
+
+
+def _max_other_weight_for_tickers(
+    schedule: pd.DataFrame,
+    hist_dates: list[pd.Timestamp],
+    tickers: list[str],
+) -> float:
+    worst = 0.0
+    for dt in hist_dates:
+        if dt not in schedule.index:
+            continue
+        w_row = schedule.loc[dt]
+        total = float(w_row.sum())
+        if total < 1e-6:
+            continue
+        keep_sum = sum(float(w_row.get(t, 0.0)) for t in tickers)
+        worst = max(worst, max(0.0, total - keep_sum))
+    return worst
+
+
+def select_weight_chart_tickers(
+    schedule: pd.DataFrame,
+    hist_dates: list[pd.Timestamp],
+) -> list[str]:
+    """Top sleeves by peak weight; expand until Other <= WEIGHT_CHART_MAX_OTHER when possible."""
+    max_s = schedule.max(axis=0).sort_values(ascending=False)
+    ordered = list(max_s.index)
+    keep: list[str] = list(max_s.head(WEIGHT_CHART_MIN_SLEEVES).index)
+    for t, peak in max_s.items():
+        if float(peak) >= WEIGHT_CHART_PEAK_FLOOR and t not in keep:
+            keep.append(t)
+    keep_set = set(keep)
+    for t in ordered:
+        if len(keep_set) >= WEIGHT_CHART_MAX_SLEEVES:
+            break
+        if t not in keep_set:
+            keep_set.add(t)
+        if _max_other_weight_for_tickers(schedule, hist_dates, list(keep_set)) <= WEIGHT_CHART_MAX_OTHER:
+            break
+    return [t for t in ordered if t in keep_set][:WEIGHT_CHART_MAX_SLEEVES]
+
 
 def split_train_validation(
     prices: pd.DataFrame, train_ratio: float
@@ -632,22 +678,14 @@ def _simulate_pandas(
     metrics["rebalance_freq"] = _normalize_rebalance_rule(spec.rebalance_rule)
     metrics["rebalance_dates"] = [d.strftime("%Y-%m-%d") for d in rebalance_dates]
     metrics["factor_summary"] = factor_summary
-    # Historical weights for UI: keep rebalance snapshots, focus on top sleeves.
+    # Historical weights for UI: rebalance snapshots; top-K sleeves with bounded Other band.
     sch = schedule.fillna(0.0)
-    max_s = sch.max(axis=0).sort_values(ascending=False)
-    # Keep names that were ever meaningful sleeves, not only current holdings.
-    # Chart sleeves: stable 2% peak-weight floor (not min_weight — that only affects allocation).
-    hist_floor = 0.02
-    keep_tickers = [t for t, v in max_s.items() if float(v) >= hist_floor]
-    if len(keep_tickers) < 8:
-        keep_tickers = list(max_s.head(min(12, len(max_s))).index)
-    else:
-        keep_tickers = keep_tickers[:14]
     hist_dates = [prices.index[0], *rebalance_dates]
     hist_unique = sorted(list(dict.fromkeys(hist_dates)))
     if len(hist_unique) > 36:
         step = max(1, len(hist_unique) // 36)
         hist_unique = hist_unique[::step]
+    keep_tickers = select_weight_chart_tickers(sch, hist_unique)
     weight_history: list[dict[str, Any]] = []
     for dt in hist_unique:
         if dt not in schedule.index:

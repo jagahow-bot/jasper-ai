@@ -1112,10 +1112,10 @@ export function ResultsDashboard({
         (result.narrative_facts.dynamic_objectives_used as string[] | undefined)
           ?.length ? (
           <p className="mt-3 text-xs text-dim">
-            動態目標：{" "}
-            {(result.narrative_facts.dynamic_objectives_used as string[]).join("、")}
+            Dynamic objectives:{" "}
+            {(result.narrative_facts.dynamic_objectives_used as string[]).join(", ")}
             {" "}
-            · 市場狀態與目標色帶見下方「投資組合軌跡與持倉」。
+            · Regime and objective bands are in Portfolio trajectory and holdings below.
           </p>
         ) : null}
       </ChartCard>
@@ -1123,11 +1123,12 @@ export function ResultsDashboard({
       <ChartCard title="Portfolio trajectory & holdings">
         {dynamicObjectiveChart ? (
           <p className="mb-3 text-xs text-dim">
-            含 walk-forward 市場狀態與作用中最佳化目標色帶（與累積報酬、權重圖連動游標）。
-            Pro ★ 冠軍：有 holdout 時以樣本內{" "}
-            <span className="text-[var(--amber)]">max Sharpe</span>（
+            Walk-forward regime and active objective bands (linked cursor with return and weight charts).
+            Pro ★ champion: ranked on in-sample{" "}
+            <span className="text-[var(--amber)]">comprehensive score</span> (
             <code className="text-[10px]">objective_value_is</code>
-            ）排序，非各再平衡步驟的即時目標分數。
+            ) — 0.45×Sharpe + 0.25×Sortino + 0.20×(5×CAGR) − 0.35×|max DD| − 0.10×turnover —
+            not per-rebalance regime objectives.
           </p>
         ) : null}
         <LinkedEquityWeightChart

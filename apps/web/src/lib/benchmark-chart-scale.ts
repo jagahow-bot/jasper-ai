@@ -153,6 +153,12 @@ export const REGIME_STRIP_COLORS: Record<string, string> = {
   risk_on: "rgba(0, 220, 180, 0.55)",
 };
 
+export const REGIME_DISPLAY_LABELS: Record<string, string> = {
+  risk_off: "Risk-off",
+  neutral: "Neutral",
+  risk_on: "Risk-on",
+};
+
 export const REGIME_DISPLAY_LABELS_ZH: Record<string, string> = {
   risk_off: "風險趨避",
   neutral: "中性",

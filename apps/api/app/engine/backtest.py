@@ -1376,6 +1376,8 @@ def _candidate_objective_value(c: PortfolioCandidate, objective_effective: str) 
 def _objective_progress_label_and_text(
     objective_effective: str, value: float | None
 ) -> tuple[str, str]:
+    from app.engine.dynamic_objective import is_dynamic_objective
+
     label_map = {
         "max_sharpe": "Sharpe",
         "max_return": "CAGR",
@@ -1386,8 +1388,12 @@ def _objective_progress_label_and_text(
         "max_diversification": "Sharpe",
         "mean_variance_utility": "vol",
         "custom": "Sharpe",
+        "dynamic_comprehensive": "comprehensive",
     }
-    label = label_map.get(objective_effective, "metric")
+    if is_dynamic_objective(objective_effective):
+        label = "comprehensive"
+    else:
+        label = label_map.get(objective_effective, "metric")
     if value is None:
         return label, "—"
     if objective_effective in {"max_return", "min_max_drawdown", "min_cvar", "mean_variance_utility"}:

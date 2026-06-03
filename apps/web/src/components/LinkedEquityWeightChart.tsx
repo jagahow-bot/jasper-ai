@@ -11,11 +11,11 @@ import {
   LAB_Y_AXIS_WIDTH,
   labXAxisProps,
   OBJECTIVE_BAND_COLORS,
-  OBJECTIVE_DISPLAY_LABELS_ZH,
+  OBJECTIVE_DISPLAY_LABELS,
   objectiveBandRanges,
   parseDateTs,
   REGIME_BAND_COLORS,
-  REGIME_DISPLAY_LABELS_ZH,
+  REGIME_DISPLAY_LABELS,
   REGIME_STRIP_COLORS,
   regimeBandRanges,
 } from "@/lib/benchmark-chart-scale";
@@ -79,12 +79,12 @@ function PortfolioEquityTooltip({
       <div className="mb-1 font-pixel text-[8px] text-[var(--amber)]">{dateLabel}</div>
       {regime && (
         <p className="text-dim">
-          市場狀態：{REGIME_DISPLAY_LABELS_ZH[regime] ?? regime}
+          Regime: {REGIME_DISPLAY_LABELS[regime] ?? regime}
         </p>
       )}
       {objective && (
         <p className="text-dim">
-          作用中目標：{OBJECTIVE_DISPLAY_LABELS_ZH[objective] ?? objective}
+          Active objective: {OBJECTIVE_DISPLAY_LABELS[objective] ?? objective}
         </p>
       )}
       <ul className="mt-1 space-y-0.5">
@@ -215,13 +215,13 @@ export function LinkedEquityWeightChart({
   return (
     <div className="space-y-3">
       <p className="text-[11px] text-dim">
-        游標連動：績效曲線、市場狀態／目標色帶與持倉權重共用同一日期軸。
+        Linked cursor: performance, regime/objective bands, and stacked weights share one date axis.
       </p>
 
       {hasEquity && (
         <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
-            累積報酬 % · 組合 vs {benchmarkLabel}
+            Cumulative return % · Portfolio vs {benchmarkLabel}
           </p>
           <ResponsiveContainer width="100%" height={EQUITY_HEIGHT}>
             <LineChart
@@ -371,7 +371,7 @@ export function LinkedEquityWeightChart({
                           REGIME_STRIP_COLORS[regime] ?? "var(--border)",
                       }}
                     />
-                    {REGIME_DISPLAY_LABELS_ZH[regime] ?? regime}
+                    {REGIME_DISPLAY_LABELS[regime] ?? regime}
                   </span>
                 ))}
                 {objectivesInRun.map((obj) => (
@@ -383,10 +383,10 @@ export function LinkedEquityWeightChart({
                           OBJECTIVE_BAND_COLORS[obj] ?? "var(--border)",
                       }}
                     />
-                    {OBJECTIVE_DISPLAY_LABELS_ZH[obj] ?? obj}
+                    {OBJECTIVE_DISPLAY_LABELS[obj] ?? obj}
                   </span>
                 ))}
-                <span className="text-[var(--amber)]">琥珀＝切換</span>
+                <span className="text-[var(--amber)]">Amber = switch</span>
               </div>
             </>
           )}
@@ -396,7 +396,7 @@ export function LinkedEquityWeightChart({
       {hasWeights && (
         <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
-            持倉權重歷史（堆疊）
+            Holding weights (stacked)
           </p>
           <ResponsiveContainer width="100%" height={WEIGHT_HEIGHT}>
             <AreaChart

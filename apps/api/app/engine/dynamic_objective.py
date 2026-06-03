@@ -16,6 +16,7 @@ from app.engine.objective_switch_lab import (
 )
 from app.engine.factors import FactorParams
 from app.engine.ai_json import round_ai_float
+from app.engine.objectives import DYNAMIC_COMPREHENSIVE_SCORING
 from app.engine.regime_policy import (
     REGIME_OBJECTIVE_MAP,
     RegimeSignal,
@@ -42,10 +43,13 @@ def trial_scoring_objective(objective_effective: str) -> str:
     """Scalar used for Optuna + Pro champion ranking (``objective_value_is``).
 
     Dynamic mode still switches allocator objective per rebalance (regime map), but
-    trials and champions are compared on one in-sample score: max Sharpe on the
-    full dynamic backtest—not a per-step blend of regime objectives.
+    trials and champions are compared on one in-sample comprehensive score on the
+    full dynamic backtest (see ``compute_dynamic_comprehensive_score``)—not max Sharpe
+    alone and not a per-step blend of regime objectives.
     """
-    return "max_sharpe" if is_dynamic_objective(objective_effective) else objective_effective
+    if is_dynamic_objective(objective_effective):
+        return DYNAMIC_COMPREHENSIVE_SCORING
+    return objective_effective
 
 
 def resolve_regime_mode(req_regime_mode: str | None) -> str:
