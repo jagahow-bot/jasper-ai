@@ -142,8 +142,9 @@ export function RegimeScoreChart({
         </LineChart>
       </ResponsiveContainer>
       <p className="text-[10px] text-dim">
-        Walk-forward scores before arbitration and cooldown. Hover syncs with the benchmark
-        chart above on the same calendar axis.
+        63d indicator scores at each walk-forward step (lines). Tooltip active regime =
+        hysteresis label (may differ when fast exit or cooldown applies). Hover syncs with
+        the benchmark chart above.
       </p>
     </div>
   );

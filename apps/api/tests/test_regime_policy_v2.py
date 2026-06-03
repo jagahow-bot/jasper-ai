@@ -6,6 +6,7 @@ import pandas as pd
 
 from app.engine.regime_policy_v2 import (
     RISK_OFF_WEIGHTS,
+    _allows_fast_exit_to_risk_on,
     arbitrate_regime,
     compute_regime_scores,
     resolve_regime_signal_v2,
@@ -125,6 +126,38 @@ def test_v_rebound_exits_risk_off_faster_with_fast_exit() -> None:
     )
     assert len(slow) > 0 and len(fast) > 0
     assert _risk_off_steps(fast) < _risk_off_steps(slow)
+
+
+def test_allows_fast_exit_to_risk_on_when_63d_eased() -> None:
+    assert _allows_fast_exit_to_risk_on({"risk_off_score": 0.8, "risk_on_score": 0.25}) is False
+    assert _allows_fast_exit_to_risk_on({"risk_off_score": 0.5, "risk_on_score": 0.3}) is True
+    assert _allows_fast_exit_to_risk_on({"risk_off_score": 0.6, "risk_on_score": 0.65}) is True
+
+
+def _bear_chop_with_short_rebounds() -> pd.Series:
+    """Sustained high vol / stress with brief positive short windows (2022-style chop)."""
+    idx = pd.bdate_range("2021-06-01", periods=500)
+    rng = np.random.default_rng(77)
+    base = rng.normal(-0.0005, 0.028, len(idx))
+    for i in range(21, len(idx), 42):
+        base[i - 14 : i] += 0.004
+    return pd.Series(base, index=idx)
+
+
+def test_fast_exit_no_risk_on_when_63d_risk_off_dominates() -> None:
+    bench_ret = _bear_chop_with_short_rebounds()
+    _, timeline = walk_forward_regime_timeline_v2(
+        bench_ret,
+        "auto",
+        cooldown_steps=2,
+        confirm_steps=1,
+        fast_risk_off_exit=True,
+    )
+    for row in timeline:
+        off = float(row["risk_off_score"])
+        on = float(row["risk_on_score"])
+        if off > on and off >= 0.55:
+            assert row["raw_regime"] != "risk_on"
 
 
 def test_vol_peak_decay_lowers_risk_off_score_on_easing_vol() -> None:

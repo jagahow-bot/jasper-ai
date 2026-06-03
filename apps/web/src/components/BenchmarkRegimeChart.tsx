@@ -193,9 +193,9 @@ export function BenchmarkRegimeChart({
         </span>
       </div>
       <p className="text-[10px] text-dim">
-        Top: {benchmarkTicker} cumulative return (%). Background bands = active regime per
-        walk-forward step. Bottom strip = regime steps (amber = switch). Hover syncs with
-        the regime scores chart below when shown.
+        Top: {benchmarkTicker} cumulative return (%). Background bands = active regime (21d
+        walk-forward + confirm/cooldown), not raw score winner. Bottom strip = regime steps
+        (amber = switch). Hover syncs with the regime scores chart below when shown.
       </p>
     </div>
   );

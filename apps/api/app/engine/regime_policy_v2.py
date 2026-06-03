@@ -22,6 +22,8 @@ SHORT_LOOKBACK_DAYS = 21
 REBOUND_RETURN_THRESHOLD = 0.02
 VOL_PEAK_DECAY_PCT = 0.15
 VOL_PEAK_DECAY_MAX_SCORE_REDUCTION = 0.35
+# Fast exit to risk_on requires 63d risk-off to have eased (not just short-window rebound).
+RISK_OFF_FAST_RELEASE_CEILING = 0.55
 
 
 def default_detector_version() -> str:
@@ -228,6 +230,13 @@ def _cooldown_for_transition(
     return cooldown_steps
 
 
+def _allows_fast_exit_to_risk_on(scores: dict[str, float]) -> bool:
+    """63d scores: block fast risk_on when risk-off still clearly dominates."""
+    off = float(scores.get("risk_off_score", 0.0))
+    on = float(scores.get("risk_on_score", 0.0))
+    return on > off or off < RISK_OFF_FAST_RELEASE_CEILING
+
+
 def _apply_fast_risk_off_exit_raw(
     raw: RegimeSignal,
     scores: dict[str, float],
@@ -265,11 +274,16 @@ def _apply_fast_risk_off_exit_raw(
         and short_on > short_off
         and short_on >= min_confidence * 0.85
     ):
-        return arbitrate_regime(short_scores, requested_mode, min_confidence=min_confidence)
+        candidate = arbitrate_regime(
+            short_scores, requested_mode, min_confidence=min_confidence
+        )
+        if candidate == "risk_on" and not _allows_fast_exit_to_risk_on(scores):
+            return "neutral"
+        return candidate
 
-    # Fast release: rebound return + vol easing even if 63d risk_off_score still high.
+    # Fast release: rebound + vol easing; prefer neutral over risk_on when 63d risk_off dominates.
     if short_return > rebound_return_threshold and vol_falling:
-        if short_on >= min_confidence:
+        if short_on >= min_confidence and _allows_fast_exit_to_risk_on(scores):
             return "risk_on"
         return "neutral"
 
