@@ -226,6 +226,8 @@ export interface ProRoundSnapshot {
   round_challenger_model_codes?: string[];
   pool_model_codes?: string[];
   round_setup?: Record<string, unknown>;
+  regime_setups?: Record<string, Record<string, unknown>>;
+  regime_matrix_enabled?: boolean;
   factor_ranges?: Record<string, [number, number] | number[]>;
   factor_choices?: Record<string, string>;
   optimization_strategy?: string;

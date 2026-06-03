@@ -21,6 +21,11 @@ from app.engine.factors import (
     VALUE_INDICATOR_CHOICES,
 )
 from app.engine.mutable_params import PARAM_DEDUP_KEYS, RUN_LEVEL_FIXED_KEYS
+from app.engine.dynamic_objective import (
+    REGIME_ALLOCATOR_KEYS,
+    REGIME_KEYS,
+    is_dynamic_objective,
+)
 from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
     FACTOR_NUMERIC_KEYS,
@@ -28,6 +33,7 @@ from app.engine.param_taxonomy import (
     SETUP_PARAM_KEYS,
     normalize_round_seed,
 )
+from app.engine.regime_policy import REGIME_OBJECTIVE_MAP
 from app.engine.param_bounds import (
     RunBlueprint,
     blueprint_prompt_lines,
@@ -1277,6 +1283,19 @@ _ROUND_SETUP_SCHEMA_CORE: dict[str, dict[str, str]] = {
     "turnover_penalty_mult": {"type": "NUMBER"},
 }
 
+_REGIME_SLICE_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        k: {"type": "STRING" if k == "mode" else "NUMBER"}
+        for k in REGIME_ALLOCATOR_KEYS
+    },
+}
+
+_REGIME_SETUPS_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {r: _REGIME_SLICE_SCHEMA for r in REGIME_KEYS},
+}
+
 # Example only — model may add other factor keys; server merges with defaults.
 _FACTOR_RANGE_EXAMPLE_PROP = {
     "w_mom": {"type": "ARRAY", "items": {"type": "NUMBER"}},
@@ -1286,7 +1305,10 @@ _FACTOR_RANGE_EXAMPLE_PROP = {
 
 
 def _round_seed_response_schema(
-    *, require_rationale: bool = True, compact: bool = False
+    *,
+    require_rationale: bool = True,
+    compact: bool = False,
+    include_regime_matrix: bool = False,
 ) -> dict[str, Any]:
     """Structured output for Pro round seed — sparse objects to limit JSON size."""
     setup_props = dict(_ROUND_SETUP_SCHEMA_CORE)
@@ -1313,6 +1335,8 @@ def _round_seed_response_schema(
             "properties": choice_props,
         },
     }
+    if include_regime_matrix and not compact:
+        properties["regime_setups"] = dict(_REGIME_SETUPS_SCHEMA)
     properties["optimization_strategy"] = {"type": "STRING"}
     properties["performance_assessment"] = {"type": "STRING"}
     required = ["round_setup"]
@@ -1492,6 +1516,10 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
             + _json_compact(_sanitize_prompt_dict(prev_choices))
         )
 
+    prev_regimes = learning_context.get("prior_regime_setups")
+    if isinstance(prev_regimes, dict) and prev_regimes:
+        lines.append("PRIOR_REGIME_SETUPS " + _json_compact(prev_regimes))
+
     champ = learning_context.get("champion")
     champ_params = learning_context.get("champion_record_params")
     champ_m = learning_context.get("champion_record_metrics")
@@ -1627,6 +1655,7 @@ def generate_ai_round_seed(
         "model": settings.gemini_model,
         "rationale": "",
         "round_setup": {},
+        "regime_setups": {},
         "factor_ranges": {},
         "factor_choices": {},
         "error": "missing_api_key",
@@ -1687,6 +1716,23 @@ def generate_ai_round_seed(
     alloc_keys = ", ".join(k for k in SETUP_PARAM_KEYS if k.startswith("w_"))
     factor_num_keys = ", ".join(FACTOR_NUMERIC_KEYS)
     factor_cat_keys = ", ".join(FACTOR_CATEGORICAL_KEYS)
+    dynamic_matrix = is_dynamic_objective(objective) or bool(
+        learning_context.get("dynamic_regime_matrix")
+    )
+    regime_alloc_keys = ", ".join(REGIME_ALLOCATOR_KEYS)
+    regime_objective_hint = "; ".join(
+        f"{r}→{REGIME_OBJECTIVE_MAP[r]}" for r in REGIME_KEYS
+    )
+    regime_block = ""
+    if dynamic_matrix:
+        regime_block = f"""
+4) regime_setups (REQUIRED for dynamic objective) — per-regime allocator matrix keyed by
+   risk_off, neutral, risk_on. Each slice uses ONLY: {regime_alloc_keys}.
+   Align allocator mode/lookback with regime intent ({regime_objective_hint}).
+   Simulation applies the active regime's slice at each rebalance (V2 detector).
+   round_setup still holds shared caps (top_n, max_weight, class weights); do NOT duplicate
+   factor keys inside regime_setups.
+"""
 
     prompt = f"""
 You are an institutional quant research assistant.
@@ -1699,12 +1745,13 @@ Architecture (critical):
    max_turnover_actual, no_trade_tol, turnover_penalty_mult.
    Optional asset-class quotas ({alloc_keys}): include ONLY if you materially change them from defaults.
    Do NOT put factor weights or factor lookbacks in round_setup.
+   {"For dynamic objective: round_setup mode/lookback are shared defaults; per-regime allocator lives in regime_setups." if dynamic_matrix else ""}
 2) factor_ranges — Optuna sampling bounds for this round (see strategy below).
    Allowed numeric keys: {factor_num_keys}. Each value is [low, high] within global bounds.
    {factor_guidance}
 3) factor_choices — ONLY categorical indicators you fix this round; omit unchanged keys.
    Allowed keys: {factor_cat_keys}.
-
+{regime_block}
 optimization_strategy (required): 2–4 sentences (English or 中文, match rationale tone) explaining
 why you chose wide vs narrow factor_ranges given REFINEMENT_BUDGET, EXPLORATION_PHASE, champion vs
 benchmark (if any), and TARGET.
@@ -1755,6 +1802,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
             "responseSchema": _round_seed_response_schema(
                 require_rationale=not compact,
                 compact=compact,
+                include_regime_matrix=dynamic_matrix,
             ),
         }
         thinking_config = _thinking_config_for_round_seed(model=model)
@@ -1796,6 +1844,9 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
             if not normalized["round_setup"]:
                 last_error = "empty_round_setup"
                 continue
+            if dynamic_matrix and not normalized.get("regime_setups"):
+                last_error = "empty_regime_setups"
+                continue
             if progress_cb:
                 progress_cb(1, 1, "Pro round: AI round seed ready")
             return {
@@ -1805,6 +1856,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
                 "optimization_strategy": normalized.get("optimization_strategy", ""),
                 "performance_assessment": normalized.get("performance_assessment", ""),
                 "round_setup": normalized["round_setup"],
+                "regime_setups": normalized.get("regime_setups") or {},
                 "factor_ranges": normalized["factor_ranges"],
                 "factor_choices": normalized["factor_choices"],
                 "generation_mode": "pro_round_seed",
@@ -1821,6 +1873,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
         "model": model,
         "rationale": "",
         "round_setup": {},
+        "regime_setups": {},
         "factor_ranges": {},
         "factor_choices": {},
         "error": last_error or "ai_round_seed_failed",

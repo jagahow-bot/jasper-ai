@@ -10,6 +10,7 @@ import pandas as pd
 BenchmarkStatus = Literal["above", "below", "unknown"]
 
 from app.engine.analytics import benchmark_relative
+from app.engine.dynamic_objective import is_dynamic_objective
 from app.engine.objectives import compute_objective_score, objective_label
 from app.engine.param_taxonomy import summarize_prior_round_seed
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
@@ -755,6 +756,7 @@ def build_round_seed_learning_payload(
     objective: str,
     round_index: int,
     prior_round_setup: dict[str, Any] | None = None,
+    prior_regime_setups: dict[str, Any] | None = None,
     prior_factor_ranges: dict[str, Any] | None = None,
     prior_factor_choices: dict[str, Any] | None = None,
     failed_records: list[dict[str, Any]] | None = None,
@@ -791,6 +793,7 @@ def build_round_seed_learning_payload(
     prior_seed = summarize_prior_round_seed(
         {
             "round_setup": prior_round_setup or {},
+            "regime_setups": prior_regime_setups or {},
             "factor_ranges": prior_factor_ranges or {},
             "factor_choices": prior_factor_choices or {},
         },
@@ -798,10 +801,14 @@ def build_round_seed_learning_payload(
     )
     if prior_seed.get("round_setup"):
         ctx["prior_round_setup"] = prior_seed["round_setup"]
+    if prior_seed.get("regime_setups"):
+        ctx["prior_regime_setups"] = prior_seed["regime_setups"]
     if prior_seed.get("factor_ranges"):
         ctx["prior_factor_ranges"] = prior_seed["factor_ranges"]
     if prior_seed.get("factor_choices"):
         ctx["prior_factor_choices"] = prior_seed["factor_choices"]
+    if is_dynamic_objective(objective):
+        ctx["dynamic_regime_matrix"] = True
 
     if failed_records:
         merged = list(failed_records) + list(ctx.get("failed_challengers") or [])

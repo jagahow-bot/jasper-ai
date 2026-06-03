@@ -43,7 +43,10 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
           </h4>
           <p className="mt-2 text-sm text-dim">
             Champion-challenger rounds. AI proposes params from history; Optuna
-            scores on in-sample objective until the run stalls.
+            scores on in-sample objective until the run stalls. With{" "}
+            <strong className="text-[var(--fg)]">Dynamic</strong> objective, each Pro
+            round can seed a per-regime allocator matrix (risk-off / neutral / risk-on)
+            that simulation applies when the regime detector switches.
           </p>
         </div>
         <label className="flex shrink-0 cursor-pointer items-center gap-2">
@@ -67,9 +70,10 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
           {highTrialCount && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">
               High trial counts run many backtests. Pro uses one Gemini round seed per
-              refinement round (shared setup + factor ranges); Optuna runs all trials in
-              that round within those bounds. The ~8 AI param-seed cap applies only to
-              standard optimization (trial slider), not Pro.
+              refinement round (shared setup, optional regime matrix for Dynamic, plus
+              factor ranges); Optuna runs all trials in that round within those bounds.
+              The ~8 AI param-seed cap applies only to standard optimization (trial
+              slider), not Pro.
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-2">

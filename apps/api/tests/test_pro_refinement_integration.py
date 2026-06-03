@@ -21,6 +21,11 @@ if "optuna" not in sys.modules:
     sys.modules["optuna.logging"] = _optuna_logging
 
 from app.engine.backtest import _run_iterative_search
+from app.engine.dynamic_objective import (
+    DYNAMIC_OBJECTIVE,
+    build_dynamic_objective_context,
+    has_regime_matrix,
+)
 from app.engine.refinement import model_signature
 from app.models import BacktestRequest, Objective, OptimizationMode
 
@@ -42,6 +47,16 @@ def _fake_round_seed(**_kwargs):
         "factor_ranges": {"w_mom": [0.5, 1.5]},
         "factor_choices": {"mom_indicator": "risk_adjusted_return"},
     }
+
+
+def _fake_dynamic_round_seed(**_kwargs):
+    base = _fake_round_seed()
+    base["regime_setups"] = {
+        "risk_off": {"mode": "min_var", "lookback_days": 252, "shrinkage": 0.25, "risk_aversion": 1.0},
+        "neutral": {"mode": "mean_variance", "lookback_days": 126, "shrinkage": 0.1, "risk_aversion": 3.5},
+        "risk_on": {"mode": "mean_variance", "lookback_days": 63, "shrinkage": 0.05, "risk_aversion": 1.5},
+    }
+    return base
 
 
 def _trial(
@@ -537,3 +552,59 @@ def test_five_round_pools_never_carry_prior_loser_codes(price_panel: pd.DataFram
             c for c in pool if c and c not in {winner, incoming}
         }
         accumulated_losers.update(round_losers)
+
+
+def test_dynamic_pro_round_passes_regime_matrix_to_optuna(price_panel: pd.DataFrame):
+    """Dynamic + Pro: AI regime_setups refresh resolver and appear in per_round metadata."""
+    captured: list[dict] = []
+
+    def fake_optuna(*_args, **kwargs):
+        captured.append(
+            {
+                "regime_setups": kwargs.get("regime_setups"),
+                "allocator_resolver": kwargs.get("allocator_resolver"),
+            }
+        )
+        return [_trial(1, 0.9), _trial(2, 0.7)]
+
+    idx = price_panel.index
+    spy = 100 + pd.Series(range(len(idx))).values * 0.01
+    prices_wb = price_panel.copy()
+    prices_wb["SPY"] = spy
+    dynamic_ctx = build_dynamic_objective_context(prices_wb, "SPY", regime_mode="auto")
+
+    req = _minimal_request(
+        objective=Objective.dynamic,
+        refinement_max_rounds=1,
+        refinement_batch_size=3,
+    )
+    prices_train = price_panel.iloc[:280]
+    prices_val = price_panel.iloc[280:]
+
+    with (
+        patch("app.engine.backtest.run_optuna_search", side_effect=fake_optuna),
+        patch(
+            "app.engine.backtest.generate_ai_round_seed",
+            side_effect=_fake_dynamic_round_seed,
+        ),
+    ):
+        _records, _history, meta = _run_iterative_search(
+            req,
+            prices_train=prices_train,
+            prices_val=prices_val,
+            oos=False,
+            objective_effective=DYNAMIC_OBJECTIVE,
+            rebalance_rule="monthly",
+            spec=__import__("app.engine.spec", fromlist=["DEFAULT_SPEC"]).DEFAULT_SPEC,
+            universe_by_ticker={},
+            param_controls_dict={},
+            report_progress=lambda *_a, **_k: None,
+            dynamic_ctx=dynamic_ctx,
+        )
+
+    assert len(captured) >= 1
+    assert has_regime_matrix(captured[0]["regime_setups"])
+    assert captured[0]["allocator_resolver"] is not None
+    pr = meta["per_round"][0]
+    assert pr.get("regime_matrix_enabled") is True
+    assert has_regime_matrix(pr.get("regime_setups"))

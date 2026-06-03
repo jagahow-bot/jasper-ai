@@ -83,6 +83,7 @@ def run_optuna_search(
     trials: int,
     ai_seed_param_sets: list[dict] | None = None,
     round_setup: dict | None = None,
+    regime_setups: dict | None = None,
     factor_ranges: dict | None = None,
     factor_choices: dict | None = None,
     param_controls: dict[str, dict] | None = None,
@@ -121,6 +122,7 @@ def run_optuna_search(
             round_setup=round_setup,
             factor_ranges=factor_ranges,
             factor_choices=factor_choices,
+            regime_setups=regime_setups,
         )
     else:
         param_controls = normalize_param_controls(param_controls, blueprint)

@@ -166,9 +166,13 @@ function RoundBenchmarkBanner({
 
 function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
   const setup = round.round_setup ?? {};
+  const regimes = round.regime_setups ?? {};
   const ranges = round.factor_ranges ?? {};
   const choices = round.factor_choices ?? {};
   const setupEntries = Object.entries(setup).filter(([, v]) => v != null);
+  const regimeEntries = Object.entries(regimes).filter(
+    ([, v]) => v && typeof v === "object" && Object.keys(v as object).length > 0,
+  );
   const rangeEntries = Object.entries(ranges).filter(([, v]) => Array.isArray(v) && v.length >= 2);
   const choiceEntries = Object.entries(choices).filter(([, v]) => v != null && v !== "");
 
@@ -186,6 +190,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
     !strategy &&
     !assessment &&
     !setupEntries.length &&
+    !regimeEntries.length &&
     !rangeEntries.length &&
     !choiceEntries.length
   ) {
@@ -194,6 +199,28 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
 
   return (
     <div className="mt-3 grid gap-3 border border-[var(--border)] bg-[rgba(0,0,0,0.15)] p-3 md:grid-cols-2">
+      {round.regime_matrix_enabled && regimeEntries.length ? (
+        <div className="md:col-span-2">
+          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
+            Regime matrix (allocator per regime — used at each rebalance switch)
+          </p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {regimeEntries.map(([regime, slice]) => (
+              <div key={regime} className="border border-[var(--border)] p-2">
+                <p className="mb-1 font-pixel text-[8px] text-[var(--fg)]">{regime}</p>
+                <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
+                  {Object.entries(slice as Record<string, unknown>).map(([k, v]) => (
+                    <li key={k}>
+                      <span className="text-[var(--fg)]">{formatParamLabel(k)}:</span>{" "}
+                      {String(v)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {assessment ? (
         <div className={`md:col-span-2 border p-2 ${assessmentTone}`}>
           <p
@@ -214,7 +241,9 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       ) : null}
       {setupEntries.length ? (
         <div>
-          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">Round setup (fixed all trials)</p>
+          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
+            Round setup (shared caps — fixed all trials)
+          </p>
           <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
             {setupEntries.map(([k, v]) => (
               <li key={k}>

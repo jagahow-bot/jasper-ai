@@ -262,6 +262,8 @@ class ProRoundSnapshot(BaseModel):
     round_challenger_model_codes: list[str] = Field(default_factory=list)
     pool_model_codes: list[str] = Field(default_factory=list)
     round_setup: dict[str, Any] = Field(default_factory=dict)
+    regime_setups: dict[str, Any] = Field(default_factory=dict)
+    regime_matrix_enabled: bool = False
     factor_ranges: dict[str, Any] = Field(default_factory=dict)
     factor_choices: dict[str, Any] = Field(default_factory=dict)
     optimization_strategy: str = ""

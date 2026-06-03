@@ -11,6 +11,12 @@ from app.engine.param_bounds import (
     cap_search_low,
     normalize_param_controls,
 )
+from app.engine.dynamic_objective import (
+    REGIME_ALLOCATOR_KEYS,
+    REGIME_KEYS,
+    has_regime_matrix,
+    normalize_regime_setups,
+)
 from app.models import Objective
 
 # Run-level optimization objectives (not allocator modes).
@@ -139,6 +145,16 @@ def intersect_factor_range(
     return lo, hi
 
 
+def _normalize_regime_setups_seed(
+    raw: Any,
+    *,
+    shared_setup: dict[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    if not isinstance(raw, dict):
+        return {}
+    return normalize_regime_setups(raw, shared_setup=shared_setup)
+
+
 def build_pro_round_param_controls(
     base_controls: dict[str, dict] | None,
     *,
@@ -146,14 +162,19 @@ def build_pro_round_param_controls(
     round_setup: dict[str, Any] | None,
     factor_ranges: dict[str, Any] | None,
     factor_choices: dict[str, Any] | None,
+    regime_setups: dict[str, Any] | None = None,
 ) -> dict[str, dict]:
     """Force setup fixed; factor numerics search within AI ranges; categoricals fixed."""
     controls = normalize_param_controls(base_controls, blueprint)
     setup = dict(round_setup or {})
     if ALLOCATOR_MODE_KEY not in setup and setup.get("allocator_mode"):
         setup[ALLOCATOR_MODE_KEY] = setup["allocator_mode"]
+    matrix_active = has_regime_matrix(regime_setups)
+    skip_allocator_keys = matrix_active
 
     for key in SETUP_PARAM_KEYS:
+        if skip_allocator_keys and key in REGIME_ALLOCATOR_KEYS:
+            continue
         if key in setup and setup[key] is not None:
             fixed = setup[key]
             if key == "top_n_actual":
@@ -164,11 +185,30 @@ def build_pro_round_param_controls(
                 except (TypeError, ValueError):
                     pass
             controls[key] = {"mode": "fixed", "fixed": fixed}
-    if ALLOCATOR_MODE_KEY in setup and setup[ALLOCATOR_MODE_KEY] is not None:
+    if (
+        not skip_allocator_keys
+        and ALLOCATOR_MODE_KEY in setup
+        and setup[ALLOCATOR_MODE_KEY] is not None
+    ):
         controls["allocator_mode"] = {
             "mode": "fixed",
             "fixed": str(setup[ALLOCATOR_MODE_KEY]),
         }
+    elif matrix_active:
+        matrix = normalize_regime_setups(regime_setups, shared_setup=setup)
+        neutral = matrix.get("neutral") or {}
+        for key in REGIME_ALLOCATOR_KEYS:
+            if key in neutral:
+                val = neutral[key]
+                if key == "top_n_actual":
+                    continue
+                if key == ALLOCATOR_MODE_KEY:
+                    controls["allocator_mode"] = {
+                        "mode": "fixed",
+                        "fixed": str(val),
+                    }
+                else:
+                    controls[key] = {"mode": "fixed", "fixed": val}
 
     for key, raw_range in (factor_ranges or {}).items():
         if not is_factor_numeric_key(key):
@@ -244,11 +284,18 @@ def summarize_prior_round_seed(
     for key, val in list(choices.items()):
         if isinstance(val, str) and len(val) > 120:
             choices[key] = val[:117] + "..."
-    return {
+    regime_setups = _normalize_regime_setups_seed(
+        seed_dict.get("regime_setups"),
+        shared_setup=setup,
+    )
+    out: dict[str, Any] = {
         "round_setup": setup,
         "factor_ranges": ranges,
         "factor_choices": choices,
     }
+    if regime_setups:
+        out["regime_setups"] = regime_setups
+    return out
 
 
 def normalize_round_seed(
@@ -266,6 +313,7 @@ def normalize_round_seed(
         "round_setup": {},
         "factor_ranges": {},
         "factor_choices": {},
+        "regime_setups": {},
     }
     raw_setup = seed.get("round_setup") or {}
     if isinstance(raw_setup, dict):
@@ -305,5 +353,13 @@ def normalize_round_seed(
         for key in FACTOR_CATEGORICAL_KEYS:
             if key in raw_choices and raw_choices[key] is not None:
                 out["factor_choices"][key] = str(raw_choices[key])
+
+    regime_raw = seed.get("regime_setups")
+    if isinstance(regime_raw, dict) and regime_raw:
+        normalized = _normalize_regime_setups_seed(
+            regime_raw, shared_setup=out["round_setup"]
+        )
+        if normalized:
+            out["regime_setups"] = normalized
 
     return out
