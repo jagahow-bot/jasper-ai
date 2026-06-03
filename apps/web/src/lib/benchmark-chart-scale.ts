@@ -19,6 +19,39 @@ export const JASPER_PERFORMANCE_CHART_SYNC = {
 export const LAB_CHART_MARGIN = { top: 8, right: 8, left: 0, bottom: 0 };
 export const LAB_Y_AXIS_WIDTH = 44;
 
+const CHART_FONT_ROOT_DEFAULT = 18;
+const CHART_TICK_FONT_MIN = 12;
+const CHART_LEGEND_FONT_MIN = 13;
+const CHART_TOOLTIP_FONT_MIN = 13;
+
+/** Recharts tick size scaled from html --font-size-root (default 18px). */
+export function chartTickFontSize(): number {
+  if (typeof window === "undefined") return CHART_TICK_FONT_MIN;
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue("--font-size-root")
+    .trim();
+  const root = parseInt(raw, 10);
+  if (!Number.isFinite(root)) return CHART_TICK_FONT_MIN;
+  return Math.max(CHART_TICK_FONT_MIN, Math.round(root * 0.78));
+}
+
+export function chartLegendFontSize(): number {
+  return Math.max(CHART_LEGEND_FONT_MIN, chartTickFontSize() + 1);
+}
+
+export function chartTooltipFontSize(): number {
+  if (typeof window === "undefined") return CHART_TOOLTIP_FONT_MIN;
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue("--font-size-root")
+    .trim();
+  const root = parseInt(raw, 10);
+  if (!Number.isFinite(root)) return CHART_TOOLTIP_FONT_MIN;
+  return Math.max(
+    CHART_TOOLTIP_FONT_MIN,
+    Math.round(root * (CHART_TOOLTIP_FONT_MIN / CHART_FONT_ROOT_DEFAULT)),
+  );
+}
+
 /** Parse YYYY-MM-DD to UTC noon ms for stable axis positioning. */
 export function parseDateTs(date: string): number {
   return new Date(`${date}T12:00:00Z`).getTime();
@@ -66,7 +99,7 @@ export function labXAxisProps(domainMin: number, domainMax: number) {
     dataKey: "ts" as const,
     domain: [domainMin, domainMax] as [number, number],
     scale: "time" as const,
-    tick: { fontSize: 9, fill: "var(--dim)" },
+    tick: { fontSize: chartTickFontSize(), fill: "var(--dim)" },
     minTickGap: 40,
     tickFormatter: (ts: number) => formatAxisDate(ts),
   };

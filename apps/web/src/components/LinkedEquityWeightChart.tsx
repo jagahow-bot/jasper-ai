@@ -5,6 +5,9 @@ import {
   activeObjectiveAtTs,
   activeRegimeAtTs,
   computeSharedDateDomain,
+  chartLegendFontSize,
+  chartTickFontSize,
+  chartTooltipFontSize,
   formatChartTooltipLabel,
   JASPER_PERFORMANCE_CHART_SYNC,
   LAB_CHART_MARGIN,
@@ -74,9 +77,19 @@ function PortfolioEquityTooltip({
       ? activeObjectiveAtTs(ts, timeline)
       : null;
 
+  const tipPx = chartTooltipFontSize();
+
   return (
-    <div className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2 text-xs min-w-[160px]">
-      <div className="mb-1 font-pixel text-[8px] text-[var(--amber)]">{dateLabel}</div>
+    <div
+      className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2 min-w-[160px]"
+      style={{ fontSize: tipPx }}
+    >
+      <div
+        className="mb-1 font-pixel text-[var(--amber)]"
+        style={{ fontSize: Math.max(11, tipPx - 1) }}
+      >
+        {dateLabel}
+      </div>
       {regime && (
         <p className="text-dim">
           Regime: {REGIME_DISPLAY_LABELS[regime] ?? regime}
@@ -193,6 +206,16 @@ export function LinkedEquityWeightChart({
     ];
   }, [sharedDomain]);
 
+  const tickFont = chartTickFontSize();
+  const legendFont = chartLegendFontSize();
+  const showOtherBand = useMemo(() => {
+    if (!weightChartData.length) return false;
+    const maxOther = Math.max(
+      ...weightChartData.map((row) => Number(row.OTHER ?? 0)),
+    );
+    return maxOther > 0.005;
+  }, [weightChartData]);
+
   const hasEquity = equityChartData.length > 0;
   const hasWeights = weightChartData.length > 0 && weightTickers.length > 0;
   const hasBenchmark = equityChartData.some(
@@ -236,7 +259,7 @@ export function LinkedEquityWeightChart({
                 <XAxis
                   dataKey="date"
                   stroke="#94a3b8"
-                  fontSize={10}
+                  fontSize={tickFont}
                   minTickGap={28}
                   tickFormatter={(v) => String(v).slice(2)}
                 />
@@ -244,7 +267,7 @@ export function LinkedEquityWeightChart({
               <YAxis
                 domain={["auto", "auto"]}
                 stroke="#94a3b8"
-                fontSize={11}
+                fontSize={tickFont}
                 width={LAB_Y_AXIS_WIDTH}
                 tickFormatter={(v) => `${Number(v).toFixed(1)}%`}
               />
@@ -278,7 +301,7 @@ export function LinkedEquityWeightChart({
                 }
                 labelFormatter={formatChartTooltipLabel}
               />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: legendFont }} />
               <Line
                 type="monotone"
                 dataKey="portfolio"
@@ -411,7 +434,7 @@ export function LinkedEquityWeightChart({
                 <XAxis
                   dataKey="date"
                   stroke="#94a3b8"
-                  fontSize={10}
+                  fontSize={tickFont}
                   minTickGap={28}
                   tickFormatter={(v) => String(v).slice(2)}
                 />
@@ -419,7 +442,7 @@ export function LinkedEquityWeightChart({
               <YAxis
                 domain={[0, 1]}
                 stroke="#94a3b8"
-                fontSize={10}
+                fontSize={tickFont}
                 width={LAB_Y_AXIS_WIDTH}
                 tickFormatter={(v) => `${(Number(v) * 100).toFixed(0)}%`}
               />
@@ -427,7 +450,7 @@ export function LinkedEquityWeightChart({
                 content={<ChartTooltip valueIsPct valueDecimals={2} />}
                 labelFormatter={formatChartTooltipLabel}
               />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Legend wrapperStyle={{ fontSize: legendFont }} />
               {weightTickers.map((t, i) => (
                 <Area
                   key={t}
@@ -438,15 +461,17 @@ export function LinkedEquityWeightChart({
                   fill={colors[i % colors.length]}
                 />
               ))}
-              <Area
-                key="OTHER"
-                type="monotone"
-                dataKey="OTHER"
-                name="Other"
-                stackId="weights"
-                stroke="#64748b"
-                fill="#64748b"
-              />
+              {showOtherBand && (
+                <Area
+                  key="OTHER"
+                  type="monotone"
+                  dataKey="OTHER"
+                  name="Other"
+                  stackId="weights"
+                  stroke="#64748b"
+                  fill="#64748b"
+                />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>

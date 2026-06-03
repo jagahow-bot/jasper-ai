@@ -1,6 +1,9 @@
 "use client";
 
-import { formatChartTooltipLabel } from "@/lib/benchmark-chart-scale";
+import {
+  chartTooltipFontSize,
+  formatChartTooltipLabel,
+} from "@/lib/benchmark-chart-scale";
 import type { TooltipProps } from "recharts";
 
 type Row = {
@@ -42,14 +45,22 @@ export function ChartTooltip({
     return n.toFixed(valueDecimals);
   };
 
+  const tipPx = chartTooltipFontSize();
+
   return (
-    <div className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2 text-xs shadow-pixel min-w-[140px]">
+    <div
+      className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2 shadow-pixel min-w-[140px]"
+      style={{ fontSize: tipPx }}
+    >
       {heading && (
-        <div className="mb-2 border-b border-[var(--border)] pb-1 font-pixel text-[8px] text-[var(--amber)]">
+        <div
+          className="mb-2 border-b border-[var(--border)] pb-1 font-pixel text-[var(--amber)]"
+          style={{ fontSize: Math.max(11, tipPx - 1) }}
+        >
           {heading}
         </div>
       )}
-      <ul className="space-y-1 font-terminal text-sm">
+      <ul className="space-y-1 font-terminal" style={{ fontSize: tipPx }}>
         {rows.map((row, i) => (
           <li key={`${row.dataKey ?? i}`} className="flex justify-between gap-4">
             <span className="text-dim" style={{ color: row.color }}>

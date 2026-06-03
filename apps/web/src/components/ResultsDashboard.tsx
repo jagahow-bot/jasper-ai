@@ -54,6 +54,11 @@ import type {
   BenchmarkSeriesPoint,
   DynamicObjectiveTimelinePoint,
 } from "@/lib/types";
+import {
+  chartLegendFontSize,
+  chartTickFontSize,
+  chartTooltipFontSize,
+} from "@/lib/benchmark-chart-scale";
 import { getUniverseItems } from "@/lib/universe";
 
 function resolveChampionModelKey(
@@ -141,6 +146,9 @@ export function ResultsDashboard({
   onQuickTweak,
   onQuickTweakAndRun,
 }: Props) {
+  const chartTick = chartTickFontSize();
+  const chartLegend = chartLegendFontSize();
+  const chartTip = chartTooltipFontSize();
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [compareSummary, setCompareSummary] = useState("");
   const [compareLoading, setCompareLoading] = useState(false);
@@ -921,7 +929,7 @@ export function ResultsDashboard({
             <XAxis
               dataKey="chartKey"
               stroke="#94a3b8"
-              fontSize={12}
+              fontSize={chartTick}
               tickFormatter={(chartKey) =>
                 performanceCompareTickLabel(
                   performanceCompareByChartKey.get(String(chartKey)),
@@ -945,8 +953,14 @@ export function ResultsDashboard({
                   | undefined;
                 const code = row?.model_code ?? row?.name ?? "M?";
                 return (
-                  <div className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2 text-xs">
-                    <div className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
+                  <div
+                    className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2"
+                    style={{ fontSize: chartTip }}
+                  >
+                    <div
+                      className="mb-1 font-pixel text-[var(--amber)]"
+                      style={{ fontSize: Math.max(11, chartTip - 1) }}
+                    >
                       {row?.isBenchmark ? "benchmark" : "model"} {code}
                       {row?.isChampion ? " · champion" : ""}
                     </div>
@@ -960,7 +974,10 @@ export function ResultsDashboard({
             />
             <Legend
               content={({ payload }) => (
-                <ul className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+                <ul
+                  className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1"
+                  style={{ fontSize: chartLegend }}
+                >
                   {payload?.map((entry) => (
                     <li
                       key={String(entry.value)}
@@ -988,7 +1005,7 @@ export function ResultsDashboard({
               domain={performanceLeftDomain}
               allowDataOverflow
               stroke="#34d399"
-              fontSize={12}
+              fontSize={chartTick}
               tickFormatter={(v) => `${Number(v).toFixed(1)}%`}
             />
             <YAxis
@@ -997,7 +1014,7 @@ export function ResultsDashboard({
               domain={performanceRightDomain}
               allowDataOverflow
               stroke="#60a5fa"
-              fontSize={12}
+              fontSize={chartTick}
             />
             <Bar yAxisId="left" dataKey="cagr_pct" fill={METRIC_FILLS.cagr} name="CAGR %">
               {candidateCompare.map((row) => (
@@ -1117,7 +1134,7 @@ export function ResultsDashboard({
               dataKey="volatility"
               name="Vol"
               stroke="#94a3b8"
-              fontSize={12}
+              fontSize={chartTick}
               tickFormatter={(v) => `${(Number(v) * 100).toFixed(1)}%`}
             >
               <Label
@@ -1125,7 +1142,7 @@ export function ResultsDashboard({
                 position="insideBottom"
                 offset={-2}
                 fill="#94a3b8"
-                fontSize={12}
+                fontSize={chartTick}
               />
             </XAxis>
             <YAxis
@@ -1133,7 +1150,7 @@ export function ResultsDashboard({
               dataKey="return"
               name="Return"
               stroke="#94a3b8"
-              fontSize={12}
+              fontSize={chartTick}
               tickFormatter={(v) => `${(Number(v) * 100).toFixed(1)}%`}
             >
               <Label
@@ -1142,7 +1159,7 @@ export function ResultsDashboard({
                 position="insideLeft"
                 offset={8}
                 fill="#94a3b8"
-                fontSize={12}
+                fontSize={chartTick}
               />
             </YAxis>
             <Tooltip
@@ -1155,8 +1172,14 @@ export function ResultsDashboard({
                   sharpe?: number;
                 };
                 return (
-                  <div className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2 text-xs">
-                    <div className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
+                  <div
+                    className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2"
+                    style={{ fontSize: chartTip }}
+                  >
+                    <div
+                      className="mb-1 font-pixel text-[var(--amber)]"
+                      style={{ fontSize: Math.max(11, chartTip - 1) }}
+                    >
                       {p?.name ?? "point"}
                     </div>
                     <div>Vol: {((p?.volatility ?? 0) * 100).toFixed(2)}%</div>
@@ -1202,8 +1225,8 @@ export function ResultsDashboard({
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={quotaRows}>
                 <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
-                <XAxis dataKey="cls" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} />
+                <XAxis dataKey="cls" stroke="#94a3b8" fontSize={chartTick} />
+                <YAxis stroke="#94a3b8" fontSize={chartTick} />
                 <Tooltip content={<ChartTooltip valueDecimals={0} />} />
                 <Bar dataKey="target_count" name="Target count" fill="#00f5ff" />
               </BarChart>
@@ -1214,8 +1237,8 @@ export function ResultsDashboard({
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={actualClassRows}>
                 <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
-                <XAxis dataKey="cls" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+                <XAxis dataKey="cls" stroke="#94a3b8" fontSize={chartTick} />
+                <YAxis stroke="#94a3b8" fontSize={chartTick} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
                 <Tooltip content={<ChartTooltip valueIsPct={false} valueDecimals={2} />} />
                 <Bar dataKey="actual_pct" name="Weight %" fill="#39ff14" />
               </BarChart>
@@ -1233,8 +1256,8 @@ export function ResultsDashboard({
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={factorContribRows}>
                   <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
-                  <XAxis dataKey="factor" stroke="#94a3b8" fontSize={12} />
-                  <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+                  <XAxis dataKey="factor" stroke="#94a3b8" fontSize={chartTick} />
+                  <YAxis stroke="#94a3b8" fontSize={chartTick} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
                   <Tooltip content={<ChartTooltip valueIsPct={false} valueDecimals={2} />} />
                   <Bar dataKey="pct" name="Contrib %" fill="#ff2bd6" />
                 </BarChart>

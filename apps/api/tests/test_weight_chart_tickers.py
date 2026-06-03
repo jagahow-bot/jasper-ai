@@ -8,6 +8,7 @@ import pandas as pd
 from app.engine.portfolio import (
     WEIGHT_CHART_MAX_OTHER,
     WEIGHT_CHART_MAX_SLEEVES,
+    _max_other_weight_for_tickers,
     select_weight_chart_tickers,
 )
 
@@ -30,9 +31,27 @@ def test_select_weight_chart_tickers_caps_other_across_dates():
     # Each period's 100% sleeve must be visible (not lumped into Other).
     for i in range(5):
         assert f"T{i}" in keep
-    from app.engine.portfolio import _max_other_weight_for_tickers
-
     assert _max_other_weight_for_tickers(schedule, hist, keep) <= WEIGHT_CHART_MAX_OTHER + 1e-9
+
+
+def test_select_weight_chart_rotation_union_not_peak_truncated():
+    """User report: many legend sleeves but 40–60% Other after cohort rotation."""
+    dates = pd.bdate_range("2020-01-01", periods=8)
+    early = [f"E{i}" for i in range(11)]
+    late = [f"L{i}" for i in range(11)]
+    cols = early + late
+    data = np.zeros((len(dates), len(cols)))
+    for i in range(4):
+        data[i, :11] = 1.0 / 11.0
+    for i in range(4, len(dates)):
+        data[i, 11:] = 1.0 / 11.0
+    schedule = pd.DataFrame(data, index=dates, columns=cols)
+    hist = list(dates)
+    keep = select_weight_chart_tickers(schedule, hist, top_n=15)
+    assert len(keep) == len(cols)
+    for t in late:
+        assert t in keep
+    assert _max_other_weight_for_tickers(schedule, hist, keep) <= 1e-9
 
 
 def test_weight_history_integration_other_bounded():
