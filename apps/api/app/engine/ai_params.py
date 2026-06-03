@@ -1254,6 +1254,19 @@ _REGIME_SETUPS_SCHEMA: dict[str, Any] = {
     "properties": {r: _REGIME_SLICE_SCHEMA for r in REGIME_KEYS},
 }
 
+_REGIME_FACTOR_SLICE_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {
+        key: {"type": "ARRAY", "items": {"type": "NUMBER"}}
+        for key in FACTOR_NUMERIC_KEYS
+    },
+}
+
+_REGIME_FACTOR_RANGES_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {r: _REGIME_FACTOR_SLICE_SCHEMA for r in REGIME_KEYS},
+}
+
 _FACTOR_RANGE_SCHEMA_PROPS: dict[str, Any] = {
     key: {"type": "ARRAY", "items": {"type": "NUMBER"}}
     for key in FACTOR_NUMERIC_KEYS
@@ -1293,6 +1306,8 @@ def _round_seed_response_schema(
     }
     if include_regime_matrix:
         properties["regime_setups"] = dict(_REGIME_SETUPS_SCHEMA)
+        if not compact:
+            properties["regime_factor_ranges"] = dict(_REGIME_FACTOR_RANGES_SCHEMA)
     properties["optimization_strategy"] = {"type": "STRING"}
     properties["performance_assessment"] = {"type": "STRING"}
     required = ["round_setup"]
@@ -1433,6 +1448,27 @@ def round_seed_factor_range_guidance(
     )
 
 
+def round_seed_regime_factor_range_guidance(
+    *,
+    exploration_phase: str,
+    round_index: int,
+    total_rounds: int,
+) -> str:
+    """Prompt text for per-regime factor_ranges when dynamic objective + regime matrix."""
+    base = round_seed_factor_range_guidance(
+        exploration_phase=exploration_phase,
+        round_index=round_index,
+        total_rounds=total_rounds,
+    )
+    regimes = ", ".join(REGIME_KEYS)
+    return (
+        f"regime_factor_ranges (REQUIRED for dynamic): nested map keyed by {regimes}; "
+        f"each slice holds the same numeric keys as factor_ranges. {base} "
+        "Risk-off may favor defensive/low-vol bands; risk-on may allow higher momentum/trend. "
+        "Do NOT use top-level factor_ranges when regime_factor_ranges is present."
+    )
+
+
 def _failed_trial_lines(failed: list[dict[str, Any]], limit: int = 5) -> list[str]:
     out: list[str] = []
     for row in failed[:limit]:
@@ -1479,6 +1515,13 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
     prev_regimes = learning_context.get("prior_regime_setups")
     if isinstance(prev_regimes, dict) and prev_regimes:
         lines.append("PRIOR_REGIME_SETUPS " + _json_compact(prev_regimes))
+
+    prev_regime_factors = learning_context.get("prior_regime_factor_ranges")
+    if isinstance(prev_regime_factors, dict) and prev_regime_factors:
+        lines.append(
+            "PRIOR_REGIME_FACTOR_RANGES "
+            + _json_compact(_sanitize_prompt_dict(prev_regime_factors))
+        )
 
     champ = learning_context.get("champion")
     champ_params = learning_context.get("champion_record_params")
@@ -1616,6 +1659,7 @@ def generate_ai_round_seed(
         "rationale": "",
         "round_setup": {},
         "regime_setups": {},
+        "regime_factor_ranges": {},
         "factor_ranges": {},
         "factor_choices": {},
         "error": "missing_api_key",
@@ -1643,11 +1687,21 @@ def generate_ai_round_seed(
     exploration_phase = str(
         learning_context.get("exploration_phase") or "explore"
     ).lower()
+    dynamic_matrix = is_dynamic_objective(objective) or bool(
+        learning_context.get("dynamic_regime_matrix")
+    )
     factor_guidance = round_seed_factor_range_guidance(
         exploration_phase=exploration_phase,
         round_index=round_index,
         total_rounds=total_rounds,
     )
+    regime_factor_guidance = ""
+    if dynamic_matrix:
+        regime_factor_guidance = round_seed_regime_factor_range_guidance(
+            exploration_phase=exploration_phase,
+            round_index=round_index,
+            total_rounds=total_rounds,
+        )
     learning_mode = (
         "round_seed"
         if round_index > 1
@@ -1676,9 +1730,6 @@ def generate_ai_round_seed(
     alloc_keys = ", ".join(k for k in SETUP_PARAM_KEYS if k.startswith("w_"))
     factor_num_keys = ", ".join(FACTOR_NUMERIC_KEYS)
     factor_cat_keys = ", ".join(FACTOR_CATEGORICAL_KEYS)
-    dynamic_matrix = is_dynamic_objective(objective) or bool(
-        learning_context.get("dynamic_regime_matrix")
-    )
     regime_alloc_keys = ", ".join(REGIME_ALLOCATOR_KEYS)
     regime_objective_hint = "; ".join(
         f"{r}→{REGIME_OBJECTIVE_MAP[r]}" for r in REGIME_KEYS
@@ -1692,7 +1743,21 @@ def generate_ai_round_seed(
    Simulation applies the active regime's slice at each rebalance (V2 detector).
    round_setup still holds shared caps (top_n, max_weight, class weights); do NOT duplicate
    factor keys inside regime_setups.
+5) regime_factor_ranges (REQUIRED for dynamic objective) — per-regime Optuna bounds for factor
+   numerics ({factor_num_keys}), keyed risk_off / neutral / risk_on. Optuna samples
+   risk_off__w_mom, neutral__w_mom, etc.; simulation uses the active regime's slice each rebalance.
+   {regime_factor_guidance}
+   Omit top-level factor_ranges when regime_factor_ranges is present (shared factor_ranges only
+   as fallback if you cannot emit the nested map).
 """
+
+    factor_ranges_section = (
+        f"2) regime_factor_ranges — see item 5 above.\n   {regime_factor_guidance}"
+        if dynamic_matrix and regime_factor_guidance
+        else f"""2) factor_ranges — Optuna sampling bounds for this round (see strategy below).
+   Allowed numeric keys: {factor_num_keys}. Each value is [low, high] within global bounds.
+   {factor_guidance}"""
+    )
 
     prompt = f"""
 You are an institutional quant research assistant.
@@ -1706,9 +1771,7 @@ Architecture (critical):
    Optional asset-class quotas ({alloc_keys}): include ONLY if you materially change them from defaults.
    Do NOT put factor weights or factor lookbacks in round_setup.
    {"For dynamic objective: round_setup mode/lookback are shared defaults; per-regime allocator lives in regime_setups." if dynamic_matrix else ""}
-2) factor_ranges — Optuna sampling bounds for this round (see strategy below).
-   Allowed numeric keys: {factor_num_keys}. Each value is [low, high] within global bounds.
-   {factor_guidance}
+{factor_ranges_section}
 3) factor_choices — ONLY categorical indicators you fix this round; omit unchanged keys.
    Allowed keys: {factor_cat_keys}.
 {regime_block}
@@ -1738,7 +1801,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
 {{"rationale":"...", "optimization_strategy":"...", "performance_assessment":"...",
 "round_setup":{{...}},
 {('"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
-"factor_ranges":{{"<each numeric factor key>":[low,high], ...}},
+{('"regime_factor_ranges":{"risk_off":{"w_mom":[lo,hi],...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else '"factor_ranges":{"<each numeric factor key>":[low,high], ...},')}
 "factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
 """
     max_retries = max(1, int(settings.gemini_param_seed_max_retries))
@@ -1754,10 +1817,11 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
             '"round_setup":{...},'
             + (
                 '"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},'
+                '"regime_factor_ranges":{"risk_off":{...},"neutral":{...},"risk_on":{...}},'
                 if dynamic_matrix
-                else ""
+                else '"factor_ranges":{...},'
             )
-            + '"factor_ranges":{...},"factor_choices":{...}}'
+            + '"factor_choices":{...}}'
         )
         req_prompt = prompt if not compact else (
             prompt[:1000]
@@ -1827,6 +1891,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
                 "performance_assessment": normalized.get("performance_assessment", ""),
                 "round_setup": normalized["round_setup"],
                 "regime_setups": normalized.get("regime_setups") or {},
+                "regime_factor_ranges": normalized.get("regime_factor_ranges") or {},
                 "factor_ranges": normalized["factor_ranges"],
                 "factor_choices": normalized["factor_choices"],
                 "generation_mode": "pro_round_seed",
@@ -1844,6 +1909,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
         "rationale": "",
         "round_setup": {},
         "regime_setups": {},
+        "regime_factor_ranges": {},
         "factor_ranges": {},
         "factor_choices": {},
         "error": last_error or "ai_round_seed_failed",

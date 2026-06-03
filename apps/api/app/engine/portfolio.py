@@ -314,6 +314,7 @@ def _rebalance_schedule_dynamic(
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
+    factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
 ) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, list[pd.Timestamp], int, dict[str, Any]]:
     rets = _safe_returns(prices)
     n = len(prices.columns)
@@ -354,21 +355,24 @@ def _rebalance_schedule_dynamic(
         loc = int(prices.index.get_loc(dt))
         end_loc = max(loc, 1)  # exclude rebalance day
         alloc_step = allocator_resolver(dt) if allocator_resolver else allocator
+        factor_step = (
+            factor_params_resolver(dt) if factor_params_resolver else factor_params
+        )
         updated = False
         try:
             # Factor selection (cross-sectional) over factor lookback.
             f_lb = int(
                 max(
-                    factor_params.lookback_days,
-                    factor_params.reversal_lookback_days,
-                    factor_params.value_lookback_days,
+                    factor_step.lookback_days,
+                    factor_step.reversal_lookback_days,
+                    factor_step.value_lookback_days,
                     60,
                 )
             )
             f_start = max(0, end_loc - f_lb)
             px_w = prices.iloc[f_start:end_loc]
             rt_w = rets.iloc[f_start:end_loc]
-            scores, factor_detail = score_assets_with_details(px_w, rt_w, factor_params)
+            scores, factor_detail = score_assets_with_details(px_w, rt_w, factor_step)
             factor_logic = factor_detail.get("indicator_logic", {}) or factor_logic
             chosen = _pick_top_n_with_budget(
                 scores,
@@ -566,6 +570,7 @@ def _simulate_pandas(
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     top_n: int = 30,
     factor_params: FactorParams | None = None,
+    factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
     no_trade_tol: float = 0.0,
     turnover_penalty_mult: float = 1.0,
     max_turnover: float | None = None,
@@ -584,6 +589,7 @@ def _simulate_pandas(
             allocator_resolver=allocator_resolver,
             top_n=min(int(top_n), len(prices.columns)),
             factor_params=f_params,
+            factor_params_resolver=factor_params_resolver,
             no_trade_tol=no_trade_tol,
             max_turnover=max_turnover,
             universe_by_ticker=universe_by_ticker,
@@ -678,6 +684,7 @@ def simulate_dynamic_portfolio(
     top_n: int,
     factor_params: FactorParams | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
+    factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
     no_trade_tol: float = 0.0,
     turnover_penalty_mult: float = 1.0,
     max_turnover: float | None = None,
@@ -696,6 +703,7 @@ def simulate_dynamic_portfolio(
         allocator_resolver=allocator_resolver,
         top_n=top_n,
         factor_params=factor_params,
+        factor_params_resolver=factor_params_resolver,
         no_trade_tol=no_trade_tol,
         turnover_penalty_mult=turnover_penalty_mult,
         max_turnover=max_turnover,

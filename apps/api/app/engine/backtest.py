@@ -79,6 +79,7 @@ from app.engine.dynamic_objective import (
     serialize_dynamic_timeline,
     trial_scoring_objective,
 )
+from app.engine.param_taxonomy import has_regime_factor_ranges
 
 WEIGHT_EPS = 0.001
 
@@ -317,6 +318,7 @@ def _run_iterative_search(
     carry_champion_model_code: str | None = None
     prior_round_setup: dict[str, Any] | None = None
     prior_regime_setups: dict[str, Any] | None = None
+    prior_regime_factor_ranges: dict[str, Any] | None = None
     prior_factor_ranges: dict[str, Any] | None = None
     prior_factor_choices: dict[str, Any] | None = None
     use_regime_matrix = bool(
@@ -371,6 +373,7 @@ def _run_iterative_search(
                 round_index=round_idx + 1,
                 prior_round_setup=prior_round_setup,
                 prior_regime_setups=prior_regime_setups,
+                prior_regime_factor_ranges=prior_regime_factor_ranges,
                 prior_factor_ranges=prior_factor_ranges,
                 prior_factor_choices=prior_factor_choices,
                 benchmark_ticker=spec.benchmark_ticker,
@@ -437,6 +440,7 @@ def _run_iterative_search(
         )
         round_setup = ai_generation.get("round_setup") or {}
         regime_setups = ai_generation.get("regime_setups") or {}
+        regime_factor_ranges = ai_generation.get("regime_factor_ranges") or {}
         factor_ranges = ai_generation.get("factor_ranges") or {}
         factor_choices = ai_generation.get("factor_choices") or {}
         optimization_strategy = str(
@@ -450,6 +454,7 @@ def _run_iterative_search(
             if prior_round_setup:
                 round_setup = dict(prior_round_setup)
                 regime_setups = dict(prior_regime_setups or {})
+                regime_factor_ranges = dict(prior_regime_factor_ranges or {})
                 factor_ranges = dict(prior_factor_ranges or {})
                 factor_choices = dict(prior_factor_choices or {})
                 report_progress(
@@ -482,12 +487,17 @@ def _run_iterative_search(
                     if isinstance(regime_setups.get(r), dict)
                 ]
                 regime_note = f"regime matrix ({', '.join(modes)}) + "
+            factor_note = (
+                f"{len(regime_factor_ranges)} regime factor ranges"
+                if has_regime_factor_ranges(regime_factor_ranges)
+                else f"{len(factor_ranges)} factor ranges"
+            )
             report_progress(
                 global_trial,
                 est_trials,
                 f"Round {round_idx + 1}: AI round seed "
                 f"({regime_note}"
-                f"setup + {len(factor_ranges)} factor ranges)",
+                f"setup + {factor_note})",
                 champion_record[2]["sharpe"] if champion_record else None,
                 round_idx + 1,
                 max_rounds,
@@ -549,6 +559,9 @@ def _run_iterative_search(
                 shared_round_setup=round_setup,
             )
             allocator_resolver = dynamic_ctx.get("allocator_resolver")
+        active_regime_resolver = (
+            dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
+        )
 
         champion_seed = (
             params_for_champion_seed(champion_record[1]) if champion_record else None
@@ -563,6 +576,11 @@ def _run_iterative_search(
             trials=n_trials,
             round_setup=round_setup,
             regime_setups=regime_setups if has_regime_matrix(regime_setups) else None,
+            regime_factor_ranges=(
+                regime_factor_ranges
+                if has_regime_factor_ranges(regime_factor_ranges)
+                else None
+            ),
             factor_ranges=factor_ranges,
             factor_choices=factor_choices,
             param_controls=param_controls_dict,
@@ -575,6 +593,7 @@ def _run_iterative_search(
             asset_classes=req.asset_classes,
             trial_report_cache=trial_report_cache,
             allocator_resolver=allocator_resolver,
+            active_regime_resolver=active_regime_resolver,
         )
 
         tagged_round_records: list[tuple[float, dict, dict]] = []
@@ -773,6 +792,14 @@ def _run_iterative_search(
                 "round_setup": round_setup,
                 "regime_setups": regime_setups if has_regime_matrix(regime_setups) else {},
                 "regime_matrix_enabled": has_regime_matrix(regime_setups),
+                "regime_factor_ranges": (
+                    regime_factor_ranges
+                    if has_regime_factor_ranges(regime_factor_ranges)
+                    else {}
+                ),
+                "regime_factor_matrix_enabled": has_regime_factor_ranges(
+                    regime_factor_ranges
+                ),
                 "factor_ranges": factor_ranges,
                 "factor_choices": factor_choices,
                 "optimization_strategy": optimization_strategy,
@@ -812,6 +839,11 @@ def _run_iterative_search(
         prior_round_setup = dict(round_setup)
         prior_regime_setups = (
             dict(regime_setups) if has_regime_matrix(regime_setups) else None
+        )
+        prior_regime_factor_ranges = (
+            dict(regime_factor_ranges)
+            if has_regime_factor_ranges(regime_factor_ranges)
+            else None
         )
         prior_factor_ranges = dict(factor_ranges)
         prior_factor_choices = dict(factor_choices)
@@ -1937,6 +1969,10 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                     round_setup=dict(pr.get("round_setup") or {}),
                     regime_setups=dict(pr.get("regime_setups") or {}),
                     regime_matrix_enabled=bool(pr.get("regime_matrix_enabled")),
+                    regime_factor_ranges=dict(pr.get("regime_factor_ranges") or {}),
+                    regime_factor_matrix_enabled=bool(
+                        pr.get("regime_factor_matrix_enabled")
+                    ),
                     factor_ranges=dict(pr.get("factor_ranges") or {}),
                     factor_choices=dict(pr.get("factor_choices") or {}),
                     optimization_strategy=str(pr.get("optimization_strategy") or ""),

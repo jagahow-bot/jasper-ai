@@ -46,7 +46,16 @@ from app.engine.param_bounds import (
     resolve_control_mode,
     resolve_off_value,
 )
-from app.engine.param_taxonomy import build_pro_round_param_controls
+from app.engine.dynamic_objective import (
+    REGIME_KEYS,
+    build_regime_factor_params_resolver,
+    has_regime_matrix,
+)
+from app.engine.param_taxonomy import (
+    build_pro_round_param_controls,
+    has_regime_factor_ranges,
+    regime_factor_param_key,
+)
 from app.engine.report_sim_cache import TrialReportCache
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
 
@@ -84,8 +93,10 @@ def run_optuna_search(
     ai_seed_param_sets: list[dict] | None = None,
     round_setup: dict | None = None,
     regime_setups: dict | None = None,
+    regime_factor_ranges: dict | None = None,
     factor_ranges: dict | None = None,
     factor_choices: dict | None = None,
+    active_regime_resolver: Callable[[pd.Timestamp], str] | None = None,
     param_controls: dict[str, dict] | None = None,
     spec: BacktestSpec = DEFAULT_SPEC,
     progress_cb: (
@@ -123,9 +134,15 @@ def run_optuna_search(
             factor_ranges=factor_ranges,
             factor_choices=factor_choices,
             regime_setups=regime_setups,
+            regime_factor_ranges=regime_factor_ranges,
         )
     else:
         param_controls = normalize_param_controls(param_controls, blueprint)
+    regime_factor_active = bool(
+        pro_round_mode
+        and has_regime_matrix(regime_setups)
+        and has_regime_factor_ranges(regime_factor_ranges)
+    )
 
     def _ctl(key: str) -> dict | None:
         c = param_controls.get(key)
@@ -266,23 +283,7 @@ def run_optuna_search(
             actual_cap = float(max_weight)
         actual_cap = float(np.clip(actual_cap, 0.05, float(max_weight)))
 
-        # Factor layer params
-        factor_lb = _seed_or_suggest_int(
-            trial, seed, "factor_lookback_days", 126, 504, step=21
-        )
-        reversal_lb = _seed_or_suggest_int(
-            trial, seed, "reversal_lookback_days", 63, 252, step=21
-        )
-        value_lb = _seed_or_suggest_int(
-            trial, seed, "value_lookback_days", 63, 252, step=21
-        )
-
-        w_mom = _seed_or_suggest_float(trial, seed, "w_mom", 0.0, 2.0)
-        w_reversal = _seed_or_suggest_float(trial, seed, "w_reversal", 0.0, 2.0)
-        w_value = _seed_or_suggest_float(trial, seed, "w_value", 0.0, 2.0)
-        w_lowvol = _seed_or_suggest_float(trial, seed, "w_lowvol", 0.0, 2.0)
-        w_trend = _seed_or_suggest_float(trial, seed, "w_trend", 0.0, 1.5)
-        w_drawdown = _seed_or_suggest_float(trial, seed, "w_drawdown", 0.0, 1.5)
+        # Factor layer params (shared categoricals; numerics flat or per-regime)
         mom_indicator = _seed_or_suggest_cat(
             trial, seed, "mom_indicator", list(MOM_INDICATOR_CHOICES), DEFAULT_MOM_INDICATOR
         )
@@ -321,6 +322,137 @@ def run_optuna_search(
             list(DRAWDOWN_INDICATOR_CHOICES),
             DEFAULT_DRAWDOWN_INDICATOR,
         )
+        factor_params_resolver = None
+        regime_factor_flat: dict[str, float | int] = {}
+        if regime_factor_active:
+            factor_by_regime: dict[str, FactorParams] = {}
+            for regime in REGIME_KEYS:
+                factor_lb = _seed_or_suggest_int(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "factor_lookback_days"),
+                    126,
+                    504,
+                    step=21,
+                )
+                reversal_lb = _seed_or_suggest_int(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "reversal_lookback_days"),
+                    63,
+                    252,
+                    step=21,
+                )
+                value_lb = _seed_or_suggest_int(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "value_lookback_days"),
+                    63,
+                    252,
+                    step=21,
+                )
+                w_mom_r = _seed_or_suggest_float(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "w_mom"),
+                    0.0,
+                    2.0,
+                )
+                w_reversal_r = _seed_or_suggest_float(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "w_reversal"),
+                    0.0,
+                    2.0,
+                )
+                w_value_r = _seed_or_suggest_float(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "w_value"),
+                    0.0,
+                    2.0,
+                )
+                w_lowvol_r = _seed_or_suggest_float(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "w_lowvol"),
+                    0.0,
+                    2.0,
+                )
+                w_trend_r = _seed_or_suggest_float(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "w_trend"),
+                    0.0,
+                    1.5,
+                )
+                w_drawdown_r = _seed_or_suggest_float(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "w_drawdown"),
+                    0.0,
+                    1.5,
+                )
+                factor_by_regime[regime] = FactorParams(
+                    lookback_days=int(factor_lb),
+                    reversal_lookback_days=int(reversal_lb),
+                    value_lookback_days=int(value_lb),
+                    w_mom=float(w_mom_r),
+                    w_reversal=float(w_reversal_r),
+                    w_value=float(w_value_r),
+                    w_lowvol=float(w_lowvol_r),
+                    w_trend=float(w_trend_r),
+                    w_drawdown=float(w_drawdown_r),
+                    mom_indicator=str(mom_indicator),
+                    reversal_indicator=str(reversal_indicator),
+                    value_indicator=str(value_indicator),
+                    lowvol_indicator=str(lowvol_indicator),
+                    trend_indicator=str(trend_indicator),
+                    drawdown_indicator=str(drawdown_indicator),
+                )
+                for fk, val in (
+                    ("factor_lookback_days", factor_lb),
+                    ("reversal_lookback_days", reversal_lb),
+                    ("value_lookback_days", value_lb),
+                    ("w_mom", w_mom_r),
+                    ("w_reversal", w_reversal_r),
+                    ("w_value", w_value_r),
+                    ("w_lowvol", w_lowvol_r),
+                    ("w_trend", w_trend_r),
+                    ("w_drawdown", w_drawdown_r),
+                ):
+                    regime_factor_flat[regime_factor_param_key(regime, fk)] = val
+            f_params = factor_by_regime.get("neutral") or FactorParams()
+            if active_regime_resolver is not None:
+                factor_params_resolver = build_regime_factor_params_resolver(
+                    active_regime_resolver,
+                    factor_by_regime,
+                )
+            factor_lb = int(f_params.lookback_days)
+            reversal_lb = int(f_params.reversal_lookback_days)
+            value_lb = int(f_params.value_lookback_days)
+            w_mom = float(f_params.w_mom)
+            w_reversal = float(f_params.w_reversal)
+            w_value = float(f_params.w_value)
+            w_lowvol = float(f_params.w_lowvol)
+            w_trend = float(f_params.w_trend)
+            w_drawdown = float(f_params.w_drawdown)
+        else:
+            factor_lb = _seed_or_suggest_int(
+                trial, seed, "factor_lookback_days", 126, 504, step=21
+            )
+            reversal_lb = _seed_or_suggest_int(
+                trial, seed, "reversal_lookback_days", 63, 252, step=21
+            )
+            value_lb = _seed_or_suggest_int(
+                trial, seed, "value_lookback_days", 63, 252, step=21
+            )
+            w_mom = _seed_or_suggest_float(trial, seed, "w_mom", 0.0, 2.0)
+            w_reversal = _seed_or_suggest_float(trial, seed, "w_reversal", 0.0, 2.0)
+            w_value = _seed_or_suggest_float(trial, seed, "w_value", 0.0, 2.0)
+            w_lowvol = _seed_or_suggest_float(trial, seed, "w_lowvol", 0.0, 2.0)
+            w_trend = _seed_or_suggest_float(trial, seed, "w_trend", 0.0, 1.5)
+            w_drawdown = _seed_or_suggest_float(trial, seed, "w_drawdown", 0.0, 1.5)
         w_equity = _seed_or_suggest_float(trial, seed, "w_equity", 0.0, 1.0)
         w_bond = _seed_or_suggest_float(trial, seed, "w_bond", 0.0, 1.0)
         w_commodity = _seed_or_suggest_float(trial, seed, "w_commodity", 0.0, 1.0)
@@ -387,23 +519,24 @@ def run_optuna_search(
             shrinkage=float(shrinkage),
             risk_aversion=float(risk_aversion),
         )
-        f_params = FactorParams(
-            lookback_days=int(factor_lb),
-            reversal_lookback_days=int(reversal_lb),
-            value_lookback_days=int(value_lb),
-            w_mom=float(w_mom),
-            w_reversal=float(w_reversal),
-            w_value=float(w_value),
-            w_lowvol=float(w_lowvol),
-            w_trend=float(w_trend),
-            w_drawdown=float(w_drawdown),
-            mom_indicator=str(mom_indicator),
-            reversal_indicator=str(reversal_indicator),
-            value_indicator=str(value_indicator),
-            lowvol_indicator=str(lowvol_indicator),
-            trend_indicator=str(trend_indicator),
-            drawdown_indicator=str(drawdown_indicator),
-        )
+        if not regime_factor_active:
+            f_params = FactorParams(
+                lookback_days=int(factor_lb),
+                reversal_lookback_days=int(reversal_lb),
+                value_lookback_days=int(value_lb),
+                w_mom=float(w_mom),
+                w_reversal=float(w_reversal),
+                w_value=float(w_value),
+                w_lowvol=float(w_lowvol),
+                w_trend=float(w_trend),
+                w_drawdown=float(w_drawdown),
+                mom_indicator=str(mom_indicator),
+                reversal_indicator=str(reversal_indicator),
+                value_indicator=str(value_indicator),
+                lowvol_indicator=str(lowvol_indicator),
+                trend_indicator=str(trend_indicator),
+                drawdown_indicator=str(drawdown_indicator),
+            )
 
         has_holdout = prices_val is not None and len(prices_val) > 60
         use_is_only = bool(select_on_is and has_holdout)
@@ -452,6 +585,7 @@ def run_optuna_search(
             universe_by_ticker=universe_by_ticker,
             class_budget=class_budget,
             allocator_resolver=allocator_resolver,
+            factor_params_resolver=factor_params_resolver,
         )
         try:
             metrics = simulate_dynamic_portfolio(prices_score, **sim_common)
@@ -511,6 +645,9 @@ def run_optuna_search(
                 else ("ai_seed" if seed else "optuna")
             ),
         }
+        if regime_factor_flat:
+            params.update(regime_factor_flat)
+            params["regime_factor_matrix"] = True
         if bounds_violations:
             params["bounds_violations"] = bounds_violations
         train_m_holdout: dict | None = None

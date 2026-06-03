@@ -14,6 +14,7 @@ from app.engine.objective_switch_lab import (
     resolve_raw_regime_for_detector,
     walk_forward_timeline_for_detector,
 )
+from app.engine.factors import FactorParams
 from app.engine.regime_policy import (
     REGIME_OBJECTIVE_MAP,
     RegimeSignal,
@@ -94,9 +95,8 @@ def has_regime_matrix(regime_setups: dict[str, Any] | None) -> bool:
     return any(isinstance(regime_setups.get(r), dict) for r in REGIME_KEYS)
 
 
-def build_regime_matrix_allocator_resolver(
+def build_active_regime_resolver(
     bench_ret: pd.Series,
-    regime_setups: dict[str, dict[str, Any]],
     *,
     regime_mode: str = DEFAULT_REGIME_MODE,
     lookback_days: int = 63,
@@ -104,9 +104,8 @@ def build_regime_matrix_allocator_resolver(
     confirm_steps: int = 1,
     detector_version: str = DEFAULT_DETECTOR_VERSION,
     fast_risk_off_exit: bool = True,
-) -> tuple[Callable[[pd.Timestamp], AllocatorParams], list[dict[str, Any]], int]:
-    """Per-rebalance allocator from AI regime matrix (not hard-coded REGIME_OBJECTIVE_MAP presets)."""
-    matrix = normalize_regime_setups(regime_setups)
+) -> tuple[Callable[[pd.Timestamp], RegimeSignal], list[dict[str, Any]], int]:
+    """Walk-forward active regime at each rebalance date (V2 detector + cooldown)."""
     switch_count, timeline = walk_forward_timeline_for_detector(
         bench_ret,
         regime_mode,
@@ -124,7 +123,7 @@ def build_regime_matrix_allocator_resolver(
     )
     last_switch_idx = -cooldown_steps
 
-    def resolver(dt: pd.Timestamp) -> AllocatorParams:
+    def resolver(dt: pd.Timestamp) -> RegimeSignal:
         nonlocal active_regime, last_switch_idx
         key = dt.strftime("%Y-%m-%d")
         prior = [d for d in dates_sorted if d <= key]
@@ -146,9 +145,54 @@ def build_regime_matrix_allocator_resolver(
                 active_regime = str(
                     row.get("active_regime") or row.get("regime") or active_regime
                 )
-        return allocator_params_from_setup(matrix.get(active_regime, matrix["neutral"]))
+        return active_regime
 
     return resolver, timeline, switch_count
+
+
+def build_regime_matrix_allocator_resolver(
+    bench_ret: pd.Series,
+    regime_setups: dict[str, dict[str, Any]],
+    *,
+    regime_mode: str = DEFAULT_REGIME_MODE,
+    lookback_days: int = 63,
+    cooldown_steps: int = 2,
+    confirm_steps: int = 1,
+    detector_version: str = DEFAULT_DETECTOR_VERSION,
+    fast_risk_off_exit: bool = True,
+) -> tuple[Callable[[pd.Timestamp], AllocatorParams], list[dict[str, Any]], int]:
+    """Per-rebalance allocator from AI regime matrix (not hard-coded REGIME_OBJECTIVE_MAP presets)."""
+    matrix = normalize_regime_setups(regime_setups)
+    regime_resolver, timeline, switch_count = build_active_regime_resolver(
+        bench_ret,
+        regime_mode=regime_mode,
+        lookback_days=lookback_days,
+        cooldown_steps=cooldown_steps,
+        confirm_steps=confirm_steps,
+        detector_version=detector_version,
+        fast_risk_off_exit=fast_risk_off_exit,
+    )
+
+    def resolver(dt: pd.Timestamp) -> AllocatorParams:
+        regime = regime_resolver(dt)
+        return allocator_params_from_setup(matrix.get(regime, matrix["neutral"]))
+
+    return resolver, timeline, switch_count
+
+
+def build_regime_factor_params_resolver(
+    active_regime_resolver: Callable[[pd.Timestamp], RegimeSignal],
+    factor_by_regime: dict[str, FactorParams],
+) -> Callable[[pd.Timestamp], FactorParams]:
+    """Per-rebalance factor params keyed by active regime (Optuna samples per regime)."""
+    neutral = factor_by_regime.get("neutral") or FactorParams()
+    fallback = neutral
+
+    def resolver(dt: pd.Timestamp) -> FactorParams:
+        regime = active_regime_resolver(dt)
+        return factor_by_regime.get(regime) or fallback
+
+    return resolver
 
 
 def build_dynamic_objective_context(
@@ -167,8 +211,15 @@ def build_dynamic_objective_context(
         else prices_with_benchmark.columns[0]
     )
     bench_ret = prices_with_benchmark[bench].pct_change().dropna()
+    active_regime_resolver = None
     if has_regime_matrix(regime_setups):
-        resolver, timeline, switch_count = build_regime_matrix_allocator_resolver(
+        active_regime_resolver, timeline, switch_count = build_active_regime_resolver(
+            bench_ret,
+            regime_mode=regime_mode,
+            detector_version=DEFAULT_DETECTOR_VERSION,
+            fast_risk_off_exit=fast_risk_off_exit,
+        )
+        resolver, _, _ = build_regime_matrix_allocator_resolver(
             bench_ret,
             normalize_regime_setups(regime_setups, shared_setup=shared_round_setup),
             regime_mode=regime_mode,
@@ -214,6 +265,7 @@ def build_dynamic_objective_context(
             if has_regime_matrix(regime_setups)
             else None
         ),
+        "active_regime_resolver": active_regime_resolver,
     }
 
 
@@ -231,7 +283,13 @@ def refresh_dynamic_allocator_resolver(
     fast_exit = bool(dynamic_ctx.get("fast_risk_off_exit", True))
     if has_regime_matrix(regime_setups):
         matrix = normalize_regime_setups(regime_setups, shared_setup=shared_round_setup)
-        resolver, timeline, switch_count = build_regime_matrix_allocator_resolver(
+        regime_resolver, timeline, switch_count = build_active_regime_resolver(
+            bench_ret,
+            regime_mode=regime_mode,
+            detector_version=str(dynamic_ctx.get("detector_version") or DEFAULT_DETECTOR_VERSION),
+            fast_risk_off_exit=fast_exit,
+        )
+        allocator_resolver, _, _ = build_regime_matrix_allocator_resolver(
             bench_ret,
             matrix,
             regime_mode=regime_mode,
@@ -239,7 +297,8 @@ def refresh_dynamic_allocator_resolver(
             fast_risk_off_exit=fast_exit,
         )
         out = dict(dynamic_ctx)
-        out["allocator_resolver"] = resolver
+        out["allocator_resolver"] = allocator_resolver
+        out["active_regime_resolver"] = regime_resolver
         out["regime_timeline"] = timeline
         out["regime_switch_count"] = switch_count
         out["regime_setups"] = matrix

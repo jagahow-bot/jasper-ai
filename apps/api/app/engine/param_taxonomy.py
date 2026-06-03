@@ -101,6 +101,52 @@ def is_factor_categorical_key(key: str) -> bool:
     return key in FACTOR_CATEGORICAL_KEYS
 
 
+def regime_factor_param_key(regime: str, factor_key: str) -> str:
+    """Optuna trial key for per-regime factor numerics (e.g. risk_off__w_mom)."""
+    return f"{regime}__{factor_key}"
+
+
+def parse_regime_factor_param_key(key: str) -> tuple[str, str] | None:
+    for regime in REGIME_KEYS:
+        prefix = f"{regime}__"
+        if key.startswith(prefix):
+            tail = key[len(prefix) :]
+            if is_factor_numeric_key(tail):
+                return regime, tail
+    return None
+
+
+def has_regime_factor_ranges(regime_factor_ranges: dict[str, Any] | None) -> bool:
+    if not isinstance(regime_factor_ranges, dict) or not regime_factor_ranges:
+        return False
+    return any(
+        isinstance(regime_factor_ranges.get(r), dict) and regime_factor_ranges[r]
+        for r in REGIME_KEYS
+    )
+
+
+def _normalize_regime_factor_ranges_seed(
+    raw: Any,
+    *,
+    blueprint: RunBlueprint,
+    param_controls: dict[str, dict] | None,
+) -> dict[str, dict[str, list[float | int]]]:
+    if not isinstance(raw, dict):
+        return {}
+    controls = normalize_param_controls(param_controls, blueprint)
+    out: dict[str, dict[str, list[float | int]]] = {}
+    for regime in REGIME_KEYS:
+        per = raw.get(regime)
+        if not isinstance(per, dict) or not per:
+            continue
+        completed = complete_factor_ranges(
+            per, blueprint=blueprint, param_controls=controls
+        )
+        if completed:
+            out[regime] = completed
+    return out
+
+
 def _parse_range_pair(raw: Any) -> tuple[float, float] | None:
     if not isinstance(raw, (list, tuple)) or len(raw) < 2:
         return None
@@ -205,18 +251,23 @@ def build_pro_round_param_controls(
     factor_ranges: dict[str, Any] | None,
     factor_choices: dict[str, Any] | None,
     regime_setups: dict[str, Any] | None = None,
+    regime_factor_ranges: dict[str, Any] | None = None,
 ) -> dict[str, dict]:
     """Force setup fixed; factor numerics search within AI ranges; categoricals fixed."""
     controls = normalize_param_controls(base_controls, blueprint)
-    factor_ranges = complete_factor_ranges(
-        factor_ranges,
-        blueprint=blueprint,
-        param_controls=controls,
-    )
     setup = dict(round_setup or {})
     if ALLOCATOR_MODE_KEY not in setup and setup.get("allocator_mode"):
         setup[ALLOCATOR_MODE_KEY] = setup["allocator_mode"]
     matrix_active = has_regime_matrix(regime_setups)
+    regime_factor_active = matrix_active and has_regime_factor_ranges(
+        regime_factor_ranges
+    )
+    if not regime_factor_active:
+        factor_ranges = complete_factor_ranges(
+            factor_ranges,
+            blueprint=blueprint,
+            param_controls=controls,
+        )
     skip_allocator_keys = matrix_active
 
     for key in SETUP_PARAM_KEYS:
@@ -257,20 +308,44 @@ def build_pro_round_param_controls(
                 else:
                     controls[key] = {"mode": "fixed", "fixed": val}
 
-    for key, raw_range in (factor_ranges or {}).items():
-        if not is_factor_numeric_key(key):
-            continue
-        intersected = intersect_factor_range(
-            key, raw_range, blueprint=blueprint, param_controls=controls
+    if regime_factor_active:
+        normalized_regime_ranges = _normalize_regime_factor_ranges_seed(
+            regime_factor_ranges,
+            blueprint=blueprint,
+            param_controls=controls,
         )
-        if intersected is None:
-            continue
-        lo, hi = intersected
-        entry: dict[str, Any] = {"mode": "search", "min": lo, "max": hi}
-        defaults = DEFAULT_FACTOR_BOUNDS.get(key)
-        if defaults and defaults[2] > 1:
-            entry["step"] = defaults[2]
-        controls[key] = entry
+        for regime in REGIME_KEYS:
+            per_ranges = normalized_regime_ranges.get(regime) or {}
+            for key, raw_range in per_ranges.items():
+                if not is_factor_numeric_key(key):
+                    continue
+                optuna_key = regime_factor_param_key(regime, key)
+                intersected = intersect_factor_range(
+                    key, raw_range, blueprint=blueprint, param_controls=controls
+                )
+                if intersected is None:
+                    continue
+                lo, hi = intersected
+                entry: dict[str, Any] = {"mode": "search", "min": lo, "max": hi}
+                defaults = DEFAULT_FACTOR_BOUNDS.get(key)
+                if defaults and defaults[2] > 1:
+                    entry["step"] = defaults[2]
+                controls[optuna_key] = entry
+    else:
+        for key, raw_range in (factor_ranges or {}).items():
+            if not is_factor_numeric_key(key):
+                continue
+            intersected = intersect_factor_range(
+                key, raw_range, blueprint=blueprint, param_controls=controls
+            )
+            if intersected is None:
+                continue
+            lo, hi = intersected
+            entry = {"mode": "search", "min": lo, "max": hi}
+            defaults = DEFAULT_FACTOR_BOUNDS.get(key)
+            if defaults and defaults[2] > 1:
+                entry["step"] = defaults[2]
+            controls[key] = entry
 
     for key, choice in (factor_choices or {}).items():
         if not is_factor_categorical_key(key):
@@ -335,6 +410,11 @@ def summarize_prior_round_seed(
         seed_dict.get("regime_setups"),
         shared_setup=setup,
     )
+    regime_factor_ranges = _normalize_regime_factor_ranges_seed(
+        seed_dict.get("regime_factor_ranges"),
+        blueprint=RunBlueprint(max_weight=1.0, max_turnover=1.0, top_n=30),
+        param_controls=None,
+    )
     out: dict[str, Any] = {
         "round_setup": setup,
         "factor_ranges": ranges,
@@ -342,6 +422,8 @@ def summarize_prior_round_seed(
     }
     if regime_setups:
         out["regime_setups"] = regime_setups
+    if regime_factor_ranges:
+        out["regime_factor_ranges"] = regime_factor_ranges
     return out
 
 
@@ -361,6 +443,7 @@ def normalize_round_seed(
         "factor_ranges": {},
         "factor_choices": {},
         "regime_setups": {},
+        "regime_factor_ranges": {},
     }
     raw_setup = seed.get("round_setup") or {}
     if isinstance(raw_setup, dict):
@@ -374,13 +457,24 @@ def normalize_round_seed(
                 else:
                     out["round_setup"][key] = _round_seed_numeric(val, key=key)
 
-    raw_ranges = seed.get("factor_ranges") or {}
-    if isinstance(raw_ranges, dict):
-        out["factor_ranges"] = complete_factor_ranges(
-            raw_ranges,
+    raw_regime_factor = seed.get("regime_factor_ranges")
+    matrix_seed = isinstance(seed.get("regime_setups"), dict) and seed.get("regime_setups")
+    if matrix_seed and isinstance(raw_regime_factor, dict) and raw_regime_factor:
+        out["regime_factor_ranges"] = _normalize_regime_factor_ranges_seed(
+            raw_regime_factor,
             blueprint=blueprint,
             param_controls=controls,
         )
+        if out["regime_factor_ranges"]:
+            out["factor_ranges"] = {}
+    else:
+        raw_ranges = seed.get("factor_ranges") or {}
+        if isinstance(raw_ranges, dict):
+            out["factor_ranges"] = complete_factor_ranges(
+                raw_ranges,
+                blueprint=blueprint,
+                param_controls=controls,
+            )
 
     raw_choices = seed.get("factor_choices") or {}
     if isinstance(raw_choices, dict):
@@ -395,5 +489,13 @@ def normalize_round_seed(
         )
         if normalized:
             out["regime_setups"] = normalized
+            if not out.get("regime_factor_ranges"):
+                raw_shared = seed.get("factor_ranges") or {}
+                if isinstance(raw_shared, dict) and raw_shared:
+                    out["factor_ranges"] = complete_factor_ranges(
+                        raw_shared,
+                        blueprint=blueprint,
+                        param_controls=controls,
+                    )
 
     return out
