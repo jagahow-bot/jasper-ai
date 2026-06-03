@@ -155,6 +155,44 @@ def _normalize_regime_setups_seed(
     return normalize_regime_setups(raw, shared_setup=shared_setup)
 
 
+def complete_factor_ranges(
+    factor_ranges: dict[str, Any] | None,
+    *,
+    blueprint: RunBlueprint,
+    param_controls: dict[str, dict] | None,
+) -> dict[str, list[float | int]]:
+    """Ensure every factor numeric has an Optuna range (AI sparse output → global defaults)."""
+    controls = normalize_param_controls(param_controls, blueprint)
+    out: dict[str, list[float | int]] = {}
+    for key in FACTOR_NUMERIC_KEYS:
+        raw = (factor_ranges or {}).get(key)
+        if raw is not None:
+            intersected = intersect_factor_range(
+                key, raw, blueprint=blueprint, param_controls=controls
+            )
+            if intersected is not None:
+                lo, hi = intersected
+                if key.endswith("_days"):
+                    out[key] = [int(lo), int(hi)]
+                else:
+                    out[key] = [_round_seed_numeric(lo), _round_seed_numeric(hi)]
+                continue
+        defaults = DEFAULT_FACTOR_BOUNDS.get(key)
+        if defaults is None:
+            continue
+        default_lo, default_hi, _step = defaults
+        lo = cap_search_low(key, default_lo, controls.get(key))
+        hi = cap_search_high(key, default_hi, blueprint, controls.get(key))
+        if lo > hi:
+            mid = (float(lo) + float(hi)) / 2.0
+            lo, hi = mid, mid
+        if key.endswith("_days"):
+            out[key] = [int(lo), int(hi)]
+        else:
+            out[key] = [_round_seed_numeric(lo), _round_seed_numeric(hi)]
+    return out
+
+
 def build_pro_round_param_controls(
     base_controls: dict[str, dict] | None,
     *,
@@ -166,6 +204,11 @@ def build_pro_round_param_controls(
 ) -> dict[str, dict]:
     """Force setup fixed; factor numerics search within AI ranges; categoricals fixed."""
     controls = normalize_param_controls(base_controls, blueprint)
+    factor_ranges = complete_factor_ranges(
+        factor_ranges,
+        blueprint=blueprint,
+        param_controls=controls,
+    )
     setup = dict(round_setup or {})
     if ALLOCATOR_MODE_KEY not in setup and setup.get("allocator_mode"):
         setup[ALLOCATOR_MODE_KEY] = setup["allocator_mode"]
@@ -329,24 +372,11 @@ def normalize_round_seed(
 
     raw_ranges = seed.get("factor_ranges") or {}
     if isinstance(raw_ranges, dict):
-        for key in FACTOR_NUMERIC_KEYS:
-            if key not in raw_ranges:
-                continue
-            intersected = intersect_factor_range(
-                key,
-                raw_ranges[key],
-                blueprint=blueprint,
-                param_controls=controls,
-            )
-            if intersected is not None:
-                lo, hi = intersected
-                if key.endswith("_days"):
-                    out["factor_ranges"][key] = [int(lo), int(hi)]
-                else:
-                    out["factor_ranges"][key] = [
-                        _round_seed_numeric(lo),
-                        _round_seed_numeric(hi),
-                    ]
+        out["factor_ranges"] = complete_factor_ranges(
+            raw_ranges,
+            blueprint=blueprint,
+            param_controls=controls,
+        )
 
     raw_choices = seed.get("factor_choices") or {}
     if isinstance(raw_choices, dict):

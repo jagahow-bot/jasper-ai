@@ -9,7 +9,11 @@ from app.engine.ai_params import (
     _round_seed_response_schema,
     round_seed_factor_range_guidance,
 )
-from app.engine.param_taxonomy import normalize_round_seed
+from app.engine.param_taxonomy import (
+    FACTOR_NUMERIC_KEYS,
+    complete_factor_ranges,
+    normalize_round_seed,
+)
 from app.engine.param_bounds import RunBlueprint
 from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
@@ -32,9 +36,7 @@ def test_round_seed_response_schema_shape():
     assert "mode" in setup_props
     assert set(schema["required"]) == {"round_setup", "rationale"}
     range_props = props["factor_ranges"]["properties"]
-    assert "w_mom" in range_props
-    assert "w_reversal" in range_props
-    assert "w_value" in range_props
+    assert set(range_props.keys()) == set(FACTOR_NUMERIC_KEYS)
     assert "optimization_strategy" in props
     assert "performance_assessment" in props
 
@@ -130,7 +132,7 @@ def test_normalize_round_seed_keeps_optimization_strategy():
         param_controls={},
     )
     assert normalized["optimization_strategy"] == "Round 1: wide bands on 3 factors."
-    assert len(normalized["factor_ranges"]) == 2
+    assert len(normalized["factor_ranges"]) == len(FACTOR_NUMERIC_KEYS)
 
 
 def test_normalize_round_seed_keeps_performance_assessment():
@@ -152,13 +154,25 @@ def test_round_seed_factor_range_guidance_explore_vs_narrow():
     explore = round_seed_factor_range_guidance(
         exploration_phase="explore", round_index=1, total_rounds=5
     )
-    assert "2" in explore and "WIDE" in explore
+    assert "EVERY" in explore and "WIDE" in explore
     assert "NOT narrow" in explore or "do NOT narrow" in explore
     narrow = round_seed_factor_range_guidance(
         exploration_phase="narrow", round_index=5, total_rounds=5
     )
+    assert "ALL keys" in narrow
     assert "narrow" in narrow.lower()
-    assert "exploratory" in narrow.lower() or "1 exploratory" in narrow
+
+
+def test_complete_factor_ranges_fills_sparse_ai_output():
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    full = complete_factor_ranges(
+        {"w_mom": [0.2, 1.8]},
+        blueprint=bp,
+        param_controls={},
+    )
+    assert set(full.keys()) == set(FACTOR_NUMERIC_KEYS)
+    assert full["w_mom"] == [0.2, 1.8]
+    assert full["w_lowvol"][0] >= 0.0
 
 
 def test_taxonomy_key_lists_complete():

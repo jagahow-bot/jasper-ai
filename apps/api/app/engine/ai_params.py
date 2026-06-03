@@ -1296,11 +1296,9 @@ _REGIME_SETUPS_SCHEMA: dict[str, Any] = {
     "properties": {r: _REGIME_SLICE_SCHEMA for r in REGIME_KEYS},
 }
 
-# Example only — model may add other factor keys; server merges with defaults.
-_FACTOR_RANGE_EXAMPLE_PROP = {
-    "w_mom": {"type": "ARRAY", "items": {"type": "NUMBER"}},
-    "w_reversal": {"type": "ARRAY", "items": {"type": "NUMBER"}},
-    "w_value": {"type": "ARRAY", "items": {"type": "NUMBER"}},
+_FACTOR_RANGE_SCHEMA_PROPS: dict[str, Any] = {
+    key: {"type": "ARRAY", "items": {"type": "NUMBER"}}
+    for key in FACTOR_NUMERIC_KEYS
 }
 
 
@@ -1313,7 +1311,7 @@ def _round_seed_response_schema(
     """Structured output for Pro round seed — sparse objects to limit JSON size."""
     setup_props = dict(_ROUND_SETUP_SCHEMA_CORE)
     range_props: dict[str, Any] = (
-        {} if compact else dict(_FACTOR_RANGE_EXAMPLE_PROP)
+        {} if compact else dict(_FACTOR_RANGE_SCHEMA_PROPS)
     )
     choice_props = (
         {}
@@ -1456,22 +1454,24 @@ def round_seed_factor_range_guidance(
     phase = (exploration_phase or "explore").strip().lower()
     ri = max(1, int(round_index))
     total = max(1, int(total_rounds))
+    all_keys = ", ".join(FACTOR_NUMERIC_KEYS)
     if phase == "explore" or ri <= 1:
         return (
-            "factor_ranges: include 2–4 numeric factor keys with WIDE intervals "
-            "(use a meaningful slice of global bounds from Constraints — not tight bands "
+            f"factor_ranges: include EVERY allowed numeric key ({all_keys}) with WIDE "
+            "[low, high] intervals (meaningful slice of global bounds — not tight bands "
             "around one scalar). Round 1 / explore phase: do NOT narrow toward a single "
-            "champion guess; breadth beats precision."
+            "champion guess; breadth beats precision. Server fills any omitted key from "
+            "defaults, but you must still output all keys."
         )
     if phase == "narrow":
         return (
-            "factor_ranges: narrow 1–3 keys that showed sensitivity in PRIOR_FACTOR_RANGES, "
-            "CHAMPION params, or FAILED_TRIALS; keep intervals inside global bounds. "
-            "Optionally keep 1 exploratory key with a moderate-wide band."
+            f"factor_ranges: include ALL keys ({all_keys}); narrow intervals on keys that "
+            "showed sensitivity in PRIOR_FACTOR_RANGES, CHAMPION params, or FAILED_TRIALS; "
+            "keep other keys moderately wide inside global bounds."
         )
     return (
-        "factor_ranges: use 2–3 keys — moderately narrow keys linked to champion/failures, "
-        "plus at least one wider exploratory key when trial budget allows."
+        f"factor_ranges: include ALL keys ({all_keys}); moderately narrow bands on "
+        "champion-linked factors, wider bands on the rest when trial budget allows."
     )
 
 
@@ -1780,7 +1780,7 @@ Return STRICT JSON only (sparse — omit empty factor_choices if none):
 {{"rationale":"...", "optimization_strategy":"...", "performance_assessment":"...",
 "round_setup":{{...}},
 {('"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
-"factor_ranges":{{"w_mom":[0.2,1.8],"w_reversal":[0.1,1.2],"w_value":[0.0,1.0]}},
+"factor_ranges":{{"<each numeric factor key>":[low,high], ...}},
 "factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
 """
     max_retries = max(1, int(settings.gemini_param_seed_max_retries))

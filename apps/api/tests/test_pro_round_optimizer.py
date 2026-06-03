@@ -10,6 +10,7 @@ import pytest
 
 from app.engine.param_bounds import RunBlueprint
 from app.engine.param_taxonomy import (
+    FACTOR_NUMERIC_KEYS,
     SETUP_PARAM_KEYS,
     build_pro_round_param_controls,
     is_factor_key,
@@ -71,6 +72,19 @@ def test_build_pro_round_param_controls_forces_setup_fixed():
     assert float(controls["w_mom"]["min"]) >= 0.6
     assert float(controls["w_mom"]["max"]) <= 1.2
     assert controls["mom_indicator"]["fixed"] == "risk_adjusted_return"
+
+
+def test_build_pro_round_param_controls_completes_sparse_factor_ranges():
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    controls = build_pro_round_param_controls(
+        {},
+        blueprint=bp,
+        round_setup={"mode": "risk_parity", "lookback_days": 252, "top_n_actual": 10},
+        factor_ranges={"w_mom": [0.6, 1.2]},
+        factor_choices={},
+    )
+    for key in FACTOR_NUMERIC_KEYS:
+        assert controls[key]["mode"] == "search"
 
 
 def test_optuna_pro_round_fixed_setup_and_factor_in_range(price_panel: pd.DataFrame):
