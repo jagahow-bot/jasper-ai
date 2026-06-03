@@ -28,6 +28,7 @@ from app.engine.optimizer import run_optuna_search
 from app.engine.portfolio import (
     benchmark_metrics,
     equity_curve_series,
+    metrics_for_horizon_window,
     simulate_dynamic_portfolio,
     split_train_validation,
 )
@@ -914,6 +915,7 @@ def _build_candidate(
     val_start: str | None = None,
     train_ratio: float | None = None,
     min_weight: float = WEIGHT_EPS,
+    is_split_idx: int | None = None,
 ) -> PortfolioCandidate:
     primary = train_m if oos_enabled else full_m
     weights = _weights_dict(
@@ -956,15 +958,50 @@ def _build_candidate(
         "rebalance_applied": full_m.get("rebalance_applied"),
         "rebalance_dates_sample": (full_m.get("rebalance_dates") or [])[:12],
     }
-    is_snap = metrics_snapshot(train_m, objective_mode=objective_effective)
-    oos_snap = (
-        metrics_snapshot(val_m, objective_mode=objective_effective)
-        if val_m is not None
-        else None
-    )
     full_snap = metrics_snapshot(full_m, objective_mode=objective_effective)
+    if oos_enabled and is_split_idx is not None and is_split_idx > 0:
+        port_ret_full = full_m.get("port_ret")
+        n_full = len(port_ret_full) if port_ret_full is not None else 0
+        if 0 < is_split_idx < n_full:
+            try:
+                is_window = metrics_for_horizon_window(
+                    full_m, spec, 0, is_split_idx
+                )
+                oos_window = metrics_for_horizon_window(
+                    full_m, spec, is_split_idx, n_full
+                )
+                is_snap = metrics_snapshot(is_window, objective_mode=objective_effective)
+                oos_snap = metrics_snapshot(
+                    oos_window, objective_mode=objective_effective
+                )
+            except ValueError:
+                is_snap = metrics_snapshot(train_m, objective_mode=objective_effective)
+                oos_snap = (
+                    metrics_snapshot(val_m, objective_mode=objective_effective)
+                    if val_m is not None
+                    else None
+                )
+        else:
+            is_snap = metrics_snapshot(train_m, objective_mode=objective_effective)
+            oos_snap = (
+                metrics_snapshot(val_m, objective_mode=objective_effective)
+                if val_m is not None
+                else None
+            )
+    else:
+        is_snap = metrics_snapshot(train_m, objective_mode=objective_effective)
+        oos_snap = (
+            metrics_snapshot(val_m, objective_mode=objective_effective)
+            if val_m is not None
+            else None
+        )
     analytics["sample_metrics"] = {
         "selection": "in_sample" if oos_enabled else "full_sample",
+        "horizon_method": (
+            "full_path_slices"
+            if oos_enabled and is_split_idx is not None
+            else "single_simulate"
+        ),
         "train_ratio": train_ratio,
         "train_start": train_start,
         "train_end": train_end,
@@ -982,8 +1019,11 @@ def _build_candidate(
             )
             if oos_snap
             else None,
-            "sharpe": round(float(train_m["sharpe"]) - float(val_m["sharpe"]), 4)
-            if val_m is not None
+            "sharpe": round(
+                float(is_snap["sharpe"]) - float((oos_snap or {}).get("sharpe", 0.0)),
+                4,
+            )
+            if oos_snap
             else None,
         },
     }
@@ -1270,6 +1310,7 @@ def _assemble_candidates_from_records(
                 val_start=val_start,
                 train_ratio=train_ratio,
                 min_weight=req.min_weight,
+                is_split_idx=len(prices_train) if oos else None,
             )
         )
         if is_dynamic_objective(objective_effective) and dynamic_ctx:

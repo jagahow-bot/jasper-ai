@@ -557,6 +557,30 @@ def _rebalance_schedule_dynamic(
     return schedule, last_w, avg_w, rebalance_dates, applied_rebalances, summary
 
 
+def metrics_for_horizon_window(
+    sim: dict[str, Any],
+    spec: BacktestSpec,
+    start: int,
+    end: int,
+) -> dict[str, Any]:
+    """Metrics on a slice of one simulate() path (equity re-based to 1 at window start).
+
+    Used for IS/OOS horizon rows so they match the continuous full backtest, unlike
+    separate fresh-start holdout simulates used only for trial ranking.
+    """
+    port_ret = sim["port_ret"]
+    equity = sim["equity"]
+    n = len(port_ret)
+    if start < 0 or end > n or end <= start:
+        raise ValueError("Invalid horizon window bounds")
+    pr = port_ret.iloc[start:end]
+    eq0 = float(equity.iloc[start])
+    if eq0 <= 0 or not np.isfinite(eq0):
+        raise ValueError("Invalid equity at horizon window start")
+    eq = equity.iloc[start:end] / eq0
+    return _compute_metrics(pr, eq, spec)
+
+
 def _compute_metrics(port_ret: pd.Series, equity: pd.Series, spec: BacktestSpec) -> dict[str, Any]:
     port_ret = port_ret.dropna()
     if len(port_ret) < 60:

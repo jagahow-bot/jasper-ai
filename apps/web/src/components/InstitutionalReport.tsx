@@ -72,8 +72,9 @@ export function InstitutionalReport({
       {hasHorizonTable && (
         <Section title="Performance by horizon (IS · OOS · full)">
           <p className="mb-3 text-xs text-dim">
-            Trial selection uses in-sample when holdout is on; this table is for report
-            analysis across all horizons (ttl = full sample).
+            Trial selection uses in-sample when holdout is on. IS and OOS rows are slices of
+            the same continuous full backtest (ttl); they are not separate fresh-start runs.
+            Ranked train/holdout Sharpe on the dashboard may differ slightly from these rows.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
