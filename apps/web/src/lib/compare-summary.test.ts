@@ -1,12 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCompareFallback,
+  compareRetryMaxOutputTokens,
   isAcceptableCompareSummary,
+  isGeminiMaxTokensFinish,
   looksLikeMetricDump,
+  looksLikeTruncatedCompareJson,
   parseCompareSummaryResponse,
   resolveCompareChampion,
+  shouldRetryCompareGeneration,
   slimComparePayload,
+  slimComparePayloadForRetry,
 } from "./compare-summary";
+
+/** Truncated Gemini round-seed style JSON from ai_studio_code (30).txt (MAX_TOKENS). */
+const MAX_TOKENS_SAMPLE_EXCERPT = `{
+  "round_setup": {
+    "mode": "max_sharpe",
+    "lookback_days": 252
+  },
+  "factor_choices": {
+    "value_indicator": "book_to_market_ratio_ttm_z_score_120d_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country`;
 
 describe("compare-summary", () => {
   it("slims payload and caps candidate count", () => {
@@ -95,6 +109,66 @@ M0010 Sharpe:
     });
     expect(slim.candidates[0]?.model_code).toBe("M0009");
     expect(slim.champion_model_code).toBe("M0009");
+  });
+
+  it("isGeminiMaxTokensFinish detects MAX_TOKENS and length finish", () => {
+    expect(isGeminiMaxTokensFinish("length", "MAX_TOKENS")).toBe(true);
+    expect(isGeminiMaxTokensFinish("length", undefined)).toBe(true);
+    expect(isGeminiMaxTokensFinish("stop", "STOP")).toBe(false);
+  });
+
+  it("looksLikeTruncatedCompareJson flags (30).txt-style truncated dump", () => {
+    expect(looksLikeTruncatedCompareJson(MAX_TOKENS_SAMPLE_EXCERPT)).toBe(true);
+    expect(
+      looksLikeTruncatedCompareJson(
+        '{"recommended_model_code":"M0001","summary":"Short."}',
+      ),
+    ).toBe(false);
+  });
+
+  it("shouldRetryCompareGeneration when finishReason is MAX_TOKENS", () => {
+    const candidates = [{ model_code: "M0001", rank: 1 }];
+    const parsed = parseCompareSummaryResponse(
+      MAX_TOKENS_SAMPLE_EXCERPT,
+      candidates,
+    );
+    expect(
+      shouldRetryCompareGeneration(
+        {
+          text: MAX_TOKENS_SAMPLE_EXCERPT,
+          finishReason: "length",
+          rawFinishReason: "MAX_TOKENS",
+        },
+        parsed,
+      ),
+    ).toBe(true);
+  });
+
+  it("slimComparePayloadForRetry shrinks candidates and horizons", () => {
+    const payload = {
+      benchmark: "VT",
+      candidates: Array.from({ length: 12 }, (_, i) => ({
+        model_code: `M${String(i + 1).padStart(4, "0")}`,
+        rank: i + 1,
+        horizons: {
+          in_sample: { sharpe: 0.5 },
+          full_sample: { sharpe: 0.4 },
+        },
+      })),
+    };
+    const r1 = slimComparePayloadForRetry(payload, 1);
+    expect(r1.candidates).toHaveLength(6);
+    expect(r1.candidates[0]?.horizons?.in_sample).toBeUndefined();
+    expect(r1.candidates[0]?.horizons?.full_sample).toBeDefined();
+    const r2 = slimComparePayloadForRetry(payload, 2);
+    expect(r2.candidates).toHaveLength(4);
+    expect(r2.candidates[0]?.horizons).toBeUndefined();
+  });
+
+  it("compareRetryMaxOutputTokens bumps cap up to 16384", () => {
+    expect(compareRetryMaxOutputTokens(4096, 0)).toBe(4096);
+    expect(compareRetryMaxOutputTokens(4096, 1)).toBe(6144);
+    expect(compareRetryMaxOutputTokens(15000, 2)).toBe(16384);
   });
 
   it("buildCompareFallback returns paragraphs not metric lines", () => {

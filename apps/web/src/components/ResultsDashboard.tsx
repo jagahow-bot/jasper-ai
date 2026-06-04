@@ -144,6 +144,7 @@ export function ResultsDashboard({
     string | null
   >(null);
   const [compareLoading, setCompareLoading] = useState(false);
+  const [compareRetryNote, setCompareRetryNote] = useState<string | null>(null);
   const [leaderboardSort, setLeaderboardSort] =
     useState<LeaderboardSort>("in_sample");
 
@@ -169,6 +170,7 @@ export function ResultsDashboard({
   useEffect(() => {
     setAiRecommendedModelCode(readPersistedAiChampionCode(result.narrative_facts));
     setCompareSummary("");
+    setCompareRetryNote(null);
   }, [resultSelectionEpoch, result.narrative_facts]);
 
   useEffect(() => {
@@ -355,6 +357,7 @@ export function ResultsDashboard({
   useEffect(() => {
     if (result.candidates.length < 2) {
       setCompareSummary("");
+      setCompareRetryNote(null);
       setAiRecommendedModelCode(null);
       setCompareLoading(false);
       return;
@@ -410,9 +413,16 @@ export function ResultsDashboard({
         const json = (await res.json()) as {
           summary: string;
           recommended_model_code?: string | null;
+          retried_due_to_token_limit?: boolean;
         };
         if (!cancelled) {
           setCompareSummary(json.summary ?? "");
+          setCompareRetryNote(
+            json.retried_due_to_token_limit &&
+              process.env.NODE_ENV === "development"
+              ? "AI compare retried due to token limit"
+              : null,
+          );
           const rec = json.recommended_model_code?.trim();
           const code = rec ? rec.toUpperCase() : null;
           setAiRecommendedModelCode(code);
@@ -426,6 +436,7 @@ export function ResultsDashboard({
       } catch {
         if (!cancelled) {
           setCompareSummary("");
+          setCompareRetryNote(null);
           setAiRecommendedModelCode(null);
         }
       } finally {
@@ -1011,6 +1022,9 @@ export function ResultsDashboard({
         <p className="mt-3 text-xs text-dim">
           engine {String(result.narrative_facts.engine ?? "—")} · holdings{" "}
           {String(result.narrative_facts.top_holdings_count ?? Object.keys(top.weights).length)}
+          (cap{" "}
+          {String(result.narrative_facts.max_holdings_constraint ?? request.max_holdings ?? "—")}
+          )
           · max weight{" "}
           {(Math.max(...Object.values(top.weights)) * 100).toFixed(1)}% (run cap{" "}
           {(Number(result.narrative_facts.max_weight_constraint ?? 0) * 100).toFixed(0)}% ·
@@ -1075,6 +1089,9 @@ export function ResultsDashboard({
             <p className="text-xs text-dim">Generating compare narrative…</p>
           ) : compareSummary ? (
             <div className="space-y-2 text-xs leading-relaxed">
+              {compareRetryNote ? (
+                <p className="text-[10px] text-amber-400/90">{compareRetryNote}</p>
+              ) : null}
               {compareSummary
                 .split(/\n\s*\n+/)
                 .map((para) => para.trim())

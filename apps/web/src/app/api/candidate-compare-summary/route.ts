@@ -4,12 +4,18 @@ import { NextResponse } from "next/server";
 import { AI_METRIC_FORMAT_RULES } from "@/lib/ai-metric-format";
 import {
   buildCompareFallback,
+  compareRetryMaxOutputTokens,
   isAcceptableCompareSummary,
   parseCompareSummaryResponse,
+  shouldRetryCompareGeneration,
   slimComparePayload,
+  slimComparePayloadForRetry,
   type CompareSummaryPayload,
 } from "@/lib/compare-summary";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+
+const MAX_COMPARE_RETRIES = 2;
+const MAX_COMPARE_ATTEMPTS = 1 + MAX_COMPARE_RETRIES;
 
 const SYSTEM = `Institutional quant analyst. English only.
 ${AI_METRIC_FORMAT_RULES}
@@ -34,11 +40,14 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { summary, recommended_model_code } = await generateCompareSummary(slim);
+    const result = await generateCompareSummary(payload);
     return NextResponse.json({
-      summary,
-      recommended_model_code,
-      source: "gemini",
+      summary: result.summary,
+      recommended_model_code: result.recommended_model_code,
+      source: result.source,
+      ...(result.retried_due_to_token_limit
+        ? { retried_due_to_token_limit: true }
+        : {}),
     });
   } catch {
     const fallback = buildCompareFallback(slim);
@@ -50,25 +59,48 @@ export async function POST(req: Request) {
   }
 }
 
+type CompareSummaryOutcome = {
+  summary: string;
+  recommended_model_code: string | null;
+  source: "gemini" | "template";
+  retried_due_to_token_limit?: boolean;
+};
+
 async function generateCompareSummary(
-  slim: CompareSummaryPayload,
-): Promise<{ summary: string; recommended_model_code: string | null }> {
-  let text = "";
-  for (let attempt = 0; attempt < 2; attempt++) {
+  payload: CompareSummaryPayload,
+): Promise<CompareSummaryOutcome> {
+  let retriedDueToTokenLimit = false;
+
+  for (let attempt = 0; attempt < MAX_COMPARE_ATTEMPTS; attempt++) {
+    const slim =
+      attempt === 0
+        ? slimComparePayload(payload)
+        : slimComparePayloadForRetry(payload, attempt);
+
     const retryNote =
       attempt === 0
         ? ""
-        : "\nPrior reply was invalid. Return ONLY JSON with recommended_model_code and summary (2-3 prose paragraphs inside summary).";
-    const { text: draft } = await generateText({
+        : "\nPrior reply was truncated or invalid. Return ONLY compact JSON with recommended_model_code and summary (2-3 short prose paragraphs inside summary, no metric lists).";
+
+    const maxOutputTokens = compareRetryMaxOutputTokens(
+      GEMINI_MAX_OUTPUT_TOKENS,
+      attempt,
+    );
+
+    const { text: draft, finishReason, rawFinishReason } = await generateText({
       model: google(GEMINI_MODEL),
-      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-      providerOptions: {
-        google: {
-          thinkingConfig: {
-            thinkingLevel: "minimal",
-          },
-        },
-      },
+      maxOutputTokens,
+      ...(attempt === 0
+        ? {
+            providerOptions: {
+              google: {
+                thinkingConfig: {
+                  thinkingLevel: "minimal",
+                },
+              },
+            },
+          }
+        : {}),
       system: SYSTEM,
       prompt:
         `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
@@ -76,18 +108,43 @@ async function generateCompareSummary(
         `Fields are decimal fractions for rates — format as % inside summary per rules.` +
         `${retryNote}\n${JSON.stringify(slim)}`,
     });
-    text = draft.trim();
+
+    const text = draft.trim();
     const parsed = parseCompareSummaryResponse(text, slim.candidates);
+    const generationAttempt = { text, finishReason, rawFinishReason };
+
+    if (
+      shouldRetryCompareGeneration(generationAttempt, parsed) &&
+      attempt < MAX_COMPARE_ATTEMPTS - 1
+    ) {
+      if (
+        finishReason === "length" ||
+        (rawFinishReason ?? "").toUpperCase().includes("MAX_TOKEN")
+      ) {
+        retriedDueToTokenLimit = true;
+      }
+      continue;
+    }
+
     if (isAcceptableCompareSummary(parsed.summary)) {
       return {
         summary: parsed.summary,
         recommended_model_code: parsed.recommended_model_code,
+        source: "gemini",
+        ...(retriedDueToTokenLimit
+          ? { retried_due_to_token_limit: true }
+          : {}),
       };
     }
   }
-  const fallback = buildCompareFallback(slim);
+
+  const fallbackSlim = slimComparePayload(payload);
   return {
-    summary: fallback,
-    recommended_model_code: slim.champion_model_code ?? null,
+    summary: buildCompareFallback(fallbackSlim),
+    recommended_model_code: fallbackSlim.champion_model_code ?? null,
+    source: "template",
+    ...(retriedDueToTokenLimit
+      ? { retried_due_to_token_limit: true }
+      : {}),
   };
 }

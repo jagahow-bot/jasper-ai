@@ -47,6 +47,107 @@ export type CompareSummaryResult = {
   recommended_model_code: string | null;
 };
 
+export type CompareGenerationAttempt = {
+  text: string;
+  finishReason?: string;
+  rawFinishReason?: string;
+};
+
+/** Gemini / AI SDK signals that output was cut off by the token budget. */
+export function isGeminiMaxTokensFinish(
+  finishReason?: string,
+  rawFinishReason?: string,
+): boolean {
+  const raw = (rawFinishReason ?? "").trim().toUpperCase();
+  if (raw === "MAX_TOKENS" || raw.includes("MAX_TOKEN")) return true;
+  return finishReason === "length";
+}
+
+/** Detect incomplete JSON or wrong-schema dumps (e.g. round seed JSON under compare prompt). */
+export function looksLikeTruncatedCompareJson(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+
+  const lower = t.toLowerCase();
+  const looksJson = t.startsWith("{") || /```(?:json)?/i.test(t);
+  const hasCompareKeys =
+    lower.includes("recommended_model_code") || lower.includes("recommended_model");
+  const hasWrongSchema =
+    lower.includes("round_setup") ||
+    lower.includes("regime_setups") ||
+    lower.includes("factor_choices") ||
+    lower.includes("param_sets");
+
+  if (hasWrongSchema && !hasCompareKeys) return true;
+
+  const repetitive =
+    /(.{24,})\1{4,}/.test(t) ||
+    (t.match(/winsorized_by_sector/gi)?.length ?? 0) >= 3 ||
+    (t.match(/neutralized_by_sector/gi)?.length ?? 0) >= 3;
+
+  if (repetitive) return true;
+
+  if (!looksJson) return false;
+
+  const brace = t.match(/\{[\s\S]*/);
+  if (!brace) return false;
+
+  const snippet = brace[0];
+  try {
+    JSON.parse(snippet);
+    return false;
+  } catch {
+    const open = (snippet.match(/\{/g) ?? []).length;
+    const close = (snippet.match(/\}/g) ?? []).length;
+    if (open > close) return true;
+    if (snippet.length > 400 && !hasCompareKeys) return true;
+    if (/[^\\]"[^"]*$/.test(snippet) && open > close) return true;
+  }
+
+  return false;
+}
+
+export function shouldRetryCompareGeneration(
+  attempt: CompareGenerationAttempt,
+  parsed: CompareSummaryResult,
+): boolean {
+  if (isGeminiMaxTokensFinish(attempt.finishReason, attempt.rawFinishReason)) {
+    return true;
+  }
+  if (looksLikeTruncatedCompareJson(attempt.text)) return true;
+  if (looksLikeMetricDump(attempt.text)) return true;
+  if (!isAcceptableCompareSummary(parsed.summary)) return true;
+  if (
+    attempt.text.trim().startsWith("{") &&
+    !parsed.recommended_model_code &&
+    attempt.text.includes("recommended_model")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export type SlimCompareHorizonMode = "all" | "full_only" | "none";
+
+export function slimComparePayloadForRetry(
+  payload: CompareSummaryPayload,
+  retryIndex: number,
+): CompareSummaryPayload {
+  const maxCandidates = retryIndex <= 0 ? 10 : retryIndex === 1 ? 6 : 4;
+  const horizonMode: SlimCompareHorizonMode =
+    retryIndex <= 0 ? "all" : retryIndex === 1 ? "full_only" : "none";
+  return slimComparePayload(payload, maxCandidates, { horizonMode });
+}
+
+/** Raise output cap on retries (thinking tokens count toward the same budget). */
+export function compareRetryMaxOutputTokens(
+  base: number,
+  retryIndex: number,
+): number {
+  const bumped = base + retryIndex * 2048;
+  return Math.min(bumped, 16384);
+}
+
 const MODEL_CODE_RE = /\bM\d{3,5}\b/gi;
 
 /** Parse structured Gemini JSON or fall back to first model_code mention in prose. */
@@ -127,16 +228,26 @@ function slimHorizon(h?: HorizonSnap): HorizonSnap | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
-function slimCandidate(c: CompareCandidateLite): CompareCandidateLite {
+function slimCandidate(
+  c: CompareCandidateLite,
+  horizonMode: SlimCompareHorizonMode = "all",
+): CompareCandidateLite {
   const h = c.horizons;
-  const horizons = h
-    ? {
-        in_sample: slimHorizon(h.in_sample),
-        out_of_sample: slimHorizon(h.out_of_sample ?? undefined),
-        full_sample: slimHorizon(h.full_sample),
-        gap: h.gap,
-      }
-    : undefined;
+  let horizons: CompareCandidateLite["horizons"];
+  if (h && horizonMode !== "none") {
+    horizons =
+      horizonMode === "full_only"
+        ? { full_sample: slimHorizon(h.full_sample) }
+        : {
+            in_sample: slimHorizon(h.in_sample),
+            out_of_sample: slimHorizon(h.out_of_sample ?? undefined),
+            full_sample: slimHorizon(h.full_sample),
+            gap: h.gap,
+          };
+    if (horizons && !Object.values(horizons).some(Boolean)) {
+      horizons = undefined;
+    }
+  }
   return {
     model_code: c.model_code,
     rank: c.rank,
@@ -172,11 +283,17 @@ export function resolveCompareChampion(
   return candidates.find((c) => c.rank === 1) ?? candidates[0];
 }
 
+export type SlimComparePayloadOptions = {
+  horizonMode?: SlimCompareHorizonMode;
+};
+
 /** Cap prompt size for multi-trial runs; full count echoed for the model. */
 export function slimComparePayload(
   payload: CompareSummaryPayload,
   maxCandidates = 10,
+  options?: SlimComparePayloadOptions,
 ): CompareSummaryPayload {
+  const horizonMode = options?.horizonMode ?? "all";
   const sorted = [...payload.candidates].sort(
     (a, b) => (a.rank ?? 999) - (b.rank ?? 999),
   );
@@ -200,7 +317,9 @@ export function slimComparePayload(
       payload.champion_model_code ??
       (champ?.model_code ? candidateModelKey(champ) : null),
     candidate_count_total: sorted.length,
-    candidates: ordered.slice(0, maxCandidates).map(slimCandidate),
+    candidates: ordered
+      .slice(0, maxCandidates)
+      .map((c) => slimCandidate(c, horizonMode)),
   };
 }
 
