@@ -109,7 +109,7 @@ class TrialReportCache:
         sig_key = f"sig:{sig}"
         code_key = f"code:{code_s}"
         bundle = self._by_key.get(sig_key)
-        if bundle is not None and code_key not in self._by_key:
+        if bundle is not None:
             self._by_key[code_key] = bundle
 
     def stash_from_trial(
@@ -146,18 +146,16 @@ class TrialReportCache:
             self._sig_to_code[sig] = str(params["model_code"])
 
     def get_bundle(self, params: dict[str, Any]) -> ReportSimBundle | None:
-        key = cache_key_for_params(params)
-        hit = self._by_key.get(key)
-        if hit is not None:
-            return hit
         sig = model_signature(params)
         sig_key = f"sig:{sig}"
         hit = self._by_key.get(sig_key)
         if hit is not None:
             return hit
-        code = self._sig_to_code.get(sig) or params.get("model_code")
+        code = params.get("model_code")
         if code:
-            return self._by_key.get(f"code:{code}")
+            code_s = str(code)
+            if self._sig_to_code.get(sig) == code_s:
+                return self._by_key.get(f"code:{code_s}")
         return None
 
     def backfill_from_search_record(

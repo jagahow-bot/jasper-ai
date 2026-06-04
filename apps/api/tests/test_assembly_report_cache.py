@@ -67,6 +67,66 @@ def _req() -> BacktestRequest:
     )
 
 
+def test_assembly_distinct_metrics_per_model_code_from_cache():
+    tickers, prices, prices_train, prices_val = _price_panel()
+    cache = TrialReportCache()
+
+    def _record(code: str, sharpe: float, w_mom: float) -> tuple[float, dict, dict]:
+        params = {
+            "model_code": code,
+            "mode": "min_var",
+            "lookback_days": 60,
+            "shrinkage": 0.1,
+            "risk_aversion": 2.0,
+            "max_weight_actual": 0.25,
+            "top_n_actual": 3,
+            "rebalance_freq": "M",
+            "w_mom": w_mom,
+        }
+        train_m = _minimal_sim(sharpe, with_weights=False)
+        full_m = _minimal_sim(sharpe, with_weights=True)
+        cache.stash_from_trial(
+            params, train_m=train_m, val_m=None, full_m=full_m, retain_weight_history=True
+        )
+        return (sharpe, params, {})
+
+    records = [_record("M0001", 1.1, 0.4), _record("M0002", 0.7, 1.6)]
+    sim_mock = MagicMock(side_effect=AssertionError("simulate should not run"))
+    with patch("app.engine.backtest.simulate_dynamic_portfolio", sim_mock):
+        out = _assemble_candidates_from_records(
+            records,
+            req=_req(),
+            top_n_models=2,
+            tickers=tickers,
+            prices=prices,
+            prices_sim_panel=prices,
+            prices_train=prices_train,
+            prices_val=prices_val,
+            oos=True,
+            rebalance_rule="M",
+            spec=MagicMock(
+                benchmark_ticker="SPY",
+                risk_free_rate=0.0,
+                fee_bps=0.0,
+                rebalance_rule="M",
+                min_holdings=2,
+                max_holdings=30,
+            ),
+            universe_by_ticker={},
+            objective_effective="max_sharpe",
+            train_start="2020-01-01",
+            train_end="2020-04-01",
+            val_start="2020-04-02",
+            train_ratio=0.7,
+            trial_report_cache=cache,
+        )
+    sim_mock.assert_not_called()
+    assert len(out) == 2
+    assert out[0].model_code == "M0001"
+    assert out[1].model_code == "M0002"
+    assert out[0].sharpe != out[1].sharpe
+
+
 def test_assembly_skips_train_val_when_cache_complete():
     tickers, prices, prices_train, prices_val = _price_panel()
     train_m = _minimal_sim(1.2, with_weights=False)
@@ -180,6 +240,31 @@ def test_assembly_cache_hit_runs_only_full_for_weights():
     assert sim_mock.call_count == 1
     sim_mock.assert_called_once()
     assert sim_mock.call_args[0][0] is prices
+
+
+def test_get_bundle_rejects_stale_code_alias_for_different_signature():
+    """code: keys must not serve a different parameter signature."""
+    params_old = {
+        "mode": "min_var",
+        "lookback_days": 60,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 3,
+        "rebalance_freq": "M",
+        "w_mom": 0.5,
+    }
+    params_new = dict(params_old)
+    params_new["w_mom"] = 1.8
+    cache = TrialReportCache()
+    cache.stash_from_trial(params_old, train_m=_minimal_sim(0.5), val_m=None, full_m=None)
+    cache.register_model_code({**params_old, "model_code": "M0006"})
+    cache.stash_from_trial(params_new, train_m=_minimal_sim(1.9), val_m=None, full_m=None)
+    cache.register_model_code({**params_new, "model_code": "M0006"})
+
+    bundle = cache.get_bundle({**params_new, "model_code": "M0006"})
+    assert bundle is not None
+    assert float(bundle.train_m["sharpe"]) == pytest.approx(1.9)
 
 
 def test_get_bundle_finds_sig_stash_when_params_have_model_code():

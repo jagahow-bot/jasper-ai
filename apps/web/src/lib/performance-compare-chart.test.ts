@@ -13,12 +13,37 @@ describe("performance-compare-chart", () => {
     expect(normalizeModelCode({ model_code: "M0005", rank: 5 }, 0)).toBe("M0005");
   });
 
+  it("keeps distinct trials that share model_code but differ in metrics", () => {
+    const candidates = [
+      { model_code: "M0005", rank: 5, sharpe: 1.2, cagr: 0.12, max_drawdown: -0.04 },
+      { model_code: "M0005", rank: 8, sharpe: 0.85, cagr: 0.08, max_drawdown: -0.09 },
+      { model_code: "M0006", rank: 6, sharpe: 1.0, cagr: 0.1, max_drawdown: -0.05 },
+    ];
+    const deduped = dedupeCandidatesForPerformanceChart(candidates, "M0005");
+    expect(deduped).toHaveLength(3);
+    expect(deduped.map((c) => c.sharpe)).toEqual([1.2, 0.85, 1.0]);
+  });
+
   it("dedupes champion re-sim duplicate model_code", () => {
     const candidates = [
-      { model_code: "M0004", rank: 4, sharpe: 1.1, is_champion: false },
-      { model_code: "M0005", rank: 5, sharpe: 1.2, is_champion: true },
-      { model_code: "M0005", rank: 8, sharpe: 1.15, is_champion: false },
-      { model_code: "M0006", rank: 6, sharpe: 1.0, is_champion: false },
+      { model_code: "M0004", rank: 4, sharpe: 1.1, cagr: 0.1, max_drawdown: -0.05, is_champion: false },
+      {
+        model_code: "M0005",
+        rank: 5,
+        sharpe: 1.2,
+        cagr: 0.12,
+        max_drawdown: -0.04,
+        is_champion: true,
+      },
+      {
+        model_code: "M0005",
+        rank: 8,
+        sharpe: 1.2,
+        cagr: 0.12,
+        max_drawdown: -0.04,
+        is_champion: false,
+      },
+      { model_code: "M0006", rank: 6, sharpe: 1.0, cagr: 0.08, max_drawdown: -0.07, is_champion: false },
     ];
     const deduped = dedupeCandidatesForPerformanceChart(candidates, "M0005");
     expect(deduped.map((c) => c.model_code)).toEqual(["M0004", "M0005", "M0006"]);
@@ -26,12 +51,18 @@ describe("performance-compare-chart", () => {
     expect(deduped.find((c) => c.model_code === "M0005")?.rank).toBe(5);
   });
 
-  it("builds one row per model and champion tick label on that row", () => {
+  it("builds one row per distinct trial after champion re-sim dedupe", () => {
     const rows = buildPerformanceCompareRows({
       candidates: [
         { model_code: "M0004", rank: 4, sharpe: 1, cagr: 0.1, max_drawdown: -0.05 },
         { model_code: "M0005", rank: 5, sharpe: 1.2, cagr: 0.12, max_drawdown: -0.04, is_champion: true },
-        { model_code: "M0005", rank: 9, sharpe: 1.1, cagr: 0.11, max_drawdown: -0.06 },
+        {
+          model_code: "M0005",
+          rank: 9,
+          sharpe: 1.2,
+          cagr: 0.12,
+          max_drawdown: -0.04,
+        },
         { model_code: "M0006", rank: 6, sharpe: 0.9, cagr: 0.08, max_drawdown: -0.07 },
       ],
       championModelKey: "M0005",

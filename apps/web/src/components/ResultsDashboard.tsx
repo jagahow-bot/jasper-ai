@@ -149,7 +149,7 @@ export function ResultsDashboard({
   const chartTick = chartTickFontSize();
   const chartLegend = chartLegendFontSize();
   const chartTip = chartTooltipFontSize();
-  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [selectedRowKey, setSelectedRowKey] = useState<string>("");
   const [compareSummary, setCompareSummary] = useState("");
   const [compareLoading, setCompareLoading] = useState(false);
   const [leaderboardSort, setLeaderboardSort] =
@@ -157,13 +157,17 @@ export function ResultsDashboard({
   const selected = useMemo(() => {
     const first = result.candidates[0];
     if (!first) return undefined;
-    if (!selectedModel) return first;
-    return (
-      result.candidates.find(
-        (c) => (c.model_code ?? `R${c.rank}`) === selectedModel,
-      ) ?? first
+    if (!selectedRowKey) return first;
+    const idx = result.candidates.findIndex(
+      (c, i) => candidateRowKey(c, i) === selectedRowKey,
     );
-  }, [result.candidates, selectedModel]);
+    return idx >= 0 ? result.candidates[idx] : first;
+  }, [result.candidates, selectedRowKey]);
+  const selectedChartKey = useMemo(() => {
+    if (!selected) return "";
+    const idx = result.candidates.indexOf(selected);
+    return candidateRowKey(selected, idx >= 0 ? idx : 0);
+  }, [selected, result.candidates]);
 
   const weightHistory = useMemo(
     () =>
@@ -515,7 +519,7 @@ export function ResultsDashboard({
     rank: c.rank,
     volatility: c.volatility ?? 0,
     return: c.cagr ?? 0,
-    isSelected: (c.model_code ?? `R${c.rank}`) === (top.model_code ?? `R${top.rank}`) ? 1 : 0,
+    isSelected: candidateRowKey(c, i) === selectedChartKey ? 1 : 0,
   }));
 
   const assetClassFilter = (
@@ -667,8 +671,8 @@ export function ResultsDashboard({
           <label className="flex items-center gap-2 text-xs text-dim">
             model
             <select
-              value={top.model_code ?? `R${top.rank}`}
-              onChange={(e) => setSelectedModel(e.target.value)}
+              value={selectedChartKey}
+              onChange={(e) => setSelectedRowKey(e.target.value)}
               className="pixel-input py-1 text-xs"
             >
               {(preserveTrialOrder
@@ -682,7 +686,7 @@ export function ResultsDashboard({
               ).map((c, i) => (
                 <option
                   key={candidateRowKey(c, i)}
-                  value={c.model_code ?? `R${c.rank}`}
+                  value={candidateRowKey(c, i)}
                 >
                   {(c.model_code ?? `M?`)}
                   {candidateModelKey(c) === championModelKey ? " ★" : ""}

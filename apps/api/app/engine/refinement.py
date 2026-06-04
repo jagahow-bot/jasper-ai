@@ -216,11 +216,14 @@ def records_for_pool_model_codes(
     pool_model_codes: list[str],
 ) -> tuple[list[tuple[float, dict, dict]], list[str]]:
     """Order trial records by pool_model_codes; drop codes with no matching record."""
-    by_code = {
-        str(rec[1].get("model_code", "")): rec
-        for rec in records
-        if rec[1].get("model_code")
-    }
+    by_code: dict[str, tuple[float, dict, dict]] = {}
+    for rec in records:
+        code = str(rec[1].get("model_code", ""))
+        if not code:
+            continue
+        existing = by_code.get(code)
+        if existing is None or float(rec[0]) > float(existing[0]):
+            by_code[code] = rec
     ordered = [by_code[c] for c in pool_model_codes if c in by_code]
     codes = [c for c in pool_model_codes if c in by_code]
     return ordered, codes

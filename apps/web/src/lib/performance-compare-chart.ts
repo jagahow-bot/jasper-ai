@@ -54,6 +54,19 @@ export function candidateModelKey(c: { model_code?: string | null; rank?: number
   return normalizeModelCode(c, 0);
 }
 
+const METRIC_DEDUPE_EPS = 1e-4;
+
+function metricsMatchForChampionResimDedupe(
+  a: PerformanceCompareCandidate,
+  b: PerformanceCompareCandidate,
+): boolean {
+  return (
+    Math.abs((a.sharpe ?? 0) - (b.sharpe ?? 0)) < METRIC_DEDUPE_EPS &&
+    Math.abs((a.cagr ?? 0) - (b.cagr ?? 0)) < METRIC_DEDUPE_EPS &&
+    Math.abs((a.max_drawdown ?? 0) - (b.max_drawdown ?? 0)) < METRIC_DEDUPE_EPS
+  );
+}
+
 function preferCandidate(
   a: PerformanceCompareCandidate,
   b: PerformanceCompareCandidate,
@@ -73,27 +86,28 @@ function preferCandidate(
 }
 
 /**
- * One bar group per model_code. Pro champion re-sim can append a duplicate code;
- * keep the champion row and drop the extra category so x labels stay aligned.
+ * Collapse only true champion re-sim duplicates (same model_code and identical metrics).
+ * Distinct Optuna trials that share a code keep separate bars.
  */
 export function dedupeCandidatesForPerformanceChart(
   candidates: PerformanceCompareCandidate[],
   championModelKey: string | null,
 ): PerformanceCompareCandidate[] {
-  const byCode = new Map<string, PerformanceCompareCandidate>();
-  const order: string[] = [];
+  const out: PerformanceCompareCandidate[] = [];
   for (let i = 0; i < candidates.length; i++) {
     const c = candidates[i];
     const code = normalizeModelCode(c, i);
-    const existing = byCode.get(code);
-    if (!existing) {
-      byCode.set(code, c);
-      order.push(code);
+    const dupIdx = out.findIndex(
+      (o, j) =>
+        normalizeModelCode(o, j) === code && metricsMatchForChampionResimDedupe(o, c),
+    );
+    if (dupIdx < 0) {
+      out.push(c);
       continue;
     }
-    byCode.set(code, preferCandidate(existing, c, championModelKey));
+    out[dupIdx] = preferCandidate(out[dupIdx], c, championModelKey);
   }
-  return order.map((code) => byCode.get(code)!);
+  return out;
 }
 
 export function performanceCompareTickLabel(row: PerformanceCompareRow | undefined): string {
