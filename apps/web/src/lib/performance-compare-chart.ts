@@ -95,23 +95,54 @@ export function resolveChampionModelKey(
   return first ? candidateModelKey(first) : null;
 }
 
-/** Index of the champion trial row (disambiguates duplicate model_code). */
+/** Index of the champion trial row (AI/Pro pick > is_champion flag). */
 export function resolveChampionCandidateIndex(
   candidates: PerformanceCompareCandidate[],
   narrativeFacts?: Record<string, unknown> | null,
 ): number {
-  const flagged = candidates.findIndex((c) => c.is_champion === true);
-  if (flagged >= 0) return flagged;
-
   const championKey = resolveChampionModelKey(candidates, narrativeFacts);
   if (championKey) {
+    const flagged = candidates.findIndex(
+      (c) => c.is_champion === true && candidateModelKey(c) === championKey,
+    );
+    if (flagged >= 0) return flagged;
     const byKey = candidates.findIndex(
       (c) => candidateModelKey(c) === championKey,
     );
     if (byKey >= 0) return byKey;
   }
 
+  const fallback = candidates.findIndex((c) => c.is_champion === true);
+  if (fallback >= 0) return fallback;
+
   return candidates.length > 0 ? 0 : -1;
+}
+
+export function readPersistedAiChampionCode(
+  narrativeFacts?: Record<string, unknown> | null,
+): string | null {
+  const raw =
+    narrativeFacts?.ai_recommended_model_code ??
+    narrativeFacts?.ai_champion_model_code;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  return raw.trim().toUpperCase();
+}
+
+function findOriginalCandidateIndex(
+  candidates: PerformanceCompareCandidate[],
+  target: PerformanceCompareCandidate,
+): number {
+  for (let j = 0; j < candidates.length; j++) {
+    const orig = candidates[j];
+    if (
+      normalizeModelCode(orig, j) === normalizeModelCode(target, 0) &&
+      (orig.rank ?? j + 1) === (target.rank ?? 0) &&
+      metricsMatchForChampionResimDedupe(orig, target)
+    ) {
+      return j;
+    }
+  }
+  return -1;
 }
 
 export function resolveDefaultSelectedRowKey(
@@ -148,8 +179,10 @@ function preferCandidate(
   const champB = championModelKey != null && keyB === championModelKey;
   if (champA && !champB) return a;
   if (champB && !champA) return b;
-  if (a.is_champion && !b.is_champion) return a;
-  if (b.is_champion && !a.is_champion) return b;
+  if (championModelKey == null) {
+    if (a.is_champion && !b.is_champion) return a;
+    if (b.is_champion && !a.is_champion) return b;
+  }
   const rankA = a.rank ?? 9999;
   const rankB = b.rank ?? 9999;
   return rankA <= rankB ? a : b;
@@ -189,6 +222,7 @@ export function performanceCompareTickLabel(row: PerformanceCompareRow | undefin
 export function buildPerformanceCompareRows(input: {
   candidates: PerformanceCompareCandidate[];
   championModelKey: string | null;
+  championRowKey?: string | null;
   preserveTrialOrder: boolean;
   benchmarkBarMetrics?: BenchmarkBarMetrics | null;
   benchTicker: string;
@@ -197,6 +231,7 @@ export function buildPerformanceCompareRows(input: {
   const {
     candidates,
     championModelKey,
+    championRowKey = null,
     preserveTrialOrder,
     benchmarkBarMetrics,
     benchTicker,
@@ -216,14 +251,15 @@ export function buildPerformanceCompareRows(input: {
   const modelRows: PerformanceCompareRow[] = orderedCandidates.map((c, i) => {
     const modelKey = candidateModelKey(c);
     const model_code = normalizeModelCode(c, i);
-    const chartKey = candidateRowKey(c, i);
+    const origIdx = findOriginalCandidateIndex(candidates, c);
+    const chartKey = candidateRowKey(c, origIdx >= 0 ? origIdx : i);
     return {
       chartKey,
       name: model_code,
       model_code,
       modelKey,
       rank: c.rank ?? i + 1,
-      isChampion: championModelKey != null && modelKey === championModelKey,
+      isChampion: Boolean(championRowKey && chartKey === championRowKey),
       isBenchmark: false,
       isSelected: Boolean(selectedChartKey && chartKey === selectedChartKey),
       sharpe: c.sharpe ?? 0,

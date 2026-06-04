@@ -51,10 +51,12 @@ import {
   candidateRowKey,
   performanceCompareRowsByChartKey,
   performanceCompareTickLabel,
+  readPersistedAiChampionCode,
   resolveChampionCandidateIndex,
   resolveChampionModelKey,
   resolveDefaultSelectedRowKey,
 } from "@/lib/performance-compare-chart";
+import { patchJobNarrativeFacts } from "@/lib/api";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -158,17 +160,20 @@ export function ResultsDashboard({
   );
 
   const championNarrativeFacts = useMemo(() => {
-    if (!aiRecommendedModelCode) return result.narrative_facts;
+    const persisted = readPersistedAiChampionCode(result.narrative_facts);
+    const aiCode = aiRecommendedModelCode ?? persisted;
+    if (!aiCode) return result.narrative_facts;
     return {
       ...result.narrative_facts,
-      ai_recommended_model_code: aiRecommendedModelCode,
+      ai_recommended_model_code: aiCode,
+      ai_champion_model_code: aiCode,
     };
   }, [result.narrative_facts, aiRecommendedModelCode]);
 
   useEffect(() => {
-    setAiRecommendedModelCode(null);
+    setAiRecommendedModelCode(readPersistedAiChampionCode(result.narrative_facts));
     setCompareSummary("");
-  }, [resultSelectionEpoch]);
+  }, [resultSelectionEpoch, result.narrative_facts]);
 
   useEffect(() => {
     setSelectedRowKey(
@@ -413,7 +418,14 @@ export function ResultsDashboard({
         if (!cancelled) {
           setCompareSummary(json.summary ?? "");
           const rec = json.recommended_model_code?.trim();
-          setAiRecommendedModelCode(rec ? rec.toUpperCase() : null);
+          const code = rec ? rec.toUpperCase() : null;
+          setAiRecommendedModelCode(code);
+          if (code && result.job_id) {
+            void patchJobNarrativeFacts(result.job_id, {
+              ai_recommended_model_code: code,
+              ai_champion_model_code: code,
+            }).catch(() => undefined);
+          }
         }
       } catch {
         if (!cancelled) {
@@ -516,6 +528,7 @@ export function ResultsDashboard({
       buildPerformanceCompareRows({
         candidates: result.candidates,
         championModelKey,
+        championRowKey: defaultSelectedRowKey,
         preserveTrialOrder,
         benchmarkBarMetrics,
         benchTicker,
@@ -524,6 +537,7 @@ export function ResultsDashboard({
     [
       result.candidates,
       championModelKey,
+      defaultSelectedRowKey,
       benchmarkBarMetrics,
       benchTicker,
       preserveTrialOrder,

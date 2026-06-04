@@ -79,6 +79,16 @@ export async function getJobResult(jobId: string): Promise<BacktestResult> {
   return fetchJson<BacktestResult>(`/jobs/${jobId}/result`);
 }
 
+export async function patchJobNarrativeFacts(
+  jobId: string,
+  patch: Record<string, unknown>,
+): Promise<{ ok: boolean }> {
+  return fetchJson<{ ok: boolean }>(`/jobs/${jobId}/narrative-facts`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
 export async function evaluateObjectiveSwitchLab(
   req: ObjectiveSwitchLabRequest,
 ): Promise<ObjectiveSwitchLabResult> {

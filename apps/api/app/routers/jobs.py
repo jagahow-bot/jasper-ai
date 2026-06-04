@@ -1,7 +1,14 @@
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from app import jobs as job_service
 from app.models import BacktestRequest, BacktestResult, JobProgress
+
+
+class NarrativeFactsPatch(BaseModel):
+    patch: dict[str, Any] = Field(default_factory=dict)
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -33,3 +40,18 @@ def get_job_result(job_id: str) -> BacktestResult:
     if not result:
         raise HTTPException(status_code=404, detail="Result not ready")
     return result
+
+
+@router.patch("/{job_id}/narrative-facts")
+def patch_job_narrative_facts(job_id: str, body: NarrativeFactsPatch) -> dict:
+    progress = job_service.get_progress(job_id)
+    if not progress:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if progress.status.value != "completed":
+        raise HTTPException(status_code=409, detail="Job not completed")
+    if not body.patch:
+        return {"ok": True}
+    ok = job_service.patch_narrative_facts(job_id, body.patch)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Result not ready")
+    return {"ok": True}

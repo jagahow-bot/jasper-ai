@@ -117,3 +117,16 @@ def get_result(job_id: str) -> BacktestResult | None:
     with _lock:
         job = _jobs.get(job_id)
         return job["result"] if job else None
+
+
+def patch_narrative_facts(job_id: str, patch: dict) -> bool:
+    """Merge keys into stored result narrative_facts (e.g. AI compare champion)."""
+    with _lock:
+        job = _jobs.get(job_id)
+        if not job or job.get("result") is None:
+            return False
+        result = job["result"]
+        facts = dict(result.narrative_facts or {})
+        facts.update(patch)
+        result.narrative_facts = facts
+        return True

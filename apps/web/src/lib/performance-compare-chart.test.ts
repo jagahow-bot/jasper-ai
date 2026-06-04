@@ -8,6 +8,7 @@ import {
   resolveChampionCandidateIndex,
   resolveChampionModelKey,
   resolveDefaultSelectedRowKey,
+  candidateRowKey,
 } from "./performance-compare-chart";
 
 describe("performance-compare-chart", () => {
@@ -69,6 +70,7 @@ describe("performance-compare-chart", () => {
         { model_code: "M0006", rank: 6, sharpe: 0.9, cagr: 0.08, max_drawdown: -0.07 },
       ],
       championModelKey: "M0005",
+      championRowKey: "M0005-r5-i1",
       preserveTrialOrder: true,
       benchTicker: "SPY",
     });
@@ -118,6 +120,65 @@ describe("performance-compare-chart", () => {
     expect(
       resolveChampionModelKey(candidates, { champion_model_code: "M0009" }),
     ).toBe("M0009");
+  });
+
+  it("resolveChampionCandidateIndex prefers AI over is_champion", () => {
+    const candidates = [
+      { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: false },
+      { model_code: "M0007", rank: 7, sharpe: 1.2, is_champion: true },
+    ];
+    expect(
+      resolveChampionCandidateIndex(candidates, {
+        ai_recommended_model_code: "M0001",
+      }),
+    ).toBe(0);
+    expect(resolveDefaultSelectedRowKey(candidates, {
+      ai_recommended_model_code: "M0001",
+    })).toBe("M0001-r1-i0");
+  });
+
+  it("marks only champion trial when duplicate model_code exists", () => {
+    const candidates = [
+      { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: false },
+      { model_code: "M0001", rank: 9, sharpe: 1.2, is_champion: true },
+    ];
+    const championRowKey = "M0001-r9-i1";
+    const rows = buildPerformanceCompareRows({
+      candidates,
+      championModelKey: "M0001",
+      championRowKey,
+      preserveTrialOrder: true,
+      benchTicker: "SPY",
+    });
+    const champs = rows.filter((r) => r.isChampion);
+    expect(champs).toHaveLength(1);
+    expect(champs[0]?.chartKey).toBe(championRowKey);
+  });
+
+  it("keeps chart keys aligned with original candidate indices after dedupe", () => {
+    const candidates = [
+      { model_code: "M0004", rank: 4, sharpe: 1, cagr: 0.1, max_drawdown: -0.05 },
+      { model_code: "M0005", rank: 5, sharpe: 1.2, cagr: 0.12, max_drawdown: -0.04, is_champion: true },
+      {
+        model_code: "M0005",
+        rank: 9,
+        sharpe: 1.2,
+        cagr: 0.12,
+        max_drawdown: -0.04,
+      },
+      { model_code: "M0006", rank: 6, sharpe: 0.9, cagr: 0.08, max_drawdown: -0.07 },
+    ];
+    const selectedChartKey = candidateRowKey(candidates[3], 3);
+    const rows = buildPerformanceCompareRows({
+      candidates,
+      championModelKey: "M0005",
+      championRowKey: candidateRowKey(candidates[1], 1),
+      preserveTrialOrder: true,
+      benchTicker: "SPY",
+      selectedChartKey,
+    });
+    expect(rows.find((r) => r.model_code === "M0006")?.isSelected).toBe(true);
+    expect(rows.filter((r) => r.isChampion)).toHaveLength(1);
   });
 
   it("defaults selection to is_champion trial not candidates[0]", () => {
