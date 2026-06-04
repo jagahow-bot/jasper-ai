@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCompareFallback,
-  compareRetryMaxOutputTokens,
   isAcceptableCompareSummary,
   isGeminiMaxTokensFinish,
   looksLikeMetricDump,
@@ -10,7 +9,6 @@ import {
   resolveCompareChampion,
   shouldRetryCompareGeneration,
   slimComparePayload,
-  slimComparePayloadForRetry,
 } from "./compare-summary";
 
 /** Truncated Gemini round-seed style JSON from ai_studio_code (30).txt (MAX_TOKENS). */
@@ -144,7 +142,7 @@ M0010 Sharpe:
     ).toBe(true);
   });
 
-  it("slimComparePayloadForRetry shrinks candidates and horizons", () => {
+  it("slimComparePayload is stable across retry attempts", () => {
     const payload = {
       benchmark: "VT",
       candidates: Array.from({ length: 12 }, (_, i) => ({
@@ -156,19 +154,12 @@ M0010 Sharpe:
         },
       })),
     };
-    const r1 = slimComparePayloadForRetry(payload, 1);
-    expect(r1.candidates).toHaveLength(6);
-    expect(r1.candidates[0]?.horizons?.in_sample).toBeUndefined();
-    expect(r1.candidates[0]?.horizons?.full_sample).toBeDefined();
-    const r2 = slimComparePayloadForRetry(payload, 2);
-    expect(r2.candidates).toHaveLength(4);
-    expect(r2.candidates[0]?.horizons).toBeUndefined();
-  });
-
-  it("compareRetryMaxOutputTokens bumps cap up to 16384", () => {
-    expect(compareRetryMaxOutputTokens(4096, 0)).toBe(4096);
-    expect(compareRetryMaxOutputTokens(4096, 1)).toBe(6144);
-    expect(compareRetryMaxOutputTokens(15000, 2)).toBe(16384);
+    const first = slimComparePayload(payload);
+    const second = slimComparePayload(payload);
+    expect(second).toEqual(first);
+    expect(first.candidates).toHaveLength(10);
+    expect(first.candidates[0]?.horizons?.in_sample).toBeDefined();
+    expect(first.candidates[0]?.horizons?.full_sample).toBeDefined();
   });
 
   it("buildCompareFallback returns paragraphs not metric lines", () => {

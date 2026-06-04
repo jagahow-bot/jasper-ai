@@ -129,25 +129,6 @@ export function shouldRetryCompareGeneration(
 
 export type SlimCompareHorizonMode = "all" | "full_only" | "none";
 
-export function slimComparePayloadForRetry(
-  payload: CompareSummaryPayload,
-  retryIndex: number,
-): CompareSummaryPayload {
-  const maxCandidates = retryIndex <= 0 ? 10 : retryIndex === 1 ? 6 : 4;
-  const horizonMode: SlimCompareHorizonMode =
-    retryIndex <= 0 ? "all" : retryIndex === 1 ? "full_only" : "none";
-  return slimComparePayload(payload, maxCandidates, { horizonMode });
-}
-
-/** Raise output cap on retries (thinking tokens count toward the same budget). */
-export function compareRetryMaxOutputTokens(
-  base: number,
-  retryIndex: number,
-): number {
-  const bumped = base + retryIndex * 2048;
-  return Math.min(bumped, 16384);
-}
-
 const MODEL_CODE_RE = /\bM\d{3,5}\b/gi;
 
 /** Parse structured Gemini JSON or fall back to first model_code mention in prose. */

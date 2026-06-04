@@ -4,12 +4,10 @@ import { NextResponse } from "next/server";
 import { AI_METRIC_FORMAT_RULES } from "@/lib/ai-metric-format";
 import {
   buildCompareFallback,
-  compareRetryMaxOutputTokens,
   isAcceptableCompareSummary,
   parseCompareSummaryResponse,
   shouldRetryCompareGeneration,
   slimComparePayload,
-  slimComparePayloadForRetry,
   type CompareSummaryPayload,
 } from "@/lib/compare-summary";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
@@ -70,44 +68,29 @@ async function generateCompareSummary(
   payload: CompareSummaryPayload,
 ): Promise<CompareSummaryOutcome> {
   let retriedDueToTokenLimit = false;
+  const slim = slimComparePayload(payload);
+  const prompt =
+    `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
+    `Pro champion (★): ${slim.champion_model_code ?? "n/a"}. ` +
+    `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`;
+
+  const generateRequest = {
+    model: google(GEMINI_MODEL),
+    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+    providerOptions: {
+      google: {
+        thinkingConfig: {
+          thinkingLevel: "minimal" as const,
+        },
+      },
+    },
+    system: SYSTEM,
+    prompt,
+  };
 
   for (let attempt = 0; attempt < MAX_COMPARE_ATTEMPTS; attempt++) {
-    const slim =
-      attempt === 0
-        ? slimComparePayload(payload)
-        : slimComparePayloadForRetry(payload, attempt);
-
-    const retryNote =
-      attempt === 0
-        ? ""
-        : "\nPrior reply was truncated or invalid. Return ONLY compact JSON with recommended_model_code and summary (2-3 short prose paragraphs inside summary, no metric lists).";
-
-    const maxOutputTokens = compareRetryMaxOutputTokens(
-      GEMINI_MAX_OUTPUT_TOKENS,
-      attempt,
-    );
-
-    const { text: draft, finishReason, rawFinishReason } = await generateText({
-      model: google(GEMINI_MODEL),
-      maxOutputTokens,
-      ...(attempt === 0
-        ? {
-            providerOptions: {
-              google: {
-                thinkingConfig: {
-                  thinkingLevel: "minimal",
-                },
-              },
-            },
-          }
-        : {}),
-      system: SYSTEM,
-      prompt:
-        `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
-        `Pro champion (★): ${slim.champion_model_code ?? "n/a"}. ` +
-        `Fields are decimal fractions for rates — format as % inside summary per rules.` +
-        `${retryNote}\n${JSON.stringify(slim)}`,
-    });
+    const { text: draft, finishReason, rawFinishReason } =
+      await generateText(generateRequest);
 
     const text = draft.trim();
     const parsed = parseCompareSummaryResponse(text, slim.candidates);
