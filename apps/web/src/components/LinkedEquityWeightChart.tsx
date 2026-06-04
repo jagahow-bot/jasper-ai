@@ -23,7 +23,7 @@ import {
   regimeBandRanges,
 } from "@/lib/benchmark-chart-scale";
 import type { DynamicObjectiveTimelinePoint } from "@/lib/types";
-import type { TooltipProps } from "recharts";
+import { ChartTooltip, type RechartsTooltipContentProps } from "@/components/ChartTooltip";
 import {
   Area,
   AreaChart,
@@ -37,7 +37,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ChartTooltip } from "@/components/ChartTooltip";
 
 const EQUITY_HEIGHT = 220;
 const REGIME_STRIP_HEIGHT = 22;
@@ -62,7 +61,7 @@ function PortfolioEquityTooltip({
   payload,
   label,
   timeline,
-}: TooltipProps<number, string> & {
+}: RechartsTooltipContentProps & {
   timeline: DynamicObjectiveTimelinePoint[];
 }) {
   if (!active || !payload?.length) return null;

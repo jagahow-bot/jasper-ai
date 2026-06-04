@@ -14,7 +14,7 @@ import type {
   ObjectiveSwitchLabResult,
   RegimeScoreTimelinePoint,
 } from "@/lib/types";
-import type { TooltipProps } from "recharts";
+import type { RechartsTooltipContentProps } from "@/components/ChartTooltip";
 import {
   CartesianGrid,
   Legend,
@@ -39,7 +39,7 @@ function RegimeScoreTooltip({
   active,
   payload,
   label,
-}: TooltipProps<number, string>) {
+}: RechartsTooltipContentProps) {
   if (!active || !payload?.length) return null;
   const ts = Number(label);
   if (!Number.isFinite(ts)) return null;

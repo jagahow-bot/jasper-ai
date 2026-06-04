@@ -387,6 +387,21 @@ export interface BenchmarkSeriesPoint {
   price_index: number;
 }
 
+/** Walk-forward regime step shared by lab results and dynamic Jasper timelines. */
+export type RegimeTimelineStep = {
+  date: string;
+  regime: string;
+  active_regime?: string;
+  objective?: string;
+  switched?: boolean;
+  trailing_return?: number;
+  annualized_vol?: number;
+  raw_regime?: string | null;
+  risk_off_score?: number;
+  risk_on_score?: number;
+  neutral_score?: number;
+};
+
 export interface DynamicObjectiveTimelinePoint {
   date: string;
   regime: string;

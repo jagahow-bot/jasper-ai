@@ -97,7 +97,6 @@ export function combinedUniverseFromRequest(req: {
   const base = getTickers({ assetClasses: req.asset_classes });
   const sup = (req.universe_supplement_tickers ?? []).filter(Boolean);
   if (!sup.length) return { assetClasses: req.asset_classes };
-  const allowed = new Set(req.asset_classes);
   const supInClass = filterUniverse(getUniverseItems(), {
     assetClasses: req.asset_classes,
     tickers: sup,

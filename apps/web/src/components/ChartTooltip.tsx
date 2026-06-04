@@ -6,19 +6,23 @@ import {
   chartTooltipFontSize,
   formatChartTooltipLabel,
 } from "@/lib/benchmark-chart-scale";
-import type { TooltipProps } from "recharts";
-
-type Row = {
+export type ChartTooltipRow = {
   name?: string;
   value?: number | string;
   color?: string;
   dataKey?: string | number;
+  payload?: unknown;
 };
 
-type Props = TooltipProps<number, string> & {
+/** Recharts v3 omits payload/label/coordinate on TooltipProps — declare them for custom content. */
+export type RechartsTooltipContentProps = {
   active?: boolean;
-  payload?: Row[];
+  payload?: ChartTooltipRow[];
   label?: string | number;
+  coordinate?: { x?: number; y?: number };
+};
+
+type Props = RechartsTooltipContentProps & {
   /** Multiply numeric values by 100 and append % */
   valueIsPct?: boolean;
   valueDecimals?: number;
@@ -34,7 +38,7 @@ function rowNumericValue(v: unknown): number {
   return Number.isFinite(n) ? n : -Infinity;
 }
 
-function sortPayloadRows(rows: Row[], sortByValue: boolean): Row[] {
+function sortPayloadRows(rows: ChartTooltipRow[], sortByValue: boolean): ChartTooltipRow[] {
   if (!sortByValue) return rows;
   return [...rows].sort(
     (a, b) => rowNumericValue(b.value) - rowNumericValue(a.value),
@@ -56,7 +60,7 @@ export function ChartTooltip({
   useEffect(() => setMounted(true), []);
 
   const rows = useMemo(
-    () => sortPayloadRows((payload ?? []) as Row[], sortByValue),
+    () => sortPayloadRows(payload ?? [], sortByValue),
     [payload, sortByValue],
   );
 

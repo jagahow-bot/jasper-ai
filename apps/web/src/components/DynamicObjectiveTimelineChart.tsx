@@ -18,7 +18,7 @@ import type {
   BenchmarkSeriesPoint,
   DynamicObjectiveTimelinePoint,
 } from "@/lib/types";
-import type { TooltipProps } from "recharts";
+import type { RechartsTooltipContentProps } from "@/components/ChartTooltip";
 import {
   CartesianGrid,
   Line,
@@ -44,7 +44,7 @@ function DynamicObjectiveTooltip({
   payload,
   label,
   timeline,
-}: TooltipProps<number, string> & { timeline: DynamicObjectiveTimelinePoint[] }) {
+}: RechartsTooltipContentProps & { timeline: DynamicObjectiveTimelinePoint[] }) {
   if (!active || !payload?.length) return null;
   const ts = Number(label);
   if (!Number.isFinite(ts)) return null;

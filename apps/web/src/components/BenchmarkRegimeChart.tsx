@@ -12,7 +12,7 @@ import {
   computeSharedDateDomain,
 } from "@/lib/benchmark-chart-scale";
 import type { BenchmarkSeriesPoint, ObjectiveSwitchLabResult } from "@/lib/types";
-import type { TooltipProps } from "recharts";
+import type { RechartsTooltipContentProps } from "@/components/ChartTooltip";
 import {
   CartesianGrid,
   Line,
@@ -53,7 +53,7 @@ function BenchmarkRegimeTooltip({
   payload,
   label,
   regimeTimeline,
-}: TooltipProps<number, string> & {
+}: RechartsTooltipContentProps & {
   regimeTimeline: ObjectiveSwitchLabResult["regime_timeline"];
 }) {
   if (!active || !payload?.length) return null;

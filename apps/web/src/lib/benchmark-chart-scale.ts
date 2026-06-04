@@ -1,7 +1,7 @@
 import type {
   BenchmarkSeriesPoint,
   DynamicObjectiveTimelinePoint,
-  ObjectiveSwitchLabResult,
+  RegimeTimelineStep,
   RegimeScoreTimelinePoint,
 } from "@/lib/types";
 
@@ -73,7 +73,7 @@ export function formatChartTooltipLabel(label: unknown): string {
 /** Shared x-domain from benchmark path and walk-forward regime steps. */
 export function computeSharedDateDomain(
   benchmarkSeries: BenchmarkSeriesPoint[],
-  regimeTimeline: ObjectiveSwitchLabResult["regime_timeline"],
+  regimeTimeline: RegimeTimelineStep[],
   scoreTimeline?: RegimeScoreTimelinePoint[],
 ): { min: number; max: number } | null {
   const stamps: number[] = [];
@@ -108,7 +108,7 @@ export function labXAxisProps(domainMin: number, domainMax: number) {
 /** Active regime label at a calendar timestamp (walk-forward steps). */
 export function activeRegimeAtTs(
   ts: number,
-  timeline: ObjectiveSwitchLabResult["regime_timeline"],
+  timeline: RegimeTimelineStep[],
 ): string | null {
   if (!timeline.length || Number.isNaN(ts)) return null;
   let active: string | null = null;
@@ -123,7 +123,7 @@ export function activeRegimeAtTs(
 export type RegimeBandRange = { startTs: number; endTs: number; regime: string };
 
 export function regimeBandRanges(
-  timeline: ObjectiveSwitchLabResult["regime_timeline"],
+  timeline: RegimeTimelineStep[],
   domainMax: number,
   regimeKey: "active_regime" | "raw_regime" = "active_regime",
 ): RegimeBandRange[] {
