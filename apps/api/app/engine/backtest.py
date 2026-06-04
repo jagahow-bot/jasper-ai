@@ -1409,6 +1409,7 @@ def _sim_inputs_from_params(
     )
     cap = effective_max_weight_cap(params.get("max_weight_actual"), req.max_weight)
     top_n_actual = int(params.get("top_n_actual", req.top_n))
+    top_n_actual = min(top_n_actual, int(spec.max_holdings))
     no_trade_tol = float(params.get("no_trade_tol", 0.0))
     turnover_penalty_mult = float(params.get("turnover_penalty_mult", 1.0))
     max_turnover_actual = float(params.get("max_turnover_actual", req.max_turnover))
@@ -1893,6 +1894,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         benchmark_ticker=bench,
         fee_bps=req.fee_bps,
         rebalance_rule=rebalance_rule,
+        max_holdings=int(req.max_holdings),
     )
 
     try:
@@ -2578,6 +2580,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "max_weight_constraint": req.max_weight,
         "min_weight_constraint": req.min_weight,
         "max_turnover_constraint": req.max_turnover,
+        "max_holdings_constraint": int(req.max_holdings),
         "objective": objective_effective,
         "objective_input": req.objective.value,
         "objective_custom_text": req.objective_custom_text,

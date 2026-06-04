@@ -125,7 +125,7 @@ def run_optuna_search(
     trial_records: dict[int, tuple[float, dict, dict]] = {}
     best_value: float | None = None
     n_assets = int(prices_train.shape[1])
-    top_n_cap = int(max(1, min(int(top_n), n_assets)))
+    top_n_cap = int(max(1, min(int(top_n), n_assets, int(spec.max_holdings))))
     min_top = int(max(2, min(int(spec.min_holdings), n_assets)))
     if top_n_cap < min_top:
         top_n_cap = min_top

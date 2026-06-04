@@ -122,6 +122,12 @@ class BacktestRequest(BaseModel):
     fee_bps: float = Field(default=10.0, ge=0.0, le=50.0)
     rebalance_freq: str = Field(default="QE", description="Pandas offset alias, e.g. QE, ME")
     top_n: int = Field(default=50, ge=5, le=120, description="Factor selection: pick top N assets each rebalance")
+    max_holdings: int = Field(
+        default=30,
+        ge=3,
+        le=60,
+        description="Maximum portfolio holdings (non-zero positions) per rebalance",
+    )
     max_turnover: float = Field(
         default=1.0,
         ge=0.0,

@@ -18,3 +18,8 @@ class BacktestSpec:
 
 
 DEFAULT_SPEC = BacktestSpec()
+
+
+def effective_top_n(top_n: int, spec: BacktestSpec) -> int:
+    """Cap factor-screen / allocator sleeve count by run-level max holdings."""
+    return int(max(1, min(int(top_n), int(spec.max_holdings))))

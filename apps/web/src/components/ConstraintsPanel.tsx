@@ -217,6 +217,25 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </p>
 
       <label className="block space-y-2">
+        <span className="text-sm">投組最高持股檔數: {value.max_holdings ?? 30}</span>
+        <input
+          type="range"
+          min={3}
+          max={30}
+          step={1}
+          value={value.max_holdings ?? 30}
+          onChange={(e) =>
+            onChange({ ...value, max_holdings: Number(e.target.value) })
+          }
+          className="w-full"
+        />
+        <p className="text-xs text-dim">
+          Hard cap on non-zero holdings each rebalance (factor screen and Optuna
+          cannot exceed this).
+        </p>
+      </label>
+
+      <label className="block space-y-2">
         <span className="text-sm">Factor screen Top N: {value.top_n}</span>
         <input
           type="range"

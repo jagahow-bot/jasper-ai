@@ -8,7 +8,7 @@ from typing import Any, Callable
 import numpy as np
 import pandas as pd
 
-from app.engine.spec import BacktestSpec, DEFAULT_SPEC
+from app.engine.spec import BacktestSpec, DEFAULT_SPEC, effective_top_n
 from app.engine.allocator import AllocatorParams, solve_weights
 from app.engine.weights import (
     apply_min_holding_weight,
@@ -428,12 +428,18 @@ def _ensure_chosen_respects_cap(
     max_weight: float,
     top_n: int,
     tickers: list[str],
+    max_holdings: int | None = None,
 ) -> list[str]:
     """Ensure enough names for a feasible cap (sum=1, each <= max_weight)."""
     min_names = min(min_holdings_for_cap(max_weight, floor=2), len(tickers))
     min_names = max(min_names, 2)
+    if max_holdings is not None:
+        min_names = min(min_names, int(max_holdings))
     if len(chosen) >= min_names:
-        return chosen
+        out = chosen
+        if max_holdings is not None:
+            return out[: int(max_holdings)]
+        return out
     ordered = scores.sort_values(ascending=False)
     pool = [t for t in ordered.index if t in tickers]
     if not pool:
@@ -450,9 +456,12 @@ def _ensure_chosen_respects_cap(
         if t not in seen:
             out.append(t)
             seen.add(t)
+    limit = max(int(top_n), min_names)
+    if max_holdings is not None:
+        limit = min(limit, int(max_holdings))
     if len(out) < 2 and len(tickers) >= 2:
-        return list(tickers)[: max(int(top_n), min_names)]
-    return out[: max(int(top_n), min_names)]
+        return list(tickers)[:limit]
+    return out[:limit]
 
 
 def _rebalance_schedule_dynamic(
@@ -470,6 +479,7 @@ def _rebalance_schedule_dynamic(
     class_budget: dict[str, float] | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
+    max_holdings: int | None = None,
 ) -> tuple[
     pd.DataFrame,
     np.ndarray,
@@ -542,9 +552,12 @@ def _rebalance_schedule_dynamic(
             rt_w = rets.iloc[f_start:end_loc]
             scores, factor_detail = score_assets_with_details(px_w, rt_w, factor_step)
             factor_logic = factor_detail.get("indicator_logic", {}) or factor_logic
+            sleeve_n = min(int(top_n), len(scores))
+            if max_holdings is not None:
+                sleeve_n = min(sleeve_n, int(max_holdings))
             chosen = _pick_top_n_with_budget(
                 scores,
-                top_n=min(int(top_n), len(scores)),
+                top_n=sleeve_n,
                 tickers=list(prices.columns),
                 universe_by_ticker=universe_by_ticker,
                 class_budget=class_budget,
@@ -553,8 +566,9 @@ def _rebalance_schedule_dynamic(
                 scores,
                 chosen,
                 max_weight=max_weight,
-                top_n=min(int(top_n), len(scores)),
+                top_n=sleeve_n,
                 tickers=list(prices.columns),
+                max_holdings=max_holdings,
             )
             for fk, s in factor_detail.get("contrib", {}).items():
                 try:
@@ -779,6 +793,7 @@ def _simulate_pandas(
     class_budget: dict[str, float] | None = None,
     report_start: str | None = None,
 ) -> dict[str, Any]:
+    holdings_top_n = effective_top_n(top_n, spec)
     if dynamic:
         alloc = allocator or AllocatorParams(mode="min_var")
         f_params = factor_params or FactorParams(lookback_days=alloc.lookback_days)
@@ -797,7 +812,8 @@ def _simulate_pandas(
             min_weight=min_weight,
             allocator=alloc,
             allocator_resolver=allocator_resolver,
-            top_n=min(int(top_n), len(prices.columns)),
+            top_n=holdings_top_n,
+            max_holdings=int(spec.max_holdings),
             factor_params=f_params,
             factor_params_resolver=factor_params_resolver,
             no_trade_tol=no_trade_tol,
@@ -856,7 +872,7 @@ def _simulate_pandas(
     if len(hist_unique) > 36:
         hist_unique = _downsample_keep_endpoints(hist_unique, 36)
     keep_tickers = select_weight_chart_tickers(
-        sch, hist_unique, top_n=min(int(top_n), len(prices.columns))
+        sch, hist_unique, top_n=min(holdings_top_n, len(prices.columns))
     )
     weight_history: list[dict[str, Any]] = []
     for dt in hist_unique:

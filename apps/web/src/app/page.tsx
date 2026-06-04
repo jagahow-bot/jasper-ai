@@ -51,6 +51,7 @@ function buildDefaultRequest(): BacktestRequest {
     fee_bps: 10,
     rebalance_freq: "QE",
     top_n: 50,
+    max_holdings: 30,
     max_turnover: 1.0,
     objective_custom_text: "",
     param_controls: {},
