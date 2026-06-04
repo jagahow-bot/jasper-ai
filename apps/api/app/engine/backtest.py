@@ -1797,6 +1797,9 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             allocator_resolver=(
                 dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
             ),
+            active_regime_resolver=(
+                dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
+            ),
         )
         assign_search_model_codes(records, next_model_no=[1])
         for _, params, _ in records:

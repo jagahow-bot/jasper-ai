@@ -746,8 +746,36 @@ def _build_allocator_resolver(
     fixed_objective: str | None = None,
     detector_version: str = "v2",
     fast_risk_off_exit: bool = True,
+    precomputed_timeline: list[dict[str, Any]] | None = None,
+    precomputed_switch_count: int | None = None,
 ) -> tuple[Callable[[pd.Timestamp], AllocatorParams], list[dict[str, Any]], int]:
     """Resolver for switch arm; fixed arm passes fixed_objective."""
+    if precomputed_timeline is not None:
+        timeline = list(precomputed_timeline)
+        switch_count = int(
+            precomputed_switch_count
+            if precomputed_switch_count is not None
+            else sum(1 for row in timeline if row.get("switched"))
+        )
+        by_date = {row["date"]: row for row in timeline}
+        dates_sorted = sorted(by_date.keys())
+        default_objective = fixed_objective or (
+            str(timeline[-1]["objective"]) if timeline else "max_sharpe"
+        )
+
+        def cached_resolver(dt: pd.Timestamp) -> AllocatorParams:
+            if fixed_objective is not None:
+                return allocator_preset_for_objective(fixed_objective)
+            key = dt.strftime("%Y-%m-%d")
+            prior = [d for d in dates_sorted if d <= key]
+            if not prior:
+                return allocator_preset_for_objective(default_objective)
+            row = by_date[prior[-1]]
+            objective = str(row.get("objective") or default_objective)
+            return allocator_preset_for_objective(objective)
+
+        return cached_resolver, timeline, switch_count
+
     switch_count, timeline = walk_forward_timeline_for_detector(
         bench_ret,
         requested_mode,

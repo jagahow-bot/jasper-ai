@@ -17,6 +17,12 @@ from app.engine.objective_switch_lab import (
 from app.engine.factors import FactorParams
 from app.engine.ai_json import round_ai_float
 from app.engine.objectives import DYNAMIC_COMPREHENSIVE_SCORING
+from app.engine.regime_detection_cache import (
+    RegimeDetectionBundle,
+    bundle_active_regime_resolver,
+    compute_regime_detection_bundle,
+    get_or_compute_regime_bundle,
+)
 from app.engine.regime_policy import (
     REGIME_OBJECTIVE_MAP,
     RegimeSignal,
@@ -126,8 +132,13 @@ def build_active_regime_resolver(
     confirm_steps: int = 1,
     detector_version: str = DEFAULT_DETECTOR_VERSION,
     fast_risk_off_exit: bool = True,
+    regime_bundle: RegimeDetectionBundle | None = None,
 ) -> tuple[Callable[[pd.Timestamp], RegimeSignal], list[dict[str, Any]], int]:
     """Walk-forward active regime at each rebalance date (V2 detector + cooldown)."""
+    if regime_bundle is not None:
+        timeline = list(regime_bundle.timeline)
+        switch_count = int(regime_bundle.switch_count)
+        return bundle_active_regime_resolver(regime_bundle), timeline, switch_count
     switch_count, timeline = walk_forward_timeline_for_detector(
         bench_ret,
         regime_mode,
@@ -182,6 +193,7 @@ def build_regime_matrix_allocator_resolver(
     confirm_steps: int = 1,
     detector_version: str = DEFAULT_DETECTOR_VERSION,
     fast_risk_off_exit: bool = True,
+    regime_bundle: RegimeDetectionBundle | None = None,
 ) -> tuple[Callable[[pd.Timestamp], AllocatorParams], list[dict[str, Any]], int]:
     """Per-rebalance allocator from AI regime matrix (not hard-coded REGIME_OBJECTIVE_MAP presets)."""
     matrix = normalize_regime_setups(regime_setups)
@@ -193,6 +205,7 @@ def build_regime_matrix_allocator_resolver(
         confirm_steps=confirm_steps,
         detector_version=detector_version,
         fast_risk_off_exit=fast_risk_off_exit,
+        regime_bundle=regime_bundle,
     )
 
     def resolver(dt: pd.Timestamp) -> AllocatorParams:
@@ -233,20 +246,25 @@ def build_dynamic_objective_context(
         else prices_with_benchmark.columns[0]
     )
     bench_ret = prices_with_benchmark[bench].pct_change().dropna()
+    regime_bundle = compute_regime_detection_bundle(
+        bench_ret,
+        benchmark_ticker=bench,
+        regime_mode=regime_mode,
+        detector_version=DEFAULT_DETECTOR_VERSION,
+        fast_risk_off_exit=fast_risk_off_exit,
+    )
+    timeline = list(regime_bundle.timeline)
+    switch_count = int(regime_bundle.switch_count)
     active_regime_resolver = None
     if has_regime_matrix(regime_setups):
-        active_regime_resolver, timeline, switch_count = build_active_regime_resolver(
-            bench_ret,
-            regime_mode=regime_mode,
-            detector_version=DEFAULT_DETECTOR_VERSION,
-            fast_risk_off_exit=fast_risk_off_exit,
-        )
+        active_regime_resolver = bundle_active_regime_resolver(regime_bundle)
         resolver, _, _ = build_regime_matrix_allocator_resolver(
             bench_ret,
             normalize_regime_setups(regime_setups, shared_setup=shared_round_setup),
             regime_mode=regime_mode,
             detector_version=DEFAULT_DETECTOR_VERSION,
             fast_risk_off_exit=fast_risk_off_exit,
+            regime_bundle=regime_bundle,
         )
         objectives_used = sorted(
             {
@@ -258,12 +276,14 @@ def build_dynamic_objective_context(
             {str(row.get("objective", "")) for row in timeline if row.get("objective")}
         )
     else:
-        resolver, timeline, switch_count = _build_allocator_resolver(
+        resolver, _, _ = _build_allocator_resolver(
             bench_ret,
             regime_mode,
             fixed_objective=None,
             detector_version=DEFAULT_DETECTOR_VERSION,
             fast_risk_off_exit=fast_risk_off_exit,
+            precomputed_timeline=timeline,
+            precomputed_switch_count=switch_count,
         )
         objectives_used = sorted(
             {str(row.get("objective", "")) for row in timeline if row.get("objective")}
@@ -288,6 +308,7 @@ def build_dynamic_objective_context(
             else None
         ),
         "active_regime_resolver": active_regime_resolver,
+        "regime_bundle": regime_bundle,
     }
 
 
@@ -305,25 +326,34 @@ def refresh_dynamic_allocator_resolver(
     fast_exit = bool(dynamic_ctx.get("fast_risk_off_exit", True))
     if has_regime_matrix(regime_setups):
         matrix = normalize_regime_setups(regime_setups, shared_setup=shared_round_setup)
-        regime_resolver, timeline, switch_count = build_active_regime_resolver(
+        detector_version = str(
+            dynamic_ctx.get("detector_version") or DEFAULT_DETECTOR_VERSION
+        )
+        bench = str(dynamic_ctx.get("benchmark_ticker") or "")
+        regime_bundle = get_or_compute_regime_bundle(
+            dynamic_ctx,
             bench_ret,
+            benchmark_ticker=bench,
             regime_mode=regime_mode,
-            detector_version=str(dynamic_ctx.get("detector_version") or DEFAULT_DETECTOR_VERSION),
+            detector_version=detector_version,
             fast_risk_off_exit=fast_exit,
         )
+        regime_resolver = bundle_active_regime_resolver(regime_bundle)
         allocator_resolver, _, _ = build_regime_matrix_allocator_resolver(
             bench_ret,
             matrix,
             regime_mode=regime_mode,
-            detector_version=str(dynamic_ctx.get("detector_version") or DEFAULT_DETECTOR_VERSION),
+            detector_version=detector_version,
             fast_risk_off_exit=fast_exit,
+            regime_bundle=regime_bundle,
         )
         out = dict(dynamic_ctx)
         out["allocator_resolver"] = allocator_resolver
         out["active_regime_resolver"] = regime_resolver
-        out["regime_timeline"] = timeline
-        out["regime_switch_count"] = switch_count
+        out["regime_timeline"] = list(regime_bundle.timeline)
+        out["regime_switch_count"] = int(regime_bundle.switch_count)
         out["regime_setups"] = matrix
+        out["regime_bundle"] = regime_bundle
         return out
     return dynamic_ctx
 
