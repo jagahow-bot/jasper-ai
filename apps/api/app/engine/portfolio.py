@@ -823,8 +823,10 @@ def _simulate_pandas(
         if report_start
         else prices.index[0]
     )
-    hist_dates = [hist_anchor, *rebalance_dates]
-    hist_dates = [d for d in hist_dates if d >= hist_anchor]
+    # First snapshot = first rebalance on/after report start (skip equal-weight warmup row).
+    hist_dates = [d for d in rebalance_dates if d >= hist_anchor]
+    if not hist_dates:
+        hist_dates = [hist_anchor]
     hist_unique = sorted(list(dict.fromkeys(hist_dates)))
     if len(hist_unique) > 36:
         hist_unique = _downsample_keep_endpoints(hist_unique, 36)

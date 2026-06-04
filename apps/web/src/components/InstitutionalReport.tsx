@@ -15,9 +15,11 @@ import type { PortfolioCandidate } from "@/lib/types";
 export function InstitutionalReport({
   candidate,
   benchmark = "SPY",
+  analyticsNote,
 }: {
   candidate: PortfolioCandidate;
   benchmark?: string;
+  analyticsNote?: string;
 }) {
   const a = candidate.analytics;
   if (!a) {
@@ -69,6 +71,9 @@ export function InstitutionalReport({
 
   return (
     <div className="space-y-5">
+      {analyticsNote ? (
+        <p className="text-xs text-dim">{analyticsNote}</p>
+      ) : null}
       {hasHorizonTable && (
         <Section title="Performance by horizon (IS · OOS · full)">
           <p className="mb-3 text-xs text-dim">

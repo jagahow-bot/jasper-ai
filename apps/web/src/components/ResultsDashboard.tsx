@@ -127,6 +127,15 @@ const COLORS = [
   "#fb923c",
 ];
 
+const SELECTED_STROKE = "#f97316";
+
+/** Prefer ticker when catalog name is CJK (legacy universe labels). */
+function holdingDisplayName(ticker: string, catalogName?: string): string {
+  if (!catalogName || catalogName === ticker) return ticker;
+  if (/[\u4e00-\u9fff\u3040-\u30ff]/.test(catalogName)) return ticker;
+  return catalogName;
+}
+
 type Props = {
   result: BacktestResult;
   narrative: string;
@@ -272,7 +281,7 @@ export function ResultsDashboard({
       .sort(([, a], [, b]) => b - a)
       .map(([ticker, weight]) => ({
         ticker,
-        name: tickerNameMap.get(ticker) ?? ticker,
+        name: holdingDisplayName(ticker, tickerNameMap.get(ticker)),
         weight,
       }));
   }, [selected?.weights, tickerNameMap]);
@@ -418,6 +427,17 @@ export function ResultsDashboard({
 
   const preserveTrialOrder = Boolean(result.narrative_facts.is_round_view);
 
+  const modelSelectOptions = useMemo(() => {
+    const indexed = result.candidates.map((c, i) => ({ c, i }));
+    if (preserveTrialOrder) return indexed;
+    return [...indexed].sort((a, b) =>
+      compareModelCode(
+        a.c.model_code ?? `M?${a.c.rank}`,
+        b.c.model_code ?? `M?${b.c.rank}`,
+      ),
+    );
+  }, [result.candidates, preserveTrialOrder]);
+
   const candidateCompare = useMemo(
     () =>
       buildPerformanceCompareRows({
@@ -426,6 +446,7 @@ export function ResultsDashboard({
         preserveTrialOrder,
         benchmarkBarMetrics,
         benchTicker,
+        selectedChartKey,
       }),
     [
       result.candidates,
@@ -433,6 +454,7 @@ export function ResultsDashboard({
       benchmarkBarMetrics,
       benchTicker,
       preserveTrialOrder,
+      selectedChartKey,
     ],
   );
 
@@ -581,13 +603,23 @@ export function ResultsDashboard({
   const allowedClassSet = assetClassFilter?.length
     ? new Set(assetClassFilter)
     : null;
-  const actualClassRows = Object.entries(top.analytics?.exposure?.by_asset_class ?? {})
+  const exposureByClass =
+    top.analytics?.exposure?.by_asset_class &&
+    Object.keys(top.analytics.exposure.by_asset_class).length > 0
+      ? top.analytics.exposure.by_asset_class
+      : chartCandidate?.analytics?.exposure?.by_asset_class;
+  const actualClassRows = Object.entries(exposureByClass ?? {})
     .filter(([cls]) => !allowedClassSet || allowedClassSet.has(cls))
     .map(([cls, v]) => ({
       cls: quotaLabel(cls),
       actual_pct: Number(v) * 100,
     }));
-  const factorSummary = top.analytics?.factor_summary ?? {};
+  const selFactorSummary = top.analytics?.factor_summary;
+  const factorSummary =
+    selFactorSummary?.factor_contribution &&
+    Object.keys(selFactorSummary.factor_contribution).length > 0
+      ? selFactorSummary
+      : (chartCandidate?.analytics?.factor_summary ?? {});
   const factorContribRows = Object.entries(factorSummary.factor_contribution ?? {}).map(([k, v]) => ({
     factor: k,
     pct: Number(v) * 100,
@@ -703,15 +735,7 @@ export function ResultsDashboard({
               onChange={(e) => setSelectedRowKey(e.target.value)}
               className="pixel-input py-1 text-xs"
             >
-              {(preserveTrialOrder
-                ? [...result.candidates]
-                : [...result.candidates].sort((a, b) =>
-                    compareModelCode(
-                      a.model_code ?? `M?${a.rank}`,
-                      b.model_code ?? `M?${b.rank}`,
-                    ),
-                  )
-              ).map((c, i) => (
+              {modelSelectOptions.map(({ c, i }) => (
                 <option
                   key={candidateRowKey(c, i)}
                   value={candidateRowKey(c, i)}
@@ -850,10 +874,24 @@ export function ResultsDashboard({
                 </tr>
               </thead>
               <tbody>
-                {holdoutLeaderboard.map((row, i) => (
+                {holdoutLeaderboard.map((row, i) => {
+                  const matchIdx = result.candidates.findIndex(
+                    (c) => c.model_code === row.model_code,
+                  );
+                  const match =
+                    matchIdx >= 0 ? result.candidates[matchIdx] : undefined;
+                  const rowKey = match
+                    ? candidateRowKey(match, matchIdx)
+                    : "";
+                  return (
                   <tr
                     key={`${row.model_code ?? "model"}-oos-${i}`}
-                    className="border-t border-[var(--border)]"
+                    className={`border-t border-[var(--border)] ${
+                      rowKey ? "cursor-pointer hover:bg-[rgba(0,245,255,0.06)]" : ""
+                    }`}
+                    onClick={() => {
+                      if (rowKey) setSelectedRowKey(rowKey);
+                    }}
                   >
                     <td className="py-1">
                       {row.model_code}
@@ -879,7 +917,8 @@ export function ResultsDashboard({
                       {row.gap_objective?.toFixed(4) ?? "—"}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -956,7 +995,18 @@ export function ResultsDashboard({
           )}
         </div>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={candidateCompare}>
+          <BarChart
+            data={candidateCompare}
+            onClick={(state) => {
+              const rawIdx = state?.activeTooltipIndex;
+              if (rawIdx == null) return;
+              const idx = Number(rawIdx);
+              if (!Number.isFinite(idx) || idx < 0 || idx >= candidateCompare.length) return;
+              const row = candidateCompare[idx];
+              if (!row?.chartKey || row.isBenchmark) return;
+              setSelectedRowKey(String(row.chartKey));
+            }}
+          >
             <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
             <XAxis
               dataKey="chartKey"
@@ -1055,13 +1105,17 @@ export function ResultsDashboard({
                   fill={row.isBenchmark ? BENCHMARK_FILL : METRIC_FILLS.cagr}
                   fillOpacity={row.isBenchmark ? 0.85 : 1}
                   stroke={
-                    row.isChampion
-                      ? CHAMPION_STROKE
-                      : row.isBenchmark
-                        ? BENCHMARK_FILL
-                        : undefined
+                    row.isSelected
+                      ? SELECTED_STROKE
+                      : row.isChampion
+                        ? CHAMPION_STROKE
+                        : row.isBenchmark
+                          ? BENCHMARK_FILL
+                          : undefined
                   }
-                  strokeWidth={row.isChampion || row.isBenchmark ? 2.5 : 0}
+                  strokeWidth={
+                    row.isSelected || row.isChampion || row.isBenchmark ? 2.5 : 0
+                  }
                   strokeDasharray={row.isBenchmark ? "4 2" : undefined}
                 />
               ))}
@@ -1073,13 +1127,17 @@ export function ResultsDashboard({
                   fill={row.isBenchmark ? BENCHMARK_FILL : METRIC_FILLS.mdd}
                   fillOpacity={row.isBenchmark ? 0.55 : 1}
                   stroke={
-                    row.isChampion
-                      ? CHAMPION_STROKE
-                      : row.isBenchmark
-                        ? BENCHMARK_FILL
-                        : undefined
+                    row.isSelected
+                      ? SELECTED_STROKE
+                      : row.isChampion
+                        ? CHAMPION_STROKE
+                        : row.isBenchmark
+                          ? BENCHMARK_FILL
+                          : undefined
                   }
-                  strokeWidth={row.isChampion || row.isBenchmark ? 2.5 : 0}
+                  strokeWidth={
+                    row.isSelected || row.isChampion || row.isBenchmark ? 2.5 : 0
+                  }
                   strokeDasharray={row.isBenchmark ? "4 2" : undefined}
                 />
               ))}
@@ -1091,13 +1149,17 @@ export function ResultsDashboard({
                   fill={row.isBenchmark ? BENCHMARK_FILL : METRIC_FILLS.sharpe}
                   fillOpacity={row.isBenchmark ? 0.85 : 1}
                   stroke={
-                    row.isChampion
-                      ? CHAMPION_STROKE
-                      : row.isBenchmark
-                        ? BENCHMARK_FILL
-                        : undefined
+                    row.isSelected
+                      ? SELECTED_STROKE
+                      : row.isChampion
+                        ? CHAMPION_STROKE
+                        : row.isBenchmark
+                          ? BENCHMARK_FILL
+                          : undefined
                   }
-                  strokeWidth={row.isChampion || row.isBenchmark ? 2.5 : 0}
+                  strokeWidth={
+                    row.isSelected || row.isChampion || row.isBenchmark ? 2.5 : 0
+                  }
                   strokeDasharray={row.isBenchmark ? "4 2" : undefined}
                 />
               ))}
@@ -1109,13 +1171,17 @@ export function ResultsDashboard({
                   fill={row.isBenchmark ? BENCHMARK_FILL : METRIC_FILLS.sortino}
                   fillOpacity={row.isBenchmark ? 0.55 : 1}
                   stroke={
-                    row.isChampion
-                      ? CHAMPION_STROKE
-                      : row.isBenchmark
-                        ? BENCHMARK_FILL
-                        : undefined
+                    row.isSelected
+                      ? SELECTED_STROKE
+                      : row.isChampion
+                        ? CHAMPION_STROKE
+                        : row.isBenchmark
+                          ? BENCHMARK_FILL
+                          : undefined
                   }
-                  strokeWidth={row.isChampion || row.isBenchmark ? 2.5 : 0}
+                  strokeWidth={
+                    row.isSelected || row.isChampion || row.isBenchmark ? 2.5 : 0
+                  }
                   strokeDasharray={row.isBenchmark ? "4 2" : undefined}
                 />
               ))}
@@ -1206,10 +1272,15 @@ export function ResultsDashboard({
                 if (!active || !payload?.length) return null;
                 const p = payload[0]?.payload as {
                   name?: string;
+                  model_code?: string | null;
                   volatility?: number;
                   return?: number;
                   sharpe?: number;
                 };
+                const label =
+                  (typeof p?.model_code === "string" && p.model_code.trim()) ||
+                  (typeof p?.name === "string" && p.name.trim()) ||
+                  "sample";
                 return (
                   <div
                     className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2"
@@ -1219,7 +1290,7 @@ export function ResultsDashboard({
                       className="mb-1 font-pixel text-[var(--amber)]"
                       style={{ fontSize: Math.max(11, chartTip - 1) }}
                     >
-                      {p?.name ?? "point"}
+                      {label}
                     </div>
                     <div>Vol: {((p?.volatility ?? 0) * 100).toFixed(2)}%</div>
                     <div>Return: {((p?.return ?? 0) * 100).toFixed(2)}%</div>
@@ -1273,6 +1344,13 @@ export function ResultsDashboard({
           </div>
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
             <p className="mb-2 text-xs text-dim">Actual class weights (holdings)</p>
+            {chartsUseChampionFallback &&
+            (!top.analytics?.exposure?.by_asset_class ||
+              Object.keys(top.analytics.exposure.by_asset_class).length === 0) ? (
+              <p className="mb-2 text-[10px] text-dim">
+                Class breakdown from ★ champion (selected trial has slim payload).
+              </p>
+            ) : null}
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={actualClassRows}>
                 <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
@@ -1287,6 +1365,15 @@ export function ResultsDashboard({
       </ChartCard>
 
       <ChartCard title="Factor attribution">
+        {chartsUseChampionFallback &&
+        !(
+          top.analytics?.factor_summary?.factor_contribution &&
+          Object.keys(top.analytics.factor_summary.factor_contribution).length > 0
+        ) ? (
+          <p className="mb-2 text-xs text-dim">
+            Factor attribution from ★ champion when the selected trial omits full sim output.
+          </p>
+        ) : null}
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
             {factorContribRows.length === 0 ? (
@@ -1371,7 +1458,15 @@ export function ResultsDashboard({
         )}
       </ChartCard>
 
-      <InstitutionalReport candidate={top} benchmark={benchTicker} />
+      <InstitutionalReport
+        candidate={chartCandidate ?? top}
+        benchmark={benchTicker}
+        analyticsNote={
+          chartsUseChampionFallback
+            ? "Rolling, exposure, and return tables use ★ champion analytics; headline metrics follow the selected trial."
+            : undefined
+        }
+      />
 
       <ChartCard title="Reproducible params">
         {((aiRationalesByRound?.length ?? 0) > 0 || Boolean(aiGen.rationale)) ? (

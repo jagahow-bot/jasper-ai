@@ -79,6 +79,21 @@ describe("performance-compare-chart", () => {
     expect(performanceCompareTickLabel(champ)).toBe("M0005 ★");
   });
 
+  it("marks selected trial via selectedChartKey", () => {
+    const rows = buildPerformanceCompareRows({
+      candidates: [
+        { model_code: "M0001", rank: 1, sharpe: 1.1, cagr: 0.1, max_drawdown: -0.05 },
+        { model_code: "M0019", rank: 19, sharpe: 0.9, cagr: 0.08, max_drawdown: -0.07 },
+      ],
+      championModelKey: "M0001",
+      preserveTrialOrder: true,
+      benchTicker: "SPY",
+      selectedChartKey: "M0019-r19-i1",
+    });
+    expect(rows.find((r) => r.model_code === "M0019")?.isSelected).toBe(true);
+    expect(rows.find((r) => r.model_code === "M0001")?.isSelected).toBe(false);
+  });
+
   it("sorts by model code when trial order is not preserved", () => {
     const rows = buildPerformanceCompareRows({
       candidates: [

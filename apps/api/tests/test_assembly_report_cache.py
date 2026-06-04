@@ -429,6 +429,7 @@ def test_assembly_slim_payload_for_non_champion_only():
     assert slim.equity_curve is None
     assert slim.analytics
     assert slim.analytics.get("sample_metrics")
+    assert slim.analytics.get("exposure")
     assert not slim.analytics.get("weight_history")
     assert not slim.analytics.get("benchmark_equity_curve")
 

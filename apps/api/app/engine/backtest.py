@@ -44,7 +44,7 @@ from app.models import (
 )
 from app.profiles import get_universe, get_universe_meta, pin_guaranteed_supplements
 from app.engine.allocator import AllocatorParams
-from app.engine.analytics import build_full_analytics
+from app.engine.analytics import build_full_analytics, build_slim_analytics
 from app.engine.ai_params import generate_ai_param_sets, generate_ai_round_seed
 from app.engine.factors import FactorParams, factor_params_from_dict
 from app.engine.ai_universe import refine_universe_with_ai
@@ -1109,7 +1109,12 @@ def _build_candidate(
             analytics["benchmark_equity_curve"] = []
         rel = analytics.get("benchmark_relative", {}) or {}
     else:
-        analytics = {"sample_metrics": sample_metrics}
+        slim_extra = build_slim_analytics(
+            weights=weights,
+            universe_by_ticker=universe_by_ticker,
+            factor_summary=full_m.get("factor_summary"),
+        )
+        analytics = {"sample_metrics": sample_metrics, **slim_extra}
     is_snap = sample_metrics["in_sample"]
     oos_snap = sample_metrics.get("out_of_sample")
     response_curve = full_curve if include_charts else None
@@ -1511,8 +1516,11 @@ def _build_frontier_from_records(
     frontier: list[dict[str, Any]] = []
     step = max(1, trials_completed // 25)
     for score, params, metrics in records[::step][:25]:
+        code = params.get("model_code")
         frontier.append(
             {
+                "name": str(code) if code else "sample",
+                "model_code": str(code) if code else None,
                 "volatility": round(float(metrics["volatility"]), 4),
                 "return": round(float(metrics["cagr"]), 4),
                 "sharpe": round(float(metrics["sharpe"]), 4),

@@ -226,6 +226,19 @@ def risk_contribution(
     return rows[:30]
 
 
+def build_slim_analytics(
+    *,
+    weights: dict[str, float],
+    universe_by_ticker: dict[str, dict[str, Any]],
+    factor_summary: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Lightweight analytics for non-champion candidates (no equity curves)."""
+    return {
+        "exposure": exposure_breakdown(weights, universe_by_ticker),
+        "factor_summary": dict(factor_summary or {}),
+    }
+
+
 def build_full_analytics(
     *,
     port_ret: pd.Series,

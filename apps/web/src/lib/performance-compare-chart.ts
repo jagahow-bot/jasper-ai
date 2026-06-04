@@ -18,6 +18,7 @@ export type PerformanceCompareRow = {
   rank: number;
   isChampion: boolean;
   isBenchmark: boolean;
+  isSelected?: boolean;
   sharpe: number;
   sortino: number;
   cagr_pct: number;
@@ -122,6 +123,7 @@ export function buildPerformanceCompareRows(input: {
   preserveTrialOrder: boolean;
   benchmarkBarMetrics?: BenchmarkBarMetrics | null;
   benchTicker: string;
+  selectedChartKey?: string | null;
 }): PerformanceCompareRow[] {
   const {
     candidates,
@@ -129,6 +131,7 @@ export function buildPerformanceCompareRows(input: {
     preserveTrialOrder,
     benchmarkBarMetrics,
     benchTicker,
+    selectedChartKey,
   } = input;
 
   const deduped = dedupeCandidatesForPerformanceChart(candidates, championModelKey);
@@ -144,14 +147,16 @@ export function buildPerformanceCompareRows(input: {
   const modelRows: PerformanceCompareRow[] = orderedCandidates.map((c, i) => {
     const modelKey = candidateModelKey(c);
     const model_code = normalizeModelCode(c, i);
+    const chartKey = candidateRowKey(c, i);
     return {
-      chartKey: candidateRowKey(c, i),
+      chartKey,
       name: model_code,
       model_code,
       modelKey,
       rank: c.rank ?? i + 1,
       isChampion: championModelKey != null && modelKey === championModelKey,
       isBenchmark: false,
+      isSelected: Boolean(selectedChartKey && chartKey === selectedChartKey),
       sharpe: c.sharpe ?? 0,
       sortino: c.sortino ?? 0,
       cagr_pct: (c.cagr ?? 0) * 100,
