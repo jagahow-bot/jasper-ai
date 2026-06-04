@@ -1,9 +1,5 @@
 "use client";
 
-import {
-  OverfittingConvergenceChart,
-  type ConvergencePoint,
-} from "@/components/OverfittingConvergenceChart";
 import type { JobProgress, PortfolioVsBenchmark } from "@/lib/types";
 
 type Props = {
@@ -23,10 +19,6 @@ function formatAlpha(value: number | null | undefined): string {
 }
 
 export function ProgressPanel({ progress }: Props) {
-  const round = progress.refinement_round;
-  const preview = (
-    (progress.convergence_preview ?? []) as ConvergencePoint[]
-  ).filter((p) => round == null || p.round === round);
   const belowBench = progress.round_benchmark_status === "below";
   const pvb = progress.round_portfolio_vs_benchmark as PortfolioVsBenchmark | null | undefined;
   const pct =
@@ -84,13 +76,6 @@ export function ProgressPanel({ progress }: Props) {
           <span>Best in-sample: {progress.best_sharpe.toFixed(4)}</span>
         )}
       </div>
-
-      {preview.length > 0 && (
-        <OverfittingConvergenceChart
-          data={preview}
-          title="Live convergence (preview)"
-        />
-      )}
     </div>
   );
 }

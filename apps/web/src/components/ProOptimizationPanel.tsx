@@ -174,7 +174,7 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
           </div>
           {!value.enable_oos && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">
-              Tip: enable holdout split so trials rank on in-sample only and the convergence chart shows IS vs OOS.
+              Tip: enable holdout split so trials rank on in-sample only; OOS metrics are diagnostics only.
             </p>
           )}
         </div>

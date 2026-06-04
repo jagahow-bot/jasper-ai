@@ -22,10 +22,6 @@ import {
 import { ChartTooltip } from "@/components/ChartTooltip";
 import { InstitutionalReport } from "@/components/InstitutionalReport";
 import { LinkedEquityWeightChart } from "@/components/LinkedEquityWeightChart";
-import {
-  OverfittingConvergenceChart,
-  type ConvergencePoint,
-} from "@/components/OverfittingConvergenceChart";
 import { QuickRefinements } from "@/components/QuickRefinements";
 import {
   ASSET_CLASS_LABELS,
@@ -635,14 +631,12 @@ export function ResultsDashboard({
   );
   const proRefinement = result.narrative_facts.pro_refinement as
     | {
-        convergence_history?: ConvergencePoint[];
         rounds_completed?: number;
         stopped_reason?: string;
         champion_adjusted_score?: number;
       }
     | null
     | undefined;
-  const convergenceHistory = proRefinement?.convergence_history ?? [];
   const sampleMetrics = top.analytics?.sample_metrics;
   const dataSource = String(result.narrative_facts.data_source ?? "");
   const trustworthy = result.narrative_facts.metrics_trustworthy === true;
@@ -793,7 +787,7 @@ export function ResultsDashboard({
       <div className="border-2 border-[var(--border)] bg-[#050508] px-4 py-2 font-terminal text-sm text-dim">
         {optimizationMode === "pro_auto" && !result.narrative_facts.is_round_view ? (
           <>
-            <span className="text-[var(--amber)]">Pro convergence</span>
+            <span className="text-[var(--amber)]">Pro refinement</span>
             {" · "}
             {proRefinement?.rounds_completed ?? "—"} rounds · {trialsRequested} trials · early stop{" "}
             {proRefinement?.stopped_reason === "patience" ? "yes (flat)" : "no (max rounds)"}
@@ -811,16 +805,6 @@ export function ResultsDashboard({
         </span>
       </div>
 
-      {optimizationMode === "pro_auto" &&
-        !result.narrative_facts.is_round_view &&
-        convergenceHistory.length > 0 && (
-        <div className="pixel-panel border-[var(--amber)] p-5">
-          <OverfittingConvergenceChart
-            history={convergenceHistory}
-            objectiveLabel={objectiveLabel}
-          />
-        </div>
-      )}
       <div className="pixel-panel">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-pixel text-xs text-neon glow-title">Results · institutional</h3>
