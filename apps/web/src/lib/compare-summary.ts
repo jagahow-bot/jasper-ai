@@ -53,6 +53,10 @@ export type CompareGenerationAttempt = {
   rawFinishReason?: string;
 };
 
+/** One retry max (2 Gemini calls total) for candidate compare summary. */
+export const MAX_COMPARE_RETRIES = 1;
+export const MAX_COMPARE_ATTEMPTS = 1 + MAX_COMPARE_RETRIES;
+
 /** Gemini / AI SDK signals that output was cut off by the token budget. */
 export function isGeminiMaxTokensFinish(
   finishReason?: string,

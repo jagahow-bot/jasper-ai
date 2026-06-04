@@ -5,15 +5,13 @@ import { AI_METRIC_FORMAT_RULES } from "@/lib/ai-metric-format";
 import {
   buildCompareFallback,
   isAcceptableCompareSummary,
+  MAX_COMPARE_ATTEMPTS,
   parseCompareSummaryResponse,
   shouldRetryCompareGeneration,
   slimComparePayload,
   type CompareSummaryPayload,
 } from "@/lib/compare-summary";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
-
-const MAX_COMPARE_RETRIES = 2;
-const MAX_COMPARE_ATTEMPTS = 1 + MAX_COMPARE_RETRIES;
 
 const SYSTEM = `Institutional quant analyst. English only.
 ${AI_METRIC_FORMAT_RULES}

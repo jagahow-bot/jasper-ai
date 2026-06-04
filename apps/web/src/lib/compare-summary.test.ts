@@ -5,6 +5,8 @@ import {
   isGeminiMaxTokensFinish,
   looksLikeMetricDump,
   looksLikeTruncatedCompareJson,
+  MAX_COMPARE_ATTEMPTS,
+  MAX_COMPARE_RETRIES,
   parseCompareSummaryResponse,
   resolveCompareChampion,
   shouldRetryCompareGeneration,
@@ -21,6 +23,11 @@ const MAX_TOKENS_SAMPLE_EXCERPT = `{
     "value_indicator": "book_to_market_ratio_ttm_z_score_120d_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country_winsorized_by_sector_and_country_neutralized_by_sector_and_country_standardized_by_sector_and_country`;
 
 describe("compare-summary", () => {
+  it("allows at most one retry (two Gemini calls)", () => {
+    expect(MAX_COMPARE_RETRIES).toBe(1);
+    expect(MAX_COMPARE_ATTEMPTS).toBe(2);
+  });
+
   it("slims payload and caps candidate count", () => {
     const candidates = Array.from({ length: 14 }, (_, i) => ({
       model_code: `M${String(i + 1).padStart(4, "0")}`,
@@ -142,6 +149,7 @@ M0010 Sharpe:
     ).toBe(true);
   });
 
+  /** Retries must not alter slim payload (identical request per route). */
   it("slimComparePayload is stable across retry attempts", () => {
     const payload = {
       benchmark: "VT",
