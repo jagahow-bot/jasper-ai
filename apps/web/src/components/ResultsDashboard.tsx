@@ -142,6 +142,9 @@ export function ResultsDashboard({
   const chartTip = chartTooltipFontSize();
   const [selectedRowKey, setSelectedRowKey] = useState<string>("");
   const [compareSummary, setCompareSummary] = useState("");
+  const [aiRecommendedModelCode, setAiRecommendedModelCode] = useState<
+    string | null
+  >(null);
   const [compareLoading, setCompareLoading] = useState(false);
   const [leaderboardSort, setLeaderboardSort] =
     useState<LeaderboardSort>("in_sample");
@@ -154,28 +157,51 @@ export function ResultsDashboard({
     [result.job_id, result.candidates],
   );
 
+  const championNarrativeFacts = useMemo(() => {
+    if (!aiRecommendedModelCode) return result.narrative_facts;
+    return {
+      ...result.narrative_facts,
+      ai_recommended_model_code: aiRecommendedModelCode,
+    };
+  }, [result.narrative_facts, aiRecommendedModelCode]);
+
+  useEffect(() => {
+    setAiRecommendedModelCode(null);
+    setCompareSummary("");
+  }, [resultSelectionEpoch]);
+
   useEffect(() => {
     setSelectedRowKey(
       resolveDefaultSelectedRowKey(
         result.candidates,
-        result.narrative_facts,
+        championNarrativeFacts,
       ),
     );
-  }, [resultSelectionEpoch, result.candidates, result.narrative_facts]);
+  }, [resultSelectionEpoch, result.candidates, championNarrativeFacts]);
+
+  useEffect(() => {
+    if (!aiRecommendedModelCode) return;
+    setSelectedRowKey(
+      resolveDefaultSelectedRowKey(
+        result.candidates,
+        championNarrativeFacts,
+      ),
+    );
+  }, [aiRecommendedModelCode, result.candidates, championNarrativeFacts]);
 
   const defaultSelectedRowKey = useMemo(
     () =>
       resolveDefaultSelectedRowKey(
         result.candidates,
-        result.narrative_facts,
+        championNarrativeFacts,
       ),
-    [result.candidates, result.narrative_facts],
+    [result.candidates, championNarrativeFacts],
   );
 
   const selected = useMemo(() => {
     const fallbackIdx = resolveChampionCandidateIndex(
       result.candidates,
-      result.narrative_facts,
+      championNarrativeFacts,
     );
     const fallback =
       fallbackIdx >= 0 ? result.candidates[fallbackIdx] : result.candidates[0];
@@ -188,7 +214,7 @@ export function ResultsDashboard({
     return idx >= 0 ? result.candidates[idx] : fallback;
   }, [
     result.candidates,
-    result.narrative_facts,
+    championNarrativeFacts,
     selectedRowKey,
     defaultSelectedRowKey,
   ]);
@@ -199,17 +225,17 @@ export function ResultsDashboard({
   }, [selected, result.candidates]);
 
   const championModelKey = useMemo(
-    () => resolveChampionModelKey(result.candidates, result.narrative_facts),
-    [result.candidates, result.narrative_facts],
+    () => resolveChampionModelKey(result.candidates, championNarrativeFacts),
+    [result.candidates, championNarrativeFacts],
   );
 
   const championCandidate = useMemo(() => {
     const idx = resolveChampionCandidateIndex(
       result.candidates,
-      result.narrative_facts,
+      championNarrativeFacts,
     );
     return idx >= 0 ? result.candidates[idx] : result.candidates[0];
-  }, [result.candidates, result.narrative_facts]);
+  }, [result.candidates, championNarrativeFacts]);
 
   const selectedHasFullCharts = useMemo(() => {
     if (!selected) return false;
@@ -241,9 +267,14 @@ export function ResultsDashboard({
       ),
     [chartCandidate?.analytics?.weight_history_tickers],
   );
+  const equity = chartCandidate?.equity_curve ?? result.equity_curve ?? [];
   const historySeries = useMemo(() => {
     if (!weightHistory.length) return [];
-    return weightHistory.map((row) => {
+    const firstEquityDate = equity[0]?.date ? String(equity[0].date) : "";
+    const aligned = firstEquityDate
+      ? weightHistory.filter((row) => String(row.date) >= firstEquityDate)
+      : weightHistory;
+    return aligned.map((row) => {
       const sumShown = weightHistoryTickers.reduce(
         (acc, t) => acc + Number((row as Record<string, unknown>)[t] ?? 0),
         0,
@@ -254,7 +285,7 @@ export function ResultsDashboard({
           Number((row as Record<string, unknown>).OTHER ?? Math.max(0, 1 - sumShown)),
       };
     });
-  }, [weightHistory, weightHistoryTickers]);
+  }, [weightHistory, weightHistoryTickers, equity]);
 
   const tickerNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -310,7 +341,6 @@ export function ResultsDashboard({
     (result.narrative_facts.backtest_spec as { benchmark?: string } | undefined)
       ?.benchmark ?? "SPY",
   );
-  const equity = chartCandidate?.equity_curve ?? result.equity_curve;
   const benchmarkEquity = useMemo(() => {
     const fromChart = chartCandidate?.analytics?.benchmark_equity_curve;
     if (fromChart?.length) return fromChart;
@@ -324,6 +354,7 @@ export function ResultsDashboard({
   useEffect(() => {
     if (result.candidates.length < 2) {
       setCompareSummary("");
+      setAiRecommendedModelCode(null);
       setCompareLoading(false);
       return;
     }
@@ -375,10 +406,20 @@ export function ResultsDashboard({
             }),
           }),
         });
-        const json = (await res.json()) as { summary: string };
-        if (!cancelled) setCompareSummary(json.summary ?? "");
+        const json = (await res.json()) as {
+          summary: string;
+          recommended_model_code?: string | null;
+        };
+        if (!cancelled) {
+          setCompareSummary(json.summary ?? "");
+          const rec = json.recommended_model_code?.trim();
+          setAiRecommendedModelCode(rec ? rec.toUpperCase() : null);
+        }
       } catch {
-        if (!cancelled) setCompareSummary("");
+        if (!cancelled) {
+          setCompareSummary("");
+          setAiRecommendedModelCode(null);
+        }
       } finally {
         if (!cancelled) setCompareLoading(false);
       }
@@ -392,6 +433,7 @@ export function ResultsDashboard({
     result.candidates,
     result.narrative_facts,
     request.objective,
+    result.job_id,
   ]);
 
   const benchmarkBarMetrics = useMemo(() => {

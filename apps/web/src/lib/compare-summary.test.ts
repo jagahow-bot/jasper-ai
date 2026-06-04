@@ -3,6 +3,7 @@ import {
   buildCompareFallback,
   isAcceptableCompareSummary,
   looksLikeMetricDump,
+  parseCompareSummaryResponse,
   resolveCompareChampion,
   slimComparePayload,
 } from "./compare-summary";
@@ -48,6 +49,29 @@ M0010 Sharpe:
       "M0010 offers lower turnover but weaker full-sample risk-adjusted returns. " +
       "Several tail models show large in-sample versus out-of-sample gaps, suggesting overfitting.";
     expect(isAcceptableCompareSummary(prose)).toBe(true);
+  });
+
+  it("resolveCompareChampion prefers AI pick over is_champion", () => {
+    const candidates = [
+      { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: true },
+      { model_code: "M0009", rank: 9, sharpe: 1.2, is_champion: false },
+    ];
+    expect(
+      resolveCompareChampion(candidates, "M0001", "M0009")?.model_code,
+    ).toBe("M0009");
+  });
+
+  it("parseCompareSummaryResponse reads JSON recommended_model_code", () => {
+    const candidates = [
+      { model_code: "M0001", rank: 1 },
+      { model_code: "M0009", rank: 9 },
+    ];
+    const parsed = parseCompareSummaryResponse(
+      '{"recommended_model_code":"M0009","summary":"M0009 shows a steadier full-sample profile than M0001. Holdout gaps are narrower for M0009, which supports it as the deployable candidate."}',
+      candidates,
+    );
+    expect(parsed.recommended_model_code).toBe("M0009");
+    expect(parsed.summary).toContain("M0009");
   });
 
   it("resolveCompareChampion prefers is_champion over rank 1", () => {

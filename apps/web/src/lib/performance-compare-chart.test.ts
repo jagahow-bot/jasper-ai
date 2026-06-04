@@ -97,6 +97,19 @@ describe("performance-compare-chart", () => {
     expect(rows.find((r) => r.model_code === "M0001")?.isSelected).toBe(false);
   });
 
+  it("prefers ai_recommended_model_code over champion_model_code", () => {
+    const candidates = [
+      { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: true },
+      { model_code: "M0009", rank: 9, sharpe: 1.2, is_champion: false },
+    ];
+    expect(
+      resolveChampionModelKey(candidates, {
+        champion_model_code: "M0001",
+        ai_recommended_model_code: "M0009",
+      }),
+    ).toBe("M0009");
+  });
+
   it("prefers narrative_facts.champion_model_code", () => {
     const candidates = [
       { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: false },

@@ -36,9 +36,80 @@ export type CompareSummaryPayload = {
   objective?: string;
   objective_label?: string;
   champion_model_code?: string | null;
+  /** When set (e.g. from Gemini compare), overrides Pro ★ for UI alignment. */
+  ai_recommended_model_code?: string | null;
   candidates: CompareCandidateLite[];
   candidate_count_total?: number;
 };
+
+export type CompareSummaryResult = {
+  summary: string;
+  recommended_model_code: string | null;
+};
+
+const MODEL_CODE_RE = /\bM\d{3,5}\b/gi;
+
+/** Parse structured Gemini JSON or fall back to first model_code mention in prose. */
+export function parseCompareSummaryResponse(
+  text: string,
+  candidates: CompareCandidateLite[],
+): CompareSummaryResult {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return { summary: "", recommended_model_code: null };
+  }
+
+  const allowed = new Set(
+    candidates
+      .map((c) => candidateModelKey(c))
+      .filter((code) => code && !code.startsWith("M?")),
+  );
+
+  const tryJson = (raw: string): CompareSummaryResult | null => {
+    try {
+      const obj = JSON.parse(raw) as {
+        summary?: string;
+        recommended_model_code?: string;
+        recommended_model?: string;
+      };
+      const codeRaw =
+        obj.recommended_model_code ?? obj.recommended_model ?? "";
+      const code = String(codeRaw).trim().toUpperCase();
+      const summary = String(obj.summary ?? "").trim() || trimmed;
+      if (code && allowed.has(code)) {
+        return { summary, recommended_model_code: code };
+      }
+      if (code && /^M\d{3,5}$/i.test(code)) {
+        return { summary, recommended_model_code: code };
+      }
+      if (summary) return { summary, recommended_model_code: null };
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) {
+    const parsed = tryJson(fenced[1].trim());
+    if (parsed) return parsed;
+  }
+
+  const brace = trimmed.match(/\{[\s\S]*\}/);
+  if (brace) {
+    const parsed = tryJson(brace[0]);
+    if (parsed) return parsed;
+  }
+
+  const parsed = tryJson(trimmed);
+  if (parsed) return parsed;
+
+  const mentions = [...trimmed.matchAll(MODEL_CODE_RE)].map((m) =>
+    m[0].toUpperCase(),
+  );
+  const pick = mentions.find((code) => allowed.has(code)) ?? mentions[0] ?? null;
+  return { summary: trimmed, recommended_model_code: pick };
+}
 
 const SLIM_HORIZON_KEYS = [
   "sharpe",
@@ -83,14 +154,16 @@ function slimCandidate(c: CompareCandidateLite): CompareCandidateLite {
   };
 }
 
-/** Pro/final ★ champion for compare narrative (not objective rank 1). */
+/** Pro/final ★ champion for compare narrative (AI pick > explicit code > is_champion). */
 export function resolveCompareChampion(
   candidates: CompareCandidateLite[],
   championModelCode?: string | null,
+  aiRecommendedModelCode?: string | null,
 ): CompareCandidateLite | undefined {
-  if (championModelCode) {
+  for (const code of [aiRecommendedModelCode, championModelCode]) {
+    if (!code?.trim()) continue;
     const byCode = candidates.find(
-      (c) => candidateModelKey(c) === championModelCode.trim(),
+      (c) => candidateModelKey(c) === code.trim().toUpperCase(),
     );
     if (byCode) return byCode;
   }
@@ -110,6 +183,7 @@ export function slimComparePayload(
   const champ = resolveCompareChampion(
     sorted,
     payload.champion_model_code,
+    payload.ai_recommended_model_code,
   );
   const champKey = champ ? candidateModelKey(champ) : null;
   const ordered = champKey
@@ -164,7 +238,11 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
   const sorted = [...payload.candidates].sort(
     (a, b) => (a.rank ?? 999) - (b.rank ?? 999),
   );
-  const champ = resolveCompareChampion(sorted, payload.champion_model_code);
+  const champ = resolveCompareChampion(
+    sorted,
+    payload.champion_model_code,
+    payload.ai_recommended_model_code,
+  );
   if (!champ) return "No models to compare.";
   const champCode = champ.model_code ?? "M?";
   const obj = payload.objective_label ?? payload.objective ?? "n/a";

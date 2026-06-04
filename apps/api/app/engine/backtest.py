@@ -215,13 +215,19 @@ def _convergence_metrics_for_record(
     objective_effective: str,
     oos_enabled: bool,
 ) -> dict[str, Any]:
-    """Per-trial IS/OOS objectives; prefer cached train/val sims over slim search blobs."""
+    """Per-trial IS/OOS objectives; prefer Optuna metrics, else cached train/val sims."""
+    assess_existing = metrics.get("overfitting_assessment")
+    if isinstance(assess_existing, dict) and metrics.get("objective_value_is") is not None:
+        return metrics
+
     bundle = trial_report_cache.get_bundle(params) if trial_report_cache else None
-    if bundle and bundle.train_m:
+    train_m = bundle.train_m if bundle else None
+    val_m = bundle.val_m if bundle else None
+    if train_m and train_m.get("port_ret") is not None:
         assess = assess_overfitting(
-            bundle.train_m,
-            bundle.val_m,
-            oos_enabled=oos_enabled and bundle.val_m is not None,
+            train_m,
+            val_m,
+            oos_enabled=oos_enabled and val_m is not None,
             objective_mode=objective_effective,
         )
         merged = dict(metrics)
@@ -715,6 +721,17 @@ def _run_iterative_search(
             tagged_round_records.append((score, tagged_params, metrics))
         round_records = tagged_round_records
 
+        if trial_report_cache is not None:
+            has_holdout_pre = bool(oos and len(prices_val) > 60)
+            select_on_is_pre = has_holdout_pre
+            for _, params, metrics in round_records:
+                trial_report_cache.backfill_from_search_record(
+                    params,
+                    metrics,
+                    has_holdout=has_holdout_pre,
+                    select_on_is=select_on_is_pre,
+                )
+
         _resync_round_convergence_from_records(
             convergence_history,
             round_idx=round_idx + 1,
@@ -1195,6 +1212,14 @@ def _build_candidate(
         )
         wh_raw = full_m.get("weight_history", [])
         wht_raw = full_m.get("weight_history_tickers", [])
+        if response_curve:
+            first_eq = str(response_curve[0].get("date", ""))
+            if first_eq:
+                wh_raw = [
+                    row
+                    for row in wh_raw
+                    if str(row.get("date", "")) >= first_eq
+                ]
         wh, wht = trim_weight_history_for_response(wh_raw, tickers=wht_raw or tickers)
         analytics["weight_history"] = wh
         analytics["weight_history_tickers"] = wht
@@ -2462,6 +2487,12 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
 
     best = _best_candidate(candidates) or candidates[0]
     champion_model_code = best.model_code if best else None
+    if pro_mode:
+        final_champion_params = refinement_meta.get("final_champion_params")
+        if isinstance(final_champion_params, dict):
+            pro_code = final_champion_params.get("model_code")
+            if pro_code:
+                champion_model_code = str(pro_code)
     portfolio_catalog = all_record_catalog
     bench = benchmark_metrics(prices, spec.benchmark_ticker, spec)
 

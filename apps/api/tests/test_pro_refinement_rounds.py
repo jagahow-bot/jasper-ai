@@ -713,6 +713,30 @@ def test_sort_round_records_by_optuna_trial_number():
     assert [r[1]["optuna_trial_number"] for r in ordered] == [0, 1, 2]
 
 
+def test_convergence_metrics_prefers_existing_per_trial_assessment():
+    from app.engine.backtest import _convergence_metrics_for_record
+
+    metrics_a = _metrics_with_is_oos(0.3, 0.2)
+    metrics_b = _metrics_with_is_oos(0.8, 0.7)
+    out_a = _convergence_metrics_for_record(
+        0.3,
+        {"portfolio_id": 1},
+        metrics_a,
+        trial_report_cache=None,
+        objective_effective="max_sharpe",
+        oos_enabled=True,
+    )
+    out_b = _convergence_metrics_for_record(
+        0.8,
+        {"portfolio_id": 2},
+        metrics_b,
+        trial_report_cache=None,
+        objective_effective="max_sharpe",
+        oos_enabled=True,
+    )
+    assert out_a["objective_value_is"] != out_b["objective_value_is"]
+
+
 def test_resync_round_convergence_replaces_stale_duplicate_points():
     stale = {
         "round": 1,
