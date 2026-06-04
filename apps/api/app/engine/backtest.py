@@ -1184,6 +1184,7 @@ def _build_candidate(
         is_split_idx=is_split_idx,
         spec=spec,
     )
+    response_curve = full_curve if include_charts else None
     rel: dict[str, Any] = {}
     if include_charts:
         port_ret: pd.Series = full_m["port_ret"]
@@ -1249,7 +1250,6 @@ def _build_candidate(
         analytics = {"sample_metrics": sample_metrics, **slim_extra}
     is_snap = sample_metrics["in_sample"]
     oos_snap = sample_metrics.get("out_of_sample")
-    response_curve = full_curve if include_charts else None
     return PortfolioCandidate(
         rank=rank,
         model_code=str(params.get("model_code")) if params.get("model_code") else None,
