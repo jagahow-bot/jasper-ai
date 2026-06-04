@@ -6,6 +6,7 @@ from __future__ import annotations
 
 
 
+from app.engine.backtest import _resync_round_convergence_from_records
 from app.engine.refinement import (
     assign_pro_round_model_codes,
     assign_search_model_codes,
@@ -685,4 +686,50 @@ def test_pro_round_report_top_n_assembles_full_pool_despite_top_models():
     )
     assert pr_top_n == 6
     assert len(ordered[:pr_top_n]) == 6
+
+
+def _metrics_with_is_oos(is_obj: float, oos_obj: float) -> dict:
+    return {
+        "objective_value_is": is_obj,
+        "overfitting_assessment": {
+            "in_sample_objective": is_obj,
+            "out_of_sample_objective": oos_obj,
+            "gap_objective": is_obj - oos_obj,
+            "risk_level": "low",
+        },
+    }
+
+
+def test_resync_round_convergence_replaces_stale_duplicate_points():
+    stale = {
+        "round": 1,
+        "trial": 2,
+        "is_objective": 0.99,
+        "oos_objective": 0.11,
+        "gap_objective": 0.88,
+    }
+    history: list[dict] = [
+        {"round": 1, "trial": 1, **{k: v for k, v in stale.items() if k not in ("round", "trial")}},
+        {"round": 1, "trial": 2, **{k: v for k, v in stale.items() if k not in ("round", "trial")}},
+        {"round": 2, "trial": 6, "is_objective": 0.5, "oos_objective": 0.4, "gap_objective": 0.1},
+    ]
+    records = [
+        (0.2, {"portfolio_id": 1}, _metrics_with_is_oos(0.20, 0.18)),
+        (0.5, {"portfolio_id": 2}, _metrics_with_is_oos(0.50, 0.40)),
+        (0.8, {"portfolio_id": 3}, _metrics_with_is_oos(0.80, 0.70)),
+    ]
+    _resync_round_convergence_from_records(
+        history,
+        round_idx=1,
+        round_records=records,
+        round_trial_base=1,
+        objective_effective="max_sharpe",
+    )
+    round1 = [p for p in history if p.get("round") == 1]
+    assert len(round1) == 3
+    assert {p["trial"] for p in round1} == {1, 2, 3}
+    is_vals = [p["is_objective"] for p in round1]
+    assert len(set(is_vals)) == 3
+    assert is_vals == [0.2, 0.5, 0.8]
+    assert len([p for p in history if p.get("round") == 2]) == 1
 

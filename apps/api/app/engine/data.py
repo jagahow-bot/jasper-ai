@@ -23,14 +23,32 @@ ROOT = Path(__file__).resolve().parents[3]
 PRICE_CACHE_DIR = ROOT / "apps" / "api" / ".cache" / "prices"
 
 
-def _cache_key(tickers: list[str], start: str, end: str, benchmark: str) -> str:
+def _cache_key(
+    tickers: list[str],
+    download_start: str,
+    end: str,
+    benchmark: str,
+) -> str:
+    """Cache key uses download_start (includes warmup), not UI report start alone."""
     payload = {
         "tickers": sorted(list(dict.fromkeys([*tickers, benchmark]))),
-        "start": start,
+        "download_start": download_start,
         "end": end,
         "benchmark": benchmark,
     }
     return hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def prep_history_covers(
+    panel_start: str | pd.Timestamp,
+    requested_start: str | pd.Timestamp,
+    *,
+    min_calendar_days: int = 380,
+) -> bool:
+    """True when the price panel begins far enough before the user-facing start."""
+    ps = pd.Timestamp(panel_start)
+    rs = pd.Timestamp(requested_start)
+    return (rs - ps).days >= int(min_calendar_days)
 
 
 def _cache_path(key: str) -> Path:
@@ -111,14 +129,25 @@ def _save_cached_prices(path: Path, prices: pd.DataFrame) -> None:
         pass
 
 
-def fetch_prices(tickers: list[str], start: str, end: str, benchmark: str) -> tuple[pd.DataFrame, dict[str, Any]]:
+def fetch_prices(
+    tickers: list[str],
+    start: str,
+    end: str,
+    benchmark: str,
+    *,
+    prep_buffer_days: int | None = None,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
     import yfinance as yf
 
     requested_start = start
-    download_start = price_download_start(requested_start)
+    buffer_days = int(prep_buffer_days or PRICE_PREP_BUFFER_CALENDAR_DAYS)
+    download_start = price_download_start(requested_start, buffer_days=buffer_days)
     download_tickers = list(dict.fromkeys([*tickers, benchmark]))
-    cpath = _cache_path(_cache_key(tickers, requested_start, end, benchmark))
+    cpath = _cache_path(_cache_key(tickers, download_start, end, benchmark))
     cached = _load_cached_prices(cpath)
+    if cached is not None and not cached.empty:
+        if not prep_history_covers(cached.index[0], requested_start):
+            cached = None
     if cached is not None and not cached.empty:
         prices = cached.copy()
         data_source = "yfinance_cache"
@@ -189,13 +218,22 @@ def fetch_prices(tickers: list[str], start: str, end: str, benchmark: str) -> tu
         "columns": len(prices.columns),
         "requested_start": requested_start,
         "warmup_download_start": download_start,
+        "prep_buffer_calendar_days": buffer_days,
         "start": effective_start,
         "end": str(prices.index[-1].date()),
         "benchmark_included": benchmark in prices.columns,
+        "warmup_panel_covers_report_start": prep_history_covers(
+            effective_start, requested_start
+        ),
         "excluded_late_listing_count": len(excluded_late),
         "excluded_late_listings": excluded_late[:40],
     }
-    if pd.Timestamp(effective_start) > pd.Timestamp(start) + pd.Timedelta(days=60):
+    if not meta["warmup_panel_covers_report_start"]:
+        meta["warning"] = (
+            f"Price panel starts {effective_start} (requested {requested_start}); "
+            "early chart weights may use placeholder allocations until lookback is ready."
+        )
+    elif pd.Timestamp(effective_start) > pd.Timestamp(start) + pd.Timedelta(days=60):
         meta["warning"] = (
             f"Effective price panel starts {effective_start} (requested {start}). "
             "In-sample/holdout splits use this window, not the UI start date alone."

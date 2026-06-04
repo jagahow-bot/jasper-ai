@@ -55,6 +55,59 @@ export function candidateModelKey(c: { model_code?: string | null; rank?: number
   return normalizeModelCode(c, 0);
 }
 
+/** Champion model_code for ★ marking; prefers API is_champion, then rank 1. */
+export function resolveChampionModelKey(
+  candidates: PerformanceCompareCandidate[],
+  narrativeFacts?: Record<string, unknown> | null,
+): string | null {
+  const flagged = candidates.find((c) => c.is_champion === true);
+  if (flagged) return candidateModelKey(flagged);
+
+  const rank1 = candidates.find((c) => c.rank === 1);
+  if (rank1) return candidateModelKey(rank1);
+
+  const pro = narrativeFacts?.pro_refinement as
+    | { convergence_history?: { is_champion?: boolean }[] }
+    | null
+    | undefined;
+  if (pro?.convergence_history?.some((p) => p.is_champion)) {
+    const best = candidates[0];
+    if (best) return candidateModelKey(best);
+  }
+
+  const first = candidates[0];
+  return first ? candidateModelKey(first) : null;
+}
+
+/** Index of the champion trial row (disambiguates duplicate model_code). */
+export function resolveChampionCandidateIndex(
+  candidates: PerformanceCompareCandidate[],
+  narrativeFacts?: Record<string, unknown> | null,
+): number {
+  const flagged = candidates.findIndex((c) => c.is_champion === true);
+  if (flagged >= 0) return flagged;
+
+  const championKey = resolveChampionModelKey(candidates, narrativeFacts);
+  if (championKey) {
+    const byKey = candidates.findIndex(
+      (c) => candidateModelKey(c) === championKey,
+    );
+    if (byKey >= 0) return byKey;
+  }
+
+  return candidates.length > 0 ? 0 : -1;
+}
+
+export function resolveDefaultSelectedRowKey(
+  candidates: PerformanceCompareCandidate[],
+  narrativeFacts?: Record<string, unknown> | null,
+): string {
+  const idx = resolveChampionCandidateIndex(candidates, narrativeFacts);
+  if (idx < 0) return "";
+  const c = candidates[idx];
+  return candidateRowKey(c, idx);
+}
+
 const METRIC_DEDUPE_EPS = 1e-4;
 
 function metricsMatchForChampionResimDedupe(

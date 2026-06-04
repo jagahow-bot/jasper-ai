@@ -5,6 +5,9 @@ import {
   normalizeModelCode,
   performanceCompareTickLabel,
   performanceCompareRowsByChartKey,
+  resolveChampionCandidateIndex,
+  resolveChampionModelKey,
+  resolveDefaultSelectedRowKey,
 } from "./performance-compare-chart";
 
 describe("performance-compare-chart", () => {
@@ -92,6 +95,25 @@ describe("performance-compare-chart", () => {
     });
     expect(rows.find((r) => r.model_code === "M0019")?.isSelected).toBe(true);
     expect(rows.find((r) => r.model_code === "M0001")?.isSelected).toBe(false);
+  });
+
+  it("defaults selection to is_champion trial not candidates[0]", () => {
+    const candidates = [
+      { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: false },
+      { model_code: "M0009", rank: 9, sharpe: 1.2, is_champion: true },
+    ];
+    expect(resolveChampionModelKey(candidates, null)).toBe("M0009");
+    expect(resolveChampionCandidateIndex(candidates, null)).toBe(1);
+    expect(resolveDefaultSelectedRowKey(candidates, null)).toBe("M0009-r9-i1");
+  });
+
+  it("disambiguates champion re-sim duplicate model_code", () => {
+    const candidates = [
+      { model_code: "M0005", rank: 5, sharpe: 1.0, is_champion: false },
+      { model_code: "M0005", rank: 9, sharpe: 1.2, is_champion: true },
+    ];
+    expect(resolveChampionCandidateIndex(candidates, null)).toBe(1);
+    expect(resolveDefaultSelectedRowKey(candidates, null)).toBe("M0005-r9-i1");
   });
 
   it("sorts by model code when trial order is not preserved", () => {

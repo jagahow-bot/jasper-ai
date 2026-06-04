@@ -42,11 +42,18 @@ import {
   tightMaxFromValues,
 } from "@/lib/align-y-axis-zero";
 import {
+  filterFrontierSamplesForDisplay,
+  frontierTooltipLabel,
+} from "@/lib/efficient-frontier-chart";
+import {
   buildPerformanceCompareRows,
   candidateModelKey,
   candidateRowKey,
   performanceCompareRowsByChartKey,
   performanceCompareTickLabel,
+  resolveChampionCandidateIndex,
+  resolveChampionModelKey,
+  resolveDefaultSelectedRowKey,
 } from "@/lib/performance-compare-chart";
 import type {
   BacktestRequest,
@@ -60,31 +67,6 @@ import {
   chartTooltipFontSize,
 } from "@/lib/benchmark-chart-scale";
 import { getUniverseItems } from "@/lib/universe";
-
-function resolveChampionModelKey(
-  candidates: BacktestResult["candidates"],
-  narrativeFacts: BacktestResult["narrative_facts"],
-): string | null {
-  const flagged = candidates.find(
-    (c) => (c as { is_champion?: boolean }).is_champion === true,
-  );
-  if (flagged) return candidateModelKey(flagged);
-
-  const rank1 = candidates.find((c) => c.rank === 1);
-  if (rank1) return candidateModelKey(rank1);
-
-  const pro = narrativeFacts.pro_refinement as
-    | { convergence_history?: { is_champion?: boolean }[] }
-    | null
-    | undefined;
-  if (pro?.convergence_history?.some((p) => p.is_champion)) {
-    const best = candidates[0];
-    if (best) return candidateModelKey(best);
-  }
-
-  const first = candidates[0];
-  return first ? candidateModelKey(first) : null;
-}
 
 const CHAMPION_STROKE = "#ffb000";
 const BENCHMARK_FILL = "#ffb000";
@@ -163,15 +145,53 @@ export function ResultsDashboard({
   const [compareLoading, setCompareLoading] = useState(false);
   const [leaderboardSort, setLeaderboardSort] =
     useState<LeaderboardSort>("in_sample");
-  const selected = useMemo(() => {
-    const first = result.candidates[0];
-    if (!first) return undefined;
-    if (!selectedRowKey) return first;
-    const idx = result.candidates.findIndex(
-      (c, i) => candidateRowKey(c, i) === selectedRowKey,
+
+  const resultSelectionEpoch = useMemo(
+    () =>
+      `${result.job_id}\0${result.candidates
+        .map((c, i) => candidateRowKey(c, i))
+        .join("\0")}`,
+    [result.job_id, result.candidates],
+  );
+
+  useEffect(() => {
+    setSelectedRowKey(
+      resolveDefaultSelectedRowKey(
+        result.candidates,
+        result.narrative_facts,
+      ),
     );
-    return idx >= 0 ? result.candidates[idx] : first;
-  }, [result.candidates, selectedRowKey]);
+  }, [resultSelectionEpoch, result.candidates, result.narrative_facts]);
+
+  const defaultSelectedRowKey = useMemo(
+    () =>
+      resolveDefaultSelectedRowKey(
+        result.candidates,
+        result.narrative_facts,
+      ),
+    [result.candidates, result.narrative_facts],
+  );
+
+  const selected = useMemo(() => {
+    const fallbackIdx = resolveChampionCandidateIndex(
+      result.candidates,
+      result.narrative_facts,
+    );
+    const fallback =
+      fallbackIdx >= 0 ? result.candidates[fallbackIdx] : result.candidates[0];
+    if (!fallback) return undefined;
+    const rowKey = selectedRowKey || defaultSelectedRowKey;
+    if (!rowKey) return fallback;
+    const idx = result.candidates.findIndex(
+      (c, i) => candidateRowKey(c, i) === rowKey,
+    );
+    return idx >= 0 ? result.candidates[idx] : fallback;
+  }, [
+    result.candidates,
+    result.narrative_facts,
+    selectedRowKey,
+    defaultSelectedRowKey,
+  ]);
   const selectedChartKey = useMemo(() => {
     if (!selected) return "";
     const idx = result.candidates.indexOf(selected);
@@ -184,12 +204,12 @@ export function ResultsDashboard({
   );
 
   const championCandidate = useMemo(() => {
-    if (!championModelKey) return result.candidates[0];
-    return (
-      result.candidates.find((c) => candidateModelKey(c) === championModelKey) ??
-      result.candidates[0]
+    const idx = resolveChampionCandidateIndex(
+      result.candidates,
+      result.narrative_facts,
     );
-  }, [championModelKey, result.candidates]);
+    return idx >= 0 ? result.candidates[idx] : result.candidates[0];
+  }, [result.candidates, result.narrative_facts]);
 
   const selectedHasFullCharts = useMemo(() => {
     if (!selected) return false;
@@ -509,6 +529,15 @@ export function ResultsDashboard({
       );
   }, [oosLeaderboardRaw, result.candidates, leaderboardSort]);
 
+  const paramFrontierSamples = useMemo(
+    () =>
+      filterFrontierSamplesForDisplay(
+        result.efficient_frontier,
+        result.candidates.map((c) => c.model_code),
+      ),
+    [result.efficient_frontier, result.candidates],
+  );
+
   if (!selected) return null;
   const top = selected;
   const donut = Object.entries(top.weights ?? {})
@@ -566,10 +595,13 @@ export function ResultsDashboard({
   const candidateFrontier = result.candidates.map((c, i) => ({
     chartKey: candidateRowKey(c, i),
     name: c.model_code ?? `C${c.rank}`,
+    model_code: c.model_code ?? null,
     rank: c.rank,
     volatility: c.volatility ?? 0,
     return: c.cagr ?? 0,
+    sharpe: c.sharpe,
     isSelected: candidateRowKey(c, i) === selectedChartKey ? 1 : 0,
+    series: "output" as const,
   }));
 
   const assetClassFilter = (
@@ -876,7 +908,9 @@ export function ResultsDashboard({
               <tbody>
                 {holdoutLeaderboard.map((row, i) => {
                   const matchIdx = result.candidates.findIndex(
-                    (c) => c.model_code === row.model_code,
+                    (c) =>
+                      c.model_code === row.model_code &&
+                      (row.rank == null || c.rank === row.rank),
                   );
                   const match =
                     matchIdx >= 0 ? result.candidates[matchIdx] : undefined;
@@ -988,10 +1022,20 @@ export function ResultsDashboard({
           <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">AI compare</p>
           {compareLoading ? (
             <p className="text-xs text-dim">Generating compare narrative…</p>
+          ) : compareSummary ? (
+            <div className="space-y-2 text-xs leading-relaxed">
+              {compareSummary
+                .split(/\n\s*\n+/)
+                .map((para) => para.trim())
+                .filter(Boolean)
+                .map((para, i) => (
+                  <p key={i} className="text-[#cbd5e1]">
+                    {para}
+                  </p>
+                ))}
+            </div>
           ) : (
-            <p className="whitespace-pre-wrap text-xs leading-relaxed">
-              {compareSummary || "No compare narrative yet"}
-            </p>
+            <p className="text-xs text-dim">No compare narrative yet</p>
           )}
         </div>
         <ResponsiveContainer width="100%" height={300}>
@@ -1231,6 +1275,10 @@ export function ResultsDashboard({
       </ChartCard>
 
       <ChartCard title="Efficient frontier (samples)">
+        <p className="mb-2 text-xs text-dim">
+          Blue: search trials (subsampled). Orange: ranked output models (Top-N).
+          The same model_code is not plotted twice.
+        </p>
         <ResponsiveContainer width="100%" height={260}>
           <ScatterChart>
             <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
@@ -1270,27 +1318,39 @@ export function ResultsDashboard({
             <Tooltip
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null;
-                const p = payload[0]?.payload as {
+                const entry = payload.find((e) => e?.payload) ?? payload[0];
+                const p = entry?.payload as {
                   name?: string;
                   model_code?: string | null;
                   volatility?: number;
                   return?: number;
                   sharpe?: number;
+                  rank?: number;
+                  series?: string;
                 };
-                const label =
-                  (typeof p?.model_code === "string" && p.model_code.trim()) ||
-                  (typeof p?.name === "string" && p.name.trim()) ||
-                  "sample";
+                const seriesLabel =
+                  p?.series === "output" || entry?.name === "Output models"
+                    ? "Output model"
+                    : "Search trial";
+                const label = frontierTooltipLabel(p);
                 return (
                   <div
                     className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2"
                     style={{ fontSize: chartTip }}
                   >
+                    <div className="mb-1 text-[10px] uppercase tracking-wide text-dim">
+                      {seriesLabel}
+                    </div>
                     <div
                       className="mb-1 font-pixel text-[var(--amber)]"
                       style={{ fontSize: Math.max(11, chartTip - 1) }}
                     >
                       {label}
+                      {p?.rank != null ? (
+                        <span className="ml-1 font-sans text-dim">
+                          (#{p.rank})
+                        </span>
+                      ) : null}
                     </div>
                     <div>Vol: {((p?.volatility ?? 0) * 100).toFixed(2)}%</div>
                     <div>Return: {((p?.return ?? 0) * 100).toFixed(2)}%</div>
@@ -1302,7 +1362,7 @@ export function ResultsDashboard({
             <Legend />
             <Scatter
               name="Param samples"
-              data={result.efficient_frontier}
+              data={paramFrontierSamples}
               fill="#60a5fa"
             />
             <ZAxis dataKey="isSelected" range={[80, 220]} />

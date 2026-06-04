@@ -224,6 +224,30 @@ def _append_convergence_from_record(
     )
 
 
+def _resync_round_convergence_from_records(
+    convergence_history: list[dict[str, Any]],
+    *,
+    round_idx: int,
+    round_records: list[tuple[float, dict, dict]],
+    round_trial_base: int,
+    objective_effective: str,
+) -> None:
+    """Replace live Optuna preview points with per-trial metrics from round_records."""
+    convergence_history[:] = [
+        p for p in convergence_history if p.get("round") != round_idx
+    ]
+    for trial_i, (score, _params, metrics) in enumerate(round_records):
+        _append_convergence_from_record(
+            convergence_history,
+            global_trial=round_trial_base + trial_i,
+            round_idx=round_idx,
+            score=score,
+            metrics=metrics,
+            objective_effective=objective_effective,
+            is_champion=False,
+        )
+
+
 def _relabel_round_champion_flags(
     convergence_history: list[dict[str, Any]],
     *,
@@ -617,6 +641,14 @@ def _run_iterative_search(
             tagged_params["pro_round_index"] = round_idx + 1
             tagged_round_records.append((score, tagged_params, metrics))
         round_records = tagged_round_records
+
+        _resync_round_convergence_from_records(
+            convergence_history,
+            round_idx=round_idx + 1,
+            round_records=round_records,
+            round_trial_base=round_trial_base,
+            objective_effective=objective_effective,
+        )
 
         assign_pro_round_model_codes(
             round_records,
@@ -1484,7 +1516,7 @@ def _oos_leaderboard(
         is_snap = sm.get("in_sample") or {}
         oos_snap = sm.get("out_of_sample") or {}
         full_snap = sm.get("full_sample") or {}
-        if not oos_snap:
+        if not is_snap and not oos_snap:
             continue
         rows.append(
             {
@@ -1512,11 +1544,22 @@ def _oos_leaderboard(
 def _build_frontier_from_records(
     records: list[tuple[float, dict, dict]],
     trials_completed: int,
+    *,
+    exclude_model_codes: set[str] | frozenset[str] | None = None,
 ) -> list[dict[str, Any]]:
+    """Subsample search trials for the efficient-frontier scatter chart.
+
+    Output candidates are built from the same search records; exclude their
+    model_codes so the chart does not plot the same model twice (blue sample +
+    orange output).
+    """
     frontier: list[dict[str, Any]] = []
     step = max(1, trials_completed // 25)
-    for score, params, metrics in records[::step][:25]:
+    exclude = exclude_model_codes or frozenset()
+    for score, params, metrics in records[::step]:
         code = params.get("model_code")
+        if code and str(code) in exclude:
+            continue
         frontier.append(
             {
                 "name": str(code) if code else "sample",
@@ -1528,6 +1571,8 @@ def _build_frontier_from_records(
                 "params": params,
             }
         )
+        if len(frontier) >= 25:
+            break
     return frontier
 
 
@@ -2192,7 +2237,16 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             pro_round_assembly_progress(
                 "plotting efficient frontier from trial scores (no extra backtests)…"
             )
-            pr_frontier = _build_frontier_from_records(display_records, pr_trials)
+            pr_exclude_codes = {
+                str(c.model_code)
+                for c in pr_candidates
+                if c.model_code
+            }
+            pr_frontier = _build_frontier_from_records(
+                display_records,
+                pr_trials,
+                exclude_model_codes=pr_exclude_codes,
+            )
             pr_best = _best_candidate(pr_candidates)
             pr_equity = (pr_best.equity_curve if pr_best else None) or []
             pro_round_assembly_progress("finalizing round snapshot…")
@@ -2316,7 +2370,14 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     )
     equity_curve = equity_curve_series(full_m["equity"])
 
-    frontier = _build_frontier_from_records(records, trials_completed)
+    output_model_codes = {
+        str(c.model_code) for c in candidates if c.model_code
+    }
+    frontier = _build_frontier_from_records(
+        records,
+        trials_completed,
+        exclude_model_codes=output_model_codes,
+    )
 
     best = _best_candidate(candidates) or candidates[0]
     portfolio_catalog = all_record_catalog

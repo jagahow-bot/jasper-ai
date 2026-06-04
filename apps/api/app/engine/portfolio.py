@@ -470,7 +470,15 @@ def _rebalance_schedule_dynamic(
     class_budget: dict[str, float] | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
-) -> tuple[pd.DataFrame, np.ndarray, np.ndarray, list[pd.Timestamp], int, dict[str, Any]]:
+) -> tuple[
+    pd.DataFrame,
+    np.ndarray,
+    np.ndarray,
+    list[pd.Timestamp],
+    int,
+    list[pd.Timestamp],
+    dict[str, Any],
+]:
     rets = _safe_returns(prices)
     n = len(prices.columns)
     cap_audit_rows: list[dict[str, Any]] = []
@@ -494,6 +502,7 @@ def _rebalance_schedule_dynamic(
     col_index = {t: i for i, t in enumerate(prices.columns)}
     w_prev = w.copy()
     applied_rebalances = 0
+    applied_rebalance_dates: list[pd.Timestamp] = []
     factor_abs_sum = {
         "momentum": 0.0,
         "reversal": 0.0,
@@ -603,6 +612,7 @@ def _rebalance_schedule_dynamic(
         w_prev = w.copy()
         if updated:
             applied_rebalances += 1
+            applied_rebalance_dates.append(dt)
 
     schedule = schedule.ffill()
     last_w = schedule.iloc[-1].to_numpy(dtype=float)
@@ -636,7 +646,15 @@ def _rebalance_schedule_dynamic(
             "rebalance_snapshots": cap_audit_rows[-24:],
         },
     }
-    return schedule, last_w, avg_w, rebalance_dates, applied_rebalances, summary
+    return (
+        schedule,
+        last_w,
+        avg_w,
+        rebalance_dates,
+        applied_rebalances,
+        applied_rebalance_dates,
+        summary,
+    )
 
 
 def metrics_for_horizon_window(
@@ -764,7 +782,15 @@ def _simulate_pandas(
     if dynamic:
         alloc = allocator or AllocatorParams(mode="min_var")
         f_params = factor_params or FactorParams(lookback_days=alloc.lookback_days)
-        schedule, last_w, avg_w, rebalance_dates, applied_rebalances, factor_summary = _rebalance_schedule_dynamic(
+        (
+            schedule,
+            last_w,
+            avg_w,
+            rebalance_dates,
+            applied_rebalances,
+            applied_rebalance_dates,
+            factor_summary,
+        ) = _rebalance_schedule_dynamic(
             prices,
             rule=spec.rebalance_rule,
             max_weight=max_weight,
@@ -784,6 +810,7 @@ def _simulate_pandas(
         last_w = schedule.iloc[-1].to_numpy(dtype=float)
         avg_w = schedule.mean(axis=0).to_numpy(dtype=float)
         rebalance_dates = _trading_day_rebalance_dates(prices.index, spec.rebalance_rule)
+        applied_rebalance_dates = list(rebalance_dates)
         applied_rebalances = len(rebalance_dates)
         factor_summary = {}
 
@@ -823,10 +850,8 @@ def _simulate_pandas(
         if report_start
         else prices.index[0]
     )
-    # First snapshot = first rebalance on/after report start (skip equal-weight warmup row).
-    hist_dates = [d for d in rebalance_dates if d >= hist_anchor]
-    if not hist_dates:
-        hist_dates = [hist_anchor]
+    # UI snapshots: only applied rebalances on/after report start (skip lookback placeholders).
+    hist_dates = [d for d in applied_rebalance_dates if d >= hist_anchor]
     hist_unique = sorted(list(dict.fromkeys(hist_dates)))
     if len(hist_unique) > 36:
         hist_unique = _downsample_keep_endpoints(hist_unique, 36)

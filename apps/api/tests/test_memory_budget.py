@@ -73,3 +73,37 @@ def test_trim_weight_history_for_response_caps_tickers():
     )
     assert keep_explicit == ["A", "B", "C"]
     assert len(explicit) == len(wh)
+
+
+def test_trim_weight_history_with_sim_tickers_preserves_other_cap():
+    """API trim path (backtest) must not inflate Other above 10%."""
+    import numpy as np
+    import pandas as pd
+
+    from app.engine.allocator import AllocatorParams
+    from app.engine.memory_budget import trim_weight_history_for_response
+    from app.engine.portfolio import WEIGHT_CHART_OTHER_MAX, simulate_dynamic_portfolio
+    from app.engine.spec import BacktestSpec
+
+    dates = pd.bdate_range("2020-01-01", periods=280)
+    rng = np.random.default_rng(7)
+    cols = [f"E{i}" for i in range(12)]
+    prices = pd.DataFrame(
+        {c: 100 * np.cumprod(1 + rng.normal(0.0003, 0.012, len(dates))) for c in cols},
+        index=dates,
+    )
+    m = simulate_dynamic_portfolio(
+        prices,
+        spec=BacktestSpec(rebalance_rule="ME", fee_bps=0.0),
+        max_weight=0.35,
+        min_weight=0.0,
+        allocator=AllocatorParams(mode="mean_variance", lookback_days=126),
+        top_n=8,
+    )
+    wh_raw = m.get("weight_history") or []
+    wht_raw = m.get("weight_history_tickers") or []
+    trimmed, keep = trim_weight_history_for_response(wh_raw, tickers=wht_raw)
+    assert keep == wht_raw
+    for row in trimmed:
+        other = float(row.get("OTHER", 0.0))
+        assert other <= WEIGHT_CHART_OTHER_MAX + 1e-6

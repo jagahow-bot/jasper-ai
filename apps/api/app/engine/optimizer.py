@@ -122,6 +122,7 @@ def run_optuna_search(
     prices_sim_panel: pd.DataFrame | None = None,
 ) -> list[tuple[float, dict, dict]]:
     records: list[tuple[float, dict, dict]] = []
+    trial_records: dict[int, tuple[float, dict, dict]] = {}
     best_value: float | None = None
     n_assets = int(prices_train.shape[1])
     top_n_cap = int(max(1, min(int(top_n), n_assets)))
@@ -730,7 +731,9 @@ def run_optuna_search(
                 full_m=full_sim,
             )
 
-        records.append((adjusted, params, slim_search_metrics(metrics)))
+        rec = (adjusted, params, slim_search_metrics(metrics))
+        records.append(rec)
+        trial_records[trial.number] = rec
         return adjusted
 
     study = optuna.create_study(direction="maximize")
@@ -763,7 +766,7 @@ def run_optuna_search(
             ]
             best_value = max(vals) if vals else None
         if progress_cb:
-            latest = records[-1] if records else None
+            latest = trial_records.get(trial.number)
             try:
                 progress_cb(trial.number + 1, optuna_trials, best_value, latest)
             except TypeError:
