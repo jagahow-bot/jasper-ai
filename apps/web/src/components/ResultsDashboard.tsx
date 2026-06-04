@@ -177,7 +177,7 @@ export function ResultsDashboard({
   const championCandidate = useMemo(() => {
     if (!championModelKey) return result.candidates[0];
     return (
-      result.candidates.find((c, i) => candidateModelKey(c, i) === championModelKey) ??
+      result.candidates.find((c) => candidateModelKey(c) === championModelKey) ??
       result.candidates[0]
     );
   }, [championModelKey, result.candidates]);
