@@ -14,7 +14,7 @@ from app.engine.objective_switch_lab import (
     resolve_raw_regime_for_detector,
     walk_forward_timeline_for_detector,
 )
-from app.engine.factors import FactorParams
+from app.engine.factors import FactorParams, factor_params_from_dict
 from app.engine.ai_json import round_ai_float
 from app.engine.objectives import DYNAMIC_COMPREHENSIVE_SCORING
 from app.engine.regime_detection_cache import (
@@ -228,6 +228,57 @@ def build_regime_factor_params_resolver(
         return factor_by_regime.get(regime) or fallback
 
     return resolver
+
+
+def factor_by_regime_from_trial_params(
+    params: dict[str, Any],
+    *,
+    default_lookback: int = 252,
+) -> dict[str, FactorParams] | None:
+    """Rebuild per-regime factor params from Optuna trial dict (``risk_off__w_mom``, …)."""
+    if not params.get("regime_factor_matrix"):
+        return None
+    from app.engine.param_taxonomy import (
+        FACTOR_CATEGORICAL_KEYS,
+        is_factor_numeric_key,
+        parse_regime_factor_param_key,
+    )
+
+    slices: dict[str, dict[str, Any]] = {r: {} for r in REGIME_KEYS}
+    for key, val in params.items():
+        parsed = parse_regime_factor_param_key(key)
+        if not parsed:
+            continue
+        regime, factor_key = parsed
+        if is_factor_numeric_key(factor_key):
+            slices[regime][factor_key] = val
+    for cat in FACTOR_CATEGORICAL_KEYS:
+        if cat in params:
+            for regime in REGIME_KEYS:
+                slices[regime][cat] = params[cat]
+    out: dict[str, FactorParams] = {}
+    for regime in REGIME_KEYS:
+        if not any(is_factor_numeric_key(k) for k in slices[regime]):
+            continue
+        out[regime] = factor_params_from_dict(
+            slices[regime], default_lookback=default_lookback
+        )
+    return out or None
+
+
+def factor_params_resolver_from_trial_params(
+    params: dict[str, Any],
+    active_regime_resolver: Callable[[pd.Timestamp], RegimeSignal] | None,
+    *,
+    default_lookback: int = 252,
+) -> Callable[[pd.Timestamp], FactorParams] | None:
+    """Match Optuna trial scoring when report assembly re-runs simulates."""
+    factor_by_regime = factor_by_regime_from_trial_params(
+        params, default_lookback=default_lookback
+    )
+    if not factor_by_regime or active_regime_resolver is None:
+        return None
+    return build_regime_factor_params_resolver(active_regime_resolver, factor_by_regime)
 
 
 def build_dynamic_objective_context(

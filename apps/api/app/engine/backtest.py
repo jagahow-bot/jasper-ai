@@ -56,6 +56,8 @@ from app.engine.refinement import (
     compute_round_benchmark_fields,
     merge_round_seed_budget_fields,
     build_round_competition_pool,
+    order_records_champion_first,
+    record_objective_sort_value,
     model_signature as refinement_model_signature,
     pool_records_in_trial_order,
     params_for_champion_seed,
@@ -74,6 +76,7 @@ from app.engine.dynamic_objective import (
     apply_allocator_resolver,
     build_dynamic_backtest_chart_payload,
     build_dynamic_objective_context,
+    factor_params_resolver_from_trial_params,
     has_regime_matrix,
     is_dynamic_objective,
     refresh_dynamic_allocator_resolver,
@@ -1237,6 +1240,16 @@ def _assemble_candidates_from_records(
             prices,
             resolver,
         )
+        active_regime_resolver = (
+            dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
+        )
+        factor_resolver = factor_params_resolver_from_trial_params(
+            params,
+            active_regime_resolver,
+            default_lookback=alloc.lookback_days,
+        )
+        if factor_resolver is not None:
+            sim_kw["factor_params_resolver"] = factor_resolver
 
         bundle = (
             trial_report_cache.copy_bundle(params) if trial_report_cache else None
@@ -1848,8 +1861,24 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             f"Packaging report: {message}",
         )
 
+    champion_for_sort = None
+    if pro_mode:
+        final_champion_params = refinement_meta.get("final_champion_params")
+        if isinstance(final_champion_params, dict):
+            champion_for_sort = _find_record_by_params(records, final_champion_params)
+    records_for_report = (
+        order_records_champion_first(list(records), champion_for_sort)
+        if champion_for_sort is not None
+        else sorted(
+            records,
+            key=lambda r: record_objective_sort_value(
+                objective_effective, r[0], r[2]
+            ),
+            reverse=True,
+        )
+    )
     candidates = _assemble_candidates_from_records(
-        records,
+        records_for_report,
         req=req,
         top_n_models=top_n_models,
         tickers=tickers,
@@ -2133,6 +2162,14 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         prices,
         dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None,
     )
+    if dynamic_ctx:
+        champ_factor_resolver = factor_params_resolver_from_trial_params(
+            best_params,
+            dynamic_ctx.get("active_regime_resolver"),
+            default_lookback=best_alloc.lookback_days,
+        )
+        if champ_factor_resolver is not None:
+            champion_sim_kw["factor_params_resolver"] = champ_factor_resolver
     full_m = simulate_dynamic_portfolio(
         prices_sim_panel,
         report_start=str(prices.index[0].date()),

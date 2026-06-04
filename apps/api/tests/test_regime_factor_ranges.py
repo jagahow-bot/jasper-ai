@@ -6,7 +6,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from app.engine.dynamic_objective import REGIME_KEYS
+from app.engine.dynamic_objective import (
+    REGIME_KEYS,
+    factor_by_regime_from_trial_params,
+)
 from app.engine.param_taxonomy import (
     build_pro_round_param_controls,
     has_regime_factor_ranges,
@@ -146,3 +149,20 @@ def test_optuna_samples_distinct_regime_factor_keys(price_panel) -> None:
     assert float(params[ro]) <= 0.3
     assert float(params[rn]) >= 1.2
     assert params.get("regime_factor_matrix") is True
+
+
+def test_factor_by_regime_from_trial_params_rebuilds_slices():
+    ro = regime_factor_param_key("risk_off", "w_mom")
+    rn = regime_factor_param_key("risk_on", "w_mom")
+    params = {
+        "regime_factor_matrix": True,
+        ro: 0.2,
+        rn: 1.5,
+        "w_mom": 0.9,
+        "mom_indicator": "risk_adjusted_return",
+    }
+    by_regime = factor_by_regime_from_trial_params(params, default_lookback=252)
+    assert by_regime is not None
+    assert float(by_regime["risk_off"].w_mom) == pytest.approx(0.2)
+    assert float(by_regime["risk_on"].w_mom) == pytest.approx(1.5)
+    assert by_regime["risk_off"].mom_indicator == "risk_adjusted_return"
