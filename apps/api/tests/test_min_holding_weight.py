@@ -68,4 +68,4 @@ def test_weight_history_uses_bounded_other_selection():
     ).read_text(encoding="utf-8")
     assert "hist_floor = float(min_weight)" not in text
     assert "select_weight_chart_tickers" in text
-    assert "WEIGHT_CHART_MAX_OTHER" in text
+    assert "WEIGHT_CHART_OTHER_MAX" in text

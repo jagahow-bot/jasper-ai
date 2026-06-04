@@ -36,17 +36,20 @@ MAX_DAILY_RETURN = 0.25
 MIN_ANNUAL_VOL = 0.03
 MAX_REPORTED_SHARPE = 6.0
 
-# Stacked weight chart: show every material sleeve; Other only for rounding dust.
-WEIGHT_CHART_MAX_OTHER = 0.01
+# Stacked weight chart: cap Other at every rebalance snapshot (dynamic sleeve pick).
+WEIGHT_CHART_OTHER_MAX = 0.10
 WEIGHT_CHART_MIN_PCT = 0.001
 WEIGHT_CHART_DEFAULT_TOP_N = 15
+# Soft legend budget for UI perf; selection is not truncated below Other cap.
+WEIGHT_CHART_TICKER_CAP = 40
 
 
 def _max_other_weight_for_tickers(
     schedule: pd.DataFrame,
     hist_dates: list[pd.Timestamp],
-    tickers: list[str],
+    tickers: list[str] | set[str],
 ) -> float:
+    keep = list(tickers)
     worst = 0.0
     for dt in hist_dates:
         if dt not in schedule.index:
@@ -55,9 +58,19 @@ def _max_other_weight_for_tickers(
         total = float(w_row.sum())
         if total < 1e-6:
             continue
-        keep_sum = sum(float(w_row.get(t, 0.0)) for t in tickers)
+        keep_sum = sum(float(w_row.get(t, 0.0)) for t in keep)
         worst = max(worst, max(0.0, total - keep_sum))
     return worst
+
+
+def _sorted_weights_on_date(w_row: pd.Series) -> list[tuple[str, float]]:
+    pairs = [
+        (str(t), float(w))
+        for t, w in w_row.items()
+        if float(w) > WEIGHT_EPS and float(w) >= WEIGHT_CHART_MIN_PCT
+    ]
+    pairs.sort(key=lambda x: x[1], reverse=True)
+    return pairs
 
 
 def select_weight_chart_tickers(
@@ -66,17 +79,50 @@ def select_weight_chart_tickers(
     *,
     top_n: int = WEIGHT_CHART_DEFAULT_TOP_N,
 ) -> list[str]:
-    """Union of every sleeve with weight >= min display threshold on any rebalance snapshot."""
-    del top_n  # retained for API compatibility; no sleeve-count cap
+    """Pick tickers so Other = 1 - sum(shown) stays below WEIGHT_CHART_OTHER_MAX on every date.
+
+    Seed with per-date top holdings (cumulative weight until 1 - OTHER_MAX), then greedily add
+    the candidate that most reduces the worst-date Other until the cap is met.
+    """
+    del top_n  # retained for API compatibility; no hard sleeve-count cap
+
+    candidates: set[str] = set()
     keep_set: set[str] = set()
+    target_shown = 1.0 - WEIGHT_CHART_OTHER_MAX
+
     for dt in hist_dates:
         if dt not in schedule.index:
             continue
         w_row = schedule.loc[dt]
-        for t, w in w_row.items():
-            fw = float(w)
-            if fw > WEIGHT_EPS and fw >= WEIGHT_CHART_MIN_PCT:
-                keep_set.add(str(t))
+        cum = 0.0
+        for t, fw in _sorted_weights_on_date(w_row):
+            candidates.add(t)
+            keep_set.add(t)
+            cum += fw
+            if cum >= target_shown - WEIGHT_EPS:
+                break
+
+    if not keep_set:
+        return []
+
+    other_limit = WEIGHT_CHART_OTHER_MAX + 1e-9
+    while _max_other_weight_for_tickers(schedule, hist_dates, keep_set) > other_limit:
+        remaining = candidates - keep_set
+        if not remaining:
+            break
+        best_t: str | None = None
+        best_other = float("inf")
+        for t in remaining:
+            trial = keep_set | {t}
+            trial_other = _max_other_weight_for_tickers(schedule, hist_dates, trial)
+            if trial_other < best_other:
+                best_other = trial_other
+                best_t = t
+        if best_t is None or best_other >= _max_other_weight_for_tickers(
+            schedule, hist_dates, keep_set
+        ):
+            break
+        keep_set.add(best_t)
 
     max_s = schedule.max(axis=0).sort_values(ascending=False)
     return [
@@ -770,7 +816,7 @@ def _simulate_pandas(
     metrics["rebalance_freq"] = _normalize_rebalance_rule(spec.rebalance_rule)
     metrics["rebalance_dates"] = [d.strftime("%Y-%m-%d") for d in rebalance_dates]
     metrics["factor_summary"] = factor_summary
-    # Historical weights for UI: rebalance snapshots; all material sleeves (minimal Other).
+    # Historical weights for UI: rebalance snapshots; dynamic sleeves (Other capped at 10%).
     sch = schedule.fillna(0.0)
     hist_anchor = (
         first_trading_day_on_or_after(prices.index, report_start)

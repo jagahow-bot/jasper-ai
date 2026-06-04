@@ -408,6 +408,9 @@ export function LinkedEquityWeightChart({
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
             Holding weights (stacked)
             <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
+              · Other capped at 10% (dynamic sleeves)
+            </span>
+            <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
               · Hover chart for holdings
             </span>
           </p>
