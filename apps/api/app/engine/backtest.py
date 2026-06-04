@@ -2403,7 +2403,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     if dynamic_ctx:
         snap = dynamic_ctx.get("current_regime") or {}
         timeline_rows, benchmark_series = build_dynamic_backtest_chart_payload(
-            prices_with_benchmark,
+            prices_full,
             spec.benchmark_ticker,
             dynamic_ctx.get("regime_timeline") or [],
         )
