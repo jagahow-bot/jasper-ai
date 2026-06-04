@@ -152,6 +152,12 @@ _MAX_JSON_NUMERIC_LITERAL_LEN = 24
 _JSON_NUMBER_TAIL_RE = re.compile(r"(\.\d{5,})")
 
 
+def prepare_gemini_json_text(text: str) -> str:
+    """Normalize raw Gemini JSON before parse (numeric literals + range arrays)."""
+    cleaned = truncate_json_numeric_literals(text.strip())
+    return truncate_json_range_arrays(cleaned)
+
+
 def truncate_json_numeric_literals(text: str, *, max_literal_len: int | None = None) -> str:
     """Truncate overlong JSON numeric literals before parse (prevents MAX_TOKENS salvage failures)."""
     cap = max_literal_len or _MAX_JSON_NUMERIC_LITERAL_LEN
@@ -212,7 +218,7 @@ def truncate_json_numeric_literals(text: str, *, max_literal_len: int | None = N
 
 def sanitize_json_text_for_log(text: str, *, max_len: int = 240) -> str:
     """Compact Gemini raw JSON for retry/error logs (truncate float bloat first)."""
-    cleaned = truncate_json_numeric_literals(text.strip())
+    cleaned = prepare_gemini_json_text(text)
     cleaned = _JSON_NUMBER_TAIL_RE.sub(
         lambda m: m.group(1)[:5].rstrip("0") or ".0",
         cleaned,
@@ -256,6 +262,106 @@ def factor_range_item_schema(key: str) -> dict[str, str]:
     if _is_int_key(key):
         return {"type": "INTEGER"}
     return {"type": "NUMBER", "description": AI_NUMBER_DESCRIPTION}
+
+
+def factor_range_array_schema(key: str) -> dict[str, Any]:
+    """Gemini schema for [low, high] factor bounds — exactly two endpoints."""
+    return {
+        "type": "ARRAY",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": factor_range_item_schema(key),
+    }
+
+
+_RANGE_ARRAY_KEY_RE = re.compile(
+    r'"(?:w_[a-z_]+|factor_lookback_days|reversal_lookback_days|value_lookback_days)"\s*:\s*\[',
+    re.IGNORECASE,
+)
+
+
+def _split_top_level_array_elems(inner: str) -> list[str]:
+    elems: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    for ch in inner:
+        if ch in "[{":
+            depth += 1
+        elif ch in "]}":
+            depth = max(0, depth - 1)
+        if ch == "," and depth == 0:
+            part = "".join(buf).strip()
+            if part:
+                elems.append(part)
+            buf = []
+            continue
+        buf.append(ch)
+    tail = "".join(buf).strip()
+    if tail:
+        elems.append(tail)
+    return elems
+
+
+def truncate_json_range_arrays(text: str, *, max_elems: int = 2) -> str:
+    """Collapse overlong [lo, hi, ...] arrays before json.loads (MAX_TOKENS salvage)."""
+    if max_elems < 1:
+        return text
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        m = _RANGE_ARRAY_KEY_RE.search(text, i)
+        if not m:
+            out.append(text[i:])
+            break
+        out.append(text[i : m.end()])
+        inner_start = m.end()
+        depth = 1
+        k = inner_start
+        while k < n:
+            ch = text[k]
+            if ch == "[":
+                depth += 1
+            elif ch == "]":
+                depth -= 1
+                if depth == 0:
+                    inner = text[inner_start:k]
+                    elems = _split_top_level_array_elems(inner)
+                    if len(elems) > max_elems:
+                        inner = ", ".join(elems[:max_elems])
+                    out.append(inner)
+                    out.append("]")
+                    i = k + 1
+                    break
+            k += 1
+        else:
+            out.append(text[inner_start:])
+            break
+    return "".join(out)
+
+
+def coerce_factor_range_pair(
+    value: Any,
+    *,
+    key: str | None = None,
+) -> list[int | float] | None:
+    """Normalize a factor bound to exactly [low, high]; None if unusable."""
+    if not isinstance(value, (list, tuple)):
+        return None
+    cleaned: list[int | float] = []
+    for item in value:
+        if isinstance(item, bool):
+            continue
+        if isinstance(item, (int, float)):
+            cleaned.append(round_ai_float(float(item), key=key))
+        if len(cleaned) >= 2:
+            break
+    if len(cleaned) < 2:
+        return None
+    lo, hi = cleaned[0], cleaned[1]
+    if hi < lo:
+        lo, hi = hi, lo
+    return [lo, hi]
 
 
 def ai_number_schema(*, integer: bool = False) -> dict[str, str]:

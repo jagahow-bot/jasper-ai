@@ -8,10 +8,12 @@ from app.engine.ai_params import (
     _build_learning_context_block_for_mode,
     _extract_json,
     _param_response_schema,
+    _regime_factor_ranges_well_formed,
     _resolve_learning_context_mode,
     _resolve_round_seed_thinking_level,
     _resolve_thinking_level,
     _round_seed_max_output_tokens,
+    _round_seed_response_schema,
     _thinking_config_for_model,
     _round_param_numbers,
     _salvage_truncated_json,
@@ -418,13 +420,94 @@ def test_generate_ai_round_seed_max_tokens_returns_disabled(monkeypatch):
     assert out["error"] == "gemini_max_tokens"
 
 
-def test_generate_ai_round_seed_dynamic_includes_regime_setups_schema(monkeypatch):
+def test_round_seed_schema_factor_arrays_are_length_two():
+    schema = _round_seed_response_schema(include_regime_matrix=True)
+    w_mom = schema["properties"]["regime_factor_ranges"]["properties"]["risk_off"][
+        "properties"
+    ]["w_mom"]
+    assert w_mom["maxItems"] == 2
+    assert w_mom["minItems"] == 2
+
+
+def test_regime_factor_ranges_well_formed_rejects_long_arrays():
+    assert not _regime_factor_ranges_well_formed(
+        {
+            "risk_off": {"w_mom": [0.0, 1.0, 2.0]},
+            "neutral": {"w_mom": [0.0, 1.0]},
+            "risk_on": {"w_mom": [0.0, 1.0]},
+        }
+    )
+
+
+def test_generate_ai_round_seed_dynamic_split_regime_factors(monkeypatch):
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3-flash-preview")
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_thinking_level", "off")
-    captured: dict = {}
+    posts: list[dict] = []
+
+    core_payload = {
+        "rationale": "dynamic seed",
+        "optimization_strategy": "explore",
+        "performance_assessment": "round 1",
+        "round_setup": {
+            "mode": "mean_variance",
+            "lookback_days": 252,
+            "shrinkage": 0.1,
+            "risk_aversion": 2.0,
+            "top_n_actual": 10,
+            "max_weight_actual": 0.15,
+            "max_turnover_actual": 0.3,
+            "no_trade_tol": 0.01,
+            "turnover_penalty_mult": 1.0,
+        },
+        "regime_setups": {
+            "risk_off": {
+                "mode": "min_var",
+                "lookback_days": 252,
+                "shrinkage": 0.2,
+                "risk_aversion": 1.0,
+            },
+            "neutral": {
+                "mode": "mean_variance",
+                "lookback_days": 126,
+                "shrinkage": 0.1,
+                "risk_aversion": 3.0,
+            },
+            "risk_on": {
+                "mode": "mean_variance",
+                "lookback_days": 63,
+                "shrinkage": 0.05,
+                "risk_aversion": 1.5,
+            },
+        },
+        "factor_choices": {},
+    }
+    factor_slice = {
+        key: [0.0, 1.0]
+        for key in (
+            "factor_lookback_days",
+            "reversal_lookback_days",
+            "value_lookback_days",
+            "w_mom",
+            "w_reversal",
+            "w_value",
+            "w_lowvol",
+            "w_trend",
+            "w_drawdown",
+        )
+    }
+    factors_payload = {
+        "regime_factor_ranges": {
+            "risk_off": dict(factor_slice),
+            "neutral": dict(factor_slice),
+            "risk_on": dict(factor_slice),
+        }
+    }
 
     class _FakeResp:
+        def __init__(self, payload: dict) -> None:
+            self._payload = payload
+
         def raise_for_status(self) -> None:
             return None
 
@@ -434,58 +517,18 @@ def test_generate_ai_round_seed_dynamic_includes_regime_setups_schema(monkeypatc
                     {
                         "finishReason": "STOP",
                         "content": {
-                            "parts": [
-                                {
-                                    "text": json.dumps(
-                                        {
-                                            "rationale": "dynamic seed",
-                                            "optimization_strategy": "explore",
-                                            "performance_assessment": "round 1",
-                                            "round_setup": {
-                                                "mode": "mean_variance",
-                                                "lookback_days": 252,
-                                                "shrinkage": 0.1,
-                                                "risk_aversion": 2.0,
-                                                "top_n_actual": 10,
-                                                "max_weight_actual": 0.15,
-                                                "max_turnover_actual": 0.3,
-                                                "no_trade_tol": 0.01,
-                                                "turnover_penalty_mult": 1.0,
-                                            },
-                                            "regime_setups": {
-                                                "risk_off": {
-                                                    "mode": "min_var",
-                                                    "lookback_days": 252,
-                                                    "shrinkage": 0.2,
-                                                    "risk_aversion": 1.0,
-                                                },
-                                                "neutral": {
-                                                    "mode": "mean_variance",
-                                                    "lookback_days": 126,
-                                                    "shrinkage": 0.1,
-                                                    "risk_aversion": 3.0,
-                                                },
-                                                "risk_on": {
-                                                    "mode": "mean_variance",
-                                                    "lookback_days": 63,
-                                                    "shrinkage": 0.05,
-                                                    "risk_aversion": 1.5,
-                                                },
-                                            },
-                                            "factor_ranges": {"w_mom": [0.1, 1.2]},
-                                            "factor_choices": {},
-                                        }
-                                    )
-                                }
-                            ]
+                            "parts": [{"text": json.dumps(self._payload)}]
                         },
                     }
                 ]
             }
 
     def _fake_post(_url: str, *, json: dict | None = None, **_: object) -> _FakeResp:
-        captured["json"] = json
-        return _FakeResp()
+        posts.append(json or {})
+        schema = (json or {})["generationConfig"]["responseSchema"]
+        if "regime_factor_ranges" in schema.get("required", []):
+            return _FakeResp(factors_payload)
+        return _FakeResp(core_payload)
 
     monkeypatch.setattr("app.engine.ai_params.httpx.post", _fake_post)
     out = generate_ai_round_seed(
@@ -497,27 +540,12 @@ def test_generate_ai_round_seed_dynamic_includes_regime_setups_schema(monkeypatc
         tradable_count=50,
     )
     assert out["enabled"] is True
-    schema = captured["json"]["generationConfig"]["responseSchema"]
-    assert "regime_setups" in schema["properties"]
-    assert "regime_setups" in schema["required"]
-    assert "regime_factor_ranges" in schema["properties"]
-    risk_off_props = schema["properties"]["regime_factor_ranges"]["properties"][
-        "risk_off"
-    ]["properties"]
-    assert set(risk_off_props.keys()) == {
-        "factor_lookback_days",
-        "reversal_lookback_days",
-        "value_lookback_days",
-        "w_mom",
-        "w_reversal",
-        "w_value",
-        "w_lowvol",
-        "w_trend",
-        "w_drawdown",
-    }
+    assert len(posts) == 2
+    core_schema = posts[0]["generationConfig"]["responseSchema"]
+    assert "regime_setups" in core_schema["required"]
+    assert "regime_factor_ranges" not in core_schema["properties"]
+    factor_schema = posts[1]["generationConfig"]["responseSchema"]
+    assert factor_schema["required"] == ["regime_factor_ranges"]
     assert out["regime_setups"]["risk_on"]["lookback_days"] == 63
-    prompt = captured["json"]["contents"][0]["parts"][0]["text"]
-    assert "obj=dynamic" in prompt
-    assert "regime_setups" in prompt
-    assert "EVERY" in prompt
-    assert "2–4 FOCUS" not in prompt
+    assert out["regime_factor_ranges"]["risk_off"]["w_mom"] == [0.0, 1.0]
+    assert "follow-up" in posts[0]["contents"][0]["parts"][0]["text"]

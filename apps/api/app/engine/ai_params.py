@@ -29,18 +29,20 @@ from app.engine.dynamic_objective import (
 from app.engine.ai_json import (
     AI_NUMBER_DESCRIPTION,
     ai_number_schema,
+    coerce_factor_range_pair,
     dumps_for_ai,
-    factor_range_item_schema,
+    factor_range_array_schema,
+    prepare_gemini_json_text,
     round_ai_float,
     sanitize_ai_response,
     sanitize_for_ai,
     sanitize_json_text_for_log,
-    truncate_json_numeric_literals,
 )
 from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
     FACTOR_NUMERIC_KEYS,
     SETUP_PARAM_KEYS,
+    has_regime_factor_ranges,
     normalize_round_seed,
 )
 from app.engine.regime_policy import REGIME_OBJECTIVE_MAP
@@ -130,7 +132,7 @@ def _param_response_schema(*, minimal: bool, require_rationale: bool) -> dict[st
 
 def _salvage_truncated_json(text: str) -> dict[str, Any] | None:
     """Best-effort parse when Gemini stops mid-object (MAX_TOKENS)."""
-    text = truncate_json_numeric_literals(text.strip())
+    text = prepare_gemini_json_text(text)
     if not text.startswith("{"):
         return None
     repaired = text.rstrip(",")
@@ -149,7 +151,7 @@ def _salvage_truncated_json(text: str) -> dict[str, Any] | None:
 
 
 def _extract_json(text: str) -> dict[str, Any] | None:
-    text = truncate_json_numeric_literals(text.strip())
+    text = prepare_gemini_json_text(text)
     try:
         parsed = json.loads(text)
         if isinstance(parsed, dict):
@@ -1284,8 +1286,7 @@ _REGIME_SETUPS_SCHEMA: dict[str, Any] = {
 _REGIME_FACTOR_SLICE_SCHEMA: dict[str, Any] = {
     "type": "OBJECT",
     "properties": {
-        key: {"type": "ARRAY", "items": factor_range_item_schema(key)}
-        for key in FACTOR_NUMERIC_KEYS
+        key: factor_range_array_schema(key) for key in FACTOR_NUMERIC_KEYS
     },
 }
 
@@ -1295,8 +1296,7 @@ _REGIME_FACTOR_RANGES_SCHEMA: dict[str, Any] = {
 }
 
 _FACTOR_RANGE_SCHEMA_PROPS: dict[str, Any] = {
-    key: {"type": "ARRAY", "items": factor_range_item_schema(key)}
-    for key in FACTOR_NUMERIC_KEYS
+    key: factor_range_array_schema(key) for key in FACTOR_NUMERIC_KEYS
 }
 
 
@@ -1305,8 +1305,18 @@ def _round_seed_response_schema(
     require_rationale: bool = True,
     compact: bool = False,
     include_regime_matrix: bool = False,
+    include_regime_factor_ranges: bool = True,
+    regime_factor_ranges_only: bool = False,
 ) -> dict[str, Any]:
     """Structured output for Pro round seed (full factor keys when regime matrix)."""
+    if regime_factor_ranges_only:
+        return {
+            "type": "OBJECT",
+            "properties": {
+                "regime_factor_ranges": dict(_REGIME_FACTOR_RANGES_SCHEMA),
+            },
+            "required": ["regime_factor_ranges"],
+        }
     setup_props = dict(_ROUND_SETUP_SCHEMA_CORE)
     range_props: dict[str, Any] = (
         {}
@@ -1335,7 +1345,8 @@ def _round_seed_response_schema(
     }
     if include_regime_matrix:
         properties["regime_setups"] = dict(_REGIME_SETUPS_SCHEMA)
-        properties["regime_factor_ranges"] = dict(_REGIME_FACTOR_RANGES_SCHEMA)
+        if include_regime_factor_ranges:
+            properties["regime_factor_ranges"] = dict(_REGIME_FACTOR_RANGES_SCHEMA)
     properties["optimization_strategy"] = {"type": "STRING"}
     properties["performance_assessment"] = {"type": "STRING"}
     required = ["round_setup"]
@@ -1368,6 +1379,86 @@ def _round_seed_max_output_tokens(*, attempt: int = 0) -> int:
     base = min(cap, _ROUND_SEED_OUTPUT_TOKEN_CEILING)
     bump = attempt * 2048
     return min(_ROUND_SEED_OUTPUT_TOKEN_CEILING, base + bump)
+
+
+_ROUND_SEED_REGIME_FACTORS_TOKEN_FLOOR = 6144
+
+_PRIOR_REGIME_FACTOR_FOCUS_KEYS: tuple[str, ...] = (
+    "w_mom",
+    "w_lowvol",
+    "w_reversal",
+    "w_value",
+    "w_trend",
+    "factor_lookback_days",
+)
+
+
+def _round_seed_regime_factors_max_output_tokens(*, attempt: int = 0) -> int:
+    """Dedicated budget for split-call regime_factor_ranges (smaller JSON surface)."""
+    return min(
+        _ROUND_SEED_OUTPUT_TOKEN_CEILING,
+        max(
+            _ROUND_SEED_REGIME_FACTORS_TOKEN_FLOOR,
+            _round_seed_max_output_tokens(attempt=attempt),
+        ),
+    )
+
+
+def _regime_factor_ranges_well_formed(ranges: Any) -> bool:
+    if not isinstance(ranges, dict) or not ranges:
+        return False
+    for regime in REGIME_KEYS:
+        slice_ = ranges.get(regime)
+        if not isinstance(slice_, dict) or not slice_:
+            return False
+        for key, raw in slice_.items():
+            if key not in FACTOR_NUMERIC_KEYS:
+                continue
+            pair = coerce_factor_range_pair(raw, key=key)
+            if pair is None:
+                return False
+            if isinstance(raw, (list, tuple)) and len(raw) > 2:
+                return False
+    return True
+
+
+def _coerce_regime_factor_ranges(ranges: dict[str, Any]) -> dict[str, dict[str, list[int | float]]]:
+    out: dict[str, dict[str, list[int | float]]] = {}
+    for regime in REGIME_KEYS:
+        slice_ = ranges.get(regime)
+        if not isinstance(slice_, dict):
+            continue
+        regime_out: dict[str, list[int | float]] = {}
+        for key in FACTOR_NUMERIC_KEYS:
+            if key not in slice_:
+                continue
+            pair = coerce_factor_range_pair(slice_.get(key), key=key)
+            if pair is not None:
+                regime_out[key] = pair
+        if regime_out:
+            out[regime] = regime_out
+    return out
+
+
+def _compact_regime_factor_ranges_for_prompt(
+    ranges: dict[str, Any],
+    *,
+    focus_keys: tuple[str, ...] = _PRIOR_REGIME_FACTOR_FOCUS_KEYS,
+) -> dict[str, Any]:
+    """Shrink PRIOR_REGIME_FACTOR_RANGES in learning prompts (round 2+)."""
+    compact: dict[str, Any] = {}
+    for regime in REGIME_KEYS:
+        slice_ = ranges.get(regime)
+        if not isinstance(slice_, dict):
+            continue
+        picked = {
+            k: slice_[k]
+            for k in focus_keys
+            if k in slice_ and isinstance(slice_[k], (list, tuple))
+        }
+        if picked:
+            compact[regime] = sanitize_for_ai(picked)
+    return compact or sanitize_for_ai(ranges)
 
 
 def _round_seed_learning_max_chars() -> int:
@@ -1538,6 +1629,8 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
     )
 
     max_chars = _round_seed_learning_max_chars()
+    if round_index > 1:
+        max_chars = min(max_chars, 2400)
     lines: list[str] = list(_round_seed_budget_lines(learning_context))
 
     if round_index <= 1:
@@ -1566,7 +1659,11 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
     if isinstance(prev_regime_factors, dict) and prev_regime_factors:
         lines.append(
             "PRIOR_REGIME_FACTOR_RANGES "
-            + _json_compact(_sanitize_prompt_dict(prev_regime_factors))
+            + _json_compact(
+                _compact_regime_factor_ranges_for_prompt(
+                    _sanitize_prompt_dict(prev_regime_factors)
+                )
+            )
         )
 
     champ = learning_context.get("champion")
@@ -1688,6 +1785,127 @@ def _build_pro_round_learning_block(learning_context: dict[str, Any]) -> str:
     return _build_round_seed_learning_block(learning_context)
 
 
+def _gemini_round_seed_post(
+    *,
+    url: str,
+    req_prompt: str,
+    generation_config: dict[str, Any],
+    model: str,
+    thinking_config: dict[str, Any] | None,
+) -> tuple[str, str]:
+    if thinking_config is not None:
+        generation_config = {**generation_config, "thinkingConfig": thinking_config}
+    res = httpx.post(
+        url,
+        json={
+            "contents": [{"parts": [{"text": req_prompt}]}],
+            "generationConfig": generation_config,
+        },
+        timeout=45.0,
+    )
+    res.raise_for_status()
+    body = res.json()
+    finish_reason = body.get("candidates", [{}])[0].get("finishReason", "")
+    parts = (
+        body.get("candidates", [{}])[0]
+        .get("content", {})
+        .get("parts", [])
+    )
+    text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+    return finish_reason, text
+
+
+def _build_regime_factor_ranges_prompt(
+    *,
+    round_setup: dict[str, Any],
+    regime_setups: dict[str, Any],
+    regime_factor_guidance: str,
+    factor_num_keys: str,
+    constraints_compact: str,
+    compact: bool,
+) -> str:
+    setup_json = _json_compact(round_setup)
+    regimes_json = _json_compact(regime_setups)
+    compact_rule = (
+        "Each bound is EXACTLY [low, high] with two numbers — never a longer array."
+        if compact
+        else (
+            "Each numeric bound MUST be a two-element array [low, high] only "
+            "(max 4 decimals; integers for *_days)."
+        )
+    )
+    return f"""
+You are an institutional quant research assistant.
+Return STRICT JSON only with regime_factor_ranges for a dynamic Pro round.
+
+Context (already fixed for this round — do not repeat round_setup/regime_setups):
+- round_setup: {setup_json}
+- regime_setups: {regimes_json}
+
+Task: emit regime_factor_ranges only — per-regime Optuna bounds for numerics ({factor_num_keys}),
+keyed risk_off / neutral / risk_on. {regime_factor_guidance}
+{compact_rule}
+Omit top-level factor_ranges. No markdown.
+
+Constraints: {constraints_compact}
+
+JSON shape:
+{{"regime_factor_ranges":{{"risk_off":{{"<every numeric key>":[lo,hi],...}},"neutral":{{...}},"risk_on":{{...}}}}}}
+"""
+
+
+def _request_regime_factor_ranges_split(
+    *,
+    url: str,
+    model: str,
+    round_setup: dict[str, Any],
+    regime_setups: dict[str, Any],
+    regime_factor_guidance: str,
+    factor_num_keys: str,
+    constraints_compact: str,
+    compact: bool,
+    attempt: int,
+    thinking_config: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, str]:
+    """Second Gemini call: regime_factor_ranges only (dynamic objective)."""
+    req_prompt = _build_regime_factor_ranges_prompt(
+        round_setup=round_setup,
+        regime_setups=regime_setups,
+        regime_factor_guidance=regime_factor_guidance,
+        factor_num_keys=factor_num_keys,
+        constraints_compact=constraints_compact,
+        compact=compact,
+    )
+    generation_config: dict[str, Any] = {
+        "temperature": 0.0,
+        "maxOutputTokens": _round_seed_regime_factors_max_output_tokens(attempt=attempt),
+        "responseMimeType": "application/json",
+        "responseSchema": _round_seed_response_schema(regime_factor_ranges_only=True),
+    }
+    try:
+        finish_reason, text = _gemini_round_seed_post(
+            url=url,
+            req_prompt=req_prompt,
+            generation_config=generation_config,
+            model=model,
+            thinking_config=thinking_config,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return None, str(exc)
+    if finish_reason == "MAX_TOKENS" and not text.strip():
+        return None, "gemini_max_tokens"
+    parsed = _extract_json(text) or _salvage_truncated_json(text)
+    if not parsed:
+        return None, "parse_failed"
+    ranges = parsed.get("regime_factor_ranges")
+    if not _regime_factor_ranges_well_formed(ranges):
+        coerced = _coerce_regime_factor_ranges(ranges if isinstance(ranges, dict) else {})
+        if _regime_factor_ranges_well_formed(coerced):
+            return {"regime_factor_ranges": coerced}, ""
+        return None, "invalid_regime_factor_ranges"
+    return {"regime_factor_ranges": _coerce_regime_factor_ranges(ranges)}, ""
+
+
 def generate_ai_round_seed(
     *,
     objective: str,
@@ -1739,6 +1957,7 @@ def generate_ai_round_seed(
     dynamic_matrix = is_dynamic_objective(objective) or bool(
         learning_context.get("dynamic_regime_matrix")
     )
+    split_regime_factors = dynamic_matrix
     factor_guidance = round_seed_factor_range_guidance(
         exploration_phase=exploration_phase,
         round_index=round_index,
@@ -1798,6 +2017,7 @@ def generate_ai_round_seed(
    {regime_factor_guidance}
    Omit top-level factor_ranges when regime_factor_ranges is present (shared factor_ranges only
    as fallback if you cannot emit the nested map).
+   {"regime_factor_ranges are requested in a dedicated follow-up JSON call — omit them here." if split_regime_factors else ""}
 """
 
     factor_ranges_section = (
@@ -1832,6 +2052,7 @@ benchmark (if any), and TARGET.
 Do NOT output objective_mode or rebalance_freq (run-level fixed).
 Numeric rule: at most 4 decimal places for every number; use integers for *_days and top_n_actual;
 never emit long float expansions (write 0.5 not 0.5000000000000001; write 252 not 252.0000000001).
+Each factor bound MUST be exactly [low, high] — two numbers only, never a longer array.
 Example regime_factor_ranges (all numeric keys per regime; compact numbers only):
 {{"risk_off":{{"w_mom":[0,0.8],"w_lowvol":[0.5,1.5],"factor_lookback_days":[126,504],...}},
 "neutral":{{...all keys...}},"risk_on":{{...all keys...}}}}.
@@ -1854,7 +2075,7 @@ Return STRICT JSON only (omit empty factor_choices if none):
 {{"rationale":"...", "optimization_strategy":"...", "performance_assessment":"...",
 "round_setup":{{...}},
 {('"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
-{('"regime_factor_ranges":{"risk_off":{"<every numeric key>":[lo,hi],...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else f'"factor_ranges":{{"<every numeric key>":[low,high], ...}},')}
+{('"regime_factor_ranges":{"risk_off":{"<every numeric key>":[lo,hi],...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix and not split_regime_factors else ("" if dynamic_matrix else f'"factor_ranges":{{"<every numeric key>":[low,high], ...}},'))}
 "factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
 """
     max_retries = max(1, int(settings.gemini_param_seed_max_retries))
@@ -1870,7 +2091,11 @@ Return STRICT JSON only (omit empty factor_choices if none):
             '"round_setup":{...},'
             + (
                 '"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},'
-                '"regime_factor_ranges":{"risk_off":{"w_mom":[lo,hi],...},"risk_on":{...}},'
+                + (
+                    ""
+                    if split_regime_factors
+                    else '"regime_factor_ranges":{"risk_off":{"w_mom":[lo,hi],...},"risk_on":{...}},'
+                )
                 if dynamic_matrix
                 else '"factor_ranges":{...},'
             )
@@ -1880,7 +2105,15 @@ Return STRICT JSON only (omit empty factor_choices if none):
             prompt[:1000]
             + "\nIMPORTANT: single JSON only, max 4 decimals, integers for *_days, omit optional "
             "alloc weights and unchanged factor_choices only; keep full factor_ranges"
-            + (" / regime_factor_ranges (all keys × all regimes)." if dynamic_matrix else ".")
+            + (
+                " / regime_factor_ranges (all keys × all regimes; each [lo,hi] has exactly 2 numbers)."
+                if dynamic_matrix and not split_regime_factors
+                else (
+                    "; regime_factor_ranges arrive in a follow-up call — omit them here."
+                    if split_regime_factors
+                    else "."
+                )
+            )
             + " "
             + compact_tail
         )
@@ -1892,30 +2125,17 @@ Return STRICT JSON only (omit empty factor_choices if none):
                 require_rationale=not compact,
                 compact=compact,
                 include_regime_matrix=dynamic_matrix,
+                include_regime_factor_ranges=not split_regime_factors,
             ),
         }
         thinking_config = _thinking_config_for_round_seed(model=model)
-        if thinking_config is not None:
-            generation_config["thinkingConfig"] = thinking_config
         try:
-            res = httpx.post(
-                url,
-                json={
-                    "contents": [{"parts": [{"text": req_prompt}]}],
-                    "generationConfig": generation_config,
-                },
-                timeout=45.0,
-            )
-            res.raise_for_status()
-            body = res.json()
-            finish_reason = body.get("candidates", [{}])[0].get("finishReason", "")
-            parts = (
-                body.get("candidates", [{}])[0]
-                .get("content", {})
-                .get("parts", [])
-            )
-            text = "".join(
-                p.get("text", "") for p in parts if isinstance(p, dict)
+            finish_reason, text = _gemini_round_seed_post(
+                url=url,
+                req_prompt=req_prompt,
+                generation_config=generation_config,
+                model=model,
+                thinking_config=thinking_config,
             )
             if finish_reason == "MAX_TOKENS":
                 last_error = "gemini_max_tokens"
@@ -1927,6 +2147,50 @@ Return STRICT JSON only (omit empty factor_choices if none):
             if not parsed:
                 last_error = "parse_failed"
                 continue
+            if split_regime_factors:
+                round_setup_raw = parsed.get("round_setup")
+                regime_setups_raw = parsed.get("regime_setups")
+                if not isinstance(round_setup_raw, dict) or not round_setup_raw:
+                    last_error = "empty_round_setup"
+                    continue
+                if not isinstance(regime_setups_raw, dict) or not regime_setups_raw:
+                    last_error = "empty_regime_setups"
+                    continue
+                if progress_cb:
+                    progress_cb(
+                        0,
+                        1,
+                        "Pro round: requesting regime_factor_ranges (split call)…",
+                    )
+                factor_payload, factor_err = _request_regime_factor_ranges_split(
+                    url=url,
+                    model=model,
+                    round_setup=round_setup_raw,
+                    regime_setups=regime_setups_raw,
+                    regime_factor_guidance=regime_factor_guidance,
+                    factor_num_keys=factor_num_keys,
+                    constraints_compact=constraints_compact,
+                    compact=compact,
+                    attempt=attempt,
+                    thinking_config=thinking_config,
+                )
+                if not factor_payload:
+                    last_error = factor_err or "invalid_regime_factor_ranges"
+                    if factor_err == "gemini_max_tokens":
+                        last_error = "gemini_max_tokens"
+                    continue
+                parsed = {**parsed, **factor_payload}
+            elif dynamic_matrix:
+                ranges_raw = parsed.get("regime_factor_ranges")
+                if ranges_raw and not _regime_factor_ranges_well_formed(ranges_raw):
+                    coerced = _coerce_regime_factor_ranges(
+                        ranges_raw if isinstance(ranges_raw, dict) else {}
+                    )
+                    if _regime_factor_ranges_well_formed(coerced):
+                        parsed["regime_factor_ranges"] = coerced
+                    else:
+                        last_error = "invalid_regime_factor_ranges"
+                        continue
             normalized = normalize_round_seed(
                 sanitize_ai_response(parsed), blueprint=blueprint, param_controls=param_controls
             )
@@ -1935,6 +2199,11 @@ Return STRICT JSON only (omit empty factor_choices if none):
                 continue
             if dynamic_matrix and not normalized.get("regime_setups"):
                 last_error = "empty_regime_setups"
+                continue
+            if dynamic_matrix and not has_regime_factor_ranges(
+                normalized.get("regime_factor_ranges")
+            ):
+                last_error = "empty_regime_factor_ranges"
                 continue
             if progress_cb:
                 progress_cb(1, 1, "Pro round: AI round seed ready")

@@ -6,13 +6,17 @@ import json
 
 from app.engine.ai_json import (
     AI_NUMBER_DESCRIPTION,
+    coerce_factor_range_pair,
     dumps_for_ai,
+    factor_range_array_schema,
     factor_range_item_schema,
+    prepare_gemini_json_text,
     round_ai_float,
     sanitize_ai_response,
     sanitize_for_ai,
     sanitize_json_text_for_log,
     truncate_json_numeric_literals,
+    truncate_json_range_arrays,
 )
 from app.engine.ai_params import (
     _build_round_seed_learning_block,
@@ -289,3 +293,32 @@ def test_dynamic_full_regime_seed_schema_and_compact_json_size():
             FACTOR_NUMERIC_KEYS
         )
     assert out["regime_factor_ranges"]["risk_off"]["w_mom"] == [0.0, 1.5]
+
+
+def test_factor_range_array_schema_enforces_two_endpoints():
+    schema = factor_range_array_schema("w_mom")
+    assert schema["minItems"] == 2
+    assert schema["maxItems"] == 2
+
+
+def test_truncate_json_range_arrays_collapses_bloat():
+    junk = ", ".join(["1.5e-161"] * 80)
+    raw = f'{{"risk_off":{{"w_value":[0.0, 1.0, {junk}]}}}}'
+    trimmed = truncate_json_range_arrays(raw)
+    parsed = json.loads(trimmed)
+    assert len(parsed["risk_off"]["w_value"]) == 2
+
+
+def test_coerce_factor_range_pair_from_long_array():
+    pair = coerce_factor_range_pair([0.0, 1.0] + [1.5e-161] * 50, key="w_value")
+    assert pair == [0.0, 1.0]
+
+
+def test_prepare_gemini_json_text_truncates_arrays_and_floats():
+    noisy = (
+        '{"w_mom":[0,1.2000000000000002,0.3,0.4],'
+        '"shrinkage":0.40000000000000002220446049250313080847263336181640625}'
+    )
+    parsed = json.loads(prepare_gemini_json_text(noisy))
+    assert len(parsed["w_mom"]) == 2
+    assert parsed["shrinkage"] == 0.4
