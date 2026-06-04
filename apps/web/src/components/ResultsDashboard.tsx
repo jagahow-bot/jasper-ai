@@ -169,15 +169,48 @@ export function ResultsDashboard({
     return candidateRowKey(selected, idx >= 0 ? idx : 0);
   }, [selected, result.candidates]);
 
+  const championModelKey = useMemo(
+    () => resolveChampionModelKey(result.candidates, result.narrative_facts),
+    [result.candidates, result.narrative_facts],
+  );
+
+  const championCandidate = useMemo(() => {
+    if (!championModelKey) return result.candidates[0];
+    return (
+      result.candidates.find((c, i) => candidateModelKey(c, i) === championModelKey) ??
+      result.candidates[0]
+    );
+  }, [championModelKey, result.candidates]);
+
+  const selectedHasFullCharts = useMemo(() => {
+    if (!selected) return false;
+    const wh = selected.analytics?.weight_history;
+    const ec = selected.equity_curve;
+    return Boolean((wh && wh.length > 0) || (ec && ec.length > 0));
+  }, [selected]);
+
+  const chartCandidate = useMemo(() => {
+    if (selectedHasFullCharts && selected) return selected;
+    return championCandidate ?? selected;
+  }, [selected, selectedHasFullCharts, championCandidate]);
+
+  const chartsUseChampionFallback =
+    Boolean(selected && chartCandidate && selected !== chartCandidate);
+
   const weightHistory = useMemo(
     () =>
-      ((selected?.analytics?.weight_history ?? []) as ({ date: string } & Record<string, number>)[]),
-    [selected?.analytics?.weight_history],
+      ((chartCandidate?.analytics?.weight_history ?? []) as (
+        | { date: string }
+        & Record<string, number>
+      )[]),
+    [chartCandidate?.analytics?.weight_history],
   );
   const weightHistoryTickers = useMemo(
     () =>
-      ((selected?.analytics?.weight_history_tickers ?? []) as string[]).filter((t) => t !== "date"),
-    [selected?.analytics?.weight_history_tickers],
+      ((chartCandidate?.analytics?.weight_history_tickers ?? []) as string[]).filter(
+        (t) => t !== "date",
+      ),
+    [chartCandidate?.analytics?.weight_history_tickers],
   );
   const historySeries = useMemo(() => {
     if (!weightHistory.length) return [];
@@ -248,16 +281,16 @@ export function ResultsDashboard({
     (result.narrative_facts.backtest_spec as { benchmark?: string } | undefined)
       ?.benchmark ?? "SPY",
   );
-  const equity = selected?.equity_curve ?? result.equity_curve;
+  const equity = chartCandidate?.equity_curve ?? result.equity_curve;
   const benchmarkEquity = useMemo(() => {
-    const fromSelected = selected?.analytics?.benchmark_equity_curve;
-    if (fromSelected?.length) return fromSelected;
+    const fromChart = chartCandidate?.analytics?.benchmark_equity_curve;
+    if (fromChart?.length) return fromChart;
     for (const c of result.candidates) {
       const curve = c.analytics?.benchmark_equity_curve;
       if (curve?.length) return curve;
     }
     return [];
-  }, [selected?.analytics?.benchmark_equity_curve, result.candidates]);
+  }, [chartCandidate?.analytics?.benchmark_equity_curve, result.candidates]);
 
   useEffect(() => {
     if (result.candidates.length < 2) {
@@ -320,11 +353,6 @@ export function ResultsDashboard({
       cancelled = true;
     };
   }, [benchTicker, result.candidates, result.narrative_facts, request.objective]);
-
-  const championModelKey = useMemo(
-    () => resolveChampionModelKey(result.candidates, result.narrative_facts),
-    [result.candidates, result.narrative_facts],
-  );
 
   const benchmarkBarMetrics = useMemo(() => {
     const spec = result.narrative_facts.backtest_spec as
@@ -1108,6 +1136,13 @@ export function ResultsDashboard({
       </ChartCard>
 
       <ChartCard title="Portfolio trajectory & holdings">
+        {chartsUseChampionFallback ? (
+          <p className="mb-3 text-xs text-dim">
+            Full trajectory and weight history are available for the ★ champion only. Select the
+            champion trial for charts tied to that model, or use the comparison table above for
+            metrics on other trials.
+          </p>
+        ) : null}
         {dynamicObjectiveChart ? (
           <p className="mb-3 text-xs text-dim">
             Walk-forward regime and active objective bands (linked cursor with return and weight charts).

@@ -123,8 +123,8 @@ class TrialReportCache:
     ) -> None:
         """Store latest trial sim slices for this parameter set (no weight_history)."""
         self.register_model_code(params)
-        key = cache_key_for_params(params)
-        bundle = self._by_key.get(key) or ReportSimBundle()
+        sig = model_signature(params)
+        bundle = self._by_key.get(f"sig:{sig}") or ReportSimBundle()
         if train_m is not None:
             bundle.train_m = _strip_sim_for_cache(train_m)
         if val_m is not None:
@@ -140,10 +140,24 @@ class TrialReportCache:
                     wht = full_m.get("weight_history_tickers")
                     if wht:
                         bundle.full_m["weight_history_tickers"] = wht
-        self._by_key[key] = bundle
-        sig = model_signature(params)
-        if params.get("model_code"):
-            self._sig_to_code[sig] = str(params["model_code"])
+        self._by_key[f"sig:{sig}"] = bundle
+        code = params.get("model_code")
+        if code:
+            code_s = str(code)
+            self._sig_to_code[sig] = code_s
+            self._by_key[f"code:{code_s}"] = bundle
+
+    def drop_model_codes(self, codes: set[str] | frozenset[str]) -> None:
+        """Release cache entries for retired Pro model codes (frees RAM, avoids stale aliases)."""
+        if not codes:
+            return
+        drop = {str(c) for c in codes if c}
+        stale_sigs = [sig for sig, code in self._sig_to_code.items() if code in drop]
+        for sig in stale_sigs:
+            self._sig_to_code.pop(sig, None)
+            self._by_key.pop(f"sig:{sig}", None)
+        for code in drop:
+            self._by_key.pop(f"code:{code}", None)
 
     def get_bundle(self, params: dict[str, Any]) -> ReportSimBundle | None:
         sig = model_signature(params)

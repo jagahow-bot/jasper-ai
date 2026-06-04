@@ -63,11 +63,17 @@ async function proxy(req: NextRequest, context: { params: Promise<{ path?: strin
   }
 
   console.error("[quant-api proxy] failed:", target, lastErr);
+  const detail = lastErr instanceof Error ? lastErr.message : String(lastErr);
+  const likelyApiDown =
+    /ECONNREFUSED|ECONNRESET|fetch failed|socket|timed out/i.test(detail);
   return NextResponse.json(
     {
       error: "api_proxy_failed",
-      detail: lastErr instanceof Error ? lastErr.message : String(lastErr),
+      detail,
       target,
+      hint: likelyApiDown
+        ? "jasper-ai-api may be restarting (OOM) or unreachable; check Render API logs and instance memory."
+        : "Upstream request failed; retry shortly.",
     },
     { status: 502 },
   );

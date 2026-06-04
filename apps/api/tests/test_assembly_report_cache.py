@@ -242,6 +242,26 @@ def test_assembly_cache_hit_runs_only_full_for_weights():
     assert sim_mock.call_args[0][0] is prices
 
 
+def test_drop_model_codes_removes_stale_code_alias():
+    params = {
+        "mode": "min_var",
+        "lookback_days": 60,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 3,
+        "rebalance_freq": "M",
+        "w_mom": 0.5,
+        "model_code": "M0006",
+    }
+    cache = TrialReportCache()
+    cache.stash_from_trial(params, train_m=_minimal_sim(0.5), val_m=None, full_m=None)
+    assert cache.get_bundle(params) is not None
+    cache.drop_model_codes({"M0006"})
+    assert cache.get_bundle(params) is None
+    assert "code:M0006" not in cache._by_key
+
+
 def test_get_bundle_rejects_stale_code_alias_for_different_signature():
     """code: keys must not serve a different parameter signature."""
     params_old = {
@@ -253,16 +273,16 @@ def test_get_bundle_rejects_stale_code_alias_for_different_signature():
         "top_n_actual": 3,
         "rebalance_freq": "M",
         "w_mom": 0.5,
+        "model_code": "M0006",
     }
     params_new = dict(params_old)
     params_new["w_mom"] = 1.8
     cache = TrialReportCache()
     cache.stash_from_trial(params_old, train_m=_minimal_sim(0.5), val_m=None, full_m=None)
-    cache.register_model_code({**params_old, "model_code": "M0006"})
+    cache.drop_model_codes({"M0006"})
     cache.stash_from_trial(params_new, train_m=_minimal_sim(1.9), val_m=None, full_m=None)
-    cache.register_model_code({**params_new, "model_code": "M0006"})
 
-    bundle = cache.get_bundle({**params_new, "model_code": "M0006"})
+    bundle = cache.get_bundle(params_new)
     assert bundle is not None
     assert float(bundle.train_m["sharpe"]) == pytest.approx(1.9)
 
@@ -345,6 +365,72 @@ def test_assembly_hits_cache_after_trial_stash_then_model_code_assigned():
             trial_report_cache=cache,
         )
     sim_mock.assert_not_called()
+
+
+def test_assembly_slim_payload_for_non_champion_only():
+    tickers, prices, prices_train, prices_val = _price_panel()
+    cache = TrialReportCache()
+
+    def _record(code: str, sharpe: float) -> tuple[float, dict, dict]:
+        params = {
+            "model_code": code,
+            "mode": "min_var",
+            "lookback_days": 60,
+            "shrinkage": 0.1,
+            "risk_aversion": 2.0,
+            "max_weight_actual": 0.25,
+            "top_n_actual": 3,
+            "rebalance_freq": "M",
+        }
+        train_m = _minimal_sim(sharpe, with_weights=False)
+        full_m = _minimal_sim(sharpe, with_weights=True)
+        cache.stash_from_trial(
+            params, train_m=train_m, val_m=None, full_m=full_m, retain_weight_history=True
+        )
+        return (sharpe, params, {})
+
+    records = [_record("M0001", 1.1), _record("M0002", 0.7)]
+    spec = MagicMock(
+        benchmark_ticker="SPY",
+        risk_free_rate=0.0,
+        fee_bps=0.0,
+        rebalance_rule="M",
+        min_holdings=2,
+        max_holdings=30,
+    )
+    sim_mock = MagicMock(side_effect=AssertionError("simulate should not run"))
+    with patch("app.engine.backtest.simulate_dynamic_portfolio", sim_mock):
+        out = _assemble_candidates_from_records(
+            records,
+            req=_req(),
+            top_n_models=2,
+            tickers=tickers,
+            prices=prices,
+            prices_sim_panel=prices,
+            prices_train=prices_train,
+            prices_val=prices_val,
+            oos=True,
+            rebalance_rule="M",
+            spec=spec,
+            universe_by_ticker={},
+            objective_effective="max_sharpe",
+            train_start="2020-01-01",
+            train_end="2020-04-01",
+            val_start="2020-04-02",
+            train_ratio=0.7,
+            trial_report_cache=cache,
+            full_payload_codes={"M0001"},
+        )
+    sim_mock.assert_not_called()
+    champ = next(c for c in out if c.model_code == "M0001")
+    slim = next(c for c in out if c.model_code == "M0002")
+    assert champ.equity_curve
+    assert champ.analytics and champ.analytics.get("weight_history")
+    assert slim.equity_curve is None
+    assert slim.analytics
+    assert slim.analytics.get("sample_metrics")
+    assert not slim.analytics.get("weight_history")
+    assert not slim.analytics.get("benchmark_equity_curve")
 
 
 def test_report_sim_bundle_complete_flags():

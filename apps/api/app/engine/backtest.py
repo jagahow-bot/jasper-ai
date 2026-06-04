@@ -70,6 +70,7 @@ from app.engine.refinement import (
     summarize_params_for_ai,
 )
 from app.engine.memory_budget import (
+    maybe_collect_garbage,
     metrics_with_port_ret_from_cache,
     prune_search_records,
     search_records_cap,
@@ -797,6 +798,9 @@ def _run_iterative_search(
             retired_model_codes,
             prior_signatures=prior_challenger_signatures,
         )
+        if trial_report_cache is not None and retired_model_codes:
+            trial_report_cache.drop_model_codes(retired_model_codes)
+            maybe_collect_garbage(1, round_idx + 1)
         if round_winner_model_code:
             carry_champion_model_code = round_winner_model_code
         elif round_incoming_model_code:
@@ -817,7 +821,7 @@ def _run_iterative_search(
         )
 
         trial_order_records_slim = [
-            (s, p, slim_search_metrics(m)) for s, p, m in trial_order_records
+            (s, dict(p), slim_search_metrics(m)) for s, p, m in trial_order_records
         ]
 
         per_round.append(
@@ -930,71 +934,20 @@ def _run_iterative_search(
     return all_records, convergence_history, meta
 
 
-def _build_candidate(
-    rank: int,
-    tickers: list[str],
+def _build_sample_metrics_block(
+    *,
     train_m: dict[str, Any],
     val_m: dict[str, Any] | None,
-    oos_enabled: bool,
-    params: dict[str, Any],
     full_m: dict[str, Any],
-    full_curve: list[dict[str, Any]],
-    prices: pd.DataFrame,
-    universe_by_ticker: dict[str, dict[str, Any]],
+    oos_enabled: bool,
+    objective_effective: str,
+    train_start: str | None,
+    train_end: str | None,
+    val_start: str | None,
+    train_ratio: float | None,
+    is_split_idx: int | None,
     spec: BacktestSpec,
-    *,
-    objective_effective: str = "max_sharpe",
-    train_start: str | None = None,
-    train_end: str | None = None,
-    val_start: str | None = None,
-    train_ratio: float | None = None,
-    min_weight: float = WEIGHT_EPS,
-    is_split_idx: int | None = None,
-) -> PortfolioCandidate:
-    primary = train_m if oos_enabled else full_m
-    weights = _weights_dict(
-        tickers,
-        np.asarray(full_m.get("last_weights"), dtype=float),
-        min_weight=min_weight,
-    )
-    port_ret: pd.Series = full_m["port_ret"]
-    equity: pd.Series = full_m["equity"]
-    bench_t = spec.benchmark_ticker
-    bench_ret = (
-        prices[bench_t].pct_change().fillna(0.0)
-        if bench_t in prices.columns
-        else None
-    )
-    periodic_equity = train_m["equity"] if oos_enabled else None
-    holdout_equity = (
-        val_m["equity"] if oos_enabled and val_m is not None else None
-    )
-    analytics = build_full_analytics(
-        port_ret=port_ret,
-        equity=equity,
-        bench_ret=bench_ret,
-        spec=spec,
-        weights=weights,
-        tickers=tickers,
-        universe_by_ticker=universe_by_ticker,
-        prices=prices,
-        periodic_equity=periodic_equity,
-        holdout_equity=holdout_equity,
-    )
-    wh_raw = full_m.get("weight_history", [])
-    wht_raw = full_m.get("weight_history_tickers", [])
-    wh, wht = trim_weight_history_for_response(wh_raw, tickers=wht_raw or tickers)
-    analytics["weight_history"] = wh
-    analytics["weight_history_tickers"] = wht
-    if full_m.get("weight_cap_audit"):
-        analytics["weight_cap_audit"] = full_m["weight_cap_audit"]
-    analytics["factor_summary"] = full_m.get("factor_summary", {})
-    analytics["execution"] = {
-        "rebalance_freq": full_m.get("rebalance_freq"),
-        "rebalance_count": full_m.get("rebalance_count"),
-        "rebalance_applied": full_m.get("rebalance_applied"),
-        "rebalance_dates_sample": (full_m.get("rebalance_dates") or [])[:12],
-    }
+) -> dict[str, Any]:
     full_snap = metrics_snapshot(full_m, objective_mode=objective_effective)
     if oos_enabled and is_split_idx is not None and is_split_idx > 0:
         port_ret_full = full_m.get("port_ret")
@@ -1032,7 +985,7 @@ def _build_candidate(
             if val_m is not None
             else None
         )
-    analytics["sample_metrics"] = {
+    return {
         "selection": "in_sample" if oos_enabled else "full_sample",
         "horizon_method": (
             "full_path_slices"
@@ -1064,13 +1017,102 @@ def _build_candidate(
             else None,
         },
     }
-    if bench_ret is not None:
-        aligned_bench = bench_ret.reindex(port_ret.index).fillna(0.0)
-        bench_equity = (1.0 + aligned_bench).cumprod()
-        analytics["benchmark_equity_curve"] = equity_curve_series(bench_equity)
+
+
+def _build_candidate(
+    rank: int,
+    tickers: list[str],
+    train_m: dict[str, Any],
+    val_m: dict[str, Any] | None,
+    oos_enabled: bool,
+    params: dict[str, Any],
+    full_m: dict[str, Any],
+    full_curve: list[dict[str, Any]],
+    prices: pd.DataFrame,
+    universe_by_ticker: dict[str, dict[str, Any]],
+    spec: BacktestSpec,
+    *,
+    objective_effective: str = "max_sharpe",
+    train_start: str | None = None,
+    train_end: str | None = None,
+    val_start: str | None = None,
+    train_ratio: float | None = None,
+    min_weight: float = WEIGHT_EPS,
+    is_split_idx: int | None = None,
+    include_charts: bool = True,
+) -> PortfolioCandidate:
+    primary = train_m if oos_enabled else full_m
+    weights = _weights_dict(
+        tickers,
+        np.asarray(full_m.get("last_weights"), dtype=float),
+        min_weight=min_weight,
+    )
+    sample_metrics = _build_sample_metrics_block(
+        train_m=train_m,
+        val_m=val_m,
+        full_m=full_m,
+        oos_enabled=oos_enabled,
+        objective_effective=objective_effective,
+        train_start=train_start,
+        train_end=train_end,
+        val_start=val_start,
+        train_ratio=train_ratio,
+        is_split_idx=is_split_idx,
+        spec=spec,
+    )
+    rel: dict[str, Any] = {}
+    if include_charts:
+        port_ret: pd.Series = full_m["port_ret"]
+        equity: pd.Series = full_m["equity"]
+        bench_t = spec.benchmark_ticker
+        bench_ret = (
+            prices[bench_t].pct_change().fillna(0.0)
+            if bench_t in prices.columns
+            else None
+        )
+        periodic_equity = train_m["equity"] if oos_enabled else None
+        holdout_equity = (
+            val_m["equity"] if oos_enabled and val_m is not None else None
+        )
+        analytics = build_full_analytics(
+            port_ret=port_ret,
+            equity=equity,
+            bench_ret=bench_ret,
+            spec=spec,
+            weights=weights,
+            tickers=tickers,
+            universe_by_ticker=universe_by_ticker,
+            prices=prices,
+            periodic_equity=periodic_equity,
+            holdout_equity=holdout_equity,
+        )
+        wh_raw = full_m.get("weight_history", [])
+        wht_raw = full_m.get("weight_history_tickers", [])
+        wh, wht = trim_weight_history_for_response(wh_raw, tickers=wht_raw or tickers)
+        analytics["weight_history"] = wh
+        analytics["weight_history_tickers"] = wht
+        if full_m.get("weight_cap_audit"):
+            analytics["weight_cap_audit"] = full_m["weight_cap_audit"]
+        analytics["factor_summary"] = full_m.get("factor_summary", {})
+        analytics["execution"] = {
+            "rebalance_freq": full_m.get("rebalance_freq"),
+            "rebalance_count": full_m.get("rebalance_count"),
+            "rebalance_applied": full_m.get("rebalance_applied"),
+            "rebalance_dates_sample": (full_m.get("rebalance_dates") or [])[:12],
+        }
+        analytics["sample_metrics"] = sample_metrics
+        if bench_ret is not None:
+            aligned_bench = bench_ret.reindex(port_ret.index).fillna(0.0)
+            bench_equity = (1.0 + aligned_bench).cumprod()
+            analytics["benchmark_equity_curve"] = equity_curve_series(bench_equity)
+        else:
+            analytics["benchmark_equity_curve"] = []
+        rel = analytics.get("benchmark_relative", {}) or {}
     else:
-        analytics["benchmark_equity_curve"] = []
-    rel = analytics.get("benchmark_relative", {}) or {}
+        analytics = {"sample_metrics": sample_metrics}
+    is_snap = sample_metrics["in_sample"]
+    oos_snap = sample_metrics.get("out_of_sample")
+    response_curve = full_curve if include_charts else None
     return PortfolioCandidate(
         rank=rank,
         model_code=str(params.get("model_code")) if params.get("model_code") else None,
@@ -1087,14 +1129,14 @@ def _build_candidate(
         turnover_avg=round(float(primary.get("turnover_avg", 0.0)), 4),
         turnover_total=round(float(primary.get("turnover_total", 0.0)), 4),
         max_drawdown_duration_days=int(primary.get("max_drawdown_duration_days", 0)),
-        equity_curve=full_curve,
+        equity_curve=response_curve,
         params={
             **params,
             "in_sample_objective": is_snap["objective_value"],
             "out_of_sample_objective": (
                 oos_snap["objective_value"] if oos_snap else None
             ),
-            "gap_objective": analytics["sample_metrics"]["gap"]["objective"],
+            "gap_objective": sample_metrics["gap"]["objective"],
         },
         train_sharpe=round(float(train_m["sharpe"]), 3),
         train_max_drawdown=round(float(train_m["max_drawdown"]), 3),
@@ -1204,6 +1246,21 @@ def _sim_inputs_from_params(
     )
 
 
+def _champion_model_codes_from_records(
+    records: list[tuple[float, dict, dict]],
+    *,
+    explicit_code: str | None = None,
+) -> set[str]:
+    codes: set[str] = set()
+    if explicit_code:
+        codes.add(str(explicit_code))
+    elif records:
+        mc = records[0][1].get("model_code")
+        if mc:
+            codes.add(str(mc))
+    return codes
+
+
 def _assemble_candidates_from_records(
     records: list[tuple[float, dict, dict]],
     *,
@@ -1227,6 +1284,7 @@ def _assemble_candidates_from_records(
     assembly_progress: Callable[[str], None] | None = None,
     trial_report_cache: TrialReportCache | None = None,
     dynamic_ctx: dict[str, Any] | None = None,
+    full_payload_codes: set[str] | None = None,
 ) -> list[PortfolioCandidate]:
     """Build report-ready PortfolioCandidate rows for top trials.
 
@@ -1251,6 +1309,9 @@ def _assemble_candidates_from_records(
         if trial_report_cache:
             trial_report_cache.register_model_code(params)
         model_code = str(params.get("model_code") or f"#{rank}")
+        include_charts = (
+            full_payload_codes is None or model_code in full_payload_codes
+        )
         trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
             _sim_inputs_from_params(params, req, rebalance_rule, spec)
         )
@@ -1299,16 +1360,23 @@ def _assemble_candidates_from_records(
         )
         need_train = train_m is None
         need_val = val_required and val_m is None
-        need_full = full_m_rank is None or not full_m_rank.get("weight_history")
+        need_full = include_charts and (
+            full_m_rank is None or not full_m_rank.get("weight_history")
+        )
 
         if cache_hit and not (need_train or need_val or need_full):
             if assembly_progress:
+                label = "charts" if include_charts else "metrics"
                 assembly_progress(
-                    f"Packaging {model_code} charts from search cache ({rank}/{n_models})…"
+                    f"Packaging {model_code} {label} from search cache ({rank}/{n_models})…"
                 )
         else:
             if assembly_progress:
-                if bundle is None:
+                if not include_charts:
+                    assembly_progress(
+                        f"Packaging {model_code} metrics only ({rank}/{n_models})…"
+                    )
+                elif bundle is None:
                     assembly_progress(
                         f"Packaging {model_code} ({rank}/{n_models}): "
                         f"no search cache — running backtest(s) for charts…"
@@ -1349,7 +1417,16 @@ def _assemble_candidates_from_records(
                     report_start=report_full,
                     **sim_kw,
                 )
-        full_curve_rank = equity_curve_series(full_m_rank["equity"])
+        metrics_m = full_m_rank or train_m
+        if metrics_m is None:
+            raise ValueError(
+                f"Cannot assemble candidate {model_code}: missing simulation metrics"
+            )
+        if not include_charts:
+            full_m_rank = metrics_m
+        full_curve_rank = (
+            equity_curve_series(full_m_rank["equity"]) if include_charts else []
+        )
         candidates.append(
             _build_candidate(
                 rank,
@@ -1372,6 +1449,7 @@ def _assemble_candidates_from_records(
                 train_ratio=train_ratio,
                 min_weight=req.min_weight,
                 is_split_idx=len(prices_train) if oos else None,
+                include_charts=include_charts,
             )
         )
         if is_dynamic_objective(objective_effective) and dynamic_ctx:
@@ -1893,10 +1971,14 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         )
 
     champion_for_sort = None
+    final_champion_code: str | None = None
     if pro_mode:
         final_champion_params = refinement_meta.get("final_champion_params")
         if isinstance(final_champion_params, dict):
             champion_for_sort = _find_record_by_params(records, final_champion_params)
+            mc = final_champion_params.get("model_code")
+            if mc:
+                final_champion_code = str(mc)
     records_for_report = (
         order_records_champion_first(list(records), champion_for_sort)
         if champion_for_sort is not None
@@ -1907,6 +1989,10 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             ),
             reverse=True,
         )
+    )
+    final_full_codes = _champion_model_codes_from_records(
+        records_for_report,
+        explicit_code=final_champion_code,
     )
     candidates = _assemble_candidates_from_records(
         records_for_report,
@@ -1929,6 +2015,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         assembly_progress=final_assembly_progress,
         trial_report_cache=trial_report_cache,
         dynamic_ctx=dynamic_ctx,
+        full_payload_codes=final_full_codes,
     )
     candidates = _rerank_candidates_by_objective(
         candidates, trial_objective if dynamic_mode else objective_effective
@@ -1941,6 +2028,11 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 if _model_signature(c.params or {}) == champ_sig:
                     c.is_champion = True
                     break
+    else:
+        for c in candidates:
+            if c.rank == 1:
+                c.is_champion = True
+                break
     top = records[:top_n_models]
     if pro_mode:
         final_champion_params = refinement_meta.get("final_champion_params")
@@ -2006,6 +2098,13 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 f"top {pr_top_n} of {pr_feasible} pool models "
                 f"(using search cache when available)…"
             )
+            round_winner_code_pre = pr.get("round_winner_model_code")
+            pr_full_codes = _champion_model_codes_from_records(
+                display_records,
+                explicit_code=(
+                    str(round_winner_code_pre) if round_winner_code_pre else None
+                ),
+            )
             pr_candidates = _assemble_candidates_from_records(
                 display_records,
                 req=req,
@@ -2027,6 +2126,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 assembly_progress=pro_round_assembly_progress,
                 trial_report_cache=trial_report_cache,
                 dynamic_ctx=dynamic_ctx,
+                full_payload_codes=pr_full_codes,
             )
             pro_round_assembly_progress("ranking packaged models by objective…")
             pr_candidates = _rerank_candidates_by_objective(
@@ -2085,8 +2185,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 "plotting efficient frontier from trial scores (no extra backtests)…"
             )
             pr_frontier = _build_frontier_from_records(display_records, pr_trials)
-            pr_equity = pr_candidates[0].equity_curve if pr_candidates else []
             pr_best = _best_candidate(pr_candidates)
+            pr_equity = (pr_best.equity_curve if pr_best else None) or []
             pro_round_assembly_progress("finalizing round snapshot…")
             pro_rounds.append(
                 ProRoundSnapshot(

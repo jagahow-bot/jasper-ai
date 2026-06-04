@@ -130,6 +130,7 @@ export interface JobProgress {
 export interface PortfolioCandidate {
   rank: number;
   model_code?: string | null;
+  is_champion?: boolean;
   weights: Record<string, number>;
   sharpe: number;
   max_drawdown: number;
