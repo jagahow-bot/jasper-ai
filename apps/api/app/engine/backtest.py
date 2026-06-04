@@ -69,6 +69,13 @@ from app.engine.refinement import (
     retire_non_winner_model_codes,
     summarize_params_for_ai,
 )
+from app.engine.memory_budget import (
+    metrics_with_port_ret_from_cache,
+    prune_search_records,
+    search_records_cap,
+    slim_search_metrics,
+    trim_weight_history_for_response,
+)
 from app.engine.report_sim_cache import TrialReportCache
 from app.engine.weights import effective_max_weight_cap
 from app.engine.dynamic_objective import (
@@ -653,7 +660,7 @@ def _run_iterative_search(
                 )
 
         for score, params, metrics in round_records:
-            all_records.append((score, params, metrics))
+            all_records.append((score, params, slim_search_metrics(metrics)))
             assess = metrics.get("overfitting_assessment") or {}
             raw = float(metrics.get("raw_score", score))
             penalty = float(metrics.get("overfitting_penalty_applied", 0.0))
@@ -682,6 +689,17 @@ def _run_iterative_search(
                     "target_at_trial": round(target_to_beat, 4),
                 }
             )
+
+        champ_sig = (
+            _model_signature(champion_record[1])
+            if champion_record is not None
+            else None
+        )
+        prune_search_records(
+            all_records,
+            max_records=search_records_cap(),
+            protect_signatures={champ_sig} if champ_sig else None,
+        )
 
         round_best = best_record_in_pool(pool_records, objective_effective)
         if round_best:
@@ -785,12 +803,22 @@ def _run_iterative_search(
             carry_champion_model_code = round_incoming_model_code
 
         round_bench = compute_round_benchmark_fields(
-            round_best[2] if round_best else None,
+            metrics_with_port_ret_from_cache(
+                round_best[2] if round_best else {},
+                round_best[1] if round_best else {},
+                trial_report_cache,
+            )
+            if round_best
+            else None,
             prices_train=prices_train,
             benchmark_ticker=spec.benchmark_ticker,
             bench_metrics=bench_ref_metrics,
             spec=spec,
         )
+
+        trial_order_records_slim = [
+            (s, p, slim_search_metrics(m)) for s, p, m in trial_order_records
+        ]
 
         per_round.append(
             {
@@ -832,7 +860,7 @@ def _run_iterative_search(
                     round(round_best_obj_value, 6) if round_best else None
                 ),
                 "improved": round_improved,
-                "records": trial_order_records,
+                "records": trial_order_records_slim,
             }
         )
 
@@ -953,8 +981,11 @@ def _build_candidate(
         periodic_equity=periodic_equity,
         holdout_equity=holdout_equity,
     )
-    analytics["weight_history"] = full_m.get("weight_history", [])
-    analytics["weight_history_tickers"] = full_m.get("weight_history_tickers", [])
+    wh_raw = full_m.get("weight_history", [])
+    wht_raw = full_m.get("weight_history_tickers", [])
+    wh, wht = trim_weight_history_for_response(wh_raw, tickers=wht_raw or tickers)
+    analytics["weight_history"] = wh
+    analytics["weight_history_tickers"] = wht
     if full_m.get("weight_cap_audit"):
         analytics["weight_cap_audit"] = full_m["weight_cap_audit"]
     analytics["factor_summary"] = full_m.get("factor_summary", {})
@@ -1601,15 +1632,15 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     tickers = [t for t in tickers if t in prices.columns]
     if len(tickers) < 5:
         raise ValueError("Too few tradable tickers after filter; widen asset classes or extend dates")
-    prices_sim_panel = prices[tickers].copy()
-    prices_with_benchmark = prices.copy()
-    prices = trim_prices_to_report_window(prices_sim_panel, req.start_date)
+    prices_full = prices
+    prices_sim_panel = prices_full[tickers]
+    prices = trim_prices_to_report_window(prices_full[tickers].copy(), req.start_date)
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
 
     dynamic_ctx: dict[str, Any] | None = None
     if dynamic_mode:
         dynamic_ctx = build_dynamic_objective_context(
-            prices_with_benchmark,
+            prices_full,
             spec.benchmark_ticker,
             regime_mode=regime_mode,
             fast_risk_off_exit=True,

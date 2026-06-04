@@ -1,5 +1,11 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
 # Deploy: Dashboard → Blueprints → New Blueprint Instance → connect this repo.
+#
+# Memory (jasper-ai-api): Pro backtests load large price panels + Optuna trials.
+#   - 512 MB instances often OOM during online Pro runs; prefer 1 GB+ (Standard).
+#   - Dashboard → jasper-ai-api → Settings → Instance Type → upgrade (not in blueprint).
+#   - Env: OPTUNA_N_JOBS=1 (default on Render), SEARCH_RECORDS_MAX=64,
+#     WEIGHT_HISTORY_TICKER_CAP=28, RENDER_MEMORY_MB=1024 (documentation only).
 services:
   - type: web
     name: jasper-ai-api
@@ -7,6 +13,9 @@ services:
     dockerfilePath: apps/api/Dockerfile
     dockerContext: .
     healthCheckPath: /health
+    envVars:
+      - key: OPTUNA_N_JOBS
+        value: "1"
 
   - type: web
     name: jasper-ai-web

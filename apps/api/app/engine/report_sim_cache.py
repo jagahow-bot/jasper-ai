@@ -12,6 +12,7 @@ import copy
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.engine.memory_budget import slim_search_metrics
 from app.engine.refinement import model_signature
 
 _SIM_KEYS = frozenset(
@@ -173,6 +174,7 @@ class TrialReportCache:
             return
         if not metrics or not isinstance(metrics, dict):
             return
+        metrics = slim_search_metrics(metrics)
         train_m: dict[str, Any] | None = metrics
         val_m: dict[str, Any] | None = None
         full_m: dict[str, Any] | None = None

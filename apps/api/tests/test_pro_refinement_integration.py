@@ -159,6 +159,7 @@ def test_iterative_search_excludes_round1_loser_from_round3(price_panel: pd.Data
         _records, _history, meta = _run_iterative_search(
             req,
             prices_train=prices_train,
+            prices_sim_panel=prices_train,
             prices_val=prices_val,
             oos=False,
             objective_effective="max_sharpe",
@@ -241,6 +242,7 @@ def test_five_round_final_pool_excludes_early_losers(price_panel: pd.DataFrame):
         _records, _history, meta = _run_iterative_search(
             req,
             prices_train=prices_train,
+            prices_sim_panel=prices_train,
             prices_val=prices_val,
             oos=False,
             objective_effective="max_sharpe",
@@ -324,6 +326,7 @@ def test_recycled_loser_excluded_from_later_round_pool_codes(price_panel: pd.Dat
         _records, _history, meta = _run_iterative_search(
             req,
             prices_train=prices_train,
+            prices_sim_panel=prices_train,
             prices_val=prices_val,
             oos=False,
             objective_effective="max_sharpe",
@@ -385,6 +388,7 @@ def test_fixture_m0006_loser_absent_when_m0001_holds_champion(price_panel: pd.Da
         _records, _history, meta = _run_iterative_search(
             req,
             prices_train=prices_train,
+            prices_sim_panel=prices_train,
             prices_val=prices_val,
             oos=False,
             objective_effective="max_sharpe",
@@ -467,6 +471,7 @@ def test_round3_pool_size_incoming_plus_four_challengers(price_panel: pd.DataFra
         _records, _history, meta = _run_iterative_search(
             req,
             prices_train=prices_train,
+            prices_sim_panel=prices_train,
             prices_val=prices_val,
             oos=False,
             objective_effective="max_sharpe",
@@ -527,6 +532,7 @@ def test_five_round_pools_never_carry_prior_loser_codes(price_panel: pd.DataFram
         _records, _history, meta = _run_iterative_search(
             req,
             prices_train=prices_train,
+            prices_sim_panel=prices_train,
             prices_val=prices_val,
             oos=False,
             objective_effective="max_sharpe",
@@ -591,6 +597,7 @@ def test_dynamic_pro_round_passes_regime_matrix_to_optuna(price_panel: pd.DataFr
         _records, _history, meta = _run_iterative_search(
             req,
             prices_train=prices_train,
+            prices_sim_panel=prices_train,
             prices_val=prices_val,
             oos=False,
             objective_effective=DYNAMIC_OBJECTIVE,

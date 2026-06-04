@@ -7,6 +7,7 @@ at each rebalance date.
 
 from __future__ import annotations
 
+import gc
 from typing import Callable
 
 import numpy as np
@@ -36,7 +37,7 @@ from app.engine.factors import (
 from app.engine.portfolio import simulate_dynamic_portfolio
 from app.engine.weights import min_holdings_for_cap
 from app.engine.objectives import compute_objective_score, metrics_snapshot
-from app.engine.refinement import assess_overfitting
+from app.engine.refinement import assess_overfitting, model_signature
 from app.engine.param_bounds import (
     RunBlueprint,
     cap_search_high,
@@ -55,6 +56,13 @@ from app.engine.param_taxonomy import (
     build_pro_round_param_controls,
     has_regime_factor_ranges,
     regime_factor_param_key,
+)
+from app.engine.memory_budget import (
+    maybe_collect_garbage,
+    optuna_n_jobs,
+    prune_search_records,
+    search_records_cap,
+    slim_search_metrics,
 )
 from app.engine.report_sim_cache import TrialReportCache
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
@@ -722,7 +730,7 @@ def run_optuna_search(
                 full_m=full_sim,
             )
 
-        records.append((adjusted, params, metrics))
+        records.append((adjusted, params, slim_search_metrics(metrics)))
         return adjusted
 
     study = optuna.create_study(direction="maximize")
@@ -735,8 +743,18 @@ def run_optuna_search(
         except Exception:
             optuna_trials = trials
 
+    protect_sigs: set[str] = set()
+    if champion_seed:
+        protect_sigs.add(model_signature(champion_seed))
+
     def callback(study: optuna.Study, trial: optuna.trial.FrozenTrial) -> None:
         nonlocal best_value
+        prune_search_records(
+            records,
+            max_records=search_records_cap(),
+            protect_signatures=protect_sigs,
+        )
+        maybe_collect_garbage(4, trial.number + 1)
         feasible = [r for r in records if r[0] > INFEASIBLE_SCORE / 2]
         if feasible:
             vals = [
@@ -754,9 +772,11 @@ def run_optuna_search(
     study.optimize(
         optuna_objective,
         n_trials=optuna_trials,
+        n_jobs=optuna_n_jobs(),
         callbacks=[callback],
         show_progress_bar=False,
     )
+    gc.collect()
 
     feasible_records = [r for r in records if r[0] > INFEASIBLE_SCORE / 2]
     if not feasible_records:
