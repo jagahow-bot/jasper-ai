@@ -61,6 +61,11 @@ def test_normalize_round_seed_regime_factor_ranges() -> None:
     assert out["regime_factor_ranges"]["risk_off"]["w_mom"][1] <= 0.5
     assert out["regime_factor_ranges"]["risk_on"]["w_mom"][0] >= 0.8
     assert out["factor_ranges"] == {}
+    # Omitted neutral regime still gets full Optuna bounds (server defaults).
+    assert "neutral" in out["regime_factor_ranges"]
+    assert set(out["regime_factor_ranges"]["neutral"].keys()) == set(
+        out["regime_factor_ranges"]["risk_off"].keys()
+    )
 
 
 def test_pro_controls_prefixed_regime_factor_keys() -> None:

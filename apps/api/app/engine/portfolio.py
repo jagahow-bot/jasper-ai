@@ -21,6 +21,16 @@ from app.engine.weights import (
 logger = logging.getLogger(__name__)
 from app.engine.factors import FactorParams, pick_top_n, score_assets_with_details
 
+
+def _downsample_keep_endpoints(items: list[Any], cap: int) -> list[Any]:
+    n = len(items)
+    if n <= cap or cap <= 0:
+        return list(items)
+    if cap == 1:
+        return [items[-1]]
+    indices = {int(round(i * (n - 1) / (cap - 1))) for i in range(cap)}
+    return [items[i] for i in sorted(indices)]
+
 WEIGHT_EPS = 1e-6
 MAX_DAILY_RETURN = 0.25
 MIN_ANNUAL_VOL = 0.03
@@ -771,8 +781,7 @@ def _simulate_pandas(
     hist_dates = [d for d in hist_dates if d >= hist_anchor]
     hist_unique = sorted(list(dict.fromkeys(hist_dates)))
     if len(hist_unique) > 36:
-        step = max(1, len(hist_unique) // 36)
-        hist_unique = hist_unique[::step]
+        hist_unique = _downsample_keep_endpoints(hist_unique, 36)
     keep_tickers = select_weight_chart_tickers(
         sch, hist_unique, top_n=min(int(top_n), len(prices.columns))
     )

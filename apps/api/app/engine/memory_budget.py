@@ -89,6 +89,17 @@ def slim_search_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in metrics.items() if k not in _HEAVY_METRIC_KEYS}
 
 
+def downsample_keep_endpoints(items: list[Any], cap: int) -> list[Any]:
+    """Evenly sample list entries, always keeping first and last (timeline tail preserved)."""
+    n = len(items)
+    if n <= cap or cap <= 0:
+        return list(items)
+    if cap == 1:
+        return [items[-1]]
+    indices = {int(round(i * (n - 1) / (cap - 1))) for i in range(cap)}
+    return [items[i] for i in sorted(indices)]
+
+
 def trim_weight_history_for_response(
     weight_history: list[dict[str, Any]] | None,
     *,
@@ -102,14 +113,17 @@ def trim_weight_history_for_response(
         return [], list(tickers or [])
     cap_t = max_tickers if max_tickers is not None else weight_history_ticker_cap()
     cap_r = max_rows if max_rows is not None else _DEFAULT_WEIGHT_HISTORY_ROW_CAP
+    explicit_tickers = list(tickers or [])
     if len(wh) > cap_r:
-        step = max(1, len(wh) // cap_r)
-        wh = wh[::step][:cap_r]
-    keep = list(tickers or [])
+        wh = downsample_keep_endpoints(wh, cap_r)
+    keep = explicit_tickers
     if not keep and wh:
         keys = [k for k in wh[0] if k not in ("date", "OTHER")]
         keep = keys[:cap_t]
-    if len(keep) > cap_t:
+    # Respect simulation-selected sleeves; re-ranking inflates Other on the chart.
+    elif explicit_tickers:
+        keep = explicit_tickers
+    if not explicit_tickers and len(keep) > cap_t:
         ranked: list[tuple[str, float]] = []
         for t in keep:
             peak = max(float(row.get(t, 0.0) or 0.0) for row in wh)

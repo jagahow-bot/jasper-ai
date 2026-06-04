@@ -134,11 +134,15 @@ def _normalize_regime_factor_ranges_seed(
     if not isinstance(raw, dict):
         return {}
     controls = normalize_param_controls(param_controls, blueprint)
+    if not any(
+        isinstance(raw.get(regime), dict) and raw.get(regime) for regime in REGIME_KEYS
+    ):
+        return {}
     out: dict[str, dict[str, list[float | int]]] = {}
     for regime in REGIME_KEYS:
         per = raw.get(regime)
-        if not isinstance(per, dict) or not per:
-            continue
+        if not isinstance(per, dict):
+            per = {}
         completed = complete_factor_ranges(
             per, blueprint=blueprint, param_controls=controls
         )

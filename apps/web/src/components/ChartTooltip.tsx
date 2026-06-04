@@ -54,7 +54,7 @@ export function ChartTooltip({
   valueDecimals = 2,
   title,
   sortByValue = false,
-  usePortal = true,
+  usePortal = false,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);

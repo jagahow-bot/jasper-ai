@@ -158,20 +158,8 @@ export function LinkedEquityWeightChart({
         ),
       };
     };
-    if (!equityCurve.length) {
-      return weightHistory.map((row) => enrich(row));
-    }
-    const byDate = new Map(
-      weightHistory.map((row) => [String(row.date), row]),
-    );
-    const aligned: ReturnType<typeof enrich>[] = [];
-    for (const eq of equityCurve) {
-      const row = byDate.get(eq.date);
-      if (row) aligned.push(enrich(row));
-    }
-    if (aligned.length > 0) return aligned;
     return weightHistory.map((row) => enrich(row));
-  }, [weightHistory, weightTickers, equityCurve]);
+  }, [weightHistory, weightTickers]);
 
   const sharedDomain = useMemo(() => {
     const benchForDomain = equityChartData.map((r) => ({
@@ -456,7 +444,6 @@ export function LinkedEquityWeightChart({
                     valueIsPct
                     valueDecimals={2}
                     sortByValue
-                    usePortal
                   />
                 }
                 labelFormatter={formatChartTooltipLabel}

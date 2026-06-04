@@ -5,6 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from app.engine.memory_budget import (
+    downsample_keep_endpoints,
     prune_search_records,
     slim_search_metrics,
     trim_weight_history_for_response,
@@ -37,13 +38,38 @@ def test_prune_search_records_keeps_champion_signature():
     assert any(model_signature(r[1]) == champ_sig for r in records)
 
 
+def test_downsample_keep_endpoints_preserves_last_row():
+    rows = [{"date": f"2020-{i:02d}-01"} for i in range(1, 13)]
+    out = downsample_keep_endpoints(rows, 4)
+    assert out[0]["date"] == "2020-01-01"
+    assert out[-1]["date"] == "2020-12-01"
+    assert len(out) == 4
+
+
+def test_trim_weight_history_keeps_last_date_and_explicit_tickers():
+    wh = [
+        {"date": f"2020-01-{i:02d}", "A": 0.5, "B": 0.5, "OTHER": 0.0}
+        for i in range(1, 25)
+    ]
+    tickers = ["A", "B", "C", "D"]
+    trimmed, keep = trim_weight_history_for_response(
+        wh, tickers=tickers, max_rows=6, max_tickers=2
+    )
+    assert keep == tickers
+    assert trimmed[-1]["date"] == "2020-01-24"
+
+
 def test_trim_weight_history_for_response_caps_tickers():
     wh = [
         {"date": "2020-01-01", "A": 0.5, "B": 0.3, "C": 0.2, "OTHER": 0.0},
         {"date": "2020-02-01", "A": 0.4, "B": 0.4, "C": 0.2, "OTHER": 0.0},
     ]
-    trimmed, keep = trim_weight_history_for_response(
-        wh, tickers=["A", "B", "C"], max_tickers=2
-    )
+    trimmed, keep = trim_weight_history_for_response(wh, max_tickers=2)
     assert len(keep) == 2
     assert all("OTHER" in row for row in trimmed)
+
+    explicit, keep_explicit = trim_weight_history_for_response(
+        wh, tickers=["A", "B", "C"], max_tickers=2
+    )
+    assert keep_explicit == ["A", "B", "C"]
+    assert len(explicit) == len(wh)
