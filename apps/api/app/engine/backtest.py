@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from typing import Any, Callable
@@ -206,6 +207,27 @@ def _sort_round_records_for_convergence(
     return sorted(round_records, key=lambda r: (_trial_no(r[1]), id(r[1])))
 
 
+def _convergence_global_trial_id(
+    round_trial_base: int,
+    params: dict,
+    *,
+    callback_trial_1based: int,
+) -> int:
+    """Map Optuna trial number to stable global convergence trial id."""
+    try:
+        optuna_no = int(params.get("optuna_trial_number"))
+    except (TypeError, ValueError):
+        optuna_no = callback_trial_1based - 1
+    return round_trial_base + optuna_no
+
+
+def _convergence_preview_payload(
+    convergence_history: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Snapshot for job progress JSON (avoid later in-place mutation)."""
+    return copy.deepcopy(convergence_history[-24:])
+
+
 def _convergence_metrics_for_record(
     score: float,
     params: dict,
@@ -216,8 +238,10 @@ def _convergence_metrics_for_record(
     oos_enabled: bool,
 ) -> dict[str, Any]:
     """Per-trial IS/OOS objectives; prefer Optuna metrics, else cached train/val sims."""
+    if metrics.get("objective_value_is") is not None:
+        return metrics
     assess_existing = metrics.get("overfitting_assessment")
-    if isinstance(assess_existing, dict) and metrics.get("objective_value_is") is not None:
+    if isinstance(assess_existing, dict) and assess_existing.get("in_sample_objective") is not None:
         return metrics
 
     bundle = trial_report_cache.get_bundle(params) if trial_report_cache else None
@@ -272,15 +296,23 @@ def _append_convergence_from_record(
             assess.get("in_sample_objective", 0.0),
         )
     )
-    oos_obj = assess.get("out_of_sample_objective")
+    oos_raw = metrics.get("objective_value_oos", assess.get("out_of_sample_objective"))
+    gap_raw = metrics.get("gap_objective", assess.get("gap_objective", 0.0))
+    gap_objective = float(gap_raw)
+    if (
+        metrics.get("gap_objective") is None
+        and oos_raw is not None
+        and assess.get("gap_objective") is None
+    ):
+        gap_objective = is_obj - float(oos_raw)
     _upsert_convergence_point(
         convergence_history,
         _history_point(
             global_trial=global_trial,
             round_idx=round_idx,
             is_objective=is_obj,
-            oos_objective=float(oos_obj) if oos_obj is not None else None,
-            gap_objective=float(assess.get("gap_objective", 0.0)),
+            oos_objective=float(oos_raw) if oos_raw is not None else None,
+            gap_objective=gap_objective,
             penalty=float(metrics.get("overfitting_penalty_applied", 0.0)),
             risk_level=str(assess.get("risk_level", "unknown")),
             is_champion=is_champion,
@@ -464,7 +496,7 @@ def _run_iterative_search(
             champion_record[2]["sharpe"] if champion_record else None,
             round_idx + 1,
             max_rounds,
-            convergence_history[-24:],
+            _convergence_preview_payload(convergence_history),
         )
 
         incoming_champion_record = champion_record
@@ -530,7 +562,7 @@ def _run_iterative_search(
                 champion_record[2]["sharpe"] if champion_record else None,
                 round_idx + 1,
                 max_rounds,
-                convergence_history[-24:],
+                _convergence_preview_payload(convergence_history),
             )
 
         def ai_progress(current: int, total: int, message: str) -> None:
@@ -541,7 +573,7 @@ def _run_iterative_search(
                 champion_record[2]["sharpe"] if champion_record else None,
                 round_idx + 1,
                 max_rounds,
-                convergence_history[-24:],
+                _convergence_preview_payload(convergence_history),
             )
 
         ai_generation = generate_ai_round_seed(
@@ -582,7 +614,7 @@ def _run_iterative_search(
                     champion_record[2]["sharpe"] if champion_record else None,
                     round_idx + 1,
                     max_rounds,
-                    convergence_history[-24:],
+                    _convergence_preview_payload(convergence_history),
                 )
             else:
                 report_progress(
@@ -593,7 +625,7 @@ def _run_iterative_search(
                     champion_record[2]["sharpe"] if champion_record else None,
                     round_idx + 1,
                     max_rounds,
-                    convergence_history[-24:],
+                    _convergence_preview_payload(convergence_history),
                 )
         else:
             regime_note = ""
@@ -618,7 +650,7 @@ def _run_iterative_search(
                 champion_record[2]["sharpe"] if champion_record else None,
                 round_idx + 1,
                 max_rounds,
-                convergence_history[-24:],
+                _convergence_preview_payload(convergence_history),
             )
         if ai_generation.get("rationale"):
             ai_rationales.append(str(ai_generation.get("rationale")).strip())
@@ -634,9 +666,17 @@ def _run_iterative_search(
         ) -> None:
             nonlocal round_live_best
             if latest_record is not None:
-                score, _params, metrics = latest_record
+                score, params, metrics = latest_record
+                conv_metrics = _convergence_metrics_for_record(
+                    score,
+                    params,
+                    metrics,
+                    trial_report_cache=trial_report_cache,
+                    objective_effective=objective_effective,
+                    oos_enabled=bool(oos and len(prices_val) > 60),
+                )
                 obj = _record_objective_sort_value(
-                    objective_effective, score, metrics
+                    objective_effective, score, conv_metrics
                 )
                 if obj > round_live_best:
                     round_live_best = obj
@@ -645,10 +685,14 @@ def _run_iterative_search(
                             point["is_champion"] = False
                 _append_convergence_from_record(
                     convergence_history,
-                    global_trial=round_trial_base + trial - 1,
+                    global_trial=_convergence_global_trial_id(
+                        round_trial_base,
+                        params,
+                        callback_trial_1based=trial,
+                    ),
                     round_idx=round_idx + 1,
                     score=score,
-                    metrics=metrics,
+                    metrics=conv_metrics,
                     objective_effective=objective_effective,
                     is_champion=abs(obj - round_live_best) < 1e-9,
                 )
@@ -666,7 +710,7 @@ def _run_iterative_search(
                 best_score,
                 round_idx + 1,
                 max_rounds,
-                convergence_history[-24:],
+                _convergence_preview_payload(convergence_history),
             )
 
         if use_regime_matrix and dynamic_ctx is not None:
@@ -1028,7 +1072,7 @@ def _run_iterative_search(
             champion_record[2]["sharpe"] if champion_record else None,
             round_idx + 1,
             max_rounds,
-            convergence_history[-24:],
+            _convergence_preview_payload(convergence_history),
             round_benchmark_status=round_bench.get("benchmark_status"),
             round_benchmark_alpha=round_bench.get("benchmark_alpha"),
             round_portfolio_vs_benchmark=round_bench.get("portfolio_vs_benchmark"),
@@ -2173,6 +2217,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     candidates = _rerank_candidates_by_objective(
         candidates, trial_objective if dynamic_mode else objective_effective
     )
+    for c in candidates:
+        c.is_champion = False
     if pro_mode:
         final_champion_params = refinement_meta.get("final_champion_params")
         if isinstance(final_champion_params, dict):
@@ -2323,6 +2369,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             round_challenger_model_codes: list[str] = list(
                 pr.get("round_challenger_model_codes") or []
             )
+            for c in pr_candidates:
+                c.is_champion = False
             for c in pr_candidates:
                 sig = _model_signature(c.params or {})
                 if winner_sig and sig == winner_sig:

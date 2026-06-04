@@ -59,7 +59,7 @@ function normalizePoints(raw: ConvergencePoint[]): ChartRow[] {
       p.gap_objective ??
       (p.gap_sharpe != null ? p.gap_sharpe : isObj - Number(oosObj ?? isObj));
     const trialFromApi =
-      typeof p.trial === "number" && Number.isFinite(p.trial) && p.trial > 0
+      typeof p.trial === "number" && Number.isFinite(p.trial) && p.trial >= 0
         ? Math.round(p.trial)
         : null;
     return {
@@ -75,8 +75,8 @@ function normalizePoints(raw: ConvergencePoint[]): ChartRow[] {
 
 /** Recharts x-axis must be a strict 1..N trial sequence (not model codes / round ids). */
 function withSequentialTrialIndex(rows: ChartRow[]): ChartRow[] {
-  const trials = rows.map((r) => r.trial_index);
-  const uniqueCount = new Set(trials).size;
+  const keys = rows.map((r) => `${r.round}:${r.trial_index}`);
+  const uniqueCount = new Set(keys).size;
   if (uniqueCount === rows.length) return rows;
   return rows.map((row, idx) => ({ ...row, trial_index: idx + 1 }));
 }

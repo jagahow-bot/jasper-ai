@@ -23,7 +23,10 @@ function formatAlpha(value: number | null | undefined): string {
 }
 
 export function ProgressPanel({ progress }: Props) {
-  const preview = (progress.convergence_preview ?? []) as ConvergencePoint[];
+  const round = progress.refinement_round;
+  const preview = (
+    (progress.convergence_preview ?? []) as ConvergencePoint[]
+  ).filter((p) => round == null || p.round === round);
   const belowBench = progress.round_benchmark_status === "below";
   const pvb = progress.round_portfolio_vs_benchmark as PortfolioVsBenchmark | null | undefined;
   const pct =

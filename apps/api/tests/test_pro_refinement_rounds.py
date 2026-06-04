@@ -737,6 +737,86 @@ def test_convergence_metrics_prefers_existing_per_trial_assessment():
     assert out_a["objective_value_is"] != out_b["objective_value_is"]
 
 
+def test_live_convergence_append_three_distinct_trials():
+    from app.engine.backtest import (
+        _append_convergence_from_record,
+        _convergence_global_trial_id,
+        _convergence_metrics_for_record,
+    )
+
+    history: list[dict] = []
+    round_trial_base = 6
+    round_idx = 2
+    objective_effective = "max_sharpe"
+    trials = [
+        (0.2, 0.18, 0),
+        (0.5, 0.4, 1),
+        (0.8, 0.7, 2),
+    ]
+    for is_obj, oos_obj, optuna_no in trials:
+        params = {"optuna_trial_number": optuna_no}
+        metrics = _metrics_with_is_oos(is_obj, oos_obj)
+        metrics["objective_value_oos"] = oos_obj
+        metrics["gap_objective"] = is_obj - oos_obj
+        conv = _convergence_metrics_for_record(
+            is_obj,
+            params,
+            metrics,
+            trial_report_cache=None,
+            objective_effective=objective_effective,
+            oos_enabled=True,
+        )
+        _append_convergence_from_record(
+            history,
+            global_trial=_convergence_global_trial_id(
+                round_trial_base, params, callback_trial_1based=optuna_no + 1
+            ),
+            round_idx=round_idx,
+            score=is_obj,
+            metrics=conv,
+            objective_effective=objective_effective,
+            is_champion=False,
+        )
+
+    assert len(history) == 3
+    assert {p["trial"] for p in history} == {6, 7, 8}
+    assert {p["round"] for p in history} == {2}
+    is_vals = [p["is_objective"] for p in sorted(history, key=lambda p: p["trial"])]
+    assert is_vals == [0.2, 0.5, 0.8]
+    oos_vals = [p["oos_objective"] for p in sorted(history, key=lambda p: p["trial"])]
+    assert oos_vals == [0.18, 0.4, 0.7]
+
+
+def test_append_convergence_prefers_top_level_oos_over_stale_assessment():
+    from app.engine.backtest import _append_convergence_from_record
+
+    history: list[dict] = []
+    stale_assess = {
+        "in_sample_objective": 0.99,
+        "out_of_sample_objective": 0.11,
+        "gap_objective": 0.88,
+        "risk_level": "high",
+    }
+    metrics = {
+        "objective_value_is": 0.3,
+        "objective_value_oos": 0.25,
+        "gap_objective": 0.05,
+        "overfitting_assessment": stale_assess,
+    }
+    _append_convergence_from_record(
+        history,
+        global_trial=1,
+        round_idx=1,
+        score=0.3,
+        metrics=metrics,
+        objective_effective="max_sharpe",
+        is_champion=False,
+    )
+    assert history[0]["is_objective"] == 0.3
+    assert history[0]["oos_objective"] == 0.25
+    assert history[0]["gap_objective"] == 0.05
+
+
 def test_resync_round_convergence_replaces_stale_duplicate_points():
     stale = {
         "round": 1,
