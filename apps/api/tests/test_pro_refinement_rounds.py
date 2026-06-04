@@ -6,7 +6,10 @@ from __future__ import annotations
 
 
 
-from app.engine.backtest import _resync_round_convergence_from_records
+from app.engine.backtest import (
+    _resync_round_convergence_from_records,
+    _sort_round_records_for_convergence,
+)
 from app.engine.refinement import (
     assign_pro_round_model_codes,
     assign_search_model_codes,
@@ -700,6 +703,16 @@ def _metrics_with_is_oos(is_obj: float, oos_obj: float) -> dict:
     }
 
 
+def test_sort_round_records_by_optuna_trial_number():
+    records = [
+        (0.3, {"optuna_trial_number": 2}, _metrics_with_is_oos(0.3, 0.2)),
+        (0.9, {"optuna_trial_number": 0}, _metrics_with_is_oos(0.9, 0.8)),
+        (0.5, {"optuna_trial_number": 1}, _metrics_with_is_oos(0.5, 0.4)),
+    ]
+    ordered = _sort_round_records_for_convergence(records)
+    assert [r[1]["optuna_trial_number"] for r in ordered] == [0, 1, 2]
+
+
 def test_resync_round_convergence_replaces_stale_duplicate_points():
     stale = {
         "round": 1,
@@ -714,9 +727,9 @@ def test_resync_round_convergence_replaces_stale_duplicate_points():
         {"round": 2, "trial": 6, "is_objective": 0.5, "oos_objective": 0.4, "gap_objective": 0.1},
     ]
     records = [
-        (0.2, {"portfolio_id": 1}, _metrics_with_is_oos(0.20, 0.18)),
-        (0.5, {"portfolio_id": 2}, _metrics_with_is_oos(0.50, 0.40)),
-        (0.8, {"portfolio_id": 3}, _metrics_with_is_oos(0.80, 0.70)),
+        (0.2, {"portfolio_id": 1, "optuna_trial_number": 0}, _metrics_with_is_oos(0.20, 0.18)),
+        (0.5, {"portfolio_id": 2, "optuna_trial_number": 1}, _metrics_with_is_oos(0.50, 0.40)),
+        (0.8, {"portfolio_id": 3, "optuna_trial_number": 2}, _metrics_with_is_oos(0.80, 0.70)),
     ]
     _resync_round_convergence_from_records(
         history,

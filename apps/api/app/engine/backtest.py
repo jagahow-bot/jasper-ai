@@ -49,6 +49,7 @@ from app.engine.ai_params import generate_ai_param_sets, generate_ai_round_seed
 from app.engine.factors import FactorParams, factor_params_from_dict
 from app.engine.ai_universe import refine_universe_with_ai
 from app.engine.refinement import (
+    assess_overfitting,
     assign_pro_round_model_codes,
     assign_search_model_codes,
     best_record_in_pool,
@@ -191,6 +192,63 @@ def _history_point(
     }
 
 
+def _sort_round_records_for_convergence(
+    round_records: list[tuple[float, dict, dict]],
+) -> list[tuple[float, dict, dict]]:
+    """Stable Optuna trial order for convergence trial ids (not completion order)."""
+
+    def _trial_no(params: dict) -> int:
+        try:
+            return int(params.get("optuna_trial_number", 10**9))
+        except (TypeError, ValueError):
+            return 10**9
+
+    return sorted(round_records, key=lambda r: (_trial_no(r[1]), id(r[1])))
+
+
+def _convergence_metrics_for_record(
+    score: float,
+    params: dict,
+    metrics: dict[str, Any],
+    *,
+    trial_report_cache: TrialReportCache | None,
+    objective_effective: str,
+    oos_enabled: bool,
+) -> dict[str, Any]:
+    """Per-trial IS/OOS objectives; prefer cached train/val sims over slim search blobs."""
+    bundle = trial_report_cache.get_bundle(params) if trial_report_cache else None
+    if bundle and bundle.train_m:
+        assess = assess_overfitting(
+            bundle.train_m,
+            bundle.val_m,
+            oos_enabled=oos_enabled and bundle.val_m is not None,
+            objective_mode=objective_effective,
+        )
+        merged = dict(metrics)
+        merged["objective_value_is"] = float(assess.get("in_sample_objective", score))
+        merged["objective_value_oos"] = assess.get("out_of_sample_objective")
+        merged["gap_objective"] = float(assess.get("gap_objective", 0.0))
+        merged["overfitting_assessment"] = assess
+        merged["overfitting_penalty_applied"] = float(assess.get("penalty", 0.0))
+        return merged
+    return metrics
+
+
+def _upsert_convergence_point(
+    convergence_history: list[dict[str, Any]],
+    point: dict[str, Any],
+    *,
+    round_idx: int,
+    global_trial: int,
+) -> None:
+    convergence_history[:] = [
+        p
+        for p in convergence_history
+        if not (p.get("round") == round_idx and p.get("trial") == global_trial)
+    ]
+    convergence_history.append(point)
+
+
 def _append_convergence_from_record(
     convergence_history: list[dict[str, Any]],
     *,
@@ -209,7 +267,8 @@ def _append_convergence_from_record(
         )
     )
     oos_obj = assess.get("out_of_sample_objective")
-    convergence_history.append(
+    _upsert_convergence_point(
+        convergence_history,
         _history_point(
             global_trial=global_trial,
             round_idx=round_idx,
@@ -220,7 +279,9 @@ def _append_convergence_from_record(
             risk_level=str(assess.get("risk_level", "unknown")),
             is_champion=is_champion,
             objective_label=objective_label(objective_effective),
-        )
+        ),
+        round_idx=round_idx,
+        global_trial=global_trial,
     )
 
 
@@ -231,18 +292,29 @@ def _resync_round_convergence_from_records(
     round_records: list[tuple[float, dict, dict]],
     round_trial_base: int,
     objective_effective: str,
+    trial_report_cache: TrialReportCache | None = None,
+    oos_enabled: bool = False,
 ) -> None:
     """Replace live Optuna preview points with per-trial metrics from round_records."""
     convergence_history[:] = [
         p for p in convergence_history if p.get("round") != round_idx
     ]
-    for trial_i, (score, _params, metrics) in enumerate(round_records):
+    ordered = _sort_round_records_for_convergence(round_records)
+    for trial_i, (score, params, metrics) in enumerate(ordered):
+        conv_metrics = _convergence_metrics_for_record(
+            score,
+            params,
+            metrics,
+            trial_report_cache=trial_report_cache,
+            objective_effective=objective_effective,
+            oos_enabled=oos_enabled,
+        )
         _append_convergence_from_record(
             convergence_history,
             global_trial=round_trial_base + trial_i,
             round_idx=round_idx,
             score=score,
-            metrics=metrics,
+            metrics=conv_metrics,
             objective_effective=objective_effective,
             is_champion=False,
         )
@@ -261,7 +333,8 @@ def _relabel_round_champion_flags(
     for point in convergence_history:
         if point.get("round") == round_idx:
             point["is_champion"] = False
-    for trial_i, (score, _params, metrics) in enumerate(round_records):
+    ordered = _sort_round_records_for_convergence(round_records)
+    for trial_i, (score, _params, metrics) in enumerate(ordered):
         obj = _record_objective_sort_value(objective_effective, score, metrics)
         if abs(obj - champion_objective) >= 1e-9:
             continue
@@ -648,6 +721,8 @@ def _run_iterative_search(
             round_records=round_records,
             round_trial_base=round_trial_base,
             objective_effective=objective_effective,
+            trial_report_cache=trial_report_cache,
+            oos_enabled=bool(oos and len(prices_val) > 60),
         )
 
         assign_pro_round_model_codes(
@@ -1433,7 +1508,7 @@ def _assemble_candidates_from_records(
                         f"Packaging {model_code} ({rank}/{n_models}): "
                         f"cache incomplete ({', '.join(missing)}) — running backtest(s)…"
                     )
-            report_full = str(prices.index[0].date())
+            report_full = str(req.start_date)
             if need_train:
                 train_kw = apply_allocator_resolver(sim_kw, prices_train, resolver)
                 train_m = simulate_dynamic_portfolio(
@@ -2081,6 +2156,12 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 if _model_signature(c.params or {}) == champ_sig:
                     c.is_champion = True
                     break
+            if not any(c.is_champion for c in candidates):
+                champ_code = str(final_champion_params.get("model_code", ""))
+                for c in candidates:
+                    if champ_code and c.model_code == champ_code:
+                        c.is_champion = True
+                        break
     else:
         for c in candidates:
             if c.rank == 1:
@@ -2365,7 +2446,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             champion_sim_kw["factor_params_resolver"] = champ_factor_resolver
     full_m = simulate_dynamic_portfolio(
         prices_sim_panel,
-        report_start=str(prices.index[0].date()),
+        report_start=str(req.start_date),
         **champion_sim_kw,
     )
     equity_curve = equity_curve_series(full_m["equity"])
@@ -2380,6 +2461,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     )
 
     best = _best_candidate(candidates) or candidates[0]
+    champion_model_code = best.model_code if best else None
     portfolio_catalog = all_record_catalog
     bench = benchmark_metrics(prices, spec.benchmark_ticker, spec)
 
@@ -2434,6 +2516,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "portfolio_catalog": portfolio_catalog,
         "top_models_requested": req.top_models,
         "trials_completed": trials_completed,
+        "champion_model_code": champion_model_code,
         "pro_refinement": (
             {
                 **{k: v for k, v in refinement_meta.items() if k != "per_round"},

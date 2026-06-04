@@ -167,7 +167,15 @@ export function LinkedEquityWeightChart({
       cumulative_return_pct: r.portfolio,
       price_index: 0,
     }));
-    return computeSharedDateDomain(benchForDomain, timeline);
+    const equityDomain = computeSharedDateDomain(benchForDomain, []);
+    if (!timeline.length) return equityDomain;
+    const withTimeline = computeSharedDateDomain(benchForDomain, timeline);
+    if (!equityDomain) return withTimeline;
+    // Walk-forward steps can start before the first equity point; don't stretch the axis left.
+    return {
+      min: equityDomain.min,
+      max: withTimeline?.max ?? equityDomain.max,
+    };
   }, [equityChartData, timeline]);
 
   const objectiveBands = useMemo(() => {

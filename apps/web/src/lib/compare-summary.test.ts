@@ -3,6 +3,7 @@ import {
   buildCompareFallback,
   isAcceptableCompareSummary,
   looksLikeMetricDump,
+  resolveCompareChampion,
   slimComparePayload,
 } from "./compare-summary";
 
@@ -49,6 +50,29 @@ M0010 Sharpe:
     expect(isAcceptableCompareSummary(prose)).toBe(true);
   });
 
+  it("resolveCompareChampion prefers is_champion over rank 1", () => {
+    const candidates = [
+      { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: false },
+      { model_code: "M0009", rank: 9, sharpe: 1.2, is_champion: true },
+    ];
+    expect(resolveCompareChampion(candidates)?.model_code).toBe("M0009");
+    expect(
+      resolveCompareChampion(candidates, "M0001")?.model_code,
+    ).toBe("M0001");
+  });
+
+  it("slimComparePayload puts champion first", () => {
+    const slim = slimComparePayload({
+      benchmark: "VT",
+      candidates: [
+        { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: false },
+        { model_code: "M0009", rank: 9, sharpe: 1.2, is_champion: true },
+      ],
+    });
+    expect(slim.candidates[0]?.model_code).toBe("M0009");
+    expect(slim.champion_model_code).toBe("M0009");
+  });
+
   it("buildCompareFallback returns paragraphs not metric lines", () => {
     const text = buildCompareFallback({
       benchmark: "VT",
@@ -75,6 +99,7 @@ M0010 Sharpe:
     });
     expect(looksLikeMetricDump(text)).toBe(false);
     expect(text).toContain("M0001");
+    expect(text).toContain("champion");
     expect(text).toContain("research and education");
   });
 });

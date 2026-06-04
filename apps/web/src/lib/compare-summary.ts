@@ -1,4 +1,5 @@
 import { formatPctDecimal } from "./ai-metric-format";
+import { candidateModelKey } from "./performance-compare-chart";
 
 type HorizonSnap = {
   sharpe?: number;
@@ -21,6 +22,7 @@ export type CompareCandidateLite = {
   information_ratio?: number | null;
   train_sharpe?: number | null;
   validation_sharpe?: number | null;
+  is_champion?: boolean;
   horizons?: {
     in_sample?: HorizonSnap;
     out_of_sample?: HorizonSnap | null;
@@ -33,6 +35,7 @@ export type CompareSummaryPayload = {
   benchmark: string;
   objective?: string;
   objective_label?: string;
+  champion_model_code?: string | null;
   candidates: CompareCandidateLite[];
   candidate_count_total?: number;
 };
@@ -75,8 +78,25 @@ function slimCandidate(c: CompareCandidateLite): CompareCandidateLite {
     alpha: c.alpha ?? c.alpha_annual,
     information_ratio: c.information_ratio,
     validation_sharpe: c.validation_sharpe,
+    is_champion: c.is_champion,
     horizons,
   };
+}
+
+/** Pro/final ★ champion for compare narrative (not objective rank 1). */
+export function resolveCompareChampion(
+  candidates: CompareCandidateLite[],
+  championModelCode?: string | null,
+): CompareCandidateLite | undefined {
+  if (championModelCode) {
+    const byCode = candidates.find(
+      (c) => candidateModelKey(c) === championModelCode.trim(),
+    );
+    if (byCode) return byCode;
+  }
+  const flagged = candidates.find((c) => c.is_champion === true);
+  if (flagged) return flagged;
+  return candidates.find((c) => c.rank === 1) ?? candidates[0];
 }
 
 /** Cap prompt size for multi-trial runs; full count echoed for the model. */
@@ -87,12 +107,26 @@ export function slimComparePayload(
   const sorted = [...payload.candidates].sort(
     (a, b) => (a.rank ?? 999) - (b.rank ?? 999),
   );
+  const champ = resolveCompareChampion(
+    sorted,
+    payload.champion_model_code,
+  );
+  const champKey = champ ? candidateModelKey(champ) : null;
+  const ordered = champKey
+    ? [
+        champ!,
+        ...sorted.filter((c) => candidateModelKey(c) !== champKey),
+      ]
+    : sorted;
   return {
     benchmark: payload.benchmark,
     objective: payload.objective,
     objective_label: payload.objective_label,
+    champion_model_code:
+      payload.champion_model_code ??
+      (champ?.model_code ? candidateModelKey(champ) : null),
     candidate_count_total: sorted.length,
-    candidates: sorted.slice(0, maxCandidates).map(slimCandidate),
+    candidates: ordered.slice(0, maxCandidates).map(slimCandidate),
   };
 }
 
@@ -130,14 +164,14 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
   const sorted = [...payload.candidates].sort(
     (a, b) => (a.rank ?? 999) - (b.rank ?? 999),
   );
-  const champ = sorted[0];
+  const champ = resolveCompareChampion(sorted, payload.champion_model_code);
   if (!champ) return "No models to compare.";
   const champCode = champ.model_code ?? "M?";
   const obj = payload.objective_label ?? payload.objective ?? "n/a";
   const total = payload.candidate_count_total ?? sorted.length;
 
   const p1 = [
-    `Across ${total} models vs ${payload.benchmark} (${obj}), ${champCode} ranks first on the selection objective.`,
+    `Across ${total} models vs ${payload.benchmark} (${obj}), ${champCode} is the Pro champion (★) on the selection objective.`,
     `Selection view: CAGR ${formatPctDecimal(champ.cagr)}, Sharpe ${champ.sharpe ?? "—"}, ` +
       `max drawdown ${formatPctDecimal(champ.max_drawdown)}, turnover ${formatPctDecimal(champ.turnover_avg)}.`,
   ].join(" ");
@@ -154,7 +188,10 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
         horizonLine(champCode, "out-of-sample", oos),
     );
   }
-  const runner = sorted[1];
+  const peers = sorted.filter(
+    (c) => candidateModelKey(c) !== candidateModelKey(champ),
+  );
+  const runner = peers[0];
   const p2 =
     p2Parts.length > 0
       ? p2Parts.join(" ")
@@ -162,7 +199,7 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
         ? `Next ranked ${runner.model_code ?? "M?"}: Sharpe ${runner.sharpe ?? "—"}, CAGR ${formatPctDecimal(runner.cagr)}.`
         : "";
 
-  const others = sorted.slice(1, 4);
+  const others = peers.slice(0, 3);
   const p3 =
     others.length > 0
       ? `Peers to watch: ${others

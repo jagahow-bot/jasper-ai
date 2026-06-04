@@ -13,6 +13,16 @@ from app.engine.memory_budget import (
 from app.engine.refinement import model_signature
 
 
+def test_slim_search_metrics_deep_copies_overfitting_assessment():
+    shared = {"in_sample_objective": 0.5, "out_of_sample_objective": 0.4}
+    metrics_a = {"sharpe": 1.0, "overfitting_assessment": shared}
+    metrics_b = {"sharpe": 2.0, "overfitting_assessment": shared}
+    slim_a = slim_search_metrics(metrics_a)
+    slim_b = slim_search_metrics(metrics_b)
+    slim_a["overfitting_assessment"]["in_sample_objective"] = 0.1
+    assert slim_b["overfitting_assessment"]["in_sample_objective"] == 0.5
+
+
 def test_slim_search_metrics_drops_equity_keeps_scalars():
     metrics = {
         "sharpe": 1.2,

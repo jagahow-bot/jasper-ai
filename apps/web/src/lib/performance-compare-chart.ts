@@ -55,11 +55,19 @@ export function candidateModelKey(c: { model_code?: string | null; rank?: number
   return normalizeModelCode(c, 0);
 }
 
-/** Champion model_code for ★ marking; prefers API is_champion, then rank 1. */
+/** Champion model_code for ★ marking; prefers API champion_model_code / is_champion. */
 export function resolveChampionModelKey(
   candidates: PerformanceCompareCandidate[],
   narrativeFacts?: Record<string, unknown> | null,
 ): string | null {
+  const explicit = narrativeFacts?.champion_model_code;
+  if (typeof explicit === "string" && explicit.trim()) {
+    const code = explicit.trim();
+    const match = candidates.find((c) => candidateModelKey(c) === code);
+    if (match) return candidateModelKey(match);
+    return code;
+  }
+
   const flagged = candidates.find((c) => c.is_champion === true);
   if (flagged) return candidateModelKey(flagged);
 

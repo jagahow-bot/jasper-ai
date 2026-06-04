@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import gc
 import os
 from typing import Any
@@ -86,7 +87,15 @@ def slim_search_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
     """Drop series/large blobs retained in TrialReportCache for report assembly."""
     if not metrics:
         return metrics
-    return {k: v for k, v in metrics.items() if k not in _HEAVY_METRIC_KEYS}
+    out: dict[str, Any] = {}
+    for k, v in metrics.items():
+        if k in _HEAVY_METRIC_KEYS:
+            continue
+        if k in {"overfitting_assessment", "train_metrics", "validation_metrics"}:
+            out[k] = copy.deepcopy(v) if isinstance(v, dict) else v
+        else:
+            out[k] = v
+    return out
 
 
 def downsample_keep_endpoints(items: list[Any], cap: int) -> list[Any]:

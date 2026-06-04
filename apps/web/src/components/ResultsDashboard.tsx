@@ -342,11 +342,16 @@ export function ResultsDashboard({
                 result.narrative_facts.objective ??
                 request.objective,
             ),
+            champion_model_code:
+              typeof result.narrative_facts.champion_model_code === "string"
+                ? result.narrative_facts.champion_model_code
+                : championModelKey,
             candidates: result.candidates.map((c) => {
               const sm = c.analytics?.sample_metrics;
               return {
                 model_code: c.model_code,
                 rank: c.rank,
+                is_champion: c.is_champion === true,
                 sharpe: c.sharpe,
                 cagr: c.cagr,
                 max_drawdown: c.max_drawdown,
@@ -381,7 +386,13 @@ export function ResultsDashboard({
     return () => {
       cancelled = true;
     };
-  }, [benchTicker, result.candidates, result.narrative_facts, request.objective]);
+  }, [
+    benchTicker,
+    championModelKey,
+    result.candidates,
+    result.narrative_facts,
+    request.objective,
+  ]);
 
   const benchmarkBarMetrics = useMemo(() => {
     const spec = result.narrative_facts.backtest_spec as

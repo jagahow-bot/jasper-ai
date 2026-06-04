@@ -716,6 +716,7 @@ def run_optuna_search(
 
         params["raw_score"] = float(score)
         params["adjusted_score"] = float(adjusted)
+        params["optuna_trial_number"] = int(trial.number)
 
         if trial_report_cache is not None:
             train_sim = train_m_holdout if has_holdout else metrics
