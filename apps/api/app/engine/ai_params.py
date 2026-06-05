@@ -1831,6 +1831,12 @@ def _round_seed_champion_section_lines(
     )
     if isinstance(champ_params, dict) and not model_code:
         model_code = champ_params.get("model_code")
+    # If a higher-level caller provides a narrative/final champion code for this round,
+    # treat it as authoritative for prompt injection to avoid stale/incorrect model_code.
+    source_model_code = model_code
+    if narrative_code and str(narrative_code).strip():
+        if not model_code or str(model_code) != str(narrative_code):
+            model_code = narrative_code
     if not (isinstance(champ, dict) or model_code or isinstance(champ_params, dict)):
         return out
 
@@ -1858,8 +1864,8 @@ def _round_seed_champion_section_lines(
     champ_lines = ["CHAMPION:"]
     if model_code:
         champ_lines.append(f"  model_code={model_code}")
-    if narrative_code and str(narrative_code) != str(model_code or ""):
-        champ_lines.append(f"  narrative_model_code={narrative_code}")
+    if source_model_code and str(source_model_code) != str(model_code or ""):
+        champ_lines.append(f"  source_model_code={source_model_code}")
     champ_lines.append(
         "  IS metrics: sharpe={sh} cagr={cg} mdd={mdd} objective_value_is={obj}".format(
             sh=_format_ai_number(sharpe, key="sharpe"),

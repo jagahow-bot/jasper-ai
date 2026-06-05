@@ -150,6 +150,28 @@ def test_learning_block_includes_vs_benchmark_for_below_alpha_prompt():
     assert "-0.04" in block or "-0.040" in block
 
 
+def test_learning_block_uses_current_incumbent_model_code_from_narrative():
+    """Guard: refinement prompts must inject the current round incumbent model code."""
+    block = _build_round_seed_learning_block(
+        {
+            "round_index": 3,
+            "total_rounds": 3,
+            "trials_per_round": 4,
+            "champion": {"train_sharpe": 0.9, "in_sample_objective": 0.37},
+            # Stale/incorrect record code (e.g., first-round champion).
+            "champion_record_params": {"model_code": "M0001"},
+            "champion_record_metrics": {"sharpe": 0.9, "objective_value_is": 0.37},
+            # Current incumbent at start of this round.
+            "narrative_champion_model_code": "M0008",
+            "final_champion_model_code": "M0008",
+        }
+    )
+    assert "CHAMPION:" in block
+    assert "model_code=M0008" in block
+    # Stale code may appear as a debug hint, but the injected CHAMPION model_code must be current.
+    assert "  model_code=M0001" not in block
+
+
 def test_normalize_round_seed_keeps_optimization_strategy():
     bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
     normalized = normalize_round_seed(
