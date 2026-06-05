@@ -17,7 +17,6 @@ import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
 
 export async function POST(req: Request) {
   const payload = (await req.json()) as CompareSummaryPayload;
-  const slim = slimComparePayload(payload);
 
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     const fallback = buildCompareFallback(payload);

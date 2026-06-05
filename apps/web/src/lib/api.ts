@@ -22,6 +22,32 @@ function getApiBase(): string {
 const API_UNAVAILABLE_MSG =
   "Cannot reach quant API. From repo root run npm run dev and confirm api is on 127.0.0.1:8001 (no WinError 10013).";
 
+function formatApiError(status: number, body: string): string {
+  const trimmed = body.trim();
+  if (!trimmed) return resStatusLabel(status);
+  try {
+    const parsed = JSON.parse(trimmed) as { detail?: unknown };
+    const detail = parsed.detail;
+    if (typeof detail === "string" && detail.trim()) {
+      if (detail.startsWith("Unknown model_code:")) {
+        const code = detail.replace("Unknown model_code:", "").trim();
+        return `Model ${code} is not in this job result. Try another trial or re-run the backtest.`;
+      }
+      return detail;
+    }
+  } catch {
+    /* not JSON */
+  }
+  return trimmed.length > 240 ? `${trimmed.slice(0, 240)}…` : trimmed;
+}
+
+function resStatusLabel(status: number): string {
+  if (status === 404) return "Resource not found";
+  if (status === 409) return "Job still running";
+  if (status === 422) return "Invalid request";
+  return `Request failed (${status})`;
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -37,7 +63,7 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || res.statusText);
+    throw new Error(formatApiError(res.status, text || res.statusText));
   }
   return res.json() as Promise<T>;
 }
@@ -83,10 +109,15 @@ export async function getJobResult(jobId: string): Promise<BacktestResult> {
 export async function fetchCandidateCharts(
   jobId: string,
   modelCode: string,
+  options?: { rank?: number },
 ): Promise<CandidateChartsPayload> {
   const encoded = encodeURIComponent(modelCode);
+  const rankQuery =
+    options?.rank != null && options.rank >= 1
+      ? `?rank=${encodeURIComponent(String(options.rank))}`
+      : "";
   return fetchJson<CandidateChartsPayload>(
-    `/jobs/${jobId}/candidates/${encoded}/charts`,
+    `/jobs/${jobId}/candidates/${encoded}/charts${rankQuery}`,
   );
 }
 

@@ -18,6 +18,7 @@ from app.models import (
     JobStatus,
     Objective,
     PortfolioCandidate,
+    ProRoundSnapshot,
 )
 from main import app
 
@@ -210,3 +211,121 @@ def test_lazy_get_404_unknown_model(client: TestClient):
     }
     res = client.get(f"/jobs/{job_id}/candidates/M9999/charts")
     assert res.status_code == 404
+
+
+def test_lazy_get_resolves_pro_round_catalog_not_in_final(client: TestClient):
+    """ALL ROUNDS catalog shows retired trials; charts must resolve via pro_rounds."""
+    job_id = "test-lazy-charts-pro-catalog"
+    req = BacktestRequest(
+        scenario_id="s1",
+        start_date="2020-01-01",
+        end_date="2024-01-01",
+        asset_classes=["equity"],
+        objective=Objective.max_sharpe,
+        max_weight=0.25,
+        max_turnover=0.5,
+        top_n=10,
+        trials=5,
+        top_models=3,
+    )
+    final_only = _slim_candidate("M0001", 1)
+    round_candidates = [_slim_candidate(f"M{i:04d}", i) for i in range(1, 16)]
+    pro_round = ProRoundSnapshot(
+        round=1,
+        candidates=round_candidates,
+        equity_curve=[],
+        efficient_frontier=[],
+        narrative_facts={"round_label": "Round 1"},
+        pool_model_codes=[f"M{i:04d}" for i in range(1, 16)],
+    )
+    result = BacktestResult(
+        job_id=job_id,
+        scenario_id="s1",
+        benchmark="SPY",
+        period={"start": "2020-01-01", "end": "2024-01-01"},
+        candidates=[final_only],
+        equity_curve=[],
+        efficient_frontier=[],
+        narrative_facts={
+            "objective": "max_sharpe",
+            "champion_model_code": "M0001",
+            "models_total_catalog": 15,
+        },
+        pro_rounds=[pro_round],
+    )
+    cache = TrialReportCache()
+    for code in (f"M{i:04d}" for i in range(1, 16)):
+        params = dict(next(c for c in round_candidates if c.model_code == code).params or {})
+        full_m = _minimal_sim(0.8 + int(code[1:]) * 0.01, with_weights=True)
+        cache.stash_from_trial(params, train_m=full_m, val_m=None, full_m=full_m)
+
+    job_service._jobs[job_id] = {
+        "request": req,
+        "progress": JobProgress(status=JobStatus.completed, message="done"),
+        "result": result,
+        "report_cache": cache,
+        "error": None,
+    }
+
+    with patch(
+        "app.candidate_charts.rebuild_candidate_charts",
+        side_effect=lambda _req, params, **kw: _full_charts_payload(
+            str(params.get("model_code", ""))
+        ),
+    ):
+        for code in (f"M{i:04d}" for i in range(1, 16)):
+            res = client.get(f"/jobs/{job_id}/candidates/{code}/charts")
+            assert res.status_code == 200, res.text
+            assert res.json()["model_code"] == code
+
+    patched = job_service.get_result(job_id)
+    m0006 = next(
+        c
+        for pr in patched.pro_rounds or []
+        for c in pr.candidates
+        if c.model_code == "M0006"
+    )
+    assert m0006.equity_curve
+    assert m0006.analytics and m0006.analytics.get("weight_history")
+
+
+def test_lazy_get_disambiguates_duplicate_code_with_rank(client: TestClient):
+    job_id = "test-lazy-charts-rank"
+    req = BacktestRequest(
+        scenario_id="s1",
+        start_date="2020-01-01",
+        end_date="2024-01-01",
+        asset_classes=["equity"],
+        objective=Objective.max_sharpe,
+        max_weight=0.25,
+        max_turnover=0.5,
+        top_n=10,
+        trials=5,
+        top_models=2,
+    )
+    c_rank2 = _slim_candidate("M0001", 2)
+    c_rank5 = _slim_candidate("M0001", 5)
+    result = BacktestResult(
+        job_id=job_id,
+        scenario_id="s1",
+        benchmark="SPY",
+        period={"start": "2020-01-01", "end": "2024-01-01"},
+        candidates=[c_rank2, c_rank5],
+        equity_curve=[],
+        efficient_frontier=[],
+        narrative_facts={},
+    )
+    job_service._jobs[job_id] = {
+        "request": req,
+        "progress": JobProgress(status=JobStatus.completed, message="done"),
+        "result": result,
+        "report_cache": None,
+        "error": None,
+    }
+
+    with patch(
+        "app.candidate_charts.rebuild_candidate_charts",
+        return_value=_full_charts_payload("M0001"),
+    ):
+        res = client.get(f"/jobs/{job_id}/candidates/M0001/charts?rank=5")
+    assert res.status_code == 200

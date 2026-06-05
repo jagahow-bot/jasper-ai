@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app import jobs as job_service
@@ -46,7 +46,11 @@ def get_job_result(job_id: str) -> BacktestResult:
     "/{job_id}/candidates/{model_code}/charts",
     response_model=CandidateChartsPayload,
 )
-def get_candidate_charts(job_id: str, model_code: str) -> CandidateChartsPayload:
+def get_candidate_charts(
+    job_id: str,
+    model_code: str,
+    rank: int | None = Query(default=None, ge=1),
+) -> CandidateChartsPayload:
     progress = job_service.get_progress(job_id)
     if not progress:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -55,7 +59,7 @@ def get_candidate_charts(job_id: str, model_code: str) -> CandidateChartsPayload
     if progress.status.value == "failed":
         raise HTTPException(status_code=500, detail=progress.message)
     try:
-        return job_service.get_candidate_charts(job_id, model_code)
+        return job_service.get_candidate_charts(job_id, model_code, rank=rank)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

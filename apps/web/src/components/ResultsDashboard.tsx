@@ -296,6 +296,7 @@ export function ResultsDashboard({
         const payload = await fetchCandidateCharts(
           result.job_id,
           selectedModelCode,
+          { rank: selected?.rank },
         );
         if (!cancelled) {
           setLazyChartsByCode((prev) => ({
@@ -318,6 +319,7 @@ export function ResultsDashboard({
     };
   }, [
     selectedModelCode,
+    selected?.rank,
     needsLazyCharts,
     needsLazyAnalytics,
     lazyCharts,

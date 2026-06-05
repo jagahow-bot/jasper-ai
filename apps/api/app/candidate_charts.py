@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -60,12 +61,90 @@ def _equity_curve_cap() -> int:
     return 512
 
 
-def find_candidate(result: BacktestResult, model_code: str) -> PortfolioCandidate | None:
-    code = str(model_code).strip()
+CandidateSource = Literal["final", "pro_round"]
+
+
+@dataclass(frozen=True)
+class ResolvedCandidate:
+    candidate: PortfolioCandidate
+    source: CandidateSource
+    pro_round_index: int | None = None
+
+
+def _normalize_model_code(model_code: str) -> str:
+    return str(model_code).strip().upper()
+
+
+def _candidate_matches_code(c: PortfolioCandidate, code: str) -> bool:
+    raw = str(c.model_code or "").strip()
+    if not raw:
+        return False
+    return raw.upper() == code
+
+
+def _collect_candidate_hits(
+    result: BacktestResult,
+    model_code: str,
+) -> list[ResolvedCandidate]:
+    code = _normalize_model_code(model_code)
+    if not code:
+        return []
+    hits: list[ResolvedCandidate] = []
     for c in result.candidates:
-        if c.model_code == code:
-            return c
-    return None
+        if _candidate_matches_code(c, code):
+            hits.append(ResolvedCandidate(candidate=c, source="final"))
+    for idx, pr in enumerate(result.pro_rounds or []):
+        for c in pr.candidates:
+            if _candidate_matches_code(c, code):
+                hits.append(
+                    ResolvedCandidate(
+                        candidate=c,
+                        source="pro_round",
+                        pro_round_index=idx,
+                    )
+                )
+    return hits
+
+
+def resolve_candidate(
+    result: BacktestResult,
+    model_code: str,
+    *,
+    rank: int | None = None,
+) -> ResolvedCandidate:
+    """Resolve one catalog row by model_code, optionally disambiguated by objective rank."""
+    hits = _collect_candidate_hits(result, model_code)
+    if not hits:
+        raise LookupError(f"Unknown model_code: {model_code}")
+
+    if rank is not None:
+        by_rank = [h for h in hits if h.candidate.rank == rank]
+        if by_rank:
+            hits = by_rank
+
+    if len(hits) == 1:
+        return hits[0]
+
+    final_hits = [h for h in hits if h.source == "final"]
+    if final_hits:
+        return final_hits[0]
+
+    pro_hits = [h for h in hits if h.source == "pro_round"]
+    pro_hits.sort(
+        key=lambda h: (
+            -(result.pro_rounds or [])[h.pro_round_index or 0].round
+            if h.pro_round_index is not None
+            else 0
+        )
+    )
+    return pro_hits[0]
+
+
+def find_candidate(result: BacktestResult, model_code: str) -> PortfolioCandidate | None:
+    try:
+        return resolve_candidate(result, model_code).candidate
+    except LookupError:
+        return None
 
 
 def candidate_has_full_charts(c: PortfolioCandidate) -> bool:
@@ -368,11 +447,11 @@ def resolve_candidate_charts(
     result: BacktestResult,
     model_code: str,
     *,
+    rank: int | None = None,
     trial_report_cache: TrialReportCache | None,
 ) -> CandidateChartsPayload:
-    candidate = find_candidate(result, model_code)
-    if candidate is None:
-        raise LookupError(f"Unknown model_code: {model_code}")
+    resolved = resolve_candidate(result, model_code, rank=rank)
+    candidate = resolved.candidate
     if candidate_has_full_charts(candidate) and candidate_has_deep_analytics(candidate):
         return payload_from_candidate(candidate)
     params = dict(candidate.params or {})
