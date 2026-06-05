@@ -286,6 +286,17 @@ class ProRoundSnapshot(BaseModel):
     narrative_facts: dict[str, Any] = Field(default_factory=dict)
 
 
+class CandidateChartsPayload(BaseModel):
+    """Full trajectory/holdings chart data for one candidate (lazy-loaded)."""
+
+    model_code: str
+    equity_curve: list[dict[str, Any]] = Field(default_factory=list)
+    weight_history: list[dict[str, Any]] = Field(default_factory=list)
+    weight_history_tickers: list[str] = Field(default_factory=list)
+    benchmark_equity_curve: list[dict[str, Any]] = Field(default_factory=list)
+    weight_cap_audit: dict[str, Any] | None = None
+
+
 class BacktestResult(BaseModel):
     job_id: str
     scenario_id: str

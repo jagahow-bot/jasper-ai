@@ -160,6 +160,16 @@ export interface PortfolioCandidate {
   information_ratio?: number | null;
 }
 
+/** Lazy-loaded trajectory/holdings payload for one candidate trial. */
+export interface CandidateChartsPayload {
+  model_code: string;
+  equity_curve: { date: string; value: number }[];
+  weight_history: ({ date: string } & Record<string, number | string>)[];
+  weight_history_tickers: string[];
+  benchmark_equity_curve: { date: string; value: number }[];
+  weight_cap_audit?: Record<string, unknown> | null;
+}
+
 export interface CandidateAnalytics {
   benchmark_relative?: Record<string, number>;
   periodic_returns?: {
@@ -217,6 +227,7 @@ export interface CandidateAnalytics {
   weight_history?: ({ date: string } & Record<string, number | string>)[];
   weight_history_tickers?: string[];
   benchmark_equity_curve?: { date: string; value: number }[];
+  weight_cap_audit?: Record<string, unknown>;
 }
 
 export interface ProRoundSnapshot {

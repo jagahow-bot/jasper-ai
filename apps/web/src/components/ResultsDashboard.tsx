@@ -52,11 +52,16 @@ import {
   resolveChampionModelKey,
   resolveDefaultSelectedRowKey,
 } from "@/lib/performance-compare-chart";
-import { patchJobNarrativeFacts } from "@/lib/api";
+import { fetchCandidateCharts, patchJobNarrativeFacts } from "@/lib/api";
+import {
+  candidateHasFullCharts,
+  mergeCandidateCharts,
+} from "@/lib/candidate-charts-lazy";
 import type {
   BacktestRequest,
   BacktestResult,
   BenchmarkSeriesPoint,
+  CandidateChartsPayload,
   DynamicObjectiveTimelinePoint,
 } from "@/lib/types";
 import {
@@ -148,6 +153,13 @@ export function ResultsDashboard({
   const [compareRetryNote, setCompareRetryNote] = useState<string | null>(null);
   const [leaderboardSort, setLeaderboardSort] =
     useState<LeaderboardSort>("in_sample");
+  const [lazyChartsByCode, setLazyChartsByCode] = useState<
+    Record<string, CandidateChartsPayload>
+  >({});
+  const [chartsLoadingCode, setChartsLoadingCode] = useState<string | null>(
+    null,
+  );
+  const [chartsLoadError, setChartsLoadError] = useState<string | null>(null);
 
   const resultSelectionEpoch = useMemo(
     () =>
@@ -172,6 +184,9 @@ export function ResultsDashboard({
     setAiRecommendedModelCode(readPersistedAiChampionCode(result.narrative_facts));
     setCompareSummary("");
     setCompareRetryNote(null);
+    setLazyChartsByCode({});
+    setChartsLoadingCode(null);
+    setChartsLoadError(null);
   }, [resultSelectionEpoch, result.narrative_facts]);
 
   useEffect(() => {
@@ -241,20 +256,73 @@ export function ResultsDashboard({
     return idx >= 0 ? result.candidates[idx] : result.candidates[0];
   }, [result.candidates, championNarrativeFacts]);
 
-  const selectedHasFullCharts = useMemo(() => {
-    if (!selected) return false;
-    const wh = selected.analytics?.weight_history;
-    const ec = selected.equity_curve;
-    return Boolean((wh && wh.length > 0) || (ec && ec.length > 0));
-  }, [selected]);
+  const selectedModelCode = selected?.model_code ?? "";
+  const selectedHasFullCharts = useMemo(
+    () => candidateHasFullCharts(selected),
+    [selected],
+  );
+  const lazyCharts = selectedModelCode
+    ? lazyChartsByCode[selectedModelCode]
+    : undefined;
+
+  useEffect(() => {
+    if (!selectedModelCode || selectedHasFullCharts || lazyCharts) return;
+    let cancelled = false;
+    setChartsLoadingCode(selectedModelCode);
+    setChartsLoadError(null);
+    void (async () => {
+      try {
+        const payload = await fetchCandidateCharts(
+          result.job_id,
+          selectedModelCode,
+        );
+        if (!cancelled) {
+          setLazyChartsByCode((prev) => ({
+            ...prev,
+            [selectedModelCode]: payload,
+          }));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setChartsLoadError(
+            err instanceof Error ? err.message : "Failed to load trajectory",
+          );
+        }
+      } finally {
+        if (!cancelled) setChartsLoadingCode(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedModelCode,
+    selectedHasFullCharts,
+    lazyCharts,
+    result.job_id,
+  ]);
+
+  const chartsReady = selectedHasFullCharts || Boolean(lazyCharts);
+  const chartsLoading = Boolean(
+    selectedModelCode &&
+      !chartsReady &&
+      chartsLoadingCode === selectedModelCode,
+  );
 
   const chartCandidate = useMemo(() => {
-    if (selectedHasFullCharts && selected) return selected;
-    return championCandidate ?? selected;
-  }, [selected, selectedHasFullCharts, championCandidate]);
+    if (!selected) return championCandidate;
+    if (selectedHasFullCharts) return selected;
+    if (lazyCharts) return mergeCandidateCharts(selected, lazyCharts);
+    return selected;
+  }, [selected, selectedHasFullCharts, lazyCharts, championCandidate]);
 
-  const chartsUseChampionFallback =
-    Boolean(selected && chartCandidate && selected !== chartCandidate);
+  const usingChampionAnalyticsFallback = Boolean(
+    selected &&
+      championCandidate &&
+      selected.model_code !== championCandidate.model_code &&
+      !chartsReady &&
+      !selectedHasFullCharts,
+  );
 
   const weightHistory = useMemo(
     () =>
@@ -1322,12 +1390,17 @@ export function ResultsDashboard({
       </ChartCard>
 
       <ChartCard title="Portfolio trajectory & holdings">
-        {chartsUseChampionFallback ? (
-          <p className="mb-3 text-xs text-dim">
-            Full trajectory and weight history are available for the ★ champion only. Select the
-            champion trial for charts tied to that model, or use the comparison table above for
-            metrics on other trials.
+        {chartsLoading ? (
+          <p className="mb-3 flex items-center gap-2 text-xs text-dim">
+            <span
+              className="inline-block h-3 w-3 animate-spin rounded-full border border-[var(--amber)] border-t-transparent"
+              aria-hidden
+            />
+            Loading trajectory for {selectedModelCode}…
           </p>
+        ) : null}
+        {chartsLoadError && !chartsReady ? (
+          <p className="mb-3 text-xs text-red-400">{chartsLoadError}</p>
         ) : null}
         {dynamicObjectiveChart ? (
           <p className="mb-3 text-xs text-dim">
@@ -1339,15 +1412,21 @@ export function ResultsDashboard({
             not per-rebalance regime objectives.
           </p>
         ) : null}
-        <LinkedEquityWeightChart
-          equityCurve={equity}
-          benchmarkCurve={benchmarkEquity}
-          benchmarkLabel={benchTicker}
-          weightHistory={historySeries}
-          weightTickers={weightHistoryTickers}
-          colors={COLORS}
-          regimeTimeline={dynamicObjectiveChart?.timeline}
-        />
+        {chartsReady ? (
+          <LinkedEquityWeightChart
+            equityCurve={equity}
+            benchmarkCurve={benchmarkEquity}
+            benchmarkLabel={benchTicker}
+            weightHistory={historySeries}
+            weightTickers={weightHistoryTickers}
+            colors={COLORS}
+            regimeTimeline={dynamicObjectiveChart?.timeline}
+          />
+        ) : chartsLoading ? null : (
+          <p className="text-xs text-dim">
+            Select a trial above to load its portfolio trajectory and holdings.
+          </p>
+        )}
       </ChartCard>
 
       <ChartCard title="Efficient frontier (samples)">
@@ -1480,7 +1559,7 @@ export function ResultsDashboard({
           </div>
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
             <p className="mb-2 text-xs text-dim">Actual class weights (holdings)</p>
-            {chartsUseChampionFallback &&
+            {usingChampionAnalyticsFallback &&
             (!top.analytics?.exposure?.by_asset_class ||
               Object.keys(top.analytics.exposure.by_asset_class).length === 0) ? (
               <p className="mb-2 text-[10px] text-dim">
@@ -1501,7 +1580,7 @@ export function ResultsDashboard({
       </ChartCard>
 
       <ChartCard title="Factor attribution">
-        {chartsUseChampionFallback &&
+        {usingChampionAnalyticsFallback &&
         !(
           top.analytics?.factor_summary?.factor_contribution &&
           Object.keys(top.analytics.factor_summary.factor_contribution).length > 0
@@ -1598,7 +1677,7 @@ export function ResultsDashboard({
         candidate={chartCandidate ?? top}
         benchmark={benchTicker}
         analyticsNote={
-          chartsUseChampionFallback
+          usingChampionAnalyticsFallback
             ? "Rolling, exposure, and return tables use ★ champion analytics; headline metrics follow the selected trial."
             : undefined
         }

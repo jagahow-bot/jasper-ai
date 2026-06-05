@@ -2774,7 +2774,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             "Optuna trial ranking uses max Sharpe on in-sample."
         )
 
-    return BacktestResult(
+    result = BacktestResult(
         job_id=job_id,
         scenario_id=req.scenario_id,
         benchmark=spec.benchmark_ticker,
@@ -2788,3 +2788,10 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         dynamic_objective_timeline=dynamic_timeline,
         dynamic_objective_benchmark_series=dynamic_benchmark_series,
     )
+    try:
+        from app.jobs import stash_trial_report_cache
+
+        stash_trial_report_cache(job_id, trial_report_cache)
+    except Exception:  # noqa: BLE001
+        logger.debug("trial_report_cache not stashed (jobs store unavailable)", exc_info=True)
+    return result

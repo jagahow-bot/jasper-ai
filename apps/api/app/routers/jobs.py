@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app import jobs as job_service
-from app.models import BacktestRequest, BacktestResult, JobProgress
+from app.models import BacktestRequest, BacktestResult, CandidateChartsPayload, JobProgress
 
 
 class NarrativeFactsPatch(BaseModel):
@@ -40,6 +40,26 @@ def get_job_result(job_id: str) -> BacktestResult:
     if not result:
         raise HTTPException(status_code=404, detail="Result not ready")
     return result
+
+
+@router.get(
+    "/{job_id}/candidates/{model_code}/charts",
+    response_model=CandidateChartsPayload,
+)
+def get_candidate_charts(job_id: str, model_code: str) -> CandidateChartsPayload:
+    progress = job_service.get_progress(job_id)
+    if not progress:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if progress.status.value in ("running", "pending"):
+        raise HTTPException(status_code=409, detail="Job still running")
+    if progress.status.value == "failed":
+        raise HTTPException(status_code=500, detail=progress.message)
+    try:
+        return job_service.get_candidate_charts(job_id, model_code)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.patch("/{job_id}/narrative-facts")

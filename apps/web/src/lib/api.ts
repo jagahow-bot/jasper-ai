@@ -1,6 +1,7 @@
 import type {
   BacktestRequest,
   BacktestResult,
+  CandidateChartsPayload,
   JobProgress,
   ObjectiveSwitchLabRequest,
   ObjectiveSwitchLabResult,
@@ -77,6 +78,16 @@ export async function getJobProgress(jobId: string): Promise<JobProgress> {
 
 export async function getJobResult(jobId: string): Promise<BacktestResult> {
   return fetchJson<BacktestResult>(`/jobs/${jobId}/result`);
+}
+
+export async function fetchCandidateCharts(
+  jobId: string,
+  modelCode: string,
+): Promise<CandidateChartsPayload> {
+  const encoded = encodeURIComponent(modelCode);
+  return fetchJson<CandidateChartsPayload>(
+    `/jobs/${jobId}/candidates/${encoded}/charts`,
+  );
 }
 
 export async function patchJobNarrativeFacts(

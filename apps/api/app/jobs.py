@@ -1,7 +1,19 @@
 import threading
 import uuid
+
+from app.candidate_charts import (
+    merge_charts_into_candidate,
+    resolve_candidate_charts,
+)
 from app.engine.backtest import run_backtest, _is_pro_mode
-from app.models import BacktestRequest, BacktestResult, JobProgress, JobStatus
+from app.engine.report_sim_cache import TrialReportCache
+from app.models import (
+    BacktestRequest,
+    BacktestResult,
+    CandidateChartsPayload,
+    JobProgress,
+    JobStatus,
+)
 
 
 _jobs: dict[str, dict] = {}
@@ -46,6 +58,7 @@ def create_job(req: BacktestRequest) -> str:
                 trials_total=trials_total,
             ),
             "result": None,
+            "report_cache": None,
             "error": None,
         }
 
@@ -130,3 +143,61 @@ def patch_narrative_facts(job_id: str, patch: dict) -> bool:
         facts.update(patch)
         result.narrative_facts = facts
         return True
+
+
+def stash_trial_report_cache(job_id: str, cache: TrialReportCache) -> None:
+    """Retain per-trial sim bundles for lazy chart loads (in-memory, one job at a time)."""
+    with _lock:
+        job = _jobs.get(job_id)
+        if job is not None:
+            job["report_cache"] = cache
+
+
+def get_report_cache(job_id: str) -> TrialReportCache | None:
+    with _lock:
+        job = _jobs.get(job_id)
+        if not job:
+            return None
+        cache = job.get("report_cache")
+        return cache if isinstance(cache, TrialReportCache) else None
+
+
+def get_request(job_id: str) -> BacktestRequest | None:
+    with _lock:
+        job = _jobs.get(job_id)
+        if not job:
+            return None
+        return job.get("request")
+
+
+def get_candidate_charts(job_id: str, model_code: str) -> CandidateChartsPayload:
+    """Lazy chart payload for one candidate; patches stored result after rebuild."""
+    with _lock:
+        job = _jobs.get(job_id)
+        if not job or job.get("result") is None:
+            raise LookupError("Job not found or result not ready")
+        req = job["request"]
+        result = job["result"]
+        cache = job.get("report_cache")
+
+    payload = resolve_candidate_charts(
+        req,
+        result,
+        model_code,
+        trial_report_cache=cache if isinstance(cache, TrialReportCache) else None,
+    )
+
+    with _lock:
+        job = _jobs.get(job_id)
+        if not job or job.get("result") is None:
+            return payload
+        result = job["result"]
+        updated: list = []
+        for c in result.candidates:
+            if c.model_code == payload.model_code:
+                updated.append(merge_charts_into_candidate(c, payload))
+            else:
+                updated.append(c)
+        result.candidates = updated
+        job["result"] = result
+    return payload
