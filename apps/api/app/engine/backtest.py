@@ -249,31 +249,17 @@ def _convergence_metrics_for_record(
     objective_effective: str,
     oos_enabled: bool,
 ) -> dict[str, Any]:
-    """Per-trial IS/OOS objectives; prefer Optuna metrics, else cached train/val sims."""
-    if metrics.get("objective_value_is") is not None:
-        return metrics
-    assess_existing = metrics.get("overfitting_assessment")
-    if isinstance(assess_existing, dict) and assess_existing.get("in_sample_objective") is not None:
-        return metrics
+    """Per-trial IS/OOS objectives; prefer per-trial Optuna stash over shared search blobs."""
+    from app.engine.refinement import resolve_trial_metrics_for_reporting
 
-    bundle = trial_report_cache.get_bundle(params) if trial_report_cache else None
-    train_m = bundle.train_m if bundle else None
-    val_m = bundle.val_m if bundle else None
-    if train_m and train_m.get("port_ret") is not None:
-        assess = assess_overfitting(
-            train_m,
-            val_m,
-            oos_enabled=oos_enabled and val_m is not None,
-            objective_mode=objective_effective,
-        )
-        merged = dict(metrics)
-        merged["objective_value_is"] = float(assess.get("in_sample_objective", score))
-        merged["objective_value_oos"] = assess.get("out_of_sample_objective")
-        merged["gap_objective"] = float(assess.get("gap_objective", 0.0))
-        merged["overfitting_assessment"] = assess
-        merged["overfitting_penalty_applied"] = float(assess.get("penalty", 0.0))
-        return merged
-    return metrics
+    return resolve_trial_metrics_for_reporting(
+        params,
+        metrics,
+        trial_report_cache=trial_report_cache,
+        objective_effective=objective_effective,
+        oos_enabled=oos_enabled,
+        score=score,
+    )
 
 
 def _upsert_convergence_point(
@@ -361,7 +347,11 @@ def _resync_round_convergence_from_records(
         )
         _append_convergence_from_record(
             convergence_history,
-            global_trial=round_trial_base + trial_i,
+            global_trial=_convergence_global_trial_id(
+                round_trial_base,
+                params,
+                callback_trial_1based=trial_i + 1,
+            ),
             round_idx=round_idx,
             score=score,
             metrics=conv_metrics,
@@ -809,7 +799,9 @@ def _run_iterative_search(
         for score, params, metrics in round_records:
             tagged_params = dict(params)
             tagged_params["pro_round_index"] = round_idx + 1
-            tagged_round_records.append((score, tagged_params, metrics))
+            tagged_round_records.append(
+                (score, tagged_params, slim_search_metrics(metrics))
+            )
         round_records = tagged_round_records
 
         if trial_report_cache is not None:

@@ -13,7 +13,131 @@ from app.engine.ai_params import (
 from app.engine.refinement import (
     build_round_champion_ai_payload,
     record_for_model_code,
+    resolve_trial_metrics_for_reporting,
 )
+from app.engine.report_sim_cache import TrialReportCache
+
+
+def _sim_metrics(*, sharpe: float, cagr: float = 0.1) -> dict:
+    return {
+        "sharpe": sharpe,
+        "cagr": cagr,
+        "max_drawdown": -0.1,
+        "volatility": 0.15,
+        "sortino": sharpe,
+        "turnover_avg": 0.01,
+    }
+
+
+def test_resolve_trial_metrics_prefers_cache_over_stale_search_blob():
+    stale = {
+        "sharpe": 0.36,
+        "cagr": 0.092,
+        "max_drawdown": -0.3353,
+        "objective_value_is": 0.3645,
+        "objective_value_oos": 1.0941,
+        "train_metrics": {
+            "sharpe": 0.3645,
+            "cagr": 0.092,
+            "max_drawdown": -0.3353,
+            "objective_value": 0.3645,
+        },
+        "validation_metrics": {
+            "sharpe": 1.0941,
+            "cagr": 0.177,
+            "max_drawdown": -0.1087,
+            "objective_value": 1.0941,
+        },
+    }
+    cache = TrialReportCache()
+    params_a = {"mode": "min_var", "lookback_days": 60, "w_mom": 0.4, "model_code": "M0001"}
+    params_b = dict(params_a)
+    params_b["w_mom"] = 1.6
+    params_b["model_code"] = "M0002"
+    cache.stash_from_trial(
+        params_a,
+        train_m=_sim_metrics(sharpe=0.5, cagr=0.11),
+        val_m=_sim_metrics(sharpe=0.8, cagr=0.09),
+        full_m=None,
+    )
+    cache.stash_from_trial(
+        params_b,
+        train_m=_sim_metrics(sharpe=0.9, cagr=0.14),
+        val_m=_sim_metrics(sharpe=0.85, cagr=0.12),
+        full_m=None,
+    )
+    out_a = resolve_trial_metrics_for_reporting(
+        params_a,
+        stale,
+        trial_report_cache=cache,
+        objective_effective="max_sharpe",
+        oos_enabled=True,
+        score=0.3645,
+    )
+    out_b = resolve_trial_metrics_for_reporting(
+        params_b,
+        stale,
+        trial_report_cache=cache,
+        objective_effective="max_sharpe",
+        oos_enabled=True,
+        score=0.3645,
+    )
+    assert out_a["objective_value_is"] != out_b["objective_value_is"]
+    assert out_a["train_metrics"]["sharpe"] == 0.5
+    assert out_b["train_metrics"]["sharpe"] == 0.9
+
+
+def test_build_round_champion_payload_distinct_when_cache_differs():
+    stale_metrics = {
+        "sharpe": 0.3645,
+        "cagr": 0.092,
+        "max_drawdown": -0.3353,
+        "objective_value_is": 0.3645,
+        "objective_value_oos": 1.0941,
+        "gap_objective": -0.7296,
+        "train_metrics": {
+            "sharpe": 0.3645,
+            "cagr": 0.092,
+            "max_drawdown": -0.3353,
+            "objective_value": 0.3645,
+        },
+        "validation_metrics": {
+            "sharpe": 1.0941,
+            "cagr": 0.177,
+            "max_drawdown": -0.1087,
+            "objective_value": 1.0941,
+        },
+        "overfitting_assessment": {"risk_level": "low"},
+    }
+    cache = TrialReportCache()
+    pool = []
+    for i, (sh, oos_sh) in enumerate([(0.5, 0.8), (0.7, 0.75), (0.9, 0.85)], start=1):
+        params = {
+            "mode": "min_var",
+            "lookback_days": 60,
+            "w_mom": float(i),
+            "model_code": f"M000{i}",
+        }
+        cache.stash_from_trial(
+            params,
+            train_m=_sim_metrics(sharpe=sh),
+            val_m=_sim_metrics(sharpe=oos_sh, cagr=0.08 + i * 0.01),
+            full_m=None,
+        )
+        pool.append((sh, params, dict(stale_metrics)))
+    payload = build_round_champion_ai_payload(
+        pool,
+        objective_effective="max_sharpe",
+        round_index=1,
+        incoming_champion_model_code=None,
+        benchmark_ticker="ACWI",
+        oos_enabled=True,
+        trial_report_cache=cache,
+    )
+    is_vals = [c["objective_value_is"] for c in payload["candidates"]]
+    assert len(set(is_vals)) == 3
+    assert payload["candidates"][0]["horizons"]["in_sample"]["sharpe"] == 0.5
+    assert payload["candidates"][2]["horizons"]["in_sample"]["sharpe"] == 0.9
 
 
 def test_build_round_champion_ai_payload_orders_by_model_code():

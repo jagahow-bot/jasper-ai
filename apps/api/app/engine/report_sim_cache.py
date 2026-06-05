@@ -187,8 +187,11 @@ class TrialReportCache:
         if not metrics or not isinstance(metrics, dict):
             return
         metrics = slim_search_metrics(metrics)
-        train_m: dict[str, Any] | None = metrics
-        val_m: dict[str, Any] | None = None
+        train_m: dict[str, Any] | None = copy.deepcopy(metrics)
+        val_snap = metrics.get("validation_metrics")
+        val_m: dict[str, Any] | None = (
+            copy.deepcopy(val_snap) if isinstance(val_snap, dict) else None
+        )
         full_m: dict[str, Any] | None = None
         if has_holdout:
             if select_on_is:

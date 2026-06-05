@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from typing import Any, Literal
@@ -11,7 +12,7 @@ import pandas as pd
 BenchmarkStatus = Literal["above", "below", "unknown"]
 
 from app.engine.analytics import benchmark_relative
-from app.engine.dynamic_objective import is_dynamic_objective
+from app.engine.dynamic_objective import is_dynamic_objective, trial_scoring_objective
 from app.engine.objectives import (
     compute_objective_score,
     metrics_snapshot,
@@ -1097,6 +1098,48 @@ def _horizon_row_from_snapshot(snap: dict[str, Any] | None) -> dict[str, Any] | 
     return out or None
 
 
+def resolve_trial_metrics_for_reporting(
+    params: dict[str, Any],
+    metrics: dict[str, Any],
+    *,
+    trial_report_cache: Any | None,
+    objective_effective: str,
+    oos_enabled: bool,
+    score: float | None = None,
+) -> dict[str, Any]:
+    """Per-trial IS/OOS metrics; prefer Optuna stash slices over shared search blobs."""
+    scoring_obj = trial_scoring_objective(objective_effective)
+    bundle = trial_report_cache.get_bundle(params) if trial_report_cache else None
+    train_m = bundle.train_m if bundle else None
+    val_m = bundle.val_m if bundle else None
+    if train_m is not None:
+        assess = assess_overfitting(
+            train_m,
+            val_m,
+            oos_enabled=bool(oos_enabled and val_m is not None),
+            objective_mode=scoring_obj,
+        )
+        merged = copy.deepcopy(metrics) if metrics else {}
+        fallback_score = float(score if score is not None else merged.get("raw_score", 0.0))
+        merged["objective_value_is"] = float(
+            assess.get("in_sample_objective", fallback_score)
+        )
+        merged["objective_value_oos"] = assess.get("out_of_sample_objective")
+        merged["gap_objective"] = float(assess.get("gap_objective", 0.0))
+        merged["overfitting_assessment"] = assess
+        merged["overfitting_penalty_applied"] = float(assess.get("penalty", 0.0))
+        merged["train_metrics"] = metrics_snapshot(train_m, objective_mode=scoring_obj)
+        if val_m is not None:
+            merged["validation_metrics"] = metrics_snapshot(
+                val_m, objective_mode=scoring_obj
+            )
+        for key in ("sharpe", "cagr", "max_drawdown", "sortino", "volatility"):
+            if key in train_m:
+                merged[key] = train_m[key]
+        return merged
+    return copy.deepcopy(metrics) if metrics else {}
+
+
 def build_round_champion_ai_payload(
     pool_records: list[tuple[float, dict, dict]],
     *,
@@ -1118,6 +1161,14 @@ def build_round_champion_ai_payload(
         code = str(params.get("model_code", "")).strip().upper()
         if not code:
             continue
+        metrics = resolve_trial_metrics_for_reporting(
+            params,
+            metrics,
+            trial_report_cache=trial_report_cache,
+            objective_effective=objective_effective,
+            oos_enabled=oos_enabled,
+            score=score,
+        )
         assess = metrics.get("overfitting_assessment") or {}
         role = "incoming_champion" if incoming and code == incoming else "challenger"
         obj = record_objective_sort_value(objective_effective, score, metrics)
