@@ -204,6 +204,122 @@ def test_prior_factor_choices_truncates_absurd_indicator_names():
     assert len(prior["factor_choices"]["value_indicator"]) <= 120
 
 
+def test_round2_dynamic_block_keeps_champion_under_tight_budget(monkeypatch):
+    """Reproduce round-2 dynamic prompts where PRIOR_REGIME_* used to evict CHAMPION."""
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_round_seed_learning_max_chars", 2400
+    )
+    ctx = build_round_seed_learning_payload(
+        champion_record=_champion_record(),
+        champion_score=0.3745,
+        min_gain=0.0,
+        learning_trials=[{**_failed_rows()[0], "outcome": "failed"}],
+        objective="dynamic",
+        round_index=2,
+        prior_round_setup={
+            "lookback_days": 252,
+            "max_turnover_actual": 0.5,
+            "max_weight_actual": 0.2,
+            "mode": "mean_variance",
+            "no_trade_tol": 0.005,
+            "risk_aversion": 4.0,
+            "shrinkage": 0.1,
+            "top_n_actual": 20,
+            "turnover_penalty_mult": 1.0,
+        },
+        prior_regime_setups={
+            "neutral": {
+                "lookback_days": 252,
+                "mode": "max_sharpe",
+                "risk_aversion": 4.0,
+                "shrinkage": 0.1,
+            },
+            "risk_off": {
+                "lookback_days": 252,
+                "mode": "min_max_drawdown",
+                "risk_aversion": 8.0,
+                "shrinkage": 0.15,
+            },
+            "risk_on": {
+                "lookback_days": 126,
+                "mode": "max_return",
+                "risk_aversion": 2.0,
+                "shrinkage": 0.05,
+            },
+        },
+        prior_regime_factor_ranges={
+            "neutral": {
+                "factor_lookback_days": [126, 378],
+                "w_lowvol": [0.1, 1.2],
+                "w_mom": [0.1, 1.2],
+                "w_reversal": [0.0, 1.0],
+                "w_trend": [0.1, 1.0],
+                "w_value": [0.1, 1.2],
+            },
+            "risk_off": {
+                "factor_lookback_days": [180, 504],
+                "w_lowvol": [0.5, 2.0],
+                "w_mom": [0.0, 0.5],
+                "w_reversal": [0.1, 1.2],
+                "w_trend": [0.0, 0.6],
+                "w_value": [0.2, 1.5],
+            },
+            "risk_on": {
+                "factor_lookback_days": [126, 252],
+                "w_lowvol": [0.0, 0.6],
+                "w_mom": [0.5, 2.0],
+                "w_reversal": [0.0, 0.8],
+                "w_trend": [0.4, 1.5],
+                "w_value": [0.0, 0.8],
+            },
+        },
+        prior_regime_class_quotas={
+            "neutral": {
+                "alternative": 0.1,
+                "bond": 0.3,
+                "commodity": 0.1,
+                "equity": 0.4,
+                "real_estate": 0.1,
+            },
+            "risk_off": {
+                "alternative": 0.1,
+                "bond": 0.6,
+                "commodity": 0.15,
+                "equity": 0.1,
+                "real_estate": 0.05,
+            },
+            "risk_on": {
+                "alternative": 0.1,
+                "bond": 0.1,
+                "commodity": 0.1,
+                "equity": 0.6,
+                "real_estate": 0.1,
+            },
+        },
+        prior_factor_choices={
+            "drawdown_indicator": "maximum_drawdown",
+            "lowvol_indicator": "standard_deviation",
+            "mom_indicator": "risk_adjusted_return",
+            "reversal_indicator": "negative_return",
+            "trend_indicator": "moving_average_crossover",
+            "value_indicator": "book_to_market",
+        },
+        benchmark_ticker="SPY",
+        total_rounds=3,
+        trials_per_round=4,
+        total_trial_budget=15,
+    )
+    ctx["narrative_champion_model_code"] = "M0001"
+    ctx["final_champion_model_code"] = "M0001"
+    block = _build_round_seed_learning_block(ctx)
+    assert "CHAMPION:" in block
+    assert "model_code=M0001" in block
+    assert "REFINE_AROUND_CHAMPION" in block
+    assert "NARRATIVE_CHAMPION" in block
+    assert "PRIOR_REGIME_CLASS_QUOTAS" not in block or "CHAMPION:" in block
+    assert len(block) <= 2400
+
+
 def test_learning_block_sanitizes_long_prior_factor_choices(monkeypatch):
     monkeypatch.setattr(
         "app.engine.ai_params.settings.gemini_round_seed_learning_max_chars", 8000

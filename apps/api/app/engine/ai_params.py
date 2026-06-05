@@ -1481,13 +1481,41 @@ def _json_compact(obj: Any) -> str:
     return dumps_for_ai(obj)
 
 
+_ROUND_SEED_DROPPABLE_PREFIXES: tuple[str, ...] = (
+    "PRIOR_ROUND_SETUP",
+    "PRIOR_FACTOR_RANGES",
+    "PRIOR_FACTOR_CHOICES",
+    "PRIOR_REGIME_SETUPS",
+    "PRIOR_REGIME_FACTOR_RANGES",
+    "PRIOR_REGIME_CLASS_QUOTAS",
+    "WEIGHT_SUMMARY",
+    "FAILED_TRIALS:",
+    "MISSION ",
+)
+
+
+def _round_seed_line_droppable(line: str) -> bool:
+    """Lines safe to omit before champion/budget sections when over char budget."""
+    head = line.split("\n", 1)[0]
+    if head.startswith("- gap="):
+        return True
+    return any(head.startswith(prefix) for prefix in _ROUND_SEED_DROPPABLE_PREFIXES)
+
+
 def _fit_round_seed_block(lines: list[str], max_chars: int) -> str:
-    """Fit learning block by dropping whole trailing sections (no mid-field ellipsis)."""
+    """Fit learning block; drop prior-round sections before champion/budget blocks."""
     while lines:
         block = "\n".join(lines)
         if len(block) <= max_chars:
             return block
-        lines.pop()
+        removed = False
+        for i in range(len(lines) - 1, -1, -1):
+            if _round_seed_line_droppable(lines[i]):
+                lines.pop(i)
+                removed = True
+                break
+        if not removed:
+            lines.pop()
     return ""
 
 
@@ -1632,22 +1660,115 @@ def _failed_trial_lines(failed: list[dict[str, Any]], limit: int = 5) -> list[st
     return out
 
 
-def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
-    """Structured Pro round context for generate_ai_round_seed (budget-aware)."""
-    round_index = int(
-        learning_context.get("round_index")
-        or learning_context.get("round_number")
-        or 1
+def _round_seed_champion_section_lines(learning_context: dict[str, Any]) -> list[str]:
+    """Incumbent champion block (model_code, IS/OOS metrics, full params) for round 2+."""
+    out: list[str] = []
+    champ = learning_context.get("champion")
+    champ_params = learning_context.get("champion_record_params")
+    champ_m = learning_context.get("champion_record_metrics")
+    model_code = learning_context.get("champion_model_code")
+    narrative_code = (
+        learning_context.get("narrative_champion_model_code")
+        or learning_context.get("final_champion_model_code")
+    )
+    if isinstance(champ_params, dict) and not model_code:
+        model_code = champ_params.get("model_code")
+    if not (isinstance(champ, dict) or model_code or isinstance(champ_params, dict)):
+        return out
+
+    assess: dict[str, Any] = {}
+    if isinstance(champ_m, dict):
+        assess = champ_m.get("overfitting_assessment") or {}
+    outputs = (
+        champ.get("outputs_summary")
+        if isinstance(champ, dict) and isinstance(champ.get("outputs_summary"), dict)
+        else {}
+    )
+    is_obj = champ.get("in_sample_objective") if isinstance(champ, dict) else None
+    if is_obj is None and isinstance(champ_m, dict):
+        is_obj = champ_m.get("objective_value_is")
+    sharpe = champ.get("train_sharpe") if isinstance(champ, dict) else None
+    if sharpe is None and isinstance(champ_m, dict):
+        sharpe = champ_m.get("sharpe")
+    cagr = outputs.get("cagr") if outputs else (
+        champ_m.get("cagr") if isinstance(champ_m, dict) else None
+    )
+    mdd = outputs.get("max_drawdown") if outputs else (
+        champ_m.get("max_drawdown") if isinstance(champ_m, dict) else None
     )
 
-    max_chars = _round_seed_learning_max_chars()
-    if round_index > 1:
-        max_chars = min(max_chars, 2400)
-    lines: list[str] = list(_round_seed_budget_lines(learning_context))
+    champ_lines = ["CHAMPION:"]
+    if model_code:
+        champ_lines.append(f"  model_code={model_code}")
+    if narrative_code and str(narrative_code) != str(model_code or ""):
+        champ_lines.append(f"  narrative_model_code={narrative_code}")
+    champ_lines.append(
+        "  IS metrics: sharpe={sh} cagr={cg} mdd={mdd} objective_value_is={obj}".format(
+            sh=_format_ai_number(sharpe, key="sharpe"),
+            cg=_format_ai_number(cagr, key="cagr"),
+            mdd=_format_ai_number(mdd, key="max_drawdown"),
+            obj=_format_ai_number(is_obj, key="in_sample_objective"),
+        )
+    )
+    if isinstance(champ, dict):
+        oos_obj = champ.get("out_of_sample_objective") or assess.get(
+            "out_of_sample_objective"
+        )
+        gap_obj = champ.get("gap_objective", champ.get("gap_sharpe"))
+        if oos_obj is not None or gap_obj is not None:
+            champ_lines.append(
+                "  OOS gap: holdout_objective={oos} gap_objective={gap} risk={risk}".format(
+                    oos=_format_ai_number(oos_obj, key="out_of_sample_objective"),
+                    gap=_format_ai_number(gap_obj, key="gap_objective"),
+                    risk=champ.get("overfitting_risk"),
+                )
+            )
+    if isinstance(champ_params, dict) and champ_params:
+        champ_lines.append(
+            f"  params={summarize_params_for_ai(champ_params, full=True)}"
+        )
+    out.append("\n".join(champ_lines))
 
-    if round_index <= 1:
-        return _fit_round_seed_block(lines, max_chars)
+    if isinstance(champ, dict):
+        bvs = champ.get("benchmark_vs")
+        if isinstance(bvs, dict):
+            pvb = bvs.get("portfolio_vs_benchmark") or bvs
+            if isinstance(pvb, dict) and pvb:
+                out.append(
+                    "VS_BENCHMARK "
+                    + _json_compact(
+                        {
+                            k: pvb.get(k)
+                            for k in (
+                                "alpha",
+                                "information_ratio",
+                                "beta",
+                                "tracking_error",
+                                "portfolio_cagr",
+                                "portfolio_sharpe",
+                                "benchmark_total_return_pct",
+                            )
+                            if pvb.get(k) is not None
+                        }
+                    )
+                )
 
+    out.append(
+        "REFINE_AROUND_CHAMPION Incumbent prior-round winner (CHAMPION model_code). "
+        "Refine incrementally from CHAMPION params + PRIOR_ROUND_* — evolve round_setup, "
+        "regime_setups, and factor_ranges; do not restart from scratch."
+    )
+    if narrative_code:
+        out.append(
+            f"NARRATIVE_CHAMPION final_champion_model_code={narrative_code} "
+            "(same incumbent as CHAMPION unless this round dethrones it)."
+        )
+    return out
+
+
+def _round_seed_prior_round_lines(learning_context: dict[str, Any]) -> list[str]:
+    """Prior round AI seed snapshot (droppable when over char budget)."""
+    lines: list[str] = []
     prev_setup = learning_context.get("prior_round_setup")
     if isinstance(prev_setup, dict) and prev_setup:
         lines.append("PRIOR_ROUND_SETUP " + _json_compact(prev_setup))
@@ -1681,95 +1802,25 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
     prev_regime_quotas = learning_context.get("prior_regime_class_quotas")
     if isinstance(prev_regime_quotas, dict) and prev_regime_quotas:
         lines.append("PRIOR_REGIME_CLASS_QUOTAS " + _json_compact(prev_regime_quotas))
+    return lines
 
-    champ = learning_context.get("champion")
-    champ_params = learning_context.get("champion_record_params")
-    champ_m = learning_context.get("champion_record_metrics")
-    model_code = learning_context.get("champion_model_code")
-    if isinstance(champ_params, dict) and not model_code:
-        model_code = champ_params.get("model_code")
-    if isinstance(champ, dict) or model_code or isinstance(champ_params, dict):
-        assess: dict[str, Any] = {}
-        if isinstance(champ_m, dict):
-            assess = champ_m.get("overfitting_assessment") or {}
-        outputs = (
-            champ.get("outputs_summary")
-            if isinstance(champ, dict) and isinstance(champ.get("outputs_summary"), dict)
-            else {}
-        )
-        is_obj = (
-            champ.get("in_sample_objective")
-            if isinstance(champ, dict)
-            else None
-        )
-        if is_obj is None and isinstance(champ_m, dict):
-            is_obj = champ_m.get("objective_value_is")
-        sharpe = (
-            champ.get("train_sharpe")
-            if isinstance(champ, dict)
-            else None
-        )
-        if sharpe is None and isinstance(champ_m, dict):
-            sharpe = champ_m.get("sharpe")
-        cagr = outputs.get("cagr") if outputs else (
-            champ_m.get("cagr") if isinstance(champ_m, dict) else None
-        )
-        mdd = outputs.get("max_drawdown") if outputs else (
-            champ_m.get("max_drawdown") if isinstance(champ_m, dict) else None
-        )
-        champ_lines = ["CHAMPION:"]
-        if model_code:
-            champ_lines.append(f"  model_code={model_code}")
-        champ_lines.append(
-            "  IS metrics: sharpe={sh} cagr={cg} mdd={mdd} objective_value_is={obj}".format(
-                sh=_format_ai_number(sharpe, key="sharpe"),
-                cg=_format_ai_number(cagr, key="cagr"),
-                mdd=_format_ai_number(mdd, key="max_drawdown"),
-                obj=_format_ai_number(is_obj, key="in_sample_objective"),
-            )
-        )
-        if isinstance(champ, dict):
-            oos_obj = champ.get("out_of_sample_objective") or assess.get(
-                "out_of_sample_objective"
-            )
-            gap_obj = champ.get("gap_objective", champ.get("gap_sharpe"))
-            if oos_obj is not None or gap_obj is not None:
-                champ_lines.append(
-                    "  OOS gap: holdout_objective={oos} gap_objective={gap} risk={risk}".format(
-                        oos=_format_ai_number(oos_obj, key="out_of_sample_objective"),
-                        gap=_format_ai_number(gap_obj, key="gap_objective"),
-                        risk=champ.get("overfitting_risk"),
-                    )
-                )
-        if isinstance(champ_params, dict) and champ_params:
-            champ_lines.append(
-                f"  params={summarize_params_for_ai(champ_params, full=True)}"
-            )
-        lines.append("\n".join(champ_lines))
 
-    if isinstance(champ, dict):
-        bvs = champ.get("benchmark_vs")
-        if isinstance(bvs, dict):
-            pvb = bvs.get("portfolio_vs_benchmark") or bvs
-            if isinstance(pvb, dict) and pvb:
-                lines.append(
-                    "VS_BENCHMARK "
-                    + _json_compact(
-                        {
-                            k: pvb.get(k)
-                            for k in (
-                                "alpha",
-                                "information_ratio",
-                                "beta",
-                                "tracking_error",
-                                "portfolio_cagr",
-                                "portfolio_sharpe",
-                                "benchmark_total_return_pct",
-                            )
-                            if pvb.get(k) is not None
-                        }
-                    )
-                )
+def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
+    """Structured Pro round context for generate_ai_round_seed (budget-aware)."""
+    round_index = int(
+        learning_context.get("round_index")
+        or learning_context.get("round_number")
+        or 1
+    )
+
+    max_chars = _round_seed_learning_max_chars()
+    lines: list[str] = list(_round_seed_budget_lines(learning_context))
+
+    if round_index <= 1:
+        return _fit_round_seed_block(lines, max_chars)
+
+    lines.extend(_round_seed_champion_section_lines(learning_context))
+    lines.extend(_round_seed_prior_round_lines(learning_context))
 
     weight_line = _weight_summary_line(learning_context)
     if weight_line:

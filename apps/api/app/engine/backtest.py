@@ -551,6 +551,13 @@ def _run_iterative_search(
                 "tradable_count": int(prices_train.shape[1]),
             }
             learning_context["mutable_fields"] = list(GEMINI_LEARNING_MUTABLE_FIELDS)
+            if round_incoming_model_code:
+                learning_context["narrative_champion_model_code"] = (
+                    round_incoming_model_code
+                )
+                learning_context["final_champion_model_code"] = (
+                    round_incoming_model_code
+                )
         learning_context = merge_round_seed_budget_fields(
             learning_context,
             round_index=round_idx + 1,

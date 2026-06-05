@@ -139,9 +139,14 @@ def test_learning_block_includes_vs_benchmark_for_below_alpha_prompt():
                 },
             },
             "champion_record_params": {"model_code": "M0001"},
+            "champion_record_metrics": {"sharpe": 0.8, "objective_value_is": 0.05},
+            "narrative_champion_model_code": "M0001",
         }
     )
+    assert "CHAMPION:" in block
     assert "VS_BENCHMARK" in block
+    assert "REFINE_AROUND_CHAMPION" in block
+    assert "NARRATIVE_CHAMPION" in block
     assert "-0.04" in block or "-0.040" in block
 
 
