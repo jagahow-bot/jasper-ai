@@ -58,6 +58,7 @@ import {
   resolveHorizonMetrics,
   resolveOutOfSampleMetrics,
 } from "@/lib/performance-compare-chart";
+import { buildCompareEffectKey } from "@/lib/compare-summary";
 import { fetchCandidateCharts } from "@/lib/api";
 import {
   candidateHasDeepAnalytics,
@@ -458,6 +459,16 @@ export function ResultsDashboard({
     return [];
   }, [chartCandidate?.analytics?.benchmark_equity_curve, result.candidates]);
 
+  const compareEffectKey = useMemo(
+    () =>
+      buildCompareEffectKey(
+        resultSelectionEpoch,
+        benchTicker,
+        String(result.narrative_facts.objective ?? request.objective),
+      ),
+    [resultSelectionEpoch, benchTicker, result.narrative_facts.objective, request.objective],
+  );
+
   useEffect(() => {
     if (result.candidates.length < 2) {
       setCompareSummary("");
@@ -538,14 +549,7 @@ export function ResultsDashboard({
     return () => {
       cancelled = true;
     };
-  }, [
-    benchTicker,
-    championModelKey,
-    result.candidates,
-    result.narrative_facts,
-    request.objective,
-    result.job_id,
-  ]);
+  }, [compareEffectKey]);
 
   const benchmarkBarMetrics = useMemo(() => {
     const spec = result.narrative_facts.backtest_spec as

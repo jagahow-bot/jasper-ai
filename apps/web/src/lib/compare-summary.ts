@@ -60,6 +60,15 @@ export type CompareGenerationAttempt = {
 export const MAX_COMPARE_RETRIES = 1;
 export const MAX_COMPARE_ATTEMPTS = 1 + MAX_COMPARE_RETRIES;
 
+/** Stable key for compare-summary fetch; excludes model dropdown selection. */
+export function buildCompareEffectKey(
+  resultSelectionEpoch: string,
+  benchTicker: string,
+  objective: string,
+): string {
+  return `${resultSelectionEpoch}\0${benchTicker}\0${objective}`;
+}
+
 /** Gemini / AI SDK signals that output was cut off by the token budget. */
 export function isGeminiMaxTokensFinish(
   finishReason?: string,

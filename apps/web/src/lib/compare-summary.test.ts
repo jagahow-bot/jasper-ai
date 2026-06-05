@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCompareEffectKey,
   buildCompareFallback,
   buildCompareSystemPrompt,
   buildCompareUserPrompt,
@@ -119,6 +120,14 @@ M0010 Sharpe:
     expect(slim.candidates.map((c) => c.model_code)).toEqual(["M0007", "M0001"]);
     expect(slim.pro_in_sample_champion).toBe("M0001");
     expect(slim.candidates[0]?.is_champion).toBeUndefined();
+  });
+
+  it("buildCompareEffectKey is stable when only model dropdown changes", () => {
+    const epoch = "job-1\0M0001\0M0002";
+    const base = buildCompareEffectKey(epoch, "VT", "dynamic");
+    const afterSelectM0009 = buildCompareEffectKey(epoch, "VT", "dynamic");
+    expect(afterSelectM0009).toBe(base);
+    expect(base).not.toContain("M0009");
   });
 
   it("compare prompts are narrative-only and reference server champion", () => {

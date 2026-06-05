@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from app.engine.ai_params import (
+    _MAX_ROUND_CHAMPION_ATTEMPTS,
     _round_champion_fallback_code,
+    _thinking_config_for_round_champion,
     generate_ai_round_champion,
 )
 from app.engine.refinement import (
@@ -49,6 +51,40 @@ def test_round_champion_fallback_picks_highest_objective():
         ]
     }
     assert _round_champion_fallback_code(payload) == "M0002"
+
+
+def test_round_champion_thinking_disabled_for_gemini_3():
+    assert _thinking_config_for_round_champion(model="gemini-3.5-flash") is None
+
+
+def test_round_champion_allows_single_retry():
+    assert _MAX_ROUND_CHAMPION_ATTEMPTS == 2
+
+
+def test_generate_ai_round_champion_retries_on_max_tokens(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+    calls: list[dict] = []
+
+    def fake_post(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            return "MAX_TOKENS", '{"round_champion_model'
+        return "STOP", '{"round_champion_model_code":"M0002","rationale":"Best OOS."}'
+
+    monkeypatch.setattr("app.engine.ai_params._gemini_round_seed_post", fake_post)
+    payload = {
+        "round": 2,
+        "candidates": [
+            {"model_code": "M0001", "objective_value": 0.5},
+            {"model_code": "M0002", "objective_value": 0.9},
+        ],
+    }
+    out = generate_ai_round_champion(payload=payload)
+    assert len(calls) == 2
+    assert all(c["thinking_config"] is None for c in calls)
+    assert out["enabled"] is True
+    assert out["round_champion_model_code"] == "M0002"
 
 
 def test_generate_ai_round_champion_without_api_key_uses_fallback(monkeypatch):
