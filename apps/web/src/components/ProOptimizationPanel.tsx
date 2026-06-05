@@ -7,6 +7,13 @@ type Props = {
   onChange: (next: BacktestRequest) => void;
 };
 
+const CHALLENGERS_MIN = 2;
+const CHALLENGERS_MAX = 100;
+
+function challengersFromBatch(batch: number): number {
+  return Math.min(CHALLENGERS_MAX, Math.max(CHALLENGERS_MIN, batch - 1));
+}
+
 function estProTrials(v: BacktestRequest): number {
   const batch = v.refinement_batch_size ?? 5;
   const challengers = v.refinement_challengers_per_round ?? 4;
@@ -93,12 +100,15 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
                 max={100}
                 step={1}
                 value={value.refinement_batch_size ?? 5}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const batch = Number(e.target.value);
                   onChange({
                     ...value,
-                    refinement_batch_size: Number(e.target.value),
-                  })
-                }
+                    refinement_batch_size: batch,
+                    refinement_challengers_per_round:
+                      challengersFromBatch(batch),
+                  });
+                }}
                 className="w-full"
               />
             </label>

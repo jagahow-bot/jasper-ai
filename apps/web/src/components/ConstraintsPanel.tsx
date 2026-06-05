@@ -217,11 +217,11 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </p>
 
       <label className="block space-y-2">
-        <span className="text-sm">投組最高持股檔數: {value.max_holdings ?? 30}</span>
+        <span className="text-sm">Max portfolio holdings: {value.max_holdings ?? 30}</span>
         <input
           type="range"
-          min={3}
-          max={30}
+          min={1}
+          max={50}
           step={1}
           value={value.max_holdings ?? 30}
           onChange={(e) =>

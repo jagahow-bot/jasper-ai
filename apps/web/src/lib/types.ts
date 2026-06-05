@@ -76,7 +76,7 @@ export interface BacktestRequest {
   fee_bps: number;
   rebalance_freq: string;
   top_n: number;
-  /** Maximum portfolio holdings (non-zero positions) per rebalance */
+  /** Maximum portfolio holdings (non-zero positions) per rebalance; slider range 1–50 */
   max_holdings?: number;
   max_turnover: number;
   objective_custom_text?: string | null;

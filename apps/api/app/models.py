@@ -124,8 +124,8 @@ class BacktestRequest(BaseModel):
     top_n: int = Field(default=50, ge=5, le=120, description="Factor selection: pick top N assets each rebalance")
     max_holdings: int = Field(
         default=30,
-        ge=3,
-        le=60,
+        ge=1,
+        le=50,
         description="Maximum portfolio holdings (non-zero positions) per rebalance",
     )
     max_turnover: float = Field(

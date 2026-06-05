@@ -54,3 +54,24 @@ def test_backtest_request_max_holdings_field():
         max_holdings=12,
     )
     assert req.max_holdings == 12
+
+
+def test_backtest_request_max_holdings_range():
+    from pydantic import ValidationError
+
+    from app.models import BacktestRequest, Objective, BacktestMode
+
+    base = dict(
+        scenario_id="custom",
+        max_weight=0.5,
+        objective=Objective.max_sharpe,
+        backtest_mode=BacktestMode.static,
+    )
+    assert BacktestRequest(**base, max_holdings=1).max_holdings == 1
+    assert BacktestRequest(**base, max_holdings=50).max_holdings == 50
+    for invalid in (0, 51):
+        try:
+            BacktestRequest(**base, max_holdings=invalid)
+            raise AssertionError(f"expected ValidationError for max_holdings={invalid}")
+        except ValidationError:
+            pass
