@@ -17,6 +17,8 @@ WORKDIR /app/apps/api
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+# Overridden by render.yaml when persistent disk is mounted at /var/data.
+ENV JOB_HISTORY_DIR=/var/data/jobs
 
 EXPOSE 8001
 

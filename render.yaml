@@ -6,6 +6,12 @@
 #   - Dashboard → jasper-ai-api → Settings → Instance Type → upgrade (not in blueprint).
 #   - Env: OPTUNA_N_JOBS=1 (default on Render), SEARCH_RECORDS_MAX=64,
 #     WEIGHT_HISTORY_TICKER_CAP=28, RENDER_MEMORY_MB=1024 (documentation only).
+#
+# Backtest history (jasper-ai-api): completed jobs persist under JOB_HISTORY_DIR.
+#   - Persistent disk is required — ephemeral container FS is wiped on redeploy.
+#   - Free tier may not include disks; upgrade to a paid plan and confirm the disk
+#     addon in Dashboard → jasper-ai-api → Disks if history disappears after deploy.
+#   - Only writes under mountPath survive restarts; keep JOB_HISTORY_DIR inside it.
 services:
   - type: web
     name: jasper-ai-api
@@ -16,6 +22,12 @@ services:
     envVars:
       - key: OPTUNA_N_JOBS
         value: "1"
+      - key: JOB_HISTORY_DIR
+        value: /var/data/jobs
+    disk:
+      name: jasper-job-history
+      mountPath: /var/data
+      sizeGB: 1
 
   - type: web
     name: jasper-ai-web

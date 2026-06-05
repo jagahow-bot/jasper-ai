@@ -16,7 +16,10 @@ import {
   getJobRequest,
   getJobResult,
 } from "@/lib/api";
-import { recordCompletedBacktest, readLocalBacktestHistory } from "@/lib/backtest-history";
+import {
+  findLocalHistoryEntry,
+  recordCompletedBacktest,
+} from "@/lib/backtest-history";
 import { DEFAULT_ASSET_CLASSES } from "@/lib/constants";
 import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
@@ -99,6 +102,7 @@ export default function HomePage() {
 
   const presentResult = useCallback(
     async (id: string, res: BacktestResult, req: BacktestRequest) => {
+      recordCompletedBacktest(id, req, res);
       setActiveJobId(id);
       setJobId(id);
       setRequest(req);
@@ -120,7 +124,6 @@ export default function HomePage() {
       const narrJson = (await narrRes.json()) as { narrative: string };
       setNarrative(narrJson.narrative);
       setPhase("results");
-      recordCompletedBacktest(id, req, res);
       const best = champion ?? res.candidates[0];
       const bm = String(
         (res.narrative_facts.backtest_spec as { benchmark?: string } | undefined)
@@ -172,21 +175,34 @@ export default function HomePage() {
     async (id: string) => {
       setHistoryLoadingId(id);
       try {
-        const local = readLocalBacktestHistory().find((e) => e.job_id === id);
+        const local = findLocalHistoryEntry(id);
         if (local?.result && local.request) {
           pushMessage(setMessages, "user", `Load history ${id.slice(0, 8)}…`);
           await presentResult(id, local.result, local.request);
           return;
         }
 
-        const prog = await getJobProgress(id);
-        if (prog.status !== "completed") {
-          pushMessage(setMessages, "system", `Job ${id.slice(0, 8)}… is not completed (${prog.status}).`);
-          return;
+        try {
+          const prog = await getJobProgress(id);
+          if (prog.status !== "completed") {
+            pushMessage(
+              setMessages,
+              "system",
+              `Job ${id.slice(0, 8)}… is not completed (${prog.status}).`,
+            );
+            return;
+          }
+          const [res, req] = await Promise.all([getJobResult(id), getJobRequest(id)]);
+          pushMessage(setMessages, "user", `Load history ${id.slice(0, 8)}…`);
+          await presentResult(id, res, req);
+        } catch {
+          if (local?.result && local.request) {
+            pushMessage(setMessages, "user", `Load history ${id.slice(0, 8)}… (local)`);
+            await presentResult(id, local.result, local.request);
+            return;
+          }
+          throw new Error("Job not found on server and no local copy available");
         }
-        const [res, req] = await Promise.all([getJobResult(id), getJobRequest(id)]);
-        pushMessage(setMessages, "user", `Load history ${id.slice(0, 8)}…`);
-        await presentResult(id, res, req);
       } catch (e) {
         pushMessage(
           setMessages,

@@ -68,8 +68,10 @@ def _sample_result(job_id: str) -> BacktestResult:
 def isolated_history(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("JOB_HISTORY_DIR", str(tmp_path))
     job_history.reset_history_cache_for_tests()
+    job_service._jobs.clear()
     yield tmp_path
     job_history.reset_history_cache_for_tests()
+    job_service._jobs.clear()
 
 
 def test_list_jobs_empty(isolated_history: Path) -> None:
@@ -122,6 +124,32 @@ def test_reload_job_from_disk_after_memory_eviction(isolated_history: Path) -> N
     assert result_res.status_code == 200
     assert result_res.json()["job_id"] == job_id
     assert result_res.json()["candidates"][0]["model_code"] == "M0001"
+
+
+def test_index_survives_simulated_restart(isolated_history: Path) -> None:
+    """Simulate redeploy: in-memory cache cleared, index reloads from disk."""
+    job_id = "hist-restart-001"
+    req = _sample_request()
+    result = _sample_result(job_id)
+    job_history.persist_completed_job(job_id, req, result)
+
+    job_history.reset_history_cache_for_tests()
+    assert (isolated_history / "index.json").is_file()
+    assert (isolated_history / f"{job_id}.json").is_file()
+
+    summaries = job_history.list_job_summaries()
+    assert len(summaries) == 1
+    assert summaries[0].job_id == job_id
+
+    res = client.get("/jobs?limit=10")
+    assert res.status_code == 200
+    assert res.json()[0]["job_id"] == job_id
+
+    loaded = job_history.load_persisted_job(job_id)
+    assert loaded is not None
+    loaded_req, loaded_result = loaded
+    assert loaded_req.start_date == "2018-01-01"
+    assert loaded_result.candidates[0].model_code == "M0001"
 
 
 def test_build_summary_model() -> None:

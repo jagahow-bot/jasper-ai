@@ -12,16 +12,30 @@ from typing import Any
 from app.models import BacktestRequest, BacktestResult, JobStatus, JobSummary
 
 ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_HISTORY_DIR = ROOT / "apps" / "api" / ".cache" / "jobs"
+PERSISTENT_DEFAULT_DIR = Path("/var/data/jobs")
+LOCAL_DEV_DEFAULT_DIR = ROOT / "apps" / "api" / ".cache" / "jobs"
 MAX_HISTORY_ENTRIES = 50
 
 _lock = threading.Lock()
 _index: list[dict[str, Any]] | None = None
 
 
+def _default_history_dir() -> Path:
+    """Render persistent disk mounts at /var/data; local dev uses apps/api/.cache/jobs."""
+    if PERSISTENT_DEFAULT_DIR.parent.is_dir():
+        return PERSISTENT_DEFAULT_DIR
+    return LOCAL_DEV_DEFAULT_DIR
+
+
 def _history_dir() -> Path:
     raw = os.environ.get("JOB_HISTORY_DIR", "").strip()
-    return Path(raw) if raw else DEFAULT_HISTORY_DIR
+    return Path(raw) if raw else _default_history_dir()
+
+
+def warmup_history_index() -> int:
+    """Preload index from disk on API startup (survives redeploy with persistent volume)."""
+    with _lock:
+        return len(_load_index_unlocked())
 
 
 def _index_path() -> Path:

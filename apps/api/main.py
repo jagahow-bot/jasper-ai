@@ -1,13 +1,24 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.job_history import warmup_history_index
 from app.routers import jobs, lab_objective_switch, scenarios, universe
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    warmup_history_index()
+    yield
+
 
 app = FastAPI(
     title="JASPER.AI API",
     version="0.1.0",
     description="數學引擎算數字，LLM 只寫敘事。",
+    lifespan=lifespan,
 )
 
 origins = [o.strip() for o in settings.api_cors_origins.split(",") if o.strip()]

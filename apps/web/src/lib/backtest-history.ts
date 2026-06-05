@@ -78,7 +78,7 @@ export function recordCompletedBacktest(
   upsertLocalBacktestHistory({ ...summary, request, result });
 }
 
-/** Merge API summaries with local-only rows (dedupe by job_id, newest first). */
+/** Merge API summaries with local rows (dedupe by job_id; prefer local full payload). */
 export function mergeHistoryLists(
   apiRows: JobSummary[],
   localRows: LocalHistoryEntry[],
@@ -89,11 +89,24 @@ export function mergeHistoryLists(
   }
   for (const row of localRows) {
     const existing = merged.get(row.job_id);
-    merged.set(row.job_id, existing ? { ...existing, ...row } : { ...row });
+    if (!existing) {
+      merged.set(row.job_id, { ...row });
+      continue;
+    }
+    merged.set(row.job_id, {
+      ...existing,
+      ...row,
+      request: row.request ?? existing.request,
+      result: row.result ?? existing.result,
+    });
   }
   return [...merged.values()].sort((a, b) =>
     String(b.created_at).localeCompare(String(a.created_at)),
   );
+}
+
+export function findLocalHistoryEntry(jobId: string): LocalHistoryEntry | undefined {
+  return readLocalBacktestHistory().find((e) => e.job_id === jobId);
 }
 
 export function formatHistoryDate(iso: string): string {
