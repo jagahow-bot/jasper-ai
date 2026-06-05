@@ -13,7 +13,6 @@ type TabId = "final" | number;
 
 type Props = {
   result: BacktestResult;
-  narrative: string;
   request: BacktestRequest;
   onRerun: () => void;
   onExport: () => void;
@@ -363,10 +362,10 @@ export function ProResultsWithTabs(props: Props) {
     );
   }, [tab, rounds]);
 
-  const activeNarrative = useMemo(() => {
-    if (tab === "final") return props.narrative;
+  const narrativePrefix = useMemo(() => {
+    if (tab === "final") return undefined;
     const round = rounds.find((r) => r.round === tab);
-    if (!round) return props.narrative;
+    if (!round) return undefined;
     const improved = round.improved
       ? "Round winner — incoming champion replaced"
       : "Round winner held (no min-gain beat vs incoming)";
@@ -374,10 +373,9 @@ export function ProResultsWithTabs(props: Props) {
     return (
       `[${round.narrative_facts.round_label ?? `Round ${round.round}`}]` +
       ` ${improved} · adj score ${score} · ` +
-      `${round.trials_in_round} trials · ${round.candidates.length} models.\n\n` +
-      props.narrative
+      `${round.trials_in_round} trials · ${round.candidates.length} models.`
     );
-  }, [tab, props.narrative, rounds]);
+  }, [tab, rounds]);
 
   if (!rounds.length) {
     return <ResultsDashboard {...props} />;
@@ -434,7 +432,7 @@ export function ProResultsWithTabs(props: Props) {
         key={tab === "final" ? "final" : `round-${tab}`}
         {...props}
         result={activeResult}
-        narrative={activeNarrative}
+        narrativePrefix={narrativePrefix}
       />
     </div>
   );

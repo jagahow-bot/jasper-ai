@@ -73,7 +73,6 @@ export default function HomePage() {
   const [, setJobId] = useState<string | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [result, setResult] = useState<BacktestResult | null>(null);
-  const [narrative, setNarrative] = useState("");
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const universeMeta = useMemo(() => getUniverseMeta(), []);
 
@@ -104,13 +103,6 @@ export default function HomePage() {
     if (prog.status === "completed") {
       const res = await getJobResult(id);
       setResult(res);
-      const narrRes = await fetch("/api/narrate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ facts: res.narrative_facts }),
-      });
-      const narrJson = (await narrRes.json()) as { narrative: string };
-      setNarrative(narrJson.narrative);
       setPhase("results");
       const best = res.candidates[0];
       const bm = String(
@@ -140,7 +132,6 @@ export default function HomePage() {
       setRequest(req);
       setPhase("running");
       setResult(null);
-      setNarrative("");
       lastProgressMsg.current = "";
 
       try {
@@ -270,7 +261,6 @@ export default function HomePage() {
             result.pro_rounds && result.pro_rounds.length > 0 ? (
               <ProResultsWithTabs
                 result={result}
-                narrative={narrative}
                 request={request}
                 onRerun={() => {
                   setPhase("constraints");
@@ -283,7 +273,6 @@ export default function HomePage() {
             ) : (
               <ResultsDashboard
                 result={result}
-                narrative={narrative}
                 request={request}
                 onRerun={() => {
                   setPhase("constraints");

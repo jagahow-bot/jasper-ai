@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -60,6 +60,10 @@ import {
   resolveOutOfSampleMetrics,
 } from "@/lib/performance-compare-chart";
 import { fetchCandidateCharts, patchJobNarrativeFacts } from "@/lib/api";
+import {
+  buildCandidateNarrativeFacts,
+  narrativeCacheKey,
+} from "@/lib/narrative-slim";
 import {
   candidateHasDeepAnalytics,
   candidateHasFullCharts,
@@ -133,7 +137,8 @@ function holdingDisplayName(ticker: string, catalogName?: string): string {
 
 type Props = {
   result: BacktestResult;
-  narrative: string;
+  /** Optional Pro round context prepended above the per-model AI narrative. */
+  narrativePrefix?: string;
   request: BacktestRequest;
   onRerun: () => void;
   onExport: () => void;
@@ -143,7 +148,7 @@ type Props = {
 
 export function ResultsDashboard({
   result,
-  narrative,
+  narrativePrefix,
   request,
   onRerun,
   onExport,
@@ -169,6 +174,15 @@ export function ResultsDashboard({
     null,
   );
   const [chartsLoadError, setChartsLoadError] = useState<string | null>(null);
+  const [narrativesByKey, setNarrativesByKey] = useState<Record<string, string>>(
+    {},
+  );
+  const [narrativeLoadingKey, setNarrativeLoadingKey] = useState<string | null>(
+    null,
+  );
+  const [narrativeError, setNarrativeError] = useState<string | null>(null);
+  const narrativesRef = useRef(narrativesByKey);
+  narrativesRef.current = narrativesByKey;
 
   const resultSelectionEpoch = useMemo(
     () =>
@@ -196,6 +210,9 @@ export function ResultsDashboard({
     setLazyChartsByCode({});
     setChartsLoadingCode(null);
     setChartsLoadError(null);
+    setNarrativesByKey({});
+    setNarrativeLoadingKey(null);
+    setNarrativeError(null);
   }, [resultSelectionEpoch, result.narrative_facts]);
 
   useEffect(() => {
@@ -266,6 +283,67 @@ export function ResultsDashboard({
   }, [result.candidates, championNarrativeFacts]);
 
   const selectedModelCode = selected?.model_code ?? "";
+  const selectedNarrativeKey = selected ? narrativeCacheKey(selected) : "";
+  const activeNarrative = selectedNarrativeKey
+    ? narrativesByKey[selectedNarrativeKey] ?? ""
+    : "";
+  const narrativeLoading = Boolean(
+    selectedNarrativeKey && narrativeLoadingKey === selectedNarrativeKey,
+  );
+
+  useEffect(() => {
+    if (!selected || !selectedNarrativeKey) return;
+    if (narrativesRef.current[selectedNarrativeKey]) return;
+
+    let cancelled = false;
+    setNarrativeLoadingKey(selectedNarrativeKey);
+    setNarrativeError(null);
+
+    const facts = buildCandidateNarrativeFacts(
+      championNarrativeFacts,
+      selected,
+      {
+        championModelCode: championModelKey,
+        aiRecommendedModelCode: aiRecommendedModelCode,
+      },
+    );
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/narrate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ facts }),
+        });
+        const json = (await res.json()) as { narrative?: string };
+        if (!cancelled) {
+          setNarrativesByKey((prev) => ({
+            ...prev,
+            [selectedNarrativeKey]: json.narrative ?? "",
+          }));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setNarrativeError(
+            err instanceof Error ? err.message : "Failed to load narrative",
+          );
+        }
+      } finally {
+        if (!cancelled) setNarrativeLoadingKey(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selected,
+    selectedNarrativeKey,
+    championNarrativeFacts,
+    championModelKey,
+    aiRecommendedModelCode,
+    resultSelectionEpoch,
+  ]);
   const selectedHasFullCharts = useMemo(
     () => candidateHasFullCharts(selected),
     [selected],
@@ -1038,14 +1116,34 @@ export function ResultsDashboard({
             </select>
           </label>
         </div>
-        {narrative ? (
-          <details className="mt-3 text-sm text-dim">
-            <summary className="cursor-pointer hover:text-[var(--cyan)]">
-              Full backtest narrative
-            </summary>
-            <p className="mt-2 whitespace-pre-wrap leading-relaxed">{narrative}</p>
-          </details>
-        ) : null}
+        <details className="mt-3 text-sm text-dim" open={narrativeLoading || Boolean(activeNarrative)}>
+          <summary className="cursor-pointer hover:text-[var(--cyan)]">
+            Full backtest narrative
+            {narrativeLoading ? (
+              <span className="ml-2 text-xs text-[var(--amber)]">Loading…</span>
+            ) : null}
+          </summary>
+          {narrativeLoading ? (
+            <p className="mt-2 flex items-center gap-2 text-xs text-dim">
+              <span
+                className="inline-block h-3 w-3 animate-spin rounded-full border border-[var(--amber)] border-t-transparent"
+                aria-hidden
+              />
+              Generating narrative for {selectedModelCode || "model"}…
+            </p>
+          ) : narrativeError ? (
+            <p className="mt-2 text-xs text-red-400">{narrativeError}</p>
+          ) : activeNarrative ? (
+            <p className="mt-2 whitespace-pre-wrap leading-relaxed">
+              {narrativePrefix ? `${narrativePrefix}\n\n` : ""}
+              {activeNarrative}
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-dim">
+              Select a model to generate its narrative on demand.
+            </p>
+          )}
+        </details>
         {sampleMetrics?.in_sample && (
           <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2 text-xs">
             <p className="font-pixel text-[8px] text-[var(--amber)]">
