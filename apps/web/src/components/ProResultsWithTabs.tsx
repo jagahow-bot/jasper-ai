@@ -13,6 +13,7 @@ type TabId = "final" | number;
 
 type Props = {
   result: BacktestResult;
+  narrative: string;
   request: BacktestRequest;
   onRerun: () => void;
   onExport: () => void;

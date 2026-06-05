@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const fallback = buildCompareFallback(payload);
     return NextResponse.json({
       summary: fallback,
-      recommended_model_code: resolveFallbackRecommendedCode(payload),
+      recommended_model_code: null,
       source: "template",
     });
   }
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     const result = await generateCompareSummary(payload);
     return NextResponse.json({
       summary: result.summary,
-      recommended_model_code: result.recommended_model_code,
+      recommended_model_code: null,
       source: result.source,
       ...(result.retried_due_to_token_limit
         ? { retried_due_to_token_limit: true }
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     const fallback = buildCompareFallback(payload);
     return NextResponse.json({
       summary: fallback,
-      recommended_model_code: resolveFallbackRecommendedCode(payload),
+      recommended_model_code: null,
       source: "template",
     });
   }

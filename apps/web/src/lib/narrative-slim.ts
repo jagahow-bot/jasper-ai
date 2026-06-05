@@ -41,27 +41,15 @@ export function slimNarrativeFacts(
   return out;
 }
 
-export function narrativeCacheKey(
-  candidate: Pick<PortfolioCandidate, "model_code" | "rank">,
-): string {
-  return `${candidate.model_code ?? "?"}:${candidate.rank}`;
-}
-
-type CandidateNarrativeOptions = {
-  championModelCode?: string | null;
-  aiRecommendedModelCode?: string | null;
-};
-
 /**
- * Build a single-candidate narrate payload: metrics + dates + benchmark + slim pro context.
+ * Build a job-level narrate payload: champion metrics + dates + benchmark + slim pro context.
  * Omits pool_signatures, benchmark series, weight_cap_audit, and full pro round dumps.
  */
-export function buildCandidateNarrativeFacts(
+export function buildJobNarrativeFacts(
   baseFacts: Record<string, unknown>,
-  candidate: PortfolioCandidate,
-  options?: CandidateNarrativeOptions,
+  champion: PortfolioCandidate,
 ): Record<string, unknown> {
-  const sm = candidate.analytics?.sample_metrics;
+  const sm = champion.analytics?.sample_metrics;
   const spec = baseFacts.backtest_spec as Record<string, unknown> | undefined;
   const dq = baseFacts.data_quality as Record<string, unknown> | undefined;
   const proFull = baseFacts.pro_refinement as Record<string, unknown> | null | undefined;
@@ -79,35 +67,33 @@ export function buildCandidateNarrativeFacts(
     : null;
 
   const fullMetrics = sm?.full_sample;
-  const displaySharpe = fullMetrics?.sharpe ?? candidate.sharpe;
-  const displayCagr = fullMetrics?.cagr ?? candidate.cagr;
-  const displayMdd = fullMetrics?.max_drawdown ?? candidate.max_drawdown;
+  const displaySharpe = fullMetrics?.sharpe ?? champion.sharpe;
+  const displayCagr = fullMetrics?.cagr ?? champion.cagr;
+  const displayMdd = fullMetrics?.max_drawdown ?? champion.max_drawdown;
 
   const facts: Record<string, unknown> = {
-    narrative_mode: "single_candidate",
-    model_code: candidate.model_code,
-    rank: candidate.rank,
-    is_champion: candidate.is_champion === true,
-    champion_model_code:
-      options?.championModelCode ?? baseFacts.champion_model_code,
-    ai_recommended_model_code:
-      options?.aiRecommendedModelCode ?? baseFacts.ai_recommended_model_code,
+    narrative_mode: "job_champion",
+    model_code: champion.model_code,
+    rank: champion.rank,
+    is_champion: champion.is_champion === true,
+    champion_model_code: baseFacts.champion_model_code,
+    ai_champion_model_code: baseFacts.ai_champion_model_code,
     period: baseFacts.period,
     train_period: baseFacts.train_period,
     validation_period: baseFacts.validation_period,
-    top_sharpe: candidate.sharpe,
-    top_max_drawdown: candidate.max_drawdown,
-    top_cagr: candidate.cagr,
-    train_sharpe: candidate.train_sharpe,
-    train_max_drawdown: candidate.train_max_drawdown,
-    validation_sharpe: candidate.validation_sharpe,
-    validation_max_drawdown: candidate.validation_max_drawdown,
-    volatility: candidate.volatility,
-    sortino: candidate.sortino,
-    turnover_avg: candidate.turnover_avg,
-    beta: candidate.beta,
-    alpha: candidate.alpha ?? candidate.alpha_annual,
-    information_ratio: candidate.information_ratio,
+    top_sharpe: champion.sharpe,
+    top_max_drawdown: champion.max_drawdown,
+    top_cagr: champion.cagr,
+    train_sharpe: champion.train_sharpe,
+    train_max_drawdown: champion.train_max_drawdown,
+    validation_sharpe: champion.validation_sharpe,
+    validation_max_drawdown: champion.validation_max_drawdown,
+    volatility: champion.volatility,
+    sortino: champion.sortino,
+    turnover_avg: champion.turnover_avg,
+    beta: champion.beta,
+    alpha: champion.alpha ?? champion.alpha_annual,
+    information_ratio: champion.information_ratio,
     report_horizons: {
       oos_enabled: baseFacts.oos_enabled,
       selection_basis: sm?.selection,
@@ -120,8 +106,8 @@ export function buildCandidateNarrativeFacts(
       out_of_sample: sm?.out_of_sample,
       full_sample: sm?.full_sample,
       gap: sm?.gap,
-      train_sharpe: candidate.train_sharpe,
-      validation_sharpe: candidate.validation_sharpe,
+      train_sharpe: champion.train_sharpe,
+      validation_sharpe: champion.validation_sharpe,
       display_sharpe: displaySharpe,
       display_cagr: displayCagr,
       display_max_drawdown: displayMdd,

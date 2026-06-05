@@ -15,6 +15,8 @@ import {
   getJobResult,
 } from "@/lib/api";
 import { DEFAULT_ASSET_CLASSES } from "@/lib/constants";
+import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
+import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
 import { getUniverseMeta } from "@/lib/universe";
 import type {
   BacktestRequest,
@@ -73,6 +75,7 @@ export default function HomePage() {
   const [, setJobId] = useState<string | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [result, setResult] = useState<BacktestResult | null>(null);
+  const [narrative, setNarrative] = useState("");
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const universeMeta = useMemo(() => getUniverseMeta(), []);
 
@@ -103,8 +106,24 @@ export default function HomePage() {
     if (prog.status === "completed") {
       const res = await getJobResult(id);
       setResult(res);
+      const championIdx = resolveChampionCandidateIndex(
+        res.candidates,
+        res.narrative_facts,
+      );
+      const champion =
+        championIdx >= 0 ? res.candidates[championIdx] : res.candidates[0];
+      const narrFacts = champion
+        ? buildJobNarrativeFacts(res.narrative_facts, champion)
+        : res.narrative_facts;
+      const narrRes = await fetch("/api/narrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ facts: narrFacts }),
+      });
+      const narrJson = (await narrRes.json()) as { narrative: string };
+      setNarrative(narrJson.narrative);
       setPhase("results");
-      const best = res.candidates[0];
+      const best = champion ?? res.candidates[0];
       const bm = String(
         (res.narrative_facts.backtest_spec as { benchmark?: string } | undefined)
           ?.benchmark ?? "SPY",
@@ -132,6 +151,7 @@ export default function HomePage() {
       setRequest(req);
       setPhase("running");
       setResult(null);
+      setNarrative("");
       lastProgressMsg.current = "";
 
       try {
@@ -261,6 +281,7 @@ export default function HomePage() {
             result.pro_rounds && result.pro_rounds.length > 0 ? (
               <ProResultsWithTabs
                 result={result}
+                narrative={narrative}
                 request={request}
                 onRerun={() => {
                   setPhase("constraints");
@@ -273,6 +294,7 @@ export default function HomePage() {
             ) : (
               <ResultsDashboard
                 result={result}
+                narrative={narrative}
                 request={request}
                 onRerun={() => {
                   setPhase("constraints");

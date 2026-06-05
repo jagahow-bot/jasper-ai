@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -52,18 +52,13 @@ import {
   candidateRowKey,
   performanceCompareRowsByChartKey,
   performanceCompareTickLabel,
-  readPersistedAiChampionCode,
   resolveChampionCandidateIndex,
   resolveChampionModelKey,
   resolveDefaultSelectedRowKey,
   resolveHorizonMetrics,
   resolveOutOfSampleMetrics,
 } from "@/lib/performance-compare-chart";
-import { fetchCandidateCharts, patchJobNarrativeFacts } from "@/lib/api";
-import {
-  buildCandidateNarrativeFacts,
-  narrativeCacheKey,
-} from "@/lib/narrative-slim";
+import { fetchCandidateCharts } from "@/lib/api";
 import {
   candidateHasDeepAnalytics,
   candidateHasFullCharts,
@@ -137,7 +132,8 @@ function holdingDisplayName(ticker: string, catalogName?: string): string {
 
 type Props = {
   result: BacktestResult;
-  /** Optional Pro round context prepended above the per-model AI narrative. */
+  narrative: string;
+  /** Optional Pro round context prepended above the job-level AI narrative. */
   narrativePrefix?: string;
   request: BacktestRequest;
   onRerun: () => void;
@@ -148,6 +144,7 @@ type Props = {
 
 export function ResultsDashboard({
   result,
+  narrative,
   narrativePrefix,
   request,
   onRerun,
@@ -160,9 +157,6 @@ export function ResultsDashboard({
   const chartTip = chartTooltipFontSize();
   const [selectedRowKey, setSelectedRowKey] = useState<string>("");
   const [compareSummary, setCompareSummary] = useState("");
-  const [aiRecommendedModelCode, setAiRecommendedModelCode] = useState<
-    string | null
-  >(null);
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareRetryNote, setCompareRetryNote] = useState<string | null>(null);
   const [leaderboardSort, setLeaderboardSort] =
@@ -174,15 +168,6 @@ export function ResultsDashboard({
     null,
   );
   const [chartsLoadError, setChartsLoadError] = useState<string | null>(null);
-  const [narrativesByKey, setNarrativesByKey] = useState<Record<string, string>>(
-    {},
-  );
-  const [narrativeLoadingKey, setNarrativeLoadingKey] = useState<string | null>(
-    null,
-  );
-  const [narrativeError, setNarrativeError] = useState<string | null>(null);
-  const narrativesRef = useRef(narrativesByKey);
-  narrativesRef.current = narrativesByKey;
 
   const resultSelectionEpoch = useMemo(
     () =>
@@ -192,27 +177,14 @@ export function ResultsDashboard({
     [result.job_id, result.candidates],
   );
 
-  const championNarrativeFacts = useMemo(() => {
-    const persisted = readPersistedAiChampionCode(result.narrative_facts);
-    const aiCode = aiRecommendedModelCode ?? persisted;
-    if (!aiCode) return result.narrative_facts;
-    return {
-      ...result.narrative_facts,
-      ai_recommended_model_code: aiCode,
-      ai_champion_model_code: aiCode,
-    };
-  }, [result.narrative_facts, aiRecommendedModelCode]);
+  const championNarrativeFacts = result.narrative_facts;
 
   useEffect(() => {
-    setAiRecommendedModelCode(readPersistedAiChampionCode(result.narrative_facts));
     setCompareSummary("");
     setCompareRetryNote(null);
     setLazyChartsByCode({});
     setChartsLoadingCode(null);
     setChartsLoadError(null);
-    setNarrativesByKey({});
-    setNarrativeLoadingKey(null);
-    setNarrativeError(null);
   }, [resultSelectionEpoch, result.narrative_facts]);
 
   useEffect(() => {
@@ -223,16 +195,6 @@ export function ResultsDashboard({
       ),
     );
   }, [resultSelectionEpoch, result.candidates, championNarrativeFacts]);
-
-  useEffect(() => {
-    if (!aiRecommendedModelCode) return;
-    setSelectedRowKey(
-      resolveDefaultSelectedRowKey(
-        result.candidates,
-        championNarrativeFacts,
-      ),
-    );
-  }, [aiRecommendedModelCode, result.candidates, championNarrativeFacts]);
 
   const defaultSelectedRowKey = useMemo(
     () =>
@@ -283,67 +245,6 @@ export function ResultsDashboard({
   }, [result.candidates, championNarrativeFacts]);
 
   const selectedModelCode = selected?.model_code ?? "";
-  const selectedNarrativeKey = selected ? narrativeCacheKey(selected) : "";
-  const activeNarrative = selectedNarrativeKey
-    ? narrativesByKey[selectedNarrativeKey] ?? ""
-    : "";
-  const narrativeLoading = Boolean(
-    selectedNarrativeKey && narrativeLoadingKey === selectedNarrativeKey,
-  );
-
-  useEffect(() => {
-    if (!selected || !selectedNarrativeKey) return;
-    if (narrativesRef.current[selectedNarrativeKey]) return;
-
-    let cancelled = false;
-    setNarrativeLoadingKey(selectedNarrativeKey);
-    setNarrativeError(null);
-
-    const facts = buildCandidateNarrativeFacts(
-      championNarrativeFacts,
-      selected,
-      {
-        championModelCode: championModelKey,
-        aiRecommendedModelCode: aiRecommendedModelCode,
-      },
-    );
-
-    void (async () => {
-      try {
-        const res = await fetch("/api/narrate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ facts }),
-        });
-        const json = (await res.json()) as { narrative?: string };
-        if (!cancelled) {
-          setNarrativesByKey((prev) => ({
-            ...prev,
-            [selectedNarrativeKey]: json.narrative ?? "",
-          }));
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setNarrativeError(
-            err instanceof Error ? err.message : "Failed to load narrative",
-          );
-        }
-      } finally {
-        if (!cancelled) setNarrativeLoadingKey(null);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    selected,
-    selectedNarrativeKey,
-    championNarrativeFacts,
-    championModelKey,
-    aiRecommendedModelCode,
-    resultSelectionEpoch,
-  ]);
   const selectedHasFullCharts = useMemo(
     () => candidateHasFullCharts(selected),
     [selected],
@@ -561,7 +462,6 @@ export function ResultsDashboard({
     if (result.candidates.length < 2) {
       setCompareSummary("");
       setCompareRetryNote(null);
-      setAiRecommendedModelCode(null);
       setCompareLoading(false);
       return;
     }
@@ -615,7 +515,6 @@ export function ResultsDashboard({
         });
         const json = (await res.json()) as {
           summary: string;
-          recommended_model_code?: string | null;
           retried_due_to_token_limit?: boolean;
         };
         if (!cancelled) {
@@ -626,21 +525,11 @@ export function ResultsDashboard({
               ? "AI compare retried due to token limit"
               : null,
           );
-          const rec = json.recommended_model_code?.trim();
-          const code = rec ? rec.toUpperCase() : null;
-          setAiRecommendedModelCode(code);
-          if (code && result.job_id) {
-            void patchJobNarrativeFacts(result.job_id, {
-              ai_recommended_model_code: code,
-              ai_champion_model_code: code,
-            }).catch(() => undefined);
-          }
         }
       } catch {
         if (!cancelled) {
           setCompareSummary("");
           setCompareRetryNote(null);
-          setAiRecommendedModelCode(null);
         }
       } finally {
         if (!cancelled) setCompareLoading(false);
@@ -1116,34 +1005,17 @@ export function ResultsDashboard({
             </select>
           </label>
         </div>
-        <details className="mt-3 text-sm text-dim" open={narrativeLoading || Boolean(activeNarrative)}>
-          <summary className="cursor-pointer hover:text-[var(--cyan)]">
-            Full backtest narrative
-            {narrativeLoading ? (
-              <span className="ml-2 text-xs text-[var(--amber)]">Loading…</span>
-            ) : null}
-          </summary>
-          {narrativeLoading ? (
-            <p className="mt-2 flex items-center gap-2 text-xs text-dim">
-              <span
-                className="inline-block h-3 w-3 animate-spin rounded-full border border-[var(--amber)] border-t-transparent"
-                aria-hidden
-              />
-              Generating narrative for {selectedModelCode || "model"}…
-            </p>
-          ) : narrativeError ? (
-            <p className="mt-2 text-xs text-red-400">{narrativeError}</p>
-          ) : activeNarrative ? (
+        {narrative ? (
+          <details className="mt-3 text-sm text-dim">
+            <summary className="cursor-pointer hover:text-[var(--cyan)]">
+              Full backtest narrative
+            </summary>
             <p className="mt-2 whitespace-pre-wrap leading-relaxed">
               {narrativePrefix ? `${narrativePrefix}\n\n` : ""}
-              {activeNarrative}
+              {narrative}
             </p>
-          ) : (
-            <p className="mt-2 text-xs text-dim">
-              Select a model to generate its narrative on demand.
-            </p>
-          )}
-        </details>
+          </details>
+        ) : null}
         {sampleMetrics?.in_sample && (
           <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2 text-xs">
             <p className="font-pixel text-[8px] text-[var(--amber)]">

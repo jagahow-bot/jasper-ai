@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildCandidateNarrativeFacts,
-  narrativeCacheKey,
-  slimNarrativeFacts,
-} from "./narrative-slim";
+import { buildJobNarrativeFacts, slimNarrativeFacts } from "./narrative-slim";
 import type { PortfolioCandidate } from "./types";
 
 describe("slimNarrativeFacts", () => {
@@ -23,6 +19,7 @@ describe("slimNarrativeFacts", () => {
             pool_signatures: "x".repeat(10_000),
             records: [{ trial: 1 }],
             round_winner_model_code: "M0001",
+            ai_champion_model_code: "M0002",
           },
         ],
       },
@@ -39,6 +36,7 @@ describe("slimNarrativeFacts", () => {
     expect(round.pool_signatures).toBeUndefined();
     expect(round.records).toBeUndefined();
     expect(round.round_winner_model_code).toBe("M0001");
+    expect(round.ai_champion_model_code).toBe("M0002");
     expect(facts.dynamic_objective_benchmark_series).toBeDefined();
     expect(
       (facts.pro_refinement as { per_round: Record<string, unknown>[] })
@@ -47,14 +45,8 @@ describe("slimNarrativeFacts", () => {
   });
 });
 
-describe("narrativeCacheKey", () => {
-  it("keys by model_code and rank", () => {
-    expect(narrativeCacheKey({ model_code: "M0003", rank: 2 })).toBe("M0003:2");
-  });
-});
-
-describe("buildCandidateNarrativeFacts", () => {
-  const candidate: PortfolioCandidate = {
+describe("buildJobNarrativeFacts", () => {
+  const champion: PortfolioCandidate = {
     rank: 1,
     model_code: "M0001",
     is_champion: true,
@@ -82,6 +74,7 @@ describe("buildCandidateNarrativeFacts", () => {
     oos_enabled: true,
     objective: "max_sharpe",
     champion_model_code: "M0001",
+    ai_champion_model_code: "M0001",
     backtest_spec: {
       benchmark: "SPY",
       fee_bps: 10,
@@ -101,14 +94,13 @@ describe("buildCandidateNarrativeFacts", () => {
     portfolio_catalog: Array(30).fill({ model_code: "M0099" }),
   };
 
-  it("builds single-candidate slim payload without bulk fields", () => {
-    const slim = buildCandidateNarrativeFacts(baseFacts, candidate, {
-      championModelCode: "M0001",
-    });
-    expect(slim.narrative_mode).toBe("single_candidate");
+  it("builds job-level slim payload without bulk fields", () => {
+    const slim = buildJobNarrativeFacts(baseFacts, champion);
+    expect(slim.narrative_mode).toBe("job_champion");
     expect(slim.model_code).toBe("M0001");
     expect(slim.rank).toBe(1);
     expect(slim.top_sharpe).toBe(1.2);
+    expect(slim.ai_champion_model_code).toBe("M0001");
     expect(slim.dynamic_objective_benchmark_series).toBeUndefined();
     expect(slim.weight_cap_audit).toBeUndefined();
     expect(slim.oos_leaderboard).toBeUndefined();
