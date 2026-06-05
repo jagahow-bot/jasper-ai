@@ -27,6 +27,7 @@ from app.engine.mutable_params import GEMINI_LEARNING_MUTABLE_FIELDS
 from app.engine.objectives import metrics_snapshot, objective_label
 from app.engine.optimizer import run_optuna_search
 from app.engine.portfolio import (
+    anchor_weight_history_to_date,
     benchmark_metrics,
     equity_curve_series,
     metrics_for_horizon_window,
@@ -1258,6 +1259,7 @@ def _build_candidate(
         )
         wh_raw = full_m.get("weight_history", [])
         wht_raw = full_m.get("weight_history_tickers", [])
+        first_eq = ""
         if response_curve:
             first_eq = str(response_curve[0].get("date", ""))
             if first_eq:
@@ -1266,6 +1268,7 @@ def _build_candidate(
                     for row in wh_raw
                     if str(row.get("date", "")) >= first_eq
                 ]
+        wh_raw = anchor_weight_history_to_date(wh_raw, first_eq)
         wh, wht = trim_weight_history_for_response(wh_raw, tickers=wht_raw or tickers)
         analytics["weight_history"] = wh
         analytics["weight_history_tickers"] = wht

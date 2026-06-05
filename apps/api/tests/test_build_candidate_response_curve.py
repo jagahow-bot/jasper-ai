@@ -58,3 +58,35 @@ def test_build_candidate_include_charts_trims_weight_history_to_curve_start():
     wh = cand.analytics.get("weight_history", [])
     assert wh
     assert all(str(row.get("date", "")) >= "2020-01-02" for row in wh)
+    assert str(wh[0]["date"]) == "2020-01-02"
+
+
+def test_build_candidate_anchors_weight_history_before_first_rebalance():
+    tickers = ["SPY"]
+    full_m = _minimal_metrics()
+    full_m["weight_history"] = [{"date": "2020-02-01", "SPY": 0.8}]
+    train_m = full_m
+    idx = full_m["port_ret"].index
+    prices = pd.DataFrame({"SPY": 100.0}, index=idx)
+    full_curve = [{"date": "2020-01-02", "value": 1.0}]
+    universe = {"SPY": {"asset_class": "equity"}}
+
+    cand = _build_candidate(
+        1,
+        tickers,
+        train_m,
+        None,
+        oos_enabled=False,
+        params={"model_code": "M0001"},
+        full_m=full_m,
+        full_curve=full_curve,
+        prices=prices,
+        universe_by_ticker=universe,
+        spec=DEFAULT_SPEC,
+        include_charts=True,
+    )
+
+    wh = cand.analytics.get("weight_history", [])
+    assert wh
+    assert str(wh[0]["date"]) == "2020-01-02"
+    assert float(wh[0]["SPY"]) == 0.8

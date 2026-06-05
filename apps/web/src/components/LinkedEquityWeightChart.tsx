@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import {
   activeObjectiveAtTs,
   activeRegimeAtTs,
+  alignWeightHistoryToEquityStart,
   computeSharedDateDomain,
   chartLegendFontSize,
   chartTickFontSize,
@@ -145,6 +146,8 @@ export function LinkedEquityWeightChart({
 
   const weightChartData = useMemo(() => {
     if (!weightHistory.length) return [];
+    const equityStart = equityCurve[0]?.date ? String(equityCurve[0].date) : "";
+    const aligned = alignWeightHistoryToEquityStart(weightHistory, equityStart);
     const enrich = (row: { date: string } & Record<string, number | string>) => {
       const sumShown = weightTickers.reduce(
         (acc, t) => acc + Number((row as Record<string, unknown>)[t] ?? 0),
@@ -158,8 +161,8 @@ export function LinkedEquityWeightChart({
         ),
       };
     };
-    return weightHistory.map((row) => enrich(row));
-  }, [weightHistory, weightTickers]);
+    return aligned.map((row) => enrich(row));
+  }, [weightHistory, weightTickers, equityCurve]);
 
   const sharedDomain = useMemo(() => {
     const benchForDomain = equityChartData.map((r) => ({

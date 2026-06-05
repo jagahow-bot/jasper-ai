@@ -967,8 +967,9 @@ def _simulate_pandas(
     hist_unique = sorted(list(dict.fromkeys(hist_dates)))
     if len(hist_unique) > 36:
         hist_unique = _downsample_keep_endpoints(hist_unique, 36)
+    ticker_dates = sorted(list(dict.fromkeys([hist_anchor, *hist_unique])))
     keep_tickers = select_weight_chart_tickers(
-        sch, hist_unique, top_n=min(holdings_top_n, len(prices.columns))
+        sch, ticker_dates, top_n=min(holdings_top_n, len(prices.columns))
     )
     weight_history: list[dict[str, Any]] = []
     for dt in hist_unique:

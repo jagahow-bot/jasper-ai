@@ -229,3 +229,13 @@ export function objectiveBandRanges(
   }
   return bands;
 }
+
+/** Prepend equity-start row when weight snapshots begin after the curve. */
+export function alignWeightHistoryToEquityStart<
+  T extends { date: string } & Record<string, number | string>,
+>(weightHistory: T[], equityStartDate: string): T[] {
+  if (!weightHistory.length || !equityStartDate) return weightHistory;
+  const start = String(equityStartDate);
+  if (String(weightHistory[0].date) <= start) return weightHistory;
+  return [{ ...weightHistory[0], date: start }, ...weightHistory];
+}

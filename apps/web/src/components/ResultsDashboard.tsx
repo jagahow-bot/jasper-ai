@@ -60,6 +60,7 @@ import type {
   DynamicObjectiveTimelinePoint,
 } from "@/lib/types";
 import {
+  alignWeightHistoryToEquityStart,
   chartLegendFontSize,
   chartTickFontSize,
   chartTooltipFontSize,
@@ -274,9 +275,10 @@ export function ResultsDashboard({
   const historySeries = useMemo(() => {
     if (!weightHistory.length) return [];
     const firstEquityDate = equity[0]?.date ? String(equity[0].date) : "";
-    const aligned = firstEquityDate
+    const trimmed = firstEquityDate
       ? weightHistory.filter((row) => String(row.date) >= firstEquityDate)
       : weightHistory;
+    const aligned = alignWeightHistoryToEquityStart(trimmed, firstEquityDate);
     return aligned.map((row) => {
       const sumShown = weightHistoryTickers.reduce(
         (acc, t) => acc + Number((row as Record<string, unknown>)[t] ?? 0),

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   activeObjectiveAtTs,
   activeRegimeAtTs,
+  alignWeightHistoryToEquityStart,
   computeSharedDateDomain,
   dateRatio,
   formatChartTooltipLabel,
@@ -11,6 +12,19 @@ import {
 } from "./benchmark-chart-scale";
 
 describe("benchmark-chart-scale", () => {
+  it("alignWeightHistoryToEquityStart prepends equity anchor", () => {
+    const out = alignWeightHistoryToEquityStart(
+      [
+        { date: "2020-03-01", SPY: 0.6 },
+        { date: "2020-06-01", SPY: 0.7 },
+      ],
+      "2020-01-02",
+    );
+    expect(out[0].date).toBe("2020-01-02");
+    expect(out[0].SPY).toBe(0.6);
+    expect(out).toHaveLength(3);
+  });
+
   it("formats millisecond tooltip labels as ISO dates", () => {
     const ts = parseDateTs("2025-04-11");
     expect(formatChartTooltipLabel(ts)).toBe("2025-04-11");
