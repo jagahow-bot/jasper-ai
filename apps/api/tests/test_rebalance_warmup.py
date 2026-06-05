@@ -129,6 +129,71 @@ def test_first_report_day_not_equal_weight_with_prep_history():
     assert top_hold < 0.99, "single-ETF 100% artifact should not dominate day 1"
 
 
+def test_weight_cap_audit_ignores_warmup_before_report_start():
+    """Prep-history equal-weight anchor must not surface as a report-window cap breach."""
+    warmup = pd.bdate_range("2016-01-04", "2017-12-29")
+    report = pd.bdate_range("2018-01-01", periods=120)
+    dates = warmup.append(report)
+    rng = np.random.default_rng(1026)
+    cols = ["ACWI", "EEM", "EFA", "IWM"]
+    prices = pd.DataFrame(
+        {
+            c: 100
+            * np.cumprod(1 + rng.normal(0.0003 + i * 0.00002, 0.011, len(dates)))
+            for i, c in enumerate(cols)
+        },
+        index=dates,
+    )
+    report_start = "2018-01-01"
+    m = simulate_dynamic_portfolio(
+        prices,
+        report_start=report_start,
+        spec=BacktestSpec(rebalance_rule="ME", fee_bps=0.0),
+        max_weight=0.22,
+        min_weight=0.0,
+        allocator=AllocatorParams(mode="mean_variance", lookback_days=252),
+        factor_params=FactorParams(lookback_days=252),
+        top_n=3,
+    )
+    audit = m.get("weight_cap_audit") or {}
+    first_v = audit.get("first_violation_date")
+    if first_v is not None:
+        assert str(first_v) >= report_start
+    for row in audit.get("rebalance_snapshots") or []:
+        assert str(row.get("date", report_start)) >= report_start
+
+
+def test_weight_history_first_snapshot_aligns_with_report_start():
+    """Stacked chart x-axis matches equity: anchor at report start, not first rebalance."""
+    warmup = pd.bdate_range("2014-06-02", "2015-12-31")
+    report = pd.bdate_range("2016-01-01", periods=120)
+    dates = warmup.append(report)
+    rng = np.random.default_rng(99)
+    cols = ["ACWI", "EEM", "EFA", "IWM", "VTV"]
+    prices = pd.DataFrame(
+        {
+            c: 100
+            * np.cumprod(1 + rng.normal(0.0003 + i * 0.00002, 0.011, len(dates)))
+            for i, c in enumerate(cols)
+        },
+        index=dates,
+    )
+    report_start = "2016-01-01"
+    m = simulate_dynamic_portfolio(
+        prices,
+        report_start=report_start,
+        spec=BacktestSpec(rebalance_rule="ME", fee_bps=0.0),
+        max_weight=0.5,
+        min_weight=0.0,
+        allocator=AllocatorParams(mode="mean_variance", lookback_days=126),
+        factor_params=FactorParams(lookback_days=252),
+        top_n=3,
+    )
+    wh = m.get("weight_history") or []
+    assert wh
+    assert str(wh[0]["date"]) == "2016-01-01"
+
+
 def test_short_panel_without_prep_omits_placeholder_weight_snapshots():
     """Panel that starts at report start must not emit equal-weight anchor snapshots."""
     dates = pd.bdate_range("2020-01-01", periods=120)

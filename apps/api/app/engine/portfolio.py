@@ -141,10 +141,108 @@ def first_trading_day_on_or_after(index: pd.DatetimeIndex, start: str) -> pd.Tim
     return pd.Timestamp(sub[0])
 
 
+def _schedule_weight_row(
+    schedule: pd.DataFrame,
+    dt: pd.Timestamp,
+    keep_tickers: list[str],
+    *,
+    date_label: str | None = None,
+) -> dict[str, Any]:
+    """Build one weight-history snapshot from the rebalance schedule (as-of dt)."""
+    idx = schedule.index
+    snap_dt = pd.Timestamp(dt)
+    if snap_dt not in idx:
+        prior = idx[idx <= snap_dt]
+        snap_dt = pd.Timestamp(prior[-1]) if len(prior) else pd.Timestamp(idx[0])
+    w_row = schedule.loc[snap_dt]
+    row = {"date": date_label or snap_dt.strftime("%Y-%m-%d")}
+    keep_sum = 0.0
+    for t in keep_tickers:
+        v = float(w_row.get(t, 0.0))
+        row[t] = v
+        keep_sum += v
+    row["OTHER"] = max(0.0, float(1.0 - keep_sum))
+    return row
+
+
+def ensure_weight_history_anchor(
+    weight_history: list[dict[str, Any]] | None,
+    schedule: pd.DataFrame,
+    anchor: pd.Timestamp,
+    keep_tickers: list[str],
+) -> list[dict[str, Any]]:
+    """Prepend report-start weights when the first applied rebalance is later."""
+    wh = list(weight_history or [])
+    anchor_str = anchor.strftime("%Y-%m-%d")
+    if wh and str(wh[0].get("date", "")) <= anchor_str:
+        return wh
+    anchor_row = _schedule_weight_row(
+        schedule, anchor, keep_tickers, date_label=anchor_str
+    )
+    if wh and str(wh[0].get("date", "")) == anchor_str:
+        return wh
+    return [anchor_row, *wh]
+
+
+def anchor_weight_history_to_date(
+    weight_history: list[dict[str, Any]] | None,
+    anchor_date: str,
+) -> list[dict[str, Any]]:
+    """Forward-fill first snapshot to equity curve start (API response trim)."""
+    wh = list(weight_history or [])
+    if not anchor_date or not wh:
+        return wh
+    if str(wh[0].get("date", "")) <= anchor_date:
+        return wh
+    row = dict(wh[0])
+    row["date"] = anchor_date
+    return [row, *wh]
+
+
 def trim_prices_to_report_window(prices: pd.DataFrame, report_start: str) -> pd.DataFrame:
     """Rows on/after the user's backtest start (metrics/UI window)."""
     anchor = first_trading_day_on_or_after(prices.index, report_start)
     return prices.loc[anchor:].copy()
+
+
+def _cap_audit_rows_on_or_after_report(
+    rows: list[dict[str, Any]], report_start: str | None
+) -> list[dict[str, Any]]:
+    """Drop warmup / prep-history audit rows before the user's report window."""
+    if not report_start:
+        return rows
+    start = str(report_start)
+    return [r for r in rows if str(r.get("date", "")) >= start]
+
+
+def _summarize_weight_cap_audit(
+    cap_audit_rows: list[dict[str, Any]],
+    *,
+    max_weight: float,
+    min_weight: float,
+    tradable_count: int,
+    last_w: np.ndarray,
+) -> dict[str, Any]:
+    max_observed = float(last_w.max()) if len(last_w) else 0.0
+    worst_row = max(
+        cap_audit_rows,
+        key=lambda r: float(r.get("max_observed_weight", 0.0)),
+        default={},
+    )
+    violations = [r for r in cap_audit_rows if r.get("violation")]
+    return {
+        "max_weight_param": round(float(max_weight), 6),
+        "max_observed_weight": round(max_observed, 6),
+        "worst_date": worst_row.get("date"),
+        "worst_observed_weight": worst_row.get("max_observed_weight"),
+        "violation_count": len(violations),
+        "first_violation_date": violations[0].get("date") if violations else None,
+        "feasible": len(violations) == 0 and not worst_row.get("violation", False),
+        "min_holdings_for_cap": min_holdings_for_cap(max_weight, floor=2),
+        "min_weight_param": round(float(min_weight), 6),
+        "tradable_count": tradable_count,
+        "rebalance_snapshots": cap_audit_rows[-24:],
+    }
 
 
 def _apply_report_start_window(
@@ -481,6 +579,7 @@ def _rebalance_schedule_dynamic(
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
     max_holdings: int | None = None,
+    report_start: str | None = None,
 ) -> tuple[
     pd.DataFrame,
     np.ndarray,
@@ -641,30 +740,20 @@ def _rebalance_schedule_dynamic(
     total_abs = float(sum(max(v, 0.0) for v in factor_abs_sum.values()))
     if total_abs > 1e-12:
         attribution = {k: float(v / total_abs) for k, v in factor_abs_sum.items()}
-    max_observed = float(last_w.max()) if len(last_w) else 0.0
-    worst_row = max(
-        cap_audit_rows,
-        key=lambda r: float(r.get("max_observed_weight", 0.0)),
-        default={},
+    report_audit_rows = _cap_audit_rows_on_or_after_report(
+        cap_audit_rows, report_start
     )
-    violations = [r for r in cap_audit_rows if r.get("violation")]
     summary = {
         "factor_contribution": attribution,
         "factor_indicator_logic": factor_logic,
         "factor_observations": int(factor_obs),
-        "weight_cap_audit": {
-            "max_weight_param": round(float(max_weight), 6),
-            "max_observed_weight": round(max_observed, 6),
-            "worst_date": worst_row.get("date"),
-            "worst_observed_weight": worst_row.get("max_observed_weight"),
-            "violation_count": len(violations),
-            "first_violation_date": violations[0].get("date") if violations else None,
-            "feasible": len(violations) == 0 and not worst_row.get("violation", False),
-            "min_holdings_for_cap": min_holdings_for_cap(max_weight, floor=2),
-            "min_weight_param": round(float(min_weight), 6),
-            "tradable_count": n,
-            "rebalance_snapshots": cap_audit_rows[-24:],
-        },
+        "weight_cap_audit": _summarize_weight_cap_audit(
+            report_audit_rows,
+            max_weight=max_weight,
+            min_weight=min_weight,
+            tradable_count=n,
+            last_w=last_w,
+        ),
     }
     return (
         schedule,
@@ -826,6 +915,7 @@ def _simulate_pandas(
             max_turnover=max_turnover,
             universe_by_ticker=universe_by_ticker,
             class_budget=class_budget,
+            report_start=report_start,
         )
     else:
         schedule = _rebalance_schedule(prices, weights, spec.rebalance_rule)
@@ -884,15 +974,12 @@ def _simulate_pandas(
     for dt in hist_unique:
         if dt not in schedule.index:
             continue
-        row = {"date": dt.strftime("%Y-%m-%d")}
-        w_row = schedule.loc[dt]
-        keep_sum = 0.0
-        for t in keep_tickers:
-            v = float(w_row.get(t, 0.0))
-            row[t] = v
-            keep_sum += v
-        row["OTHER"] = max(0.0, float(1.0 - keep_sum))
-        weight_history.append(row)
+        weight_history.append(
+            _schedule_weight_row(sch, dt, keep_tickers)
+        )
+    weight_history = ensure_weight_history_anchor(
+        weight_history, sch, hist_anchor, keep_tickers
+    )
     metrics["weight_history"] = weight_history
     metrics["weight_history_tickers"] = keep_tickers
     cap_audit = (factor_summary or {}).get("weight_cap_audit")
