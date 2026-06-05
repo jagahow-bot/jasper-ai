@@ -1404,6 +1404,12 @@ _PRIOR_REGIME_FACTOR_FOCUS_KEYS: tuple[str, ...] = (
     "factor_lookback_days",
 )
 
+_PRIOR_REGIME_FACTOR_MINIMAL_KEYS: tuple[str, ...] = (
+    "w_mom",
+    "w_lowvol",
+    "factor_lookback_days",
+)
+
 
 def _round_seed_regime_factors_max_output_tokens(*, attempt: int = 0) -> int:
     """Dedicated budget for split-call regime_factor_ranges (smaller JSON surface)."""
@@ -1481,42 +1487,115 @@ def _json_compact(obj: Any) -> str:
     return dumps_for_ai(obj)
 
 
-_ROUND_SEED_DROPPABLE_PREFIXES: tuple[str, ...] = (
-    "PRIOR_ROUND_SETUP",
-    "PRIOR_FACTOR_RANGES",
-    "PRIOR_FACTOR_CHOICES",
-    "PRIOR_REGIME_SETUPS",
-    "PRIOR_REGIME_FACTOR_RANGES",
-    "PRIOR_REGIME_CLASS_QUOTAS",
+_ROUND_SEED_OPTIONAL_PREFIXES: tuple[str, ...] = (
     "WEIGHT_SUMMARY",
     "FAILED_TRIALS:",
     "MISSION ",
+    "VS_BENCHMARK",
+)
+
+_ROUND_SEED_TRUNCATABLE_PRIOR_PREFIXES: tuple[str, ...] = (
+    "PRIOR_FACTOR_RANGES",
+    "PRIOR_FACTOR_CHOICES",
+    "PRIOR_REGIME_FACTOR_RANGES",
+    "PRIOR_REGIME_CLASS_QUOTAS",
+)
+
+_ROUND_SEED_PROTECTED_PRIOR_PREFIXES: tuple[str, ...] = (
+    "PRIOR_ROUND_SETUP",
+    "PRIOR_REGIME_SETUPS",
 )
 
 
-def _round_seed_line_droppable(line: str) -> bool:
-    """Lines safe to omit before champion/budget sections when over char budget."""
-    head = line.split("\n", 1)[0]
+def _round_seed_line_head(line: str) -> str:
+    return line.split("\n", 1)[0]
+
+
+def _round_seed_line_optional(line: str) -> bool:
+    head = _round_seed_line_head(line)
     if head.startswith("- gap="):
         return True
-    return any(head.startswith(prefix) for prefix in _ROUND_SEED_DROPPABLE_PREFIXES)
+    return any(head.startswith(prefix) for prefix in _ROUND_SEED_OPTIONAL_PREFIXES)
+
+
+def _round_seed_line_truncatable_prior(line: str) -> bool:
+    head = _round_seed_line_head(line)
+    return any(head.startswith(prefix) for prefix in _ROUND_SEED_TRUNCATABLE_PRIOR_PREFIXES)
+
+
+def _truncate_labeled_json_line(line: str, max_len: int) -> str:
+    """Shorten the JSON payload on a labeled line; keep the label prefix."""
+    if len(line) <= max_len:
+        return line
+    idx = line.find(" ")
+    if idx < 0:
+        return line[:max_len]
+    prefix = line[: idx + 1]
+    room = max_len - len(prefix)
+    if room <= 3:
+        return prefix.rstrip()
+    payload = line[idx + 1 :]
+    if len(payload) <= room:
+        return line
+    return prefix + payload[: room - 3] + "..."
 
 
 def _fit_round_seed_block(lines: list[str], max_chars: int) -> str:
-    """Fit learning block; drop prior-round sections before champion/budget blocks."""
-    while lines:
-        block = "\n".join(lines)
-        if len(block) <= max_chars:
-            return block
-        removed = False
-        for i in range(len(lines) - 1, -1, -1):
-            if _round_seed_line_droppable(lines[i]):
-                lines.pop(i)
-                removed = True
+    """Fit learning block: drop optional extras, then truncate PRIOR JSON in-place."""
+    work = list(lines)
+
+    def _assembled() -> str:
+        return "\n".join(work)
+
+    def _fits() -> bool:
+        return len(_assembled()) <= max_chars
+
+    if _fits():
+        return _assembled()
+
+    for i in range(len(work) - 1, -1, -1):
+        if _round_seed_line_optional(work[i]):
+            work.pop(i)
+
+    if _fits():
+        return _assembled()
+
+    guard = 0
+    while not _fits() and guard < 64:
+        guard += 1
+        longest_i = -1
+        longest_len = 0
+        for i, line in enumerate(work):
+            if not _round_seed_line_truncatable_prior(line):
+                continue
+            if len(line) > longest_len:
+                longest_len = len(line)
+                longest_i = i
+        if longest_i < 0:
+            break
+        over = len(_assembled()) - max_chars
+        new_len = max(40, longest_len - max(over + 8, longest_len // 8))
+        work[longest_i] = _truncate_labeled_json_line(work[longest_i], new_len)
+
+    if _fits():
+        return _assembled()
+
+    for i in range(len(work) - 1, -1, -1):
+        head = _round_seed_line_head(work[i])
+        if head.startswith("PRIOR_FACTOR_RANGES"):
+            work.pop(i)
+            if _fits():
+                return _assembled()
+
+    for i, line in enumerate(work):
+        head = _round_seed_line_head(line)
+        if any(head.startswith(prefix) for prefix in _ROUND_SEED_PROTECTED_PRIOR_PREFIXES):
+            over = len(_assembled()) - max_chars
+            if over <= 0:
                 break
-        if not removed:
-            lines.pop()
-    return ""
+            work[i] = _truncate_labeled_json_line(line, max(40, len(line) - over - 4))
+
+    return _assembled() if _fits() else ""
 
 
 def _weight_summary_line(learning_context: dict[str, Any]) -> str | None:
@@ -1645,6 +1724,80 @@ def round_seed_regime_factor_range_guidance(
     )
 
 
+class _RoundSeedCompress:
+    """Progressive compression for round-2+ learning block (champion + prior params)."""
+
+    __slots__ = (
+        "champion_params_full",
+        "include_vs_benchmark",
+        "include_optional",
+        "include_prior_factor_ranges",
+        "regime_factor_full",
+        "regime_factor_keys",
+        "failed_trial_limit",
+    )
+
+    def __init__(
+        self,
+        *,
+        champion_params_full: bool = True,
+        include_vs_benchmark: bool = True,
+        include_optional: bool = True,
+        include_prior_factor_ranges: bool = True,
+        regime_factor_full: bool = True,
+        regime_factor_keys: tuple[str, ...] | None = None,
+        failed_trial_limit: int = 5,
+    ) -> None:
+        self.champion_params_full = champion_params_full
+        self.include_vs_benchmark = include_vs_benchmark
+        self.include_optional = include_optional
+        self.include_prior_factor_ranges = include_prior_factor_ranges
+        self.regime_factor_full = regime_factor_full
+        self.regime_factor_keys = regime_factor_keys
+        self.failed_trial_limit = failed_trial_limit
+
+
+_ROUND_SEED_COMPRESS_LEVELS: tuple[_RoundSeedCompress, ...] = (
+    _RoundSeedCompress(),
+    _RoundSeedCompress(include_optional=False, failed_trial_limit=3),
+    _RoundSeedCompress(
+        champion_params_full=False,
+        include_vs_benchmark=False,
+        include_optional=False,
+        failed_trial_limit=0,
+    ),
+    _RoundSeedCompress(
+        champion_params_full=False,
+        include_vs_benchmark=False,
+        include_optional=False,
+        include_prior_factor_ranges=False,
+        regime_factor_full=False,
+        failed_trial_limit=0,
+    ),
+    _RoundSeedCompress(
+        champion_params_full=False,
+        include_vs_benchmark=False,
+        include_optional=False,
+        include_prior_factor_ranges=False,
+        regime_factor_full=False,
+        regime_factor_keys=_PRIOR_REGIME_FACTOR_MINIMAL_KEYS,
+        failed_trial_limit=0,
+    ),
+)
+
+
+def _prior_regime_factor_ranges_for_prompt(
+    ranges: dict[str, Any],
+    *,
+    compress: _RoundSeedCompress,
+) -> dict[str, Any]:
+    cleaned = _sanitize_prompt_dict(ranges)
+    if compress.regime_factor_full:
+        return sanitize_for_ai(cleaned)
+    focus = compress.regime_factor_keys or _PRIOR_REGIME_FACTOR_FOCUS_KEYS
+    return _compact_regime_factor_ranges_for_prompt(cleaned, focus_keys=focus)
+
+
 def _failed_trial_lines(failed: list[dict[str, Any]], limit: int = 5) -> list[str]:
     out: list[str] = []
     for row in failed[:limit]:
@@ -1660,8 +1813,13 @@ def _failed_trial_lines(failed: list[dict[str, Any]], limit: int = 5) -> list[st
     return out
 
 
-def _round_seed_champion_section_lines(learning_context: dict[str, Any]) -> list[str]:
-    """Incumbent champion block (model_code, IS/OOS metrics, full params) for round 2+."""
+def _round_seed_champion_section_lines(
+    learning_context: dict[str, Any],
+    *,
+    compress: _RoundSeedCompress | None = None,
+) -> list[str]:
+    """Incumbent champion block (model_code, IS/OOS metrics, params) for round 2+."""
+    level = compress or _RoundSeedCompress()
     out: list[str] = []
     champ = learning_context.get("champion")
     champ_params = learning_context.get("champion_record_params")
@@ -1725,33 +1883,31 @@ def _round_seed_champion_section_lines(learning_context: dict[str, Any]) -> list
             )
     if isinstance(champ_params, dict) and champ_params:
         champ_lines.append(
-            f"  params={summarize_params_for_ai(champ_params, full=True)}"
+            "  params="
+            + summarize_params_for_ai(champ_params, full=level.champion_params_full)
         )
     out.append("\n".join(champ_lines))
 
-    if isinstance(champ, dict):
+    if level.include_vs_benchmark and isinstance(champ, dict):
         bvs = champ.get("benchmark_vs")
         if isinstance(bvs, dict):
             pvb = bvs.get("portfolio_vs_benchmark") or bvs
             if isinstance(pvb, dict) and pvb:
-                out.append(
-                    "VS_BENCHMARK "
-                    + _json_compact(
-                        {
-                            k: pvb.get(k)
-                            for k in (
-                                "alpha",
-                                "information_ratio",
-                                "beta",
-                                "tracking_error",
-                                "portfolio_cagr",
-                                "portfolio_sharpe",
-                                "benchmark_total_return_pct",
-                            )
-                            if pvb.get(k) is not None
-                        }
+                bench_payload = {
+                    k: pvb.get(k)
+                    for k in (
+                        "alpha",
+                        "information_ratio",
+                        "beta",
+                        "tracking_error",
+                        "portfolio_cagr",
+                        "portfolio_sharpe",
+                        "benchmark_total_return_pct",
                     )
-                )
+                    if pvb.get(k) is not None
+                }
+                if bench_payload:
+                    out.append("VS_BENCHMARK " + _json_compact(bench_payload))
 
     out.append(
         "REFINE_AROUND_CHAMPION Incumbent prior-round winner (CHAMPION model_code). "
@@ -1766,16 +1922,22 @@ def _round_seed_champion_section_lines(learning_context: dict[str, Any]) -> list
     return out
 
 
-def _round_seed_prior_round_lines(learning_context: dict[str, Any]) -> list[str]:
-    """Prior round AI seed snapshot (droppable when over char budget)."""
+def _round_seed_prior_round_lines(
+    learning_context: dict[str, Any],
+    *,
+    compress: _RoundSeedCompress | None = None,
+) -> list[str]:
+    """Prior round AI seed snapshot (protected; truncated in-place when over budget)."""
+    level = compress or _RoundSeedCompress()
     lines: list[str] = []
     prev_setup = learning_context.get("prior_round_setup")
     if isinstance(prev_setup, dict) and prev_setup:
         lines.append("PRIOR_ROUND_SETUP " + _json_compact(prev_setup))
 
-    prev_ranges = learning_context.get("prior_factor_ranges")
-    if isinstance(prev_ranges, dict) and prev_ranges:
-        lines.append("PRIOR_FACTOR_RANGES " + _json_compact(prev_ranges))
+    if level.include_prior_factor_ranges:
+        prev_ranges = learning_context.get("prior_factor_ranges")
+        if isinstance(prev_ranges, dict) and prev_ranges:
+            lines.append("PRIOR_FACTOR_RANGES " + _json_compact(prev_ranges))
 
     prev_choices = learning_context.get("prior_factor_choices")
     if isinstance(prev_choices, dict) and prev_choices:
@@ -1793,8 +1955,8 @@ def _round_seed_prior_round_lines(learning_context: dict[str, Any]) -> list[str]
         lines.append(
             "PRIOR_REGIME_FACTOR_RANGES "
             + _json_compact(
-                _compact_regime_factor_ranges_for_prompt(
-                    _sanitize_prompt_dict(prev_regime_factors)
+                _prior_regime_factor_ranges_for_prompt(
+                    prev_regime_factors, compress=level
                 )
             )
         )
@@ -1802,6 +1964,48 @@ def _round_seed_prior_round_lines(learning_context: dict[str, Any]) -> list[str]
     prev_regime_quotas = learning_context.get("prior_regime_class_quotas")
     if isinstance(prev_regime_quotas, dict) and prev_regime_quotas:
         lines.append("PRIOR_REGIME_CLASS_QUOTAS " + _json_compact(prev_regime_quotas))
+    return lines
+
+
+def _collect_round_seed_learning_lines(
+    learning_context: dict[str, Any],
+    *,
+    round_index: int,
+    compress: _RoundSeedCompress,
+) -> list[str]:
+    lines: list[str] = list(_round_seed_budget_lines(learning_context))
+    if round_index <= 1:
+        return lines
+
+    lines.extend(
+        _round_seed_champion_section_lines(learning_context, compress=compress)
+    )
+    lines.extend(_round_seed_prior_round_lines(learning_context, compress=compress))
+
+    if compress.include_optional:
+        weight_line = _weight_summary_line(learning_context)
+        if weight_line:
+            lines.append(f"WEIGHT_SUMMARY {weight_line}")
+
+        failed = learning_context.get("failed_challengers")
+        if isinstance(failed, list) and failed and compress.failed_trial_limit > 0:
+            fail_lines = _failed_trial_lines(
+                failed, limit=compress.failed_trial_limit
+            )
+            if fail_lines:
+                lines.append("FAILED_TRIALS:")
+                lines.extend(fail_lines)
+
+        mission = learning_context.get("mission")
+        if mission:
+            lines.append(f"MISSION {_json_compact(str(mission))}")
+
+    target = learning_context.get("target_adjusted_score")
+    if target is not None:
+        lines.append(
+            "TARGET beat champion IS objective (adjusted score) > "
+            f"{_format_ai_number(target, key='target_adjusted_score')}"
+        )
     return lines
 
 
@@ -1814,37 +2018,22 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
     )
 
     max_chars = _round_seed_learning_max_chars()
-    lines: list[str] = list(_round_seed_budget_lines(learning_context))
-
     if round_index <= 1:
-        return _fit_round_seed_block(lines, max_chars)
-
-    lines.extend(_round_seed_champion_section_lines(learning_context))
-    lines.extend(_round_seed_prior_round_lines(learning_context))
-
-    weight_line = _weight_summary_line(learning_context)
-    if weight_line:
-        lines.append(f"WEIGHT_SUMMARY {weight_line}")
-
-    failed = learning_context.get("failed_challengers")
-    if isinstance(failed, list) and failed:
-        fail_lines = _failed_trial_lines(failed, limit=5)
-        if fail_lines:
-            lines.append("FAILED_TRIALS:")
-            lines.extend(fail_lines)
-
-    target = learning_context.get("target_adjusted_score")
-    if target is not None:
-        lines.append(
-            "TARGET beat champion IS objective (adjusted score) > "
-            f"{_format_ai_number(target, key='target_adjusted_score')}"
+        return _fit_round_seed_block(
+            _collect_round_seed_learning_lines(
+                learning_context, round_index=round_index, compress=_RoundSeedCompress()
+            ),
+            max_chars,
         )
 
-    mission = learning_context.get("mission")
-    if mission:
-        lines.append(f"MISSION {_json_compact(str(mission))}")
-
-    return _fit_round_seed_block(lines, max_chars)
+    for level in _ROUND_SEED_COMPRESS_LEVELS:
+        lines = _collect_round_seed_learning_lines(
+            learning_context, round_index=round_index, compress=level
+        )
+        block = _fit_round_seed_block(lines, max_chars)
+        if block:
+            return block
+    return ""
 
 
 def _build_pro_round_learning_block(learning_context: dict[str, Any]) -> str:

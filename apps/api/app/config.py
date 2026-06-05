@@ -57,7 +57,7 @@ class Settings(BaseSettings):
         ),
     )
     gemini_round_seed_learning_max_chars: int = Field(
-        default=3200,
+        default=7000,
         ge=800,
         le=12000,
         validation_alias=AliasChoices(
