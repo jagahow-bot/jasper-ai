@@ -44,7 +44,7 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
       setRows(mergeHistoryLists(apiRows, local));
     } catch {
       setRows(local);
-      setFetchError("API 離線 — 僅顯示本機紀錄");
+      setFetchError("API offline — local only");
     } finally {
       setRefreshing(false);
     }
@@ -58,8 +58,8 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
 
   const subtitle = useMemo(() => {
     if (fetchError) return fetchError;
-    if (refreshing) return "同步中…";
-    return `${rows.length} 筆紀錄`;
+    if (refreshing) return "Syncing…";
+    return `${rows.length} ${rows.length === 1 ? "record" : "records"}`;
   }, [fetchError, refreshing, rows.length]);
 
   return (
@@ -79,7 +79,8 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
 
       {empty ? (
         <p className="font-terminal text-sm text-[var(--muted)]">
-          完成回測後會出現在這裡。重新整理頁面後仍可從 API 載入（若伺服器有保留）。
+          Completed backtests appear here. After refresh, entries may still load from
+          the API when the server retains them.
         </p>
       ) : (
         <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
