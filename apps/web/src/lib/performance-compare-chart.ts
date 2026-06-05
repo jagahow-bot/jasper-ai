@@ -13,6 +13,7 @@ export type PerformanceCompareCandidate = {
   analytics?: {
     sample_metrics?: {
       in_sample?: Record<string, number>;
+      out_of_sample?: Record<string, number> | null;
       full_sample?: Record<string, number>;
     };
   } | null;
