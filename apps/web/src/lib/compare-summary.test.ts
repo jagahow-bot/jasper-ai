@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCompareFallback,
+  buildCompareSystemPrompt,
+  buildCompareUserPrompt,
   isAcceptableCompareSummary,
   isGeminiMaxTokensFinish,
   looksLikeMetricDump,
@@ -9,6 +11,7 @@ import {
   MAX_COMPARE_RETRIES,
   parseCompareSummaryResponse,
   resolveCompareChampion,
+  resolveFallbackRecommendedCode,
   shouldRetryCompareGeneration,
   slimComparePayload,
 } from "./compare-summary";
@@ -104,17 +107,90 @@ M0010 Sharpe:
     ).toBe("M0001");
   });
 
-  it("slimComparePayload sorts by model code", () => {
+  it("slimComparePayload sorts by objective rank (best first)", () => {
     const slim = slimComparePayload({
       benchmark: "VT",
-      champion_model_code: "M0009",
+      champion_model_code: "M0001",
       candidates: [
-        { model_code: "M0009", rank: 1, sharpe: 1.5, is_champion: true },
-        { model_code: "M0001", rank: 9, sharpe: 1.2, is_champion: false },
+        { model_code: "M0007", rank: 1, sharpe: 1.5, is_champion: false },
+        { model_code: "M0001", rank: 9, sharpe: 1.2, is_champion: true },
       ],
     });
-    expect(slim.candidates.map((c) => c.model_code)).toEqual(["M0001", "M0009"]);
-    expect(slim.champion_model_code).toBe("M0009");
+    expect(slim.candidates.map((c) => c.model_code)).toEqual(["M0007", "M0001"]);
+    expect(slim.pro_in_sample_champion).toBe("M0001");
+    expect(slim.candidates[0]?.is_champion).toBeUndefined();
+  });
+
+  it("compare prompts lead with AI recommendation not Pro in-sample champion", () => {
+    const slim = slimComparePayload({
+      benchmark: "VT",
+      objective_label: "Dynamic",
+      champion_model_code: "M0001",
+      candidates: [
+        { model_code: "M0007", rank: 1, sharpe: 1.5, is_champion: false },
+        { model_code: "M0001", rank: 9, sharpe: 1.2, is_champion: true },
+      ],
+    });
+    const system = buildCompareSystemPrompt();
+    const user = buildCompareUserPrompt(slim);
+
+    expect(system).toContain("Open the summary with that model");
+    expect(system).toContain("Do NOT open by critiquing pro_in_sample_champion");
+    expect(system).toContain(
+      'Do not use phrasing like "the select professional in-sample model (Mxxxx)"',
+    );
+
+    expect(user.indexOf("Recommend one model")).toBeLessThan(
+      user.indexOf("Pro in-sample"),
+    );
+    expect(user).toContain("do not open with this");
+    const payload = JSON.parse(user.slice(user.indexOf("{"))) as {
+      candidates: { model_code: string }[];
+    };
+    expect(payload.candidates[0]?.model_code).toBe("M0007");
+  });
+
+  it("buildCompareFallback focuses AI pick when pro champion differs", () => {
+    const text = buildCompareFallback({
+      benchmark: "VT",
+      objective_label: "Dynamic",
+      champion_model_code: "M0001",
+      ai_recommended_model_code: "M0007",
+      candidates: [
+        {
+          model_code: "M0007",
+          rank: 2,
+          sharpe: 0.62,
+          cagr: 0.15,
+          max_drawdown: -0.22,
+          turnover_avg: 0.018,
+          horizons: {
+            full_sample: { sharpe: 0.62, cagr: 0.15, max_drawdown: -0.22 },
+          },
+        },
+        {
+          model_code: "M0001",
+          rank: 1,
+          sharpe: 0.71,
+          cagr: 0.18,
+          is_champion: true,
+          horizons: {
+            full_sample: { sharpe: 0.71, cagr: 0.18, max_drawdown: -0.35 },
+          },
+        },
+      ],
+    });
+    expect(text.startsWith("Across")).toBe(true);
+    expect(text).toMatch(/^Across \d+ Optuna trials[\s\S]*M0007/);
+    expect(resolveFallbackRecommendedCode({
+      benchmark: "VT",
+      champion_model_code: "M0001",
+      ai_recommended_model_code: "M0007",
+      candidates: [
+        { model_code: "M0007", rank: 2 },
+        { model_code: "M0001", rank: 1, is_champion: true },
+      ],
+    })).toBe("M0007");
   });
 
   it("isGeminiMaxTokensFinish detects MAX_TOKENS and length finish", () => {

@@ -1,38 +1,29 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
-import { AI_METRIC_FORMAT_RULES } from "@/lib/ai-metric-format";
 import {
   buildCompareFallback,
+  buildCompareSystemPrompt,
+  buildCompareUserPrompt,
   isAcceptableCompareSummary,
   MAX_COMPARE_ATTEMPTS,
   parseCompareSummaryResponse,
+  resolveFallbackRecommendedCode,
   shouldRetryCompareGeneration,
   slimComparePayload,
   type CompareSummaryPayload,
 } from "@/lib/compare-summary";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
 
-const SYSTEM = `Institutional quant analyst. English only.
-${AI_METRIC_FORMAT_RULES}
-- When horizons.in_sample / out_of_sample / full_sample are present, compare all three (ttl = full_sample) for risk and overfitting — not in-sample alone.
-- Root sharpe/cagr are selection-view metrics; use horizons.full_sample for full-period performance.
-- candidates are sorted by catalog model_code (M0001, M0002, …); rank is objective score, not list order.
-- champion_model_code (if present) is the Pro in-sample selection (★), separate from your AI recommendation.
-- Do not call any model a "designated Pro champion"; use neutral phrasing. Put your pick in recommended_model_code.
-- Return ONLY valid JSON (no markdown): {"recommended_model_code":"Mxxxx","summary":"2-3 paragraphs of prose, no bullets or metric dumps"}
-- recommended_model_code MUST be one of the candidate model_code values in the payload.
-No invented numbers.`;
-
 export async function POST(req: Request) {
   const payload = (await req.json()) as CompareSummaryPayload;
   const slim = slimComparePayload(payload);
 
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    const fallback = buildCompareFallback(slim);
+    const fallback = buildCompareFallback(payload);
     return NextResponse.json({
       summary: fallback,
-      recommended_model_code: slim.champion_model_code ?? null,
+      recommended_model_code: resolveFallbackRecommendedCode(payload),
       source: "template",
     });
   }
@@ -48,10 +39,10 @@ export async function POST(req: Request) {
         : {}),
     });
   } catch {
-    const fallback = buildCompareFallback(slim);
+    const fallback = buildCompareFallback(payload);
     return NextResponse.json({
       summary: fallback,
-      recommended_model_code: slim.champion_model_code ?? null,
+      recommended_model_code: resolveFallbackRecommendedCode(payload),
       source: "template",
     });
   }
@@ -69,11 +60,7 @@ async function generateCompareSummary(
 ): Promise<CompareSummaryOutcome> {
   let retriedDueToTokenLimit = false;
   const slim = slimComparePayload(payload);
-  const prompt =
-    `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
-    `${slim.candidate_count_total ?? slim.candidates.length} trials sorted by model #. ` +
-    `Pro in-sample ★ (reference only): ${slim.champion_model_code ?? "none"}. ` +
-    `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`;
+  const prompt = buildCompareUserPrompt(slim);
 
   const generateRequest = {
     model: google(GEMINI_MODEL),
@@ -85,7 +72,7 @@ async function generateCompareSummary(
         },
       },
     },
-    system: SYSTEM,
+    system: buildCompareSystemPrompt(),
     prompt,
   };
 
@@ -122,10 +109,9 @@ async function generateCompareSummary(
     }
   }
 
-  const fallbackSlim = slimComparePayload(payload);
   return {
-    summary: buildCompareFallback(fallbackSlim),
-    recommended_model_code: fallbackSlim.champion_model_code ?? null,
+    summary: buildCompareFallback(payload),
+    recommended_model_code: resolveFallbackRecommendedCode(payload),
     source: "template",
     ...(retriedDueToTokenLimit
       ? { retried_due_to_token_limit: true }

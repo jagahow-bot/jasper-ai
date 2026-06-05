@@ -1,5 +1,5 @@
 import { compareModelCode } from "./align-y-axis-zero";
-import { formatPctDecimal } from "./ai-metric-format";
+import { AI_METRIC_FORMAT_RULES, formatPctDecimal } from "./ai-metric-format";
 import { candidateModelKey } from "./performance-compare-chart";
 
 type HorizonSnap = {
@@ -37,6 +37,8 @@ export type CompareSummaryPayload = {
   objective?: string;
   objective_label?: string;
   champion_model_code?: string | null;
+  /** Pro in-sample ★ in slim payload; same as champion_model_code when set. */
+  pro_in_sample_champion?: string | null;
   /** When set (e.g. from Gemini compare), overrides Pro ★ for UI alignment. */
   ai_recommended_model_code?: string | null;
   candidates: CompareCandidateLite[];
@@ -246,7 +248,6 @@ function slimCandidate(
     alpha: c.alpha ?? c.alpha_annual,
     information_ratio: c.information_ratio,
     validation_sharpe: c.validation_sharpe,
-    is_champion: c.is_champion,
     horizons,
   };
 }
@@ -261,6 +262,66 @@ export function sortCandidatesByModelCode(
       candidateModelKey(b) || `M?${b.rank ?? 0}`,
     ),
   );
+}
+
+/** Sort candidates by objective rank (best = rank 1 first). */
+export function sortCandidatesByRank(
+  candidates: CompareCandidateLite[],
+): CompareCandidateLite[] {
+  return [...candidates].sort((a, b) => {
+    const ra = a.rank ?? Number.MAX_SAFE_INTEGER;
+    const rb = b.rank ?? Number.MAX_SAFE_INTEGER;
+    if (ra !== rb) return ra - rb;
+    return compareModelCode(
+      candidateModelKey(a) || `M?${ra}`,
+      candidateModelKey(b) || `M?${rb}`,
+    );
+  });
+}
+
+export function buildCompareSystemPrompt(): string {
+  return `Institutional quant analyst. English only.
+${AI_METRIC_FORMAT_RULES}
+- When horizons.in_sample / out_of_sample / full_sample are present, compare all three (ttl = full_sample) for risk and overfitting — not in-sample alone.
+- Root sharpe/cagr are selection-view metrics; use horizons.full_sample for full-period performance.
+- candidates are sorted by objective rank (best first); rank is the score order, not catalog model number.
+- pro_in_sample_champion (if present) is the Pro in-sample ★ pick for reference only — NOT your recommendation.
+- Your job: pick the best deployable model and set recommended_model_code. Open the summary with that model and why you recommend it.
+- Do NOT open by critiquing pro_in_sample_champion or the first candidate in the list. Do not use phrasing like "the select professional in-sample model (Mxxxx)".
+- Mention pro_in_sample_champion only briefly when it differs from your pick; never make it the narrative lead.
+- Do not call any model a "designated Pro champion"; use neutral phrasing.
+- Return ONLY valid JSON (no markdown): {"recommended_model_code":"Mxxxx","summary":"2-3 paragraphs of prose, no bullets or metric dumps"}
+- recommended_model_code MUST be one of the candidate model_code values in the payload.
+No invented numbers.`;
+}
+
+export function buildCompareUserPrompt(slim: CompareSummaryPayload): string {
+  const proRef = slim.pro_in_sample_champion ?? slim.champion_model_code;
+  const proNote =
+    proRef && proRef !== "none"
+      ? `Pro in-sample ★ (reference only, do not open with this): ${proRef}.`
+      : "";
+  return (
+    `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
+    `${slim.candidate_count_total ?? slim.candidates.length} trials by objective rank. ` +
+    `Recommend one model; open summary with your pick and rationale. ` +
+    `${proNote} ` +
+    `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`
+  );
+}
+
+/** Recommended model when Gemini is unavailable (AI pick > Pro ★ > rank 1). */
+export function resolveFallbackRecommendedCode(
+  payload: CompareSummaryPayload,
+): string | null {
+  const sorted = sortCandidatesByRank(payload.candidates);
+  const pick = resolveCompareChampion(
+    sorted,
+    payload.champion_model_code,
+    payload.ai_recommended_model_code,
+  );
+  const code = pick ? candidateModelKey(pick) : null;
+  return code && !code.startsWith("M?") ? code : null;
 }
 
 /** AI recommendation for compare (AI pick > explicit code > is_champion > first trial). */
@@ -292,12 +353,13 @@ export function slimComparePayload(
   options?: SlimComparePayloadOptions,
 ): CompareSummaryPayload {
   const horizonMode = options?.horizonMode ?? "all";
-  const sorted = sortCandidatesByModelCode(payload.candidates);
+  const sorted = sortCandidatesByRank(payload.candidates);
+  const proChampion = payload.champion_model_code?.trim().toUpperCase() ?? null;
   return {
     benchmark: payload.benchmark,
     objective: payload.objective,
     objective_label: payload.objective_label,
-    champion_model_code: payload.champion_model_code ?? null,
+    pro_in_sample_champion: proChampion,
     candidate_count_total: sorted.length,
     candidates: sorted
       .slice(0, maxCandidates)
