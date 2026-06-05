@@ -3,6 +3,7 @@ import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { AI_METRIC_FORMAT_RULES, formatPctDecimal } from "@/lib/ai-metric-format";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import { slimNarrativeFacts } from "@/lib/narrative-slim";
 import { validateNarrative } from "@/lib/narrative-validate";
 
 const SYSTEM = `You are a quant strategy analyst. Write in English using only JSON facts.
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
 }
 
 async function generateWithValidation(facts: Record<string, unknown>) {
+  const slim = slimNarrativeFacts(facts);
   let text = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     const extra =
@@ -51,8 +53,15 @@ async function generateWithValidation(facts: Record<string, unknown>) {
     const result = await generateText({
       model: google(GEMINI_MODEL),
       maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            thinkingLevel: "minimal" as const,
+          },
+        },
+      },
       system: SYSTEM,
-      prompt: `Write 2-4 paragraphs interpreting this backtest:\n${JSON.stringify(facts, null, 2)}${extra}`,
+      prompt: `Write 2-4 paragraphs interpreting this backtest:\n${JSON.stringify(slim, null, 2)}${extra}`,
     });
     text = result.text;
     const check = validateNarrative(text, facts);
