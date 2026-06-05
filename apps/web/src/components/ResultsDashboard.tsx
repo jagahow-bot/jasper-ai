@@ -51,10 +51,14 @@ import {
   resolveChampionCandidateIndex,
   resolveChampionModelKey,
   resolveDefaultSelectedRowKey,
+  resolveHorizonMetrics,
+  resolveOutOfSampleMetrics,
 } from "@/lib/performance-compare-chart";
 import { fetchCandidateCharts, patchJobNarrativeFacts } from "@/lib/api";
 import {
+  candidateHasDeepAnalytics,
   candidateHasFullCharts,
+  lazyPayloadComplete,
   mergeCandidateCharts,
 } from "@/lib/candidate-charts-lazy";
 import type {
@@ -261,12 +265,24 @@ export function ResultsDashboard({
     () => candidateHasFullCharts(selected),
     [selected],
   );
+  const selectedHasDeepAnalytics = useMemo(
+    () => candidateHasDeepAnalytics(selected),
+    [selected],
+  );
+  const needsLazyCharts = !selectedHasFullCharts;
+  const needsLazyAnalytics = !selectedHasDeepAnalytics;
   const lazyCharts = selectedModelCode
     ? lazyChartsByCode[selectedModelCode]
     : undefined;
 
   useEffect(() => {
-    if (!selectedModelCode || selectedHasFullCharts || lazyCharts) return;
+    if (!selectedModelCode || (!needsLazyCharts && !needsLazyAnalytics)) return;
+    if (
+      lazyCharts &&
+      lazyPayloadComplete(lazyCharts, needsLazyCharts, needsLazyAnalytics)
+    ) {
+      return;
+    }
     let cancelled = false;
     setChartsLoadingCode(selectedModelCode);
     setChartsLoadError(null);
@@ -297,12 +313,17 @@ export function ResultsDashboard({
     };
   }, [
     selectedModelCode,
-    selectedHasFullCharts,
+    needsLazyCharts,
+    needsLazyAnalytics,
     lazyCharts,
     result.job_id,
   ]);
 
-  const chartsReady = selectedHasFullCharts || Boolean(lazyCharts);
+  const chartsReady =
+    (!needsLazyCharts || selectedHasFullCharts || Boolean(lazyCharts)) &&
+    (!needsLazyAnalytics ||
+      selectedHasDeepAnalytics ||
+      Boolean(lazyCharts?.institutional?.rolling?.rolling_sharpe?.length));
   const chartsLoading = Boolean(
     selectedModelCode &&
       !chartsReady &&
@@ -311,17 +332,44 @@ export function ResultsDashboard({
 
   const chartCandidate = useMemo(() => {
     if (!selected) return championCandidate;
-    if (selectedHasFullCharts) return selected;
+    if (selectedHasFullCharts && selectedHasDeepAnalytics) return selected;
     if (lazyCharts) return mergeCandidateCharts(selected, lazyCharts);
     return selected;
-  }, [selected, selectedHasFullCharts, lazyCharts, championCandidate]);
+  }, [
+    selected,
+    selectedHasFullCharts,
+    selectedHasDeepAnalytics,
+    lazyCharts,
+    championCandidate,
+  ]);
+
+  const institutionalCandidate = useMemo(() => {
+    if (!selected) return championCandidate;
+    if (candidateHasDeepAnalytics(selected)) return selected;
+    if (lazyCharts?.institutional) {
+      return mergeCandidateCharts(selected, lazyCharts);
+    }
+    if (
+      championCandidate &&
+      selected.model_code !== championCandidate.model_code &&
+      candidateHasDeepAnalytics(championCandidate)
+    ) {
+      return championCandidate;
+    }
+    return chartCandidate ?? selected;
+  }, [selected, lazyCharts, championCandidate, chartCandidate]);
 
   const usingChampionAnalyticsFallback = Boolean(
     selected &&
       championCandidate &&
       selected.model_code !== championCandidate.model_code &&
-      !chartsReady &&
-      !selectedHasFullCharts,
+      !candidateHasDeepAnalytics(selected) &&
+      !lazyCharts?.institutional &&
+      candidateHasDeepAnalytics(championCandidate),
+  );
+
+  const analyticsLoading = Boolean(
+    chartsLoading && needsLazyAnalytics && !usingChampionAnalyticsFallback,
   );
 
   const weightHistory = useMemo(
@@ -682,6 +730,22 @@ export function ResultsDashboard({
     [result.efficient_frontier, result.candidates],
   );
 
+  const fullMetrics = useMemo(
+    () => (selected ? resolveHorizonMetrics(selected, "full_sample") : null),
+    [selected],
+  );
+  const inSampleMetrics = useMemo(
+    () =>
+      selected?.analytics?.sample_metrics?.in_sample
+        ? resolveHorizonMetrics(selected, "in_sample")
+        : null,
+    [selected],
+  );
+  const outOfSampleMetrics = useMemo(
+    () => (selected ? resolveOutOfSampleMetrics(selected) : null),
+    [selected],
+  );
+
   if (!selected) return null;
   const top = selected;
   const activeHoldingsCount =
@@ -723,6 +787,15 @@ export function ResultsDashboard({
     | null
     | undefined;
   const sampleMetrics = top.analytics?.sample_metrics;
+  const showHorizonCompare = Boolean(
+    inSampleMetrics && outOfSampleMetrics && sampleMetrics?.out_of_sample,
+  );
+  const displayMetrics = fullMetrics ?? resolveHorizonMetrics(top, "full_sample");
+  const fullCalmar =
+    top.calmar ??
+    (displayMetrics.max_drawdown !== 0
+      ? displayMetrics.cagr / Math.abs(displayMetrics.max_drawdown)
+      : 0);
   const dataSource = String(result.narrative_facts.data_source ?? "");
   const trustworthy = result.narrative_facts.metrics_trustworthy === true;
   const dq = result.narrative_facts.data_quality as
@@ -926,7 +999,7 @@ export function ResultsDashboard({
         {sampleMetrics?.in_sample && (
           <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2 text-xs">
             <p className="font-pixel text-[8px] text-[var(--amber)]">
-              Ranked on in-sample ({Math.round((sampleMetrics.train_ratio ?? 0.7) * 100)}%)
+              Ranked on In-Sample ({Math.round((sampleMetrics.train_ratio ?? 0.7) * 100)}%)
               {sampleMetrics.train_start && sampleMetrics.train_end
                 ? ` · ${sampleMetrics.train_start} → ${sampleMetrics.train_end}`
                 : sampleMetrics.train_end
@@ -937,13 +1010,15 @@ export function ResultsDashboard({
             </p>
             <div className="mt-2 grid grid-cols-2 gap-2 text-center font-terminal text-sm sm:grid-cols-4">
               <div>
-                <div className="text-dim">IS {sampleMetrics.objective_label ?? objectiveLabel}</div>
+                <div className="text-dim">
+                  In-Sample {sampleMetrics.objective_label ?? objectiveLabel}
+                </div>
                 <div className="text-neon">
                   {Number(sampleMetrics.in_sample.objective_value).toFixed(4)}
                 </div>
               </div>
               <div>
-                <div className="text-dim">OOS (holdout)</div>
+                <div className="text-dim">Out-of-Sample</div>
                 <div className="text-[var(--cyan)]">
                   {sampleMetrics.out_of_sample
                     ? Number(sampleMetrics.out_of_sample.objective_value).toFixed(4)
@@ -951,7 +1026,7 @@ export function ResultsDashboard({
                 </div>
               </div>
               <div>
-                <div className="text-dim">Full period</div>
+                <div className="text-dim">Full</div>
                 <div className="text-slate-200">
                   {sampleMetrics.full_sample
                     ? Number(sampleMetrics.full_sample.objective_value).toFixed(4)
@@ -959,7 +1034,7 @@ export function ResultsDashboard({
                 </div>
               </div>
               <div>
-                <div className="text-dim">Gap (IS−OOS)</div>
+                <div className="text-dim">Gap (In-Sample − Out-of-Sample)</div>
                 <div className="text-[#ff2bd6]">
                   {sampleMetrics.gap?.objective != null
                     ? Number(sampleMetrics.gap.objective).toFixed(4)
@@ -969,22 +1044,20 @@ export function ResultsDashboard({
             </div>
           </div>
         )}
-        <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-          <Metric
-            label={sampleMetrics ? "Sharpe (in-sample)" : "Sharpe"}
-            value={top.sharpe}
-          />
+        <p className="mt-4 text-xs text-dim">Full period</p>
+        <div className="mt-2 grid grid-cols-3 gap-3 text-center">
+          <Metric label="Sharpe" value={displayMetrics.sharpe} />
           <Metric
             label="Max DD"
-            value={top.max_drawdown}
+            value={displayMetrics.max_drawdown}
             format="pct"
           />
-          <Metric label="CAGR" value={top.cagr} format="pct" />
+          <Metric label="CAGR" value={displayMetrics.cagr} format="pct" />
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-          <Metric label="Vol" value={top.volatility} format="pct" />
-          <Metric label="Sortino" value={top.sortino ?? 0} />
-          <Metric label="Calmar" value={top.calmar ?? 0} />
+          <Metric label="Vol" value={displayMetrics.volatility} format="pct" />
+          <Metric label="Sortino" value={displayMetrics.sortino} />
+          <Metric label="Calmar" value={fullCalmar} />
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
           <Metric label="VaR 95% (d)" value={top.var_95 ?? 0} format="pct" />
@@ -1004,17 +1077,72 @@ export function ResultsDashboard({
             <Metric label="IR" value={top.information_ratio ?? 0} />
           </div>
         )}
-        {top.train_sharpe != null && sampleMetrics?.out_of_sample && (
-          <div className="mt-3 grid grid-cols-2 gap-3 text-center">
-            <Metric label="Sharpe (in-sample)" value={top.train_sharpe} />
-            <Metric label="Sharpe (holdout)" value={top.validation_sharpe ?? 0} />
+        {showHorizonCompare && inSampleMetrics && outOfSampleMetrics ? (
+          <div className="mt-4 border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
+            <p className="font-pixel text-[8px] text-[var(--cyan)]">
+              In-Sample · Out-of-Sample · Full
+            </p>
+            <p className="mt-1 text-xs text-dim">
+              Key performance metrics across horizons (selection uses In-Sample only).
+            </p>
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="text-dim">
+                  <tr>
+                    <th className="pb-1">Metric</th>
+                    <th className="pb-1 text-right">In-Sample</th>
+                    <th className="pb-1 text-right">Out-of-Sample</th>
+                    <th className="pb-1 text-right">Full</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <HorizonMetricRow
+                    label="Sharpe"
+                    inSample={inSampleMetrics.sharpe}
+                    outOfSample={outOfSampleMetrics.sharpe}
+                    full={displayMetrics.sharpe}
+                  />
+                  <HorizonMetricRow
+                    label="CAGR"
+                    inSample={inSampleMetrics.cagr}
+                    outOfSample={outOfSampleMetrics.cagr}
+                    full={displayMetrics.cagr}
+                    format="pct"
+                  />
+                  <HorizonMetricRow
+                    label="Max DD"
+                    inSample={inSampleMetrics.max_drawdown}
+                    outOfSample={outOfSampleMetrics.max_drawdown}
+                    full={displayMetrics.max_drawdown}
+                    format="pct"
+                  />
+                  <HorizonMetricRow
+                    label={sampleMetrics?.objective_label ?? objectiveLabel}
+                    inSample={inSampleMetrics.objective_value}
+                    outOfSample={outOfSampleMetrics.objective_value}
+                    full={displayMetrics.objective_value}
+                    format="obj"
+                  />
+                </tbody>
+              </table>
+            </div>
+            {sampleMetrics?.gap &&
+            (sampleMetrics.gap.sharpe != null ||
+              sampleMetrics.gap.objective != null) ? (
+              <p className="mt-2 text-xs text-dim">
+                In-Sample − Out-of-Sample gap: objective{" "}
+                {sampleMetrics.gap.objective?.toFixed(4) ?? "—"}, Sharpe{" "}
+                {sampleMetrics.gap.sharpe?.toFixed(4) ?? "—"} (positive = In-Sample
+                stronger).
+              </p>
+            ) : null}
           </div>
-        )}
+        ) : null}
         {holdoutLeaderboard.length > 0 && (
           <div className="mt-3 overflow-x-auto">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-dim">
-                Champion leaderboard · AI trials ranked on in-sample only
+                Champion leaderboard · AI trials ranked on In-Sample only
               </p>
               <label className="flex items-center gap-2 text-xs text-dim">
                 Sort table by
@@ -1025,9 +1153,9 @@ export function ResultsDashboard({
                   }
                   className="pixel-input py-0.5 text-xs"
                 >
-                  <option value="in_sample">In-sample (selection)</option>
-                  <option value="out_of_sample">Out-of-sample</option>
-                  <option value="full_sample">Full period</option>
+                  <option value="in_sample">In-Sample (selection)</option>
+                  <option value="out_of_sample">Out-of-Sample</option>
+                  <option value="full_sample">Full</option>
                 </select>
               </label>
             </div>
@@ -1035,9 +1163,9 @@ export function ResultsDashboard({
               <thead className="text-dim">
                 <tr>
                   <th className="pb-1">Model</th>
-                  <th className="pb-1 text-right">IS obj</th>
-                  <th className="pb-1 text-right">OOS obj</th>
-                  <th className="pb-1 text-right">Full obj</th>
+                  <th className="pb-1 text-right">In-Sample</th>
+                  <th className="pb-1 text-right">Out-of-Sample</th>
+                  <th className="pb-1 text-right">Full</th>
                   <th className="pb-1 text-right">Gap</th>
                 </tr>
               </thead>
@@ -1117,7 +1245,7 @@ export function ResultsDashboard({
             Number(result.narrative_facts.max_weight_observed ?? 0) * 100
           ).toFixed(0)}%)
           {result.narrative_facts.oos_enabled
-            ? " · selection = in-sample; holdout = pseudo live"
+            ? " · selection = In-Sample; Out-of-Sample = pseudo live"
             : ""}
         </p>
         {weightCapViolation ? (
@@ -1158,7 +1286,7 @@ export function ResultsDashboard({
         ) : null}
       </div>
 
-      <ChartCard title="Performance comparison">
+      <ChartCard title="Performance comparison" subtitle="Full period">
         <div className="mb-3 border-2 border-[#0a4a4a] bg-[rgba(0,245,255,0.05)] px-3 py-2">
           <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">AI compare</p>
           {compareLoading ? (
@@ -1405,7 +1533,7 @@ export function ResultsDashboard({
         {dynamicObjectiveChart ? (
           <p className="mb-3 text-xs text-dim">
             Walk-forward regime and active objective bands (linked cursor with return and weight charts).
-            Pro ★ champion: ranked on in-sample{" "}
+            Pro ★ champion: ranked on In-Sample{" "}
             <span className="text-[var(--amber)]">comprehensive score</span> (
             <code className="text-[10px]">objective_value_is</code>
             ) — 0.45×Sharpe + 0.25×Sortino + 0.20×(5×CAGR) − 0.35×|max DD| − 0.10×turnover —
@@ -1674,8 +1802,10 @@ export function ResultsDashboard({
       </ChartCard>
 
       <InstitutionalReport
-        candidate={chartCandidate ?? top}
+        candidate={institutionalCandidate ?? top}
         benchmark={benchTicker}
+        isLoadingAnalytics={analyticsLoading}
+        loadingModelCode={selectedModelCode || undefined}
         analyticsNote={
           usingChampionAnalyticsFallback
             ? "Rolling, exposure, and return tables use ★ champion analytics; headline metrics follow the selected trial."
@@ -1757,6 +1887,35 @@ export function ResultsDashboard({
   );
 }
 
+function HorizonMetricRow({
+  label,
+  inSample,
+  outOfSample,
+  full,
+  format = "num",
+}: {
+  label: string;
+  inSample?: number;
+  outOfSample?: number;
+  full?: number;
+  format?: "num" | "pct" | "obj";
+}) {
+  const fmt = (v?: number) => {
+    if (v == null) return "—";
+    if (format === "pct") return `${(v * 100).toFixed(2)}%`;
+    if (format === "obj") return v.toFixed(4);
+    return v.toFixed(3);
+  };
+  return (
+    <tr className="border-t border-[var(--border)]">
+      <td className="py-1">{label}</td>
+      <td className="py-1 text-right text-neon">{fmt(inSample)}</td>
+      <td className="py-1 text-right text-[var(--cyan)]">{fmt(outOfSample)}</td>
+      <td className="py-1 text-right text-slate-200">{fmt(full)}</td>
+    </tr>
+  );
+}
+
 function Metric({
   label,
   value,
@@ -1782,14 +1941,21 @@ function Metric({
 
 function ChartCard({
   title,
+  subtitle,
   children,
 }: {
   title: string;
+  subtitle?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="pixel-panel">
-      <h4 className="mb-3 font-pixel text-[8px] text-[var(--cyan)]">{title}</h4>
+      <div className="mb-3">
+        <h4 className="font-pixel text-[8px] text-[var(--cyan)]">{title}</h4>
+        {subtitle ? (
+          <p className="mt-0.5 text-[10px] text-dim">{subtitle}</p>
+        ) : null}
+      </div>
       {children}
     </div>
   );

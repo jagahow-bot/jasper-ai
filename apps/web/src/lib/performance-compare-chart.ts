@@ -1,5 +1,7 @@
 import { compareModelCode } from "./align-y-axis-zero";
 
+export type PerformanceCompareHorizon = "full_sample" | "in_sample";
+
 export type PerformanceCompareCandidate = {
   model_code?: string | null;
   rank?: number;
@@ -8,7 +10,75 @@ export type PerformanceCompareCandidate = {
   cagr?: number | null;
   max_drawdown?: number | null;
   is_champion?: boolean;
+  analytics?: {
+    sample_metrics?: {
+      in_sample?: Record<string, number>;
+      full_sample?: Record<string, number>;
+    };
+  } | null;
 };
+
+export type HorizonMetricSnapshot = {
+  sharpe: number;
+  sortino: number;
+  cagr: number;
+  max_drawdown: number;
+  volatility: number;
+  objective_value?: number;
+};
+
+export function resolveHorizonMetrics(
+  c: PerformanceCompareCandidate & { volatility?: number },
+  horizon: PerformanceCompareHorizon = "full_sample",
+): HorizonMetricSnapshot {
+  const snap =
+    horizon === "full_sample"
+      ? c.analytics?.sample_metrics?.full_sample
+      : c.analytics?.sample_metrics?.in_sample;
+  if (snap) {
+    return {
+      sharpe: snap.sharpe ?? c.sharpe ?? 0,
+      sortino: snap.sortino ?? c.sortino ?? 0,
+      cagr: snap.cagr ?? c.cagr ?? 0,
+      max_drawdown: snap.max_drawdown ?? c.max_drawdown ?? 0,
+      volatility: snap.volatility ?? c.volatility ?? 0,
+      objective_value: snap.objective_value,
+    };
+  }
+  return {
+    sharpe: c.sharpe ?? 0,
+    sortino: c.sortino ?? 0,
+    cagr: c.cagr ?? 0,
+    max_drawdown: c.max_drawdown ?? 0,
+    volatility: c.volatility ?? 0,
+  };
+}
+
+/** Out-of-sample slice from sample_metrics when holdout is enabled. */
+export function resolveOutOfSampleMetrics(
+  c: PerformanceCompareCandidate & { volatility?: number },
+): HorizonMetricSnapshot | null {
+  const snap = c.analytics?.sample_metrics?.out_of_sample;
+  if (!snap) return null;
+  return {
+    sharpe: snap.sharpe ?? 0,
+    sortino: snap.sortino ?? 0,
+    cagr: snap.cagr ?? 0,
+    max_drawdown: snap.max_drawdown ?? 0,
+    volatility: snap.volatility ?? 0,
+    objective_value: snap.objective_value,
+  };
+}
+
+export function mapCandidatesToPerformanceHorizon(
+  candidates: PerformanceCompareCandidate[],
+  horizon: PerformanceCompareHorizon = "full_sample",
+): PerformanceCompareCandidate[] {
+  return candidates.map((c) => {
+    const m = resolveHorizonMetrics(c, horizon);
+    return { ...c, ...m };
+  });
+}
 
 export type PerformanceCompareRow = {
   chartKey: string;
@@ -227,6 +297,8 @@ export function buildPerformanceCompareRows(input: {
   benchmarkBarMetrics?: BenchmarkBarMetrics | null;
   benchTicker: string;
   selectedChartKey?: string | null;
+  /** Bar metrics horizon; defaults to full period (ttl). */
+  horizon?: PerformanceCompareHorizon;
 }): PerformanceCompareRow[] {
   const {
     candidates,
@@ -236,9 +308,11 @@ export function buildPerformanceCompareRows(input: {
     benchmarkBarMetrics,
     benchTicker,
     selectedChartKey,
+    horizon = "full_sample",
   } = input;
 
-  const deduped = dedupeCandidatesForPerformanceChart(candidates, championModelKey);
+  const horizonCandidates = mapCandidatesToPerformanceHorizon(candidates, horizon);
+  const deduped = dedupeCandidatesForPerformanceChart(horizonCandidates, championModelKey);
   const orderedCandidates = sortByModelCode
     ? [...deduped].sort((a, b) =>
         compareModelCode(
@@ -251,7 +325,7 @@ export function buildPerformanceCompareRows(input: {
   const modelRows: PerformanceCompareRow[] = orderedCandidates.map((c, i) => {
     const modelKey = candidateModelKey(c);
     const model_code = normalizeModelCode(c, i);
-    const origIdx = findOriginalCandidateIndex(candidates, c);
+    const origIdx = findOriginalCandidateIndex(horizonCandidates, c);
     const chartKey = candidateRowKey(c, origIdx >= 0 ? origIdx : i);
     return {
       chartKey,

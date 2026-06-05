@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  candidateHasDeepAnalytics,
   candidateHasFullCharts,
+  lazyPayloadComplete,
   mergeCandidateCharts,
 } from "./candidate-charts-lazy";
 import type { PortfolioCandidate } from "./types";
@@ -27,17 +29,66 @@ describe("candidate-charts-lazy", () => {
     ).toBe(true);
   });
 
-  it("merges lazy charts into selected candidate", () => {
+  it("detects deep institutional analytics", () => {
+    expect(candidateHasDeepAnalytics(slim)).toBe(false);
+    expect(
+      candidateHasDeepAnalytics({
+        ...slim,
+        analytics: {
+          periodic_returns: { monthly: [{ period: "2020-01", return: 0.01 }] },
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("merges lazy charts and institutional analytics into selected candidate", () => {
     const merged = mergeCandidateCharts(slim, {
       model_code: "M0005",
       equity_curve: [{ date: "2020-01-01", value: 100 }],
       weight_history: [{ date: "2020-01-01", SPY: 1 }],
       weight_history_tickers: ["SPY"],
       benchmark_equity_curve: [{ date: "2020-01-01", value: 100 }],
+      institutional: {
+        rolling: {
+          rolling_sharpe: [{ date: "2020-06-01", value: 1.2 }],
+          rolling_vol: [{ date: "2020-06-01", value: 0.15 }],
+        },
+        periodic_returns: {
+          monthly: [{ period: "2020-01", return: 0.02 }],
+          annual: [{ period: "2020", return: 0.1 }],
+        },
+        risk_contribution: [{ ticker: "SPY", weight: 1, risk_contrib: 1 }],
+      },
     });
     expect(merged.equity_curve).toHaveLength(1);
     expect(merged.analytics?.weight_history).toHaveLength(1);
     expect(merged.analytics?.benchmark_equity_curve).toHaveLength(1);
     expect(merged.analytics?.sample_metrics).toBeDefined();
+    expect(merged.analytics?.rolling?.rolling_sharpe).toHaveLength(1);
+    expect(merged.analytics?.periodic_returns?.monthly).toHaveLength(1);
+    expect(merged.analytics?.risk_contribution).toHaveLength(1);
+  });
+
+  it("tracks lazy payload completeness", () => {
+    const payload = {
+      model_code: "M0005",
+      equity_curve: [{ date: "2020-01-01", value: 100 }],
+      weight_history: [],
+      weight_history_tickers: [],
+      benchmark_equity_curve: [],
+      institutional: {
+        periodic_returns: { monthly: [{ period: "2020-01", return: 0.01 }] },
+      },
+    };
+    expect(lazyPayloadComplete(payload, true, true)).toBe(true);
+    expect(lazyPayloadComplete(payload, true, false)).toBe(true);
+    expect(lazyPayloadComplete(payload, false, true)).toBe(true);
+    expect(
+      lazyPayloadComplete(
+        { ...payload, equity_curve: [], institutional: {} },
+        true,
+        true,
+      ),
+    ).toBe(false);
   });
 });

@@ -16,13 +16,25 @@ export function InstitutionalReport({
   candidate,
   benchmark = "SPY",
   analyticsNote,
+  isLoadingAnalytics = false,
+  loadingModelCode,
 }: {
   candidate: PortfolioCandidate;
   benchmark?: string;
   analyticsNote?: string;
+  isLoadingAnalytics?: boolean;
+  loadingModelCode?: string;
 }) {
   const a = candidate.analytics;
+  const loadingSuffix = loadingModelCode ? ` for ${loadingModelCode}` : "";
   if (!a) {
+    if (isLoadingAnalytics) {
+      return (
+        <div className="space-y-5">
+          <LoadingPlaceholder label={`institutional analytics${loadingSuffix}`} />
+        </div>
+      );
+    }
     return (
       <p className="text-sm text-dim">No institutional analytics (rerun backtest).</p>
     );
@@ -45,17 +57,17 @@ export function InstitutionalReport({
         ? ` through ${trainEnd}`
         : "";
   const monthlyTitle = periodicInSample
-    ? `Monthly returns (in-sample${isRange})`
-    : "Monthly returns";
+    ? `Monthly returns (In-Sample${isRange})`
+    : "Monthly returns (Full)";
   const annualTitle = periodicInSample
-    ? `Annual returns (in-sample${isRange})`
-    : "Annual returns";
+    ? `Annual returns (In-Sample${isRange})`
+    : "Annual returns (Full)";
   const holdoutMonthlyTitle = valStart
-    ? `Monthly returns (holdout from ${valStart})`
-    : "Monthly returns (holdout)";
+    ? `Monthly returns (Out-of-Sample from ${valStart})`
+    : "Monthly returns (Out-of-Sample)";
   const holdoutAnnualTitle = valStart
-    ? `Annual returns (holdout from ${valStart})`
-    : "Annual returns (holdout)";
+    ? `Annual returns (Out-of-Sample from ${valStart})`
+    : "Annual returns (Out-of-Sample)";
   const rolling = a.rolling ?? { rolling_sharpe: [], rolling_vol: [] };
   const exposure = a.exposure ?? {};
   const rc = a.risk_contribution ?? [];
@@ -68,18 +80,27 @@ export function InstitutionalReport({
   const horizonGap = sampleMetrics?.gap;
   const hasHorizonTable =
     horizonIs != null || horizonOos != null || horizonFull != null;
+  const exposureEmpty =
+    Object.keys(exposure.by_asset_class ?? {}).length === 0 &&
+    Object.keys(exposure.by_asset_bucket ?? {}).length === 0 &&
+    exposure.equity_pct == null &&
+    exposure.bond_pct == null;
 
   return (
     <div className="space-y-5">
+      {isLoadingAnalytics ? (
+        <LoadingPlaceholder label={`institutional analytics${loadingSuffix}`} />
+      ) : null}
       {analyticsNote ? (
         <p className="text-xs text-dim">{analyticsNote}</p>
       ) : null}
       {hasHorizonTable && (
-        <Section title="Performance by horizon (IS · OOS · full)">
+        <Section title="Performance by horizon (In-Sample · Out-of-Sample · Full)">
           <p className="mb-3 text-xs text-dim">
-            Trial selection uses in-sample when holdout is on. IS and OOS rows are slices of
-            the same continuous full backtest (ttl); they are not separate fresh-start runs.
-            Ranked train/holdout Sharpe on the dashboard may differ slightly from these rows.
+            Trial selection uses In-Sample when holdout is on. In-Sample and Out-of-Sample
+            rows are slices of the same continuous Full backtest; they are not separate
+            fresh-start runs. Ranked Sharpe on the dashboard may differ slightly from these
+            rows.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -94,13 +115,13 @@ export function InstitutionalReport({
               </thead>
               <tbody>
                 {horizonIs != null && (
-                  <HorizonRow label="In-sample" snap={horizonIs} />
+                  <HorizonRow label="In-Sample" snap={horizonIs} />
                 )}
                 {horizonOos != null && (
-                  <HorizonRow label="Out-of-sample" snap={horizonOos} />
+                  <HorizonRow label="Out-of-Sample" snap={horizonOos} />
                 )}
                 {horizonFull != null && (
-                  <HorizonRow label="Full sample (ttl)" snap={horizonFull} />
+                  <HorizonRow label="Full" snap={horizonFull} />
                 )}
               </tbody>
             </table>
@@ -108,14 +129,14 @@ export function InstitutionalReport({
           {horizonGap != null &&
             (horizonGap.sharpe != null || horizonGap.objective != null) && (
               <p className="mt-2 text-xs text-dim">
-                IS−OOS gap: objective {horizonGap.objective ?? "—"}, Sharpe{" "}
-                {horizonGap.sharpe ?? "—"} (positive = in-sample stronger).
+                In-Sample − Out-of-Sample gap: objective {horizonGap.objective ?? "—"},
+                Sharpe {horizonGap.sharpe ?? "—"} (positive = In-Sample stronger).
               </p>
             )}
         </Section>
       )}
 
-      {execution.rebalance_freq != null && (
+      {execution.rebalance_freq != null ? (
         <Section title="Rebalance execution">
           <p className="text-sm">
             Freq <span className="text-neon">{String(execution.rebalance_freq)}</span>
@@ -130,7 +151,11 @@ export function InstitutionalReport({
               </p>
             )}
         </Section>
-      )}
+      ) : isLoadingAnalytics ? (
+        <Section title="Rebalance execution">
+          <LoadingPlaceholder />
+        </Section>
+      ) : null}
 
       <Section title={`vs ${benchmark}`}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -144,6 +169,9 @@ export function InstitutionalReport({
       </Section>
 
       <Section title="Exposure">
+        {isLoadingAnalytics && exposureEmpty ? (
+          <LoadingPlaceholder />
+        ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3 text-sm">
             <div className="mb-2 text-dim">Asset class</div>
@@ -170,9 +198,13 @@ export function InstitutionalReport({
             <Row label="Duration proxy (y)" value={exposure.duration_proxy_years} pct={false} />
           </div>
         </div>
+        )}
       </Section>
 
       <Section title="Risk contribution (top)">
+        {isLoadingAnalytics && rc.length === 0 ? (
+          <LoadingPlaceholder />
+        ) : (
         <div className="max-h-56 overflow-y-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-dim">
@@ -195,33 +227,43 @@ export function InstitutionalReport({
             </tbody>
           </table>
         </div>
+        )}
       </Section>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title="Rolling Sharpe (252D)">
-          <MiniLine data={rolling.rolling_sharpe ?? []} color="#00f5ff" />
+          <MiniLine
+            data={rolling.rolling_sharpe ?? []}
+            color="#00f5ff"
+            isLoading={isLoadingAnalytics}
+          />
         </Section>
         <Section title="Rolling vol (252D)">
-          <MiniLine data={rolling.rolling_vol ?? []} color="#ff2bd6" pct />
+          <MiniLine
+            data={rolling.rolling_vol ?? []}
+            color="#ff2bd6"
+            pct
+            isLoading={isLoadingAnalytics}
+          />
         </Section>
       </div>
 
       <Section title="Drawdown curve">
-        <MiniLine data={ddSeries} color="#f87171" pct />
+        <MiniLine data={ddSeries} color="#f87171" pct isLoading={isLoadingAnalytics} />
       </Section>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title={monthlyTitle}>
           {periodicInSample && (
             <p className="mb-2 text-xs text-dim">
-              Selection and ranking use in-sample only; periods below exclude the holdout
-              tail.
+              Selection and ranking use In-Sample only; periods below exclude the
+              Out-of-Sample tail.
             </p>
           )}
-          <ReturnTable rows={periodic.monthly ?? []} />
+          <ReturnTable rows={periodic.monthly ?? []} isLoading={isLoadingAnalytics} />
         </Section>
         <Section title={annualTitle}>
-          <ReturnTable rows={periodic.annual ?? []} />
+          <ReturnTable rows={periodic.annual ?? []} isLoading={isLoadingAnalytics} />
         </Section>
       </div>
 
@@ -239,6 +281,9 @@ export function InstitutionalReport({
         )}
 
       <Section title="Drawdown episodes">
+        {isLoadingAnalytics && ddEps.length === 0 ? (
+          <LoadingPlaceholder />
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-dim">
@@ -265,8 +310,21 @@ export function InstitutionalReport({
             </tbody>
           </table>
         </div>
+        )}
       </Section>
     </div>
+  );
+}
+
+function LoadingPlaceholder({ label }: { label?: string }) {
+  return (
+    <p className="flex items-center gap-2 text-xs text-dim">
+      <span
+        className="inline-block h-3 w-3 animate-spin rounded-full border border-[var(--amber)] border-t-transparent"
+        aria-hidden
+      />
+      Loading{label ? ` ${label}` : ""}…
+    </p>
   );
 }
 
@@ -343,12 +401,15 @@ function MiniLine({
   data,
   color,
   pct = false,
+  isLoading = false,
 }: {
   data: { date: string; value: number }[];
   color: string;
   pct?: boolean;
+  isLoading?: boolean;
 }) {
   if (!data.length) {
+    if (isLoading) return <LoadingPlaceholder />;
     return <p className="text-xs text-dim">Insufficient data</p>;
   }
   return (
@@ -378,8 +439,15 @@ function MiniLine({
   );
 }
 
-function ReturnTable({ rows }: { rows: { period: string; return: number }[] }) {
+function ReturnTable({
+  rows,
+  isLoading = false,
+}: {
+  rows: { period: string; return: number }[];
+  isLoading?: boolean;
+}) {
   if (!rows.length) {
+    if (isLoading) return <LoadingPlaceholder />;
     return <p className="text-xs text-dim">No data</p>;
   }
   return (

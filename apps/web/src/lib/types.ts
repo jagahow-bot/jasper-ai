@@ -168,6 +168,8 @@ export interface CandidateChartsPayload {
   weight_history_tickers: string[];
   benchmark_equity_curve: { date: string; value: number }[];
   weight_cap_audit?: Record<string, unknown> | null;
+  /** Deep analytics for InstitutionalReport (rolling, periodic, drawdown, risk). */
+  institutional?: Partial<CandidateAnalytics> | null;
 }
 
 export interface CandidateAnalytics {

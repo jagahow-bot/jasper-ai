@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   buildPerformanceCompareRows,
   dedupeCandidatesForPerformanceChart,
+  mapCandidatesToPerformanceHorizon,
   normalizeModelCode,
   performanceCompareTickLabel,
   performanceCompareRowsByChartKey,
   resolveChampionCandidateIndex,
   resolveChampionModelKey,
   resolveDefaultSelectedRowKey,
+  resolveHorizonMetrics,
+  resolveOutOfSampleMetrics,
   candidateRowKey,
 } from "./performance-compare-chart";
 
@@ -227,5 +230,121 @@ describe("performance-compare-chart", () => {
       benchTicker: "SPY",
     });
     expect(rows.map((r) => r.model_code)).toEqual(["M0002", "M0001"]);
+  });
+
+  it("resolveHorizonMetrics prefers full_sample over root in-sample fields", () => {
+    const candidate = {
+      sharpe: 2.0,
+      sortino: 1.8,
+      cagr: 0.25,
+      max_drawdown: -0.05,
+      volatility: 0.14,
+      analytics: {
+        sample_metrics: {
+          in_sample: {
+            sharpe: 2.0,
+            sortino: 1.8,
+            cagr: 0.25,
+            max_drawdown: -0.05,
+            volatility: 0.14,
+            objective_value: 1.9,
+          },
+          full_sample: {
+            sharpe: 1.1,
+            sortino: 0.9,
+            cagr: 0.12,
+            max_drawdown: -0.18,
+            volatility: 0.16,
+            objective_value: 0.8,
+          },
+          out_of_sample: {
+            sharpe: 0.6,
+            sortino: 0.5,
+            cagr: 0.04,
+            max_drawdown: -0.22,
+            volatility: 0.18,
+            objective_value: 0.2,
+          },
+        },
+      },
+    };
+    expect(resolveHorizonMetrics(candidate, "full_sample")).toEqual({
+      sharpe: 1.1,
+      sortino: 0.9,
+      cagr: 0.12,
+      max_drawdown: -0.18,
+      volatility: 0.16,
+      objective_value: 0.8,
+    });
+    expect(resolveHorizonMetrics(candidate, "in_sample")).toEqual({
+      sharpe: 2.0,
+      sortino: 1.8,
+      cagr: 0.25,
+      max_drawdown: -0.05,
+      volatility: 0.14,
+      objective_value: 1.9,
+    });
+    expect(resolveOutOfSampleMetrics(candidate)).toEqual({
+      sharpe: 0.6,
+      sortino: 0.5,
+      cagr: 0.04,
+      max_drawdown: -0.22,
+      volatility: 0.18,
+      objective_value: 0.2,
+    });
+  });
+
+  it("buildPerformanceCompareRows defaults to full_sample horizon", () => {
+    const candidates = [
+      {
+        model_code: "M0003",
+        rank: 3,
+        sharpe: 2.0,
+        sortino: 1.8,
+        cagr: 0.25,
+        max_drawdown: -0.05,
+        is_champion: true,
+        analytics: {
+          sample_metrics: {
+            in_sample: { sharpe: 2.0, sortino: 1.8, cagr: 0.25, max_drawdown: -0.05 },
+            full_sample: { sharpe: 1.1, sortino: 0.9, cagr: 0.12, max_drawdown: -0.18 },
+          },
+        },
+      },
+      {
+        model_code: "M0005",
+        rank: 5,
+        sharpe: 1.5,
+        sortino: 1.2,
+        cagr: 0.18,
+        max_drawdown: -0.08,
+        analytics: {
+          sample_metrics: {
+            in_sample: { sharpe: 1.5, sortino: 1.2, cagr: 0.18, max_drawdown: -0.08 },
+            full_sample: { sharpe: 0.85, sortino: 0.7, cagr: 0.09, max_drawdown: -0.22 },
+          },
+        },
+      },
+    ];
+    const rows = buildPerformanceCompareRows({
+      candidates,
+      championModelKey: "M0003",
+      sortByModelCode: true,
+      benchTicker: "SPY",
+    });
+    const m3 = rows.find((r) => r.model_code === "M0003");
+    const m5 = rows.find((r) => r.model_code === "M0005");
+    expect(m3?.sharpe).toBe(1.1);
+    expect(m3?.cagr_pct).toBeCloseTo(12, 5);
+    expect(m3?.mdd_pct).toBeCloseTo(18, 5);
+    expect(m5?.sharpe).toBe(0.85);
+    expect(m5?.sortino).toBe(0.7);
+  });
+
+  it("mapCandidatesToPerformanceHorizon falls back to root when full_sample missing", () => {
+    const mapped = mapCandidatesToPerformanceHorizon([
+      { model_code: "M0001", rank: 1, sharpe: 1.2, cagr: 0.1, max_drawdown: -0.04 },
+    ]);
+    expect(mapped[0]?.sharpe).toBe(1.2);
   });
 });

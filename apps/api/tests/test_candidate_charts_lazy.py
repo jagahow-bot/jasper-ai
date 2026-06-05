@@ -78,6 +78,21 @@ def _full_charts_payload(model_code: str) -> CandidateChartsPayload:
         weight_history=[{"date": "2020-01-01", "SPY": 1.0, "OTHER": 0.0}],
         weight_history_tickers=["SPY"],
         benchmark_equity_curve=[{"date": "2020-01-01", "value": 100.0}],
+        institutional={
+            "rolling": {
+                "rolling_sharpe": [{"date": "2020-06-01", "value": 1.1}],
+                "rolling_vol": [{"date": "2020-06-01", "value": 0.12}],
+            },
+            "periodic_returns": {
+                "monthly": [{"period": "2020-02", "return": 0.01}],
+                "annual": [{"period": "2020", "return": 0.05}],
+            },
+            "risk_contribution": [
+                {"ticker": "SPY", "weight": 1.0, "risk_contrib": 1.0}
+            ],
+            "drawdown_episodes": [],
+            "drawdown_series": [{"date": "2020-01-01", "value": 0.0}],
+        },
     )
 
 
@@ -107,6 +122,14 @@ def test_lazy_get_returns_curves_for_slim_m0005(client: TestClient):
         "weight_history": [{"date": "2020-01-01", "SPY": 1.0, "OTHER": 0.0}],
         "weight_history_tickers": ["SPY"],
         "benchmark_equity_curve": [{"date": "2020-01-01", "value": 100.0}],
+        "periodic_returns": {
+            "monthly": [{"period": "2020-02", "return": 0.01}],
+            "annual": [{"period": "2020", "return": 0.05}],
+        },
+        "rolling": {
+            "rolling_sharpe": [{"date": "2020-06-01", "value": 1.1}],
+            "rolling_vol": [{"date": "2020-06-01", "value": 0.12}],
+        },
     }
     slim = _slim_candidate("M0005", 2)
     result = BacktestResult(
@@ -144,12 +167,14 @@ def test_lazy_get_returns_curves_for_slim_m0005(client: TestClient):
     assert len(body["equity_curve"]) == 1
     assert len(body["weight_history"]) == 1
     assert body["weight_history_tickers"] == ["SPY"]
+    assert body["institutional"]["periodic_returns"]["monthly"]
     rebuild_mock.assert_called_once()
 
     patched = job_service.get_result(job_id)
     m0005 = next(c for c in patched.candidates if c.model_code == "M0005")
     assert m0005.equity_curve
     assert m0005.analytics and m0005.analytics.get("weight_history")
+    assert m0005.analytics.get("periodic_returns")
 
 
 def test_lazy_get_404_unknown_model(client: TestClient):

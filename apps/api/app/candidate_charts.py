@@ -5,12 +5,15 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from app.engine.ai_universe import refine_universe_with_ai
+from app.engine.analytics import build_full_analytics
 from app.engine.backtest import (
     _resolve_objective,
     _sim_inputs_from_params,
+    _weights_dict,
 )
 from app.engine.data import fetch_prices
 from app.engine.dynamic_objective import (
@@ -33,6 +36,18 @@ from app.engine.report_sim_cache import TrialReportCache
 from app.engine.spec import BacktestSpec
 from app.models import BacktestRequest, BacktestResult, CandidateChartsPayload, PortfolioCandidate
 from app.profiles import get_universe, pin_guaranteed_supplements
+
+_INSTITUTIONAL_KEYS = (
+    "benchmark_relative",
+    "periodic_returns",
+    "periodic_returns_scope",
+    "periodic_returns_holdout",
+    "rolling",
+    "drawdown_episodes",
+    "drawdown_series",
+    "risk_contribution",
+    "execution",
+)
 
 
 def _equity_curve_cap() -> int:
@@ -60,11 +75,97 @@ def candidate_has_full_charts(c: PortfolioCandidate) -> bool:
     return bool(len(wh) > 0 or len(ec) > 0)
 
 
+def candidate_has_deep_analytics(c: PortfolioCandidate) -> bool:
+    analytics = c.analytics or {}
+    rolling = (analytics.get("rolling") or {}).get("rolling_sharpe") or []
+    monthly = (analytics.get("periodic_returns") or {}).get("monthly") or []
+    return bool(len(rolling) > 0 or len(monthly) > 0)
+
+
+def _extract_institutional(analytics: dict[str, Any]) -> dict[str, Any] | None:
+    out = {k: analytics[k] for k in _INSTITUTIONAL_KEYS if analytics.get(k)}
+    return out or None
+
+
 def _maybe_downsample_curve(curve: list[dict[str, Any]]) -> list[dict[str, Any]]:
     cap = _equity_curve_cap()
     if len(curve) <= cap:
         return curve
     return downsample_keep_endpoints(curve, cap)
+
+
+def _build_institutional_analytics(
+    *,
+    req: BacktestRequest,
+    params: dict[str, Any],
+    tickers: list[str],
+    prices: pd.DataFrame,
+    prices_sim_panel: pd.DataFrame,
+    spec: BacktestSpec,
+    universe_by_ticker: dict[str, dict[str, Any]],
+    full_m: dict[str, Any],
+    bundle_train_m: dict[str, Any] | None,
+    bundle_val_m: dict[str, Any] | None,
+    sim_kw: dict[str, Any],
+    resolver: Any,
+) -> dict[str, Any]:
+    """Assemble institutional report analytics from cached or fresh sim slices."""
+    oos = bool(req.enable_oos)
+    prices_train, prices_val, _train_end, _val_start = split_train_validation(
+        prices_sim_panel, float(req.train_ratio)
+    )
+    val_required = bool(oos and len(prices_val) > 60)
+
+    train_m = bundle_train_m
+    val_m = bundle_val_m
+    if oos and train_m is None:
+        train_kw = apply_allocator_resolver(sim_kw, prices_train, resolver)
+        train_m = simulate_dynamic_portfolio(
+            prices_sim_panel,
+            report_start=str(prices_train.index[0].date()),
+            **train_kw,
+        )
+    if val_required and val_m is None:
+        val_kw = apply_allocator_resolver(sim_kw, prices_val, resolver)
+        val_m = simulate_dynamic_portfolio(
+            prices_sim_panel,
+            report_start=str(prices_val.index[0].date()),
+            **val_kw,
+        )
+
+    weights = _weights_dict(
+        tickers,
+        np.asarray(full_m.get("last_weights"), dtype=float),
+        min_weight=float(req.min_weight),
+    )
+    port_ret: pd.Series = full_m["port_ret"]
+    equity: pd.Series = full_m["equity"]
+    bench_t = spec.benchmark_ticker
+    bench_ret = (
+        prices[bench_t].pct_change().fillna(0.0) if bench_t in prices.columns else None
+    )
+    periodic_equity = train_m["equity"] if oos and train_m is not None else None
+    holdout_equity = val_m["equity"] if val_required and val_m is not None else None
+
+    analytics = build_full_analytics(
+        port_ret=port_ret,
+        equity=equity,
+        bench_ret=bench_ret,
+        spec=spec,
+        weights=weights,
+        tickers=tickers,
+        universe_by_ticker=universe_by_ticker,
+        prices=prices,
+        periodic_equity=periodic_equity,
+        holdout_equity=holdout_equity,
+    )
+    analytics["execution"] = {
+        "rebalance_freq": full_m.get("rebalance_freq"),
+        "rebalance_count": full_m.get("rebalance_count"),
+        "rebalance_applied": full_m.get("rebalance_applied"),
+        "rebalance_dates_sample": (full_m.get("rebalance_dates") or [])[:12],
+    }
+    return analytics
 
 
 def payload_from_candidate(c: PortfolioCandidate) -> CandidateChartsPayload:
@@ -78,6 +179,7 @@ def payload_from_candidate(c: PortfolioCandidate) -> CandidateChartsPayload:
             list(analytics.get("benchmark_equity_curve") or [])
         ),
         weight_cap_audit=analytics.get("weight_cap_audit"),
+        institutional=_extract_institutional(analytics),
     )
 
 
@@ -85,7 +187,14 @@ def _load_price_panel(
     req: BacktestRequest,
     *,
     benchmark: str,
-) -> tuple[list[str], pd.DataFrame, pd.DataFrame, BacktestSpec, dict[str, Any] | None]:
+) -> tuple[
+    list[str],
+    pd.DataFrame,
+    pd.DataFrame,
+    BacktestSpec,
+    dict[str, Any] | None,
+    dict[str, dict[str, Any]],
+]:
     """Reload tradable prices for one candidate chart rebuild."""
     from app.engine.portfolio import _normalize_rebalance_rule
 
@@ -121,6 +230,7 @@ def _load_price_panel(
         tickers, req.start_date, req.end_date, spec.benchmark_ticker
     )
     tickers = [t for t in tickers if t in prices.columns]
+    universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
     prices_full = prices
     prices_sim_panel = prices_full[tickers]
     prices = trim_prices_to_report_window(prices_full[tickers].copy(), req.start_date)
@@ -138,7 +248,7 @@ def _load_price_panel(
             regime_mode=regime_mode,
             fast_risk_off_exit=True,
         )
-    return tickers, prices, prices_sim_panel, spec, dynamic_ctx
+    return tickers, prices, prices_sim_panel, spec, dynamic_ctx, universe_by_ticker
 
 
 def rebuild_candidate_charts(
@@ -160,15 +270,14 @@ def rebuild_candidate_charts(
         narrative_facts.get("rebalance_freq")
         or _normalize_rebalance_rule(req.rebalance_freq)
     )
-    tickers, prices, prices_sim_panel, spec, dynamic_ctx = _load_price_panel(
-        req, benchmark=benchmark
+    tickers, prices, prices_sim_panel, spec, dynamic_ctx, universe_by_ticker = (
+        _load_price_panel(req, benchmark=benchmark)
     )
     resolver = dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
 
     trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
         _sim_inputs_from_params(params, req, rebalance_rule, spec)
     )
-    universe_by_ticker = {t: {"ticker": t} for t in tickers}
     sim_kw = apply_allocator_resolver(
         dict(
             spec=trial_spec,
@@ -198,6 +307,8 @@ def rebuild_candidate_charts(
         sim_kw["factor_params_resolver"] = factor_resolver
 
     bundle = trial_report_cache.copy_bundle(params) if trial_report_cache else None
+    train_m = bundle.train_m if bundle else None
+    val_m = bundle.val_m if bundle else None
     full_m = bundle.full_m if bundle else None
     if full_m is None or not full_m.get("weight_history"):
         report_full = str(req.start_date)
@@ -225,6 +336,21 @@ def rebuild_candidate_charts(
         bench_equity = (1.0 + aligned_bench).cumprod()
         bench_curve = equity_curve_series(bench_equity)
 
+    institutional = _build_institutional_analytics(
+        req=req,
+        params=params,
+        tickers=tickers,
+        prices=prices,
+        prices_sim_panel=prices_sim_panel,
+        spec=spec,
+        universe_by_ticker=universe_by_ticker,
+        full_m=full_m,
+        bundle_train_m=train_m,
+        bundle_val_m=val_m,
+        sim_kw=sim_kw,
+        resolver=resolver,
+    )
+
     model_code = str(params.get("model_code") or "")
     return CandidateChartsPayload(
         model_code=model_code,
@@ -233,6 +359,7 @@ def rebuild_candidate_charts(
         weight_history_tickers=wht,
         benchmark_equity_curve=_maybe_downsample_curve(bench_curve),
         weight_cap_audit=full_m.get("weight_cap_audit"),
+        institutional=institutional,
     )
 
 
@@ -246,7 +373,7 @@ def resolve_candidate_charts(
     candidate = find_candidate(result, model_code)
     if candidate is None:
         raise LookupError(f"Unknown model_code: {model_code}")
-    if candidate_has_full_charts(candidate):
+    if candidate_has_full_charts(candidate) and candidate_has_deep_analytics(candidate):
         return payload_from_candidate(candidate)
     params = dict(candidate.params or {})
     if not params:
@@ -271,6 +398,9 @@ def merge_charts_into_candidate(
     analytics["benchmark_equity_curve"] = payload.benchmark_equity_curve
     if payload.weight_cap_audit is not None:
         analytics["weight_cap_audit"] = payload.weight_cap_audit
+    if payload.institutional:
+        for key, value in payload.institutional.items():
+            analytics[key] = value
     return candidate.model_copy(
         update={
             "equity_curve": payload.equity_curve,

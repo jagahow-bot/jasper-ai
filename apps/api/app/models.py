@@ -295,6 +295,13 @@ class CandidateChartsPayload(BaseModel):
     weight_history_tickers: list[str] = Field(default_factory=list)
     benchmark_equity_curve: list[dict[str, Any]] = Field(default_factory=list)
     weight_cap_audit: dict[str, Any] | None = None
+    institutional: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Deep analytics for InstitutionalReport: rolling, periodic returns, "
+            "drawdown, risk contribution, benchmark_relative, execution"
+        ),
+    )
 
 
 class BacktestResult(BaseModel):
