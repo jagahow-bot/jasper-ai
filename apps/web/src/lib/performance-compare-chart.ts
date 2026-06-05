@@ -223,7 +223,7 @@ export function buildPerformanceCompareRows(input: {
   candidates: PerformanceCompareCandidate[];
   championModelKey: string | null;
   championRowKey?: string | null;
-  preserveTrialOrder: boolean;
+  sortByModelCode: boolean;
   benchmarkBarMetrics?: BenchmarkBarMetrics | null;
   benchTicker: string;
   selectedChartKey?: string | null;
@@ -232,21 +232,21 @@ export function buildPerformanceCompareRows(input: {
     candidates,
     championModelKey,
     championRowKey = null,
-    preserveTrialOrder,
+    sortByModelCode,
     benchmarkBarMetrics,
     benchTicker,
     selectedChartKey,
   } = input;
 
   const deduped = dedupeCandidatesForPerformanceChart(candidates, championModelKey);
-  const orderedCandidates = preserveTrialOrder
-    ? deduped
-    : [...deduped].sort((a, b) =>
+  const orderedCandidates = sortByModelCode
+    ? [...deduped].sort((a, b) =>
         compareModelCode(
           normalizeModelCode(a, 0),
           normalizeModelCode(b, 0),
         ),
-      );
+      )
+    : deduped;
 
   const modelRows: PerformanceCompareRow[] = orderedCandidates.map((c, i) => {
     const modelKey = candidateModelKey(c);

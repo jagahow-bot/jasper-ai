@@ -71,7 +71,7 @@ describe("performance-compare-chart", () => {
       ],
       championModelKey: "M0005",
       championRowKey: "M0005-r5-i1",
-      preserveTrialOrder: true,
+      sortByModelCode: true,
       benchTicker: "SPY",
     });
     expect(rows).toHaveLength(3);
@@ -91,7 +91,7 @@ describe("performance-compare-chart", () => {
         { model_code: "M0019", rank: 19, sharpe: 0.9, cagr: 0.08, max_drawdown: -0.07 },
       ],
       championModelKey: "M0001",
-      preserveTrialOrder: true,
+      sortByModelCode: true,
       benchTicker: "SPY",
       selectedChartKey: "M0019-r19-i1",
     });
@@ -147,7 +147,7 @@ describe("performance-compare-chart", () => {
       candidates,
       championModelKey: "M0001",
       championRowKey,
-      preserveTrialOrder: true,
+      sortByModelCode: true,
       benchTicker: "SPY",
     });
     const champs = rows.filter((r) => r.isChampion);
@@ -173,7 +173,7 @@ describe("performance-compare-chart", () => {
       candidates,
       championModelKey: "M0005",
       championRowKey: candidateRowKey(candidates[1], 1),
-      preserveTrialOrder: true,
+      sortByModelCode: true,
       benchTicker: "SPY",
       selectedChartKey,
     });
@@ -200,16 +200,32 @@ describe("performance-compare-chart", () => {
     expect(resolveDefaultSelectedRowKey(candidates, null)).toBe("M0005-r9-i1");
   });
 
-  it("sorts by model code when trial order is not preserved", () => {
+  it("sorts by model code when sortByModelCode is enabled", () => {
+    const rows = buildPerformanceCompareRows({
+      candidates: [
+        { model_code: "M0010", rank: 10, sharpe: 1, is_champion: true },
+        { model_code: "M0006", rank: 6, sharpe: 1.1 },
+        { model_code: "M0001", rank: 1, sharpe: 1.2 },
+      ],
+      championModelKey: "M0010",
+      championRowKey: "M0010-r10-i0",
+      sortByModelCode: true,
+      benchTicker: "SPY",
+    });
+    expect(rows.map((r) => r.model_code)).toEqual(["M0001", "M0006", "M0010"]);
+    expect(rows.find((r) => r.model_code === "M0010")?.isChampion).toBe(true);
+  });
+
+  it("preserves input order when sortByModelCode is disabled", () => {
     const rows = buildPerformanceCompareRows({
       candidates: [
         { model_code: "M0002", rank: 2, sharpe: 1 },
         { model_code: "M0001", rank: 1, sharpe: 1.1 },
       ],
       championModelKey: "M0001",
-      preserveTrialOrder: false,
+      sortByModelCode: false,
       benchTicker: "SPY",
     });
-    expect(rows.map((r) => r.model_code)).toEqual(["M0001", "M0002"]);
+    expect(rows.map((r) => r.model_code)).toEqual(["M0002", "M0001"]);
   });
 });

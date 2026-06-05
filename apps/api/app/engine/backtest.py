@@ -60,6 +60,7 @@ from app.engine.refinement import (
     build_round_competition_pool,
     record_objective_sort_value,
     model_signature as refinement_model_signature,
+    model_code_sort_key,
     pool_records_in_trial_order,
     top_records_for_report,
     params_for_champion_seed,
@@ -1795,6 +1796,13 @@ def _rerank_candidates_by_objective(
     return candidates
 
 
+def _sort_candidates_by_model_code(
+    candidates: list[PortfolioCandidate],
+) -> list[PortfolioCandidate]:
+    """Presentation order by catalog model_code (M0001, M0002, …)."""
+    return sorted(candidates, key=lambda c: model_code_sort_key(c.model_code))
+
+
 def _best_candidate(
     candidates: list[PortfolioCandidate],
 ) -> PortfolioCandidate | None:
@@ -2211,6 +2219,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     candidates = _rerank_candidates_by_objective(
         candidates, trial_objective if dynamic_mode else objective_effective
     )
+    candidates = _sort_candidates_by_model_code(candidates)
     for c in candidates:
         c.is_champion = False
     if pro_mode:
@@ -2332,6 +2341,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 pr_candidates,
                 trial_objective if dynamic_mode else objective_effective,
             )
+            pr_candidates = _sort_candidates_by_model_code(pr_candidates)
             cand_codes = {
                 str((c.params or {}).get("model_code", ""))
                 for c in pr_candidates

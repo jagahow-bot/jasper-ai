@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Literal
 
 import pandas as pd
@@ -69,18 +70,40 @@ def records_in_optuna_trial_order(
     return sorted(records, key=lambda r: _optuna_trial_sort_key(r[1]))
 
 
+_MODEL_CODE_RE = re.compile(r"^M(\d+)$", re.I)
+
+
+def model_code_sort_key(code: str | None) -> tuple[int, str]:
+    """Numeric catalog order for M#### codes; unknown codes sort last."""
+    raw = str(code or "").strip()
+    m = _MODEL_CODE_RE.match(raw)
+    if m:
+        return (int(m.group(1)), "")
+    return (10**9, raw)
+
+
+def records_in_model_code_order(
+    records: list[tuple[float, dict, dict]],
+) -> list[tuple[float, dict, dict]]:
+    """Presentation order by catalog model_code (M0001, M0002, …)."""
+    return sorted(
+        records,
+        key=lambda r: model_code_sort_key(str(r[1].get("model_code", ""))),
+    )
+
+
 def top_records_for_report(
     records: list[tuple[float, dict, dict]],
     objective_effective: str,
     top_n_models: int,
 ) -> list[tuple[float, dict, dict]]:
-    """Pick top-N by objective, return in Optuna trial order for display."""
+    """Pick top-N by objective, return sorted by model_code for display."""
     ranked = sorted(
         records,
         key=lambda r: record_objective_sort_value(objective_effective, r[0], r[2]),
         reverse=True,
     )[:top_n_models]
-    return records_in_optuna_trial_order(ranked)
+    return records_in_model_code_order(ranked)
 
 
 def assign_search_model_codes(

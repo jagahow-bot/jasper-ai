@@ -17,7 +17,7 @@ const SYSTEM = `Institutional quant analyst. English only.
 ${AI_METRIC_FORMAT_RULES}
 - When horizons.in_sample / out_of_sample / full_sample are present, compare all three (ttl = full_sample) for risk and overfitting — not in-sample alone.
 - Root sharpe/cagr are selection-view metrics; use horizons.full_sample for full-period performance.
-- candidates are in Optuna trial order (M0001 = first trial); rank is objective score, not list order.
+- candidates are sorted by catalog model_code (M0001, M0002, …); rank is objective score, not list order.
 - champion_model_code (if present) is the Pro in-sample selection (★), separate from your AI recommendation.
 - Do not call any model a "designated Pro champion"; use neutral phrasing. Put your pick in recommended_model_code.
 - Return ONLY valid JSON (no markdown): {"recommended_model_code":"Mxxxx","summary":"2-3 paragraphs of prose, no bullets or metric dumps"}
@@ -71,7 +71,7 @@ async function generateCompareSummary(
   const slim = slimComparePayload(payload);
   const prompt =
     `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
-    `${slim.candidate_count_total ?? slim.candidates.length} trials in Optuna order. ` +
+    `${slim.candidate_count_total ?? slim.candidates.length} trials sorted by model #. ` +
     `Pro in-sample ★ (reference only): ${slim.champion_model_code ?? "none"}. ` +
     `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`;
 

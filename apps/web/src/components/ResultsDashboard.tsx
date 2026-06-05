@@ -517,18 +517,18 @@ export function ResultsDashboard({
     equity,
   ]);
 
-  const preserveTrialOrder = true;
+  const sortByModelCode = true;
 
   const modelSelectOptions = useMemo(() => {
     const indexed = result.candidates.map((c, i) => ({ c, i }));
-    if (preserveTrialOrder) return indexed;
+    if (!sortByModelCode) return indexed;
     return [...indexed].sort((a, b) =>
       compareModelCode(
         a.c.model_code ?? `M?${a.c.rank}`,
         b.c.model_code ?? `M?${b.c.rank}`,
       ),
     );
-  }, [result.candidates, preserveTrialOrder]);
+  }, [result.candidates, sortByModelCode]);
 
   const candidateCompare = useMemo(
     () =>
@@ -536,7 +536,7 @@ export function ResultsDashboard({
         candidates: result.candidates,
         championModelKey,
         championRowKey: defaultSelectedRowKey,
-        preserveTrialOrder,
+        sortByModelCode,
         benchmarkBarMetrics,
         benchTicker,
         selectedChartKey,
@@ -547,7 +547,7 @@ export function ResultsDashboard({
       defaultSelectedRowKey,
       benchmarkBarMetrics,
       benchTicker,
-      preserveTrialOrder,
+      sortByModelCode,
       selectedChartKey,
     ],
   );
@@ -824,7 +824,7 @@ export function ResultsDashboard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-pixel text-xs text-neon glow-title">Results · institutional</h3>
           <span className="pixel-badge-cyan text-[10px]">
-            {preserveTrialOrder ? "order: Optuna trials" : `sort: ${objectiveLabel}`}
+            {sortByModelCode ? "order: model #" : `sort: ${objectiveLabel}`}
           </span>
           <label className="flex items-center gap-2 text-xs text-dim">
             model

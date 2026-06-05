@@ -104,7 +104,7 @@ M0010 Sharpe:
     ).toBe("M0001");
   });
 
-  it("slimComparePayload keeps Optuna trial order", () => {
+  it("slimComparePayload sorts by model code", () => {
     const slim = slimComparePayload({
       benchmark: "VT",
       champion_model_code: "M0009",
@@ -197,7 +197,7 @@ M0010 Sharpe:
     });
     expect(looksLikeMetricDump(text)).toBe(false);
     expect(text).toContain("M0001");
-    expect(text).toContain("Optuna trials");
+    expect(text).toContain("catalog number");
     expect(text).not.toMatch(/designated Pro champion/i);
     expect(text).toContain("research and education");
   });

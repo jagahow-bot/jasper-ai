@@ -251,8 +251,8 @@ function slimCandidate(
   };
 }
 
-/** Sort candidates in Optuna trial order (M0001, M0002, …). */
-export function sortCandidatesByTrialOrder(
+/** Sort candidates by catalog model code (M0001, M0002, …). */
+export function sortCandidatesByModelCode(
   candidates: CompareCandidateLite[],
 ): CompareCandidateLite[] {
   return [...candidates].sort((a, b) =>
@@ -292,7 +292,7 @@ export function slimComparePayload(
   options?: SlimComparePayloadOptions,
 ): CompareSummaryPayload {
   const horizonMode = options?.horizonMode ?? "all";
-  const sorted = sortCandidatesByTrialOrder(payload.candidates);
+  const sorted = sortCandidatesByModelCode(payload.candidates);
   return {
     benchmark: payload.benchmark,
     objective: payload.objective,
@@ -336,7 +336,7 @@ function horizonLine(code: string, label: string, h?: HorizonSnap): string {
 }
 
 export function buildCompareFallback(payload: CompareSummaryPayload): string {
-  const sorted = sortCandidatesByTrialOrder(payload.candidates);
+  const sorted = sortCandidatesByModelCode(payload.candidates);
   if (!sorted.length) return "No models to compare.";
   const obj = payload.objective_label ?? payload.objective ?? "n/a";
   const total = payload.candidate_count_total ?? sorted.length;
@@ -351,7 +351,7 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
   const focusCode = focus.model_code ?? "M?";
 
   const p1 = [
-    `Across ${total} Optuna trials vs ${payload.benchmark} (${obj}), models are listed in trial order (M0001 = first trial).`,
+    `Across ${total} Optuna trials vs ${payload.benchmark} (${obj}), models are listed by catalog number (M0001, M0002, …).`,
     `${focusCode} — CAGR ${formatPctDecimal(focus.cagr)}, Sharpe ${focus.sharpe ?? "—"}, ` +
       `max drawdown ${formatPctDecimal(focus.max_drawdown)}, turnover ${formatPctDecimal(focus.turnover_avg)}.`,
   ].join(" ");
