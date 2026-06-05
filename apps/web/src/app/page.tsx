@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BacktestHistoryPanel } from "@/components/BacktestHistoryPanel";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { FontSizeControl } from "@/components/FontSizeControl";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
@@ -12,8 +13,10 @@ import {
   createJob,
   downloadCsv,
   getJobProgress,
+  getJobRequest,
   getJobResult,
 } from "@/lib/api";
+import { recordCompletedBacktest, readLocalBacktestHistory } from "@/lib/backtest-history";
 import { DEFAULT_ASSET_CLASSES } from "@/lib/constants";
 import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
@@ -73,6 +76,8 @@ export default function HomePage() {
     buildDefaultRequest(),
   );
   const [, setJobId] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [narrative, setNarrative] = useState("");
@@ -92,19 +97,11 @@ export default function HomePage() {
     void checkApiHealth().then(setApiOnline);
   }, []);
 
-  const pollJob = useCallback(async (id: string) => {
-    const prog = await getJobProgress(id);
-    setProgress(prog);
-    if (
-      prog.message &&
-      prog.message !== lastProgressMsg.current &&
-      prog.status === "running"
-    ) {
-      lastProgressMsg.current = prog.message;
-      pushMessage(setMessages, "assistant", prog.message);
-    }
-    if (prog.status === "completed") {
-      const res = await getJobResult(id);
+  const presentResult = useCallback(
+    async (id: string, res: BacktestResult, req: BacktestRequest) => {
+      setActiveJobId(id);
+      setJobId(id);
+      setRequest(req);
       setResult(res);
       const championIdx = resolveChampionCandidateIndex(
         res.candidates,
@@ -123,6 +120,7 @@ export default function HomePage() {
       const narrJson = (await narrRes.json()) as { narrative: string };
       setNarrative(narrJson.narrative);
       setPhase("results");
+      recordCompletedBacktest(id, req, res);
       const best = champion ?? res.candidates[0];
       const bm = String(
         (res.narrative_facts.backtest_spec as { benchmark?: string } | undefined)
@@ -133,15 +131,74 @@ export default function HomePage() {
         "assistant",
         `Backtest complete. Best by objective: ${best.model_code ?? "M?"} (vs ${bm}) — Sharpe ${best.sharpe}, max DD ${(best.max_drawdown * 100).toFixed(2)}%, CAGR ${(best.cagr * 100).toFixed(2)}%. Switch model codes in the results panel.`,
       );
-      return true;
-    }
-    if (prog.status === "failed") {
-      pushMessage(setMessages, "system", prog.message);
-      setPhase("constraints");
-      return true;
-    }
-    return false;
-  }, []);
+    },
+    [],
+  );
+
+  const pollJob = useCallback(
+    async (id: string) => {
+      const prog = await getJobProgress(id);
+      setProgress(prog);
+      if (
+        prog.message &&
+        prog.message !== lastProgressMsg.current &&
+        prog.status === "running"
+      ) {
+        lastProgressMsg.current = prog.message;
+        pushMessage(setMessages, "assistant", prog.message);
+      }
+      if (prog.status === "completed") {
+        const res = await getJobResult(id);
+        const req = (await getJobRequest(id).catch(() => null)) ?? request;
+        if (req) {
+          await presentResult(id, res, req);
+        } else {
+          setResult(res);
+          setPhase("results");
+        }
+        return true;
+      }
+      if (prog.status === "failed") {
+        pushMessage(setMessages, "system", prog.message);
+        setPhase("constraints");
+        return true;
+      }
+      return false;
+    },
+    [presentResult, request],
+  );
+
+  const loadHistoricalJob = useCallback(
+    async (id: string) => {
+      setHistoryLoadingId(id);
+      try {
+        const local = readLocalBacktestHistory().find((e) => e.job_id === id);
+        if (local?.result && local.request) {
+          pushMessage(setMessages, "user", `Load history ${id.slice(0, 8)}…`);
+          await presentResult(id, local.result, local.request);
+          return;
+        }
+
+        const prog = await getJobProgress(id);
+        if (prog.status !== "completed") {
+          pushMessage(setMessages, "system", `Job ${id.slice(0, 8)}… is not completed (${prog.status}).`);
+          return;
+        }
+        const [res, req] = await Promise.all([getJobResult(id), getJobRequest(id)]);
+        pushMessage(setMessages, "user", `Load history ${id.slice(0, 8)}…`);
+        await presentResult(id, res, req);
+      } catch (e) {
+        pushMessage(
+          setMessages,
+          "system",
+          e instanceof Error ? e.message : "Failed to load backtest history",
+        );
+      } finally {
+        setHistoryLoadingId(null);
+      }
+    },
+    [presentResult],
+  );
 
   const runBacktest = useCallback(
     async (reqOverride?: BacktestRequest) => {
@@ -157,6 +214,7 @@ export default function HomePage() {
       try {
         const { job_id } = await createJob({ ...req, experiment: undefined });
         setJobId(job_id);
+        setActiveJobId(job_id);
 
         let done = false;
         while (!done) {
@@ -262,10 +320,17 @@ export default function HomePage() {
 
       <main className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[360px_1fr]">
         <aside className="pixel-panel pixel-panel-cyan flex h-[calc(100vh-120px)] flex-col">
-          <h2 className="mb-3 font-pixel text-[9px] text-[var(--cyan)]">
+          <h2 className="mb-3 shrink-0 font-pixel text-[9px] text-[var(--cyan)]">
             Terminal log
           </h2>
-          <ChatLog messages={messages} />
+          <div className="min-h-0 flex-1">
+            <ChatLog messages={messages} />
+          </div>
+          <BacktestHistoryPanel
+            activeJobId={activeJobId}
+            loadingJobId={historyLoadingId}
+            onLoad={(id) => void loadHistoricalJob(id)}
+          />
         </aside>
 
         <section className="space-y-5">

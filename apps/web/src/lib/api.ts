@@ -3,6 +3,7 @@ import type {
   BacktestResult,
   CandidateChartsPayload,
   JobProgress,
+  JobSummary,
   ObjectiveSwitchLabRequest,
   ObjectiveSwitchLabResult,
   ScenarioCard,
@@ -89,6 +90,14 @@ export async function listScenarios(): Promise<ScenarioCard[]> {
     if (!res.ok) throw new Error("Failed to load scenarios");
     return res.json();
   }
+}
+
+export async function listJobs(limit = 30): Promise<JobSummary[]> {
+  return fetchJson<JobSummary[]>(`/jobs?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export async function getJobRequest(jobId: string): Promise<BacktestRequest> {
+  return fetchJson<BacktestRequest>(`/jobs/${jobId}/request`);
 }
 
 export async function createJob(req: BacktestRequest): Promise<{ job_id: string }> {

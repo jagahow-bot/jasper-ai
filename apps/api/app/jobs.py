@@ -9,12 +9,14 @@ from app.candidate_charts import (
 )
 from app.engine.backtest import run_backtest, _is_pro_mode
 from app.engine.report_sim_cache import TrialReportCache
+from app.job_history import list_job_summaries, load_persisted_job, persist_completed_job
 from app.models import (
     BacktestRequest,
     BacktestResult,
     CandidateChartsPayload,
     JobProgress,
     JobStatus,
+    JobSummary,
 )
 
 
@@ -112,6 +114,10 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
                 best_sharpe=result.candidates[0].sharpe if result.candidates else None,
             )
             _jobs[job_id]["result"] = result
+        try:
+            persist_completed_job(job_id, req, result)
+        except Exception:  # noqa: BLE001
+            pass
     except Exception as exc:  # noqa: BLE001
         with _lock:
             _jobs[job_id]["progress"] = JobProgress(
@@ -122,16 +128,77 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
             _jobs[job_id]["error"] = str(exc)
 
 
+def _hydrate_from_disk(job_id: str) -> bool:
+    """Load persisted job into memory when evicted from the in-memory store."""
+    loaded = load_persisted_job(job_id)
+    if loaded is None:
+        return False
+    req, result = loaded
+    with _lock:
+        if job_id in _jobs:
+            return True
+        _jobs[job_id] = {
+            "request": req,
+            "progress": JobProgress(
+                status=JobStatus.completed,
+                message="Backtest complete",
+                trials_total=int((result.narrative_facts or {}).get("trials_completed", req.trials)),
+                trial=int((result.narrative_facts or {}).get("trials_completed", req.trials)),
+                best_sharpe=result.candidates[0].sharpe if result.candidates else None,
+            ),
+            "result": result,
+            "report_cache": None,
+            "error": None,
+        }
+    return True
+
+
 def get_progress(job_id: str) -> JobProgress | None:
     with _lock:
         job = _jobs.get(job_id)
-        return job["progress"] if job else None
+        if job:
+            return job["progress"]
+    if _hydrate_from_disk(job_id):
+        with _lock:
+            job = _jobs.get(job_id)
+            return job["progress"] if job else None
+    return None
 
 
 def get_result(job_id: str) -> BacktestResult | None:
     with _lock:
         job = _jobs.get(job_id)
-        return job["result"] if job else None
+        if job and job.get("result") is not None:
+            return job["result"]
+    if _hydrate_from_disk(job_id):
+        with _lock:
+            job = _jobs.get(job_id)
+            return job["result"] if job else None
+    return None
+
+
+def list_jobs(*, limit: int = 30) -> list[JobSummary]:
+    """Recent completed jobs (disk index + in-memory completed not yet indexed)."""
+    summaries = list_job_summaries(limit=limit)
+    seen = {s.job_id for s in summaries}
+    with _lock:
+        for job_id, job in _jobs.items():
+            if job_id in seen:
+                continue
+            progress = job.get("progress")
+            result = job.get("result")
+            req = job.get("request")
+            if (
+                progress
+                and progress.status == JobStatus.completed
+                and result is not None
+                and req is not None
+            ):
+                from app.job_history import build_summary
+
+                summaries.insert(0, build_summary(job_id, req, result))
+                seen.add(job_id)
+    return summaries[: max(1, min(int(limit), 50))]
 
 
 def patch_narrative_facts(job_id: str, patch: dict) -> bool:
@@ -167,9 +234,13 @@ def get_report_cache(job_id: str) -> TrialReportCache | None:
 def get_request(job_id: str) -> BacktestRequest | None:
     with _lock:
         job = _jobs.get(job_id)
-        if not job:
-            return None
-        return job.get("request")
+        if job:
+            return job.get("request")
+    if _hydrate_from_disk(job_id):
+        with _lock:
+            job = _jobs.get(job_id)
+            return job.get("request") if job else None
+    return None
 
 
 def _patch_candidate_charts(
@@ -210,6 +281,7 @@ def get_candidate_charts(
     rank: int | None = None,
 ) -> CandidateChartsPayload:
     """Lazy chart payload for one candidate; patches stored result after rebuild."""
+    _hydrate_from_disk(job_id)
     with _lock:
         job = _jobs.get(job_id)
         if not job or job.get("result") is None:

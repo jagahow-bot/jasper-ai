@@ -129,6 +129,20 @@ export interface JobProgress {
   round_portfolio_vs_benchmark?: PortfolioVsBenchmark | null;
 }
 
+export interface JobSummary {
+  job_id: string;
+  created_at: string;
+  status: JobStatus;
+  start_date: string;
+  end_date: string;
+  objective: string;
+  optimization_mode: string;
+  scenario_id?: string | null;
+  champion_model_code?: string | null;
+  champion_cagr?: number | null;
+  champion_sharpe?: number | null;
+}
+
 export interface PortfolioCandidate {
   rank: number;
   model_code?: string | null;

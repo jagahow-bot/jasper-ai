@@ -201,6 +201,22 @@ class BacktestRequest(BaseModel):
         return [legacy, *from_list]
 
 
+class JobSummary(BaseModel):
+    """Lightweight row for backtest history lists."""
+
+    job_id: str
+    created_at: str
+    status: JobStatus
+    start_date: str
+    end_date: str
+    objective: str
+    optimization_mode: str
+    scenario_id: str | None = None
+    champion_model_code: str | None = None
+    champion_cagr: float | None = None
+    champion_sharpe: float | None = None
+
+
 class JobProgress(BaseModel):
     status: JobStatus
     message: str

@@ -4,7 +4,13 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app import jobs as job_service
-from app.models import BacktestRequest, BacktestResult, CandidateChartsPayload, JobProgress
+from app.models import (
+    BacktestRequest,
+    BacktestResult,
+    CandidateChartsPayload,
+    JobProgress,
+    JobSummary,
+)
 
 
 class NarrativeFactsPatch(BaseModel):
@@ -17,6 +23,19 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 def create_backtest_job(req: BacktestRequest) -> dict:
     job_id = job_service.create_job(req)
     return {"job_id": job_id}
+
+
+@router.get("", response_model=list[JobSummary])
+def list_backtest_jobs(limit: int = Query(default=30, ge=1, le=50)) -> list[JobSummary]:
+    return job_service.list_jobs(limit=limit)
+
+
+@router.get("/{job_id}/request", response_model=BacktestRequest)
+def get_job_request(job_id: str) -> BacktestRequest:
+    req = job_service.get_request(job_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return req
 
 
 @router.get("/{job_id}/progress", response_model=JobProgress)
