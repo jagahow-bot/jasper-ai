@@ -21,6 +21,7 @@ if "optuna" not in sys.modules:
     sys.modules["optuna.logging"] = _optuna_logging
 
 from app.engine.backtest import _run_iterative_search
+from app.engine.ai_params import _build_round_seed_learning_block
 from app.engine.dynamic_objective import (
     DYNAMIC_OBJECTIVE,
     build_dynamic_objective_context,
@@ -615,3 +616,99 @@ def test_dynamic_pro_round_passes_regime_matrix_to_optuna(price_panel: pd.DataFr
     pr = meta["per_round"][0]
     assert pr.get("regime_matrix_enabled") is True
     assert has_regime_matrix(pr.get("regime_setups"))
+
+
+def test_learning_prompt_injects_incumbent_model_code_each_round(
+    price_panel: pd.DataFrame,
+):
+    """Guard: Pro-round prompt must inject the current round incumbent code."""
+
+    captured_blocks: list[str] = []
+    captured_round_indexes: list[int] = []
+
+    call_idx = {"n": 0}
+    # Round1 codes assigned in order: M0001..M0005; winner is trial-2 => M0002.
+    # Round2 codes assigned next: M0006..M0009; winner is trial-1 => M0006.
+    # Round3 codes assigned next: M0010..M0013; winner is trial-2 => M0011.
+    round_outputs = [
+        [
+            _trial(1, 0.10),
+            _trial(2, 0.90),
+            _trial(3, 0.20),
+            _trial(4, 0.30),
+            _trial(5, 0.40),
+        ],
+        [
+            _trial(6, 0.85),
+            _trial(7, 0.60),
+            _trial(8, 0.70),
+            _trial(9, 0.65),
+        ],
+        [
+            _trial(10, 0.50),
+            _trial(11, 0.95),
+            _trial(12, 0.60),
+            _trial(13, 0.65),
+        ],
+    ]
+
+    def fake_optuna(*_args, **_kwargs):
+        idx = call_idx["n"]
+        call_idx["n"] += 1
+        return round_outputs[idx]
+
+    def fake_ai(**kwargs):
+        learning_context = kwargs.get("learning_context")
+        if isinstance(learning_context, dict):
+            block = _build_round_seed_learning_block(learning_context)
+            if block and "CHAMPION:" in block:
+                captured_blocks.append(block)
+                captured_round_indexes.append(int(learning_context.get("round_index") or 0))
+        return _fake_round_seed()
+
+    req = _minimal_request(refinement_max_rounds=3)
+    prices_train = price_panel.iloc[:280]
+    prices_val = price_panel.iloc[280:]
+
+    with (
+        patch("app.engine.backtest.run_optuna_search", side_effect=fake_optuna),
+        patch("app.engine.backtest.generate_ai_round_seed", side_effect=fake_ai),
+    ):
+        _records, _history, meta = _run_iterative_search(
+            req,
+            prices_train=prices_train,
+            prices_sim_panel=prices_train,
+            prices_val=prices_val,
+            oos=False,
+            objective_effective="max_sharpe",
+            rebalance_rule="monthly",
+            spec=__import__("app.engine.spec", fromlist=["DEFAULT_SPEC"]).DEFAULT_SPEC,
+            universe_by_ticker={},
+            param_controls_dict={},
+            report_progress=lambda *_a, **_k: None,
+        )
+
+    # We expect Gemini seed learning prompt to include CHAMPION for round 2 and 3 only.
+    assert captured_round_indexes == [2, 3]
+    assert len(captured_blocks) == 2
+
+    def extract_model_code(prompt_block: str) -> str | None:
+        needle = "CHAMPION:\n  model_code="
+        i = prompt_block.find(needle)
+        if i < 0:
+            return None
+        j = prompt_block.find("\n", i + len(needle))
+        if j < 0:
+            return None
+        return prompt_block[i + len(needle) : j].strip()
+
+    for round_index, block in zip(captured_round_indexes, captured_blocks):
+        expected = meta["per_round"][round_index - 1].get(
+            "incoming_champion_model_code"
+        )
+        injected = extract_model_code(block)
+        assert injected == expected, (
+            f"Round {round_index}: prompt injected CHAMPION model_code="
+            f"{injected!r}, but expected incoming_champion_model_code="
+            f"{expected!r}"
+        )

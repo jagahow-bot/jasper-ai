@@ -516,6 +516,14 @@ def _run_iterative_search(
             champion_record[1] if champion_record else None
         )
         round_incoming_model_code = carry_champion_model_code
+        # For Gemini prompt injection, prefer the actual incumbent champion model_code
+        # from this round's champion_record context (not potentially stale carry code).
+        if (
+            champion_record
+            and isinstance(champion_record[1], dict)
+            and champion_record[1].get("model_code")
+        ):
+            round_incoming_model_code = str(champion_record[1]["model_code"])
         if champion_record and round_idx > 0:
             # Learning context uses champion at round start; if the champion is re-run
             # and updated later in this round, the next round's build_gemini_learning_context
