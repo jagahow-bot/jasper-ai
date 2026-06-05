@@ -12,7 +12,11 @@ BenchmarkStatus = Literal["above", "below", "unknown"]
 
 from app.engine.analytics import benchmark_relative
 from app.engine.dynamic_objective import is_dynamic_objective
-from app.engine.objectives import compute_objective_score, objective_label
+from app.engine.objectives import (
+    compute_objective_score,
+    metrics_snapshot,
+    objective_label,
+)
 from app.engine.ai_json import dumps_for_ai, round_ai_float, sanitize_for_ai
 from app.engine.param_taxonomy import summarize_prior_round_seed
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
@@ -1082,6 +1086,17 @@ def summarize_params_for_ai(params: dict[str, Any], *, full: bool = False) -> st
     return ", ".join(parts) if parts else str(params)[:120]
 
 
+def _horizon_row_from_snapshot(snap: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not snap:
+        return None
+    out: dict[str, Any] = {}
+    for key in ("sharpe", "cagr", "max_drawdown", "objective_value"):
+        raw = snap.get(key)
+        if raw is not None:
+            out[key] = round_ai_float(raw, key=key)
+    return out or None
+
+
 def build_round_champion_ai_payload(
     pool_records: list[tuple[float, dict, dict]],
     *,
@@ -1090,6 +1105,7 @@ def build_round_champion_ai_payload(
     incoming_champion_model_code: str | None,
     benchmark_ticker: str,
     oos_enabled: bool,
+    trial_report_cache: Any | None = None,
 ) -> dict[str, Any]:
     """Slim per-round trial metrics for post-Optuna AI champion selection."""
     candidates: list[dict[str, Any]] = []
@@ -1105,24 +1121,83 @@ def build_round_champion_ai_payload(
         assess = metrics.get("overfitting_assessment") or {}
         role = "incoming_champion" if incoming and code == incoming else "challenger"
         obj = record_objective_sort_value(objective_effective, score, metrics)
+        is_obj = metrics.get("objective_value_is") or assess.get("in_sample_objective")
+        oos_obj = metrics.get("objective_value_oos") or assess.get(
+            "out_of_sample_objective"
+        )
+        train_snap = metrics.get("train_metrics")
+        if train_snap is None:
+            train_snap = {
+                "sharpe": metrics.get("sharpe"),
+                "cagr": metrics.get("cagr"),
+                "max_drawdown": metrics.get("max_drawdown"),
+                "objective_value": is_obj if is_obj is not None else obj,
+            }
+        is_horizon = _horizon_row_from_snapshot(train_snap)
+        if is_horizon is not None and is_obj is not None:
+            is_horizon["objective_value"] = round_ai_float(is_obj, key="objective_value")
+
+        oos_horizon = (
+            _horizon_row_from_snapshot(metrics.get("validation_metrics"))
+            if oos_enabled
+            else None
+        )
+        if oos_horizon is not None and oos_obj is not None:
+            oos_horizon["objective_value"] = round_ai_float(
+                oos_obj, key="objective_value"
+            )
+
+        full_horizon: dict[str, Any] | None = None
+        if trial_report_cache is not None:
+            bundle = trial_report_cache.get_bundle(params)
+            if bundle is not None and bundle.full_m is not None:
+                full_horizon = _horizon_row_from_snapshot(
+                    metrics_snapshot(bundle.full_m, objective_mode=objective_effective)
+                )
+        if full_horizon is None and not oos_enabled:
+            full_horizon = _horizon_row_from_snapshot(
+                {
+                    "sharpe": metrics.get("sharpe"),
+                    "cagr": metrics.get("cagr"),
+                    "max_drawdown": metrics.get("max_drawdown"),
+                    "objective_value": is_obj if is_obj is not None else obj,
+                }
+            )
+
+        gap: dict[str, Any] = {}
+        gap_obj = metrics.get("gap_objective", assess.get("gap_objective"))
+        gap_sh = assess.get("gap_sharpe")
+        if gap_obj is not None:
+            gap["objective"] = round_ai_float(gap_obj, key="gap_objective")
+        if gap_sh is not None:
+            gap["sharpe"] = round_ai_float(gap_sh, key="gap_sharpe")
+
         row: dict[str, Any] = {
             "model_code": code,
             "role": role,
             "objective_value": round_ai_float(obj),
+            "objective_value_is": round_ai_float(is_obj, key="objective_value")
+            if is_obj is not None
+            else None,
+            "holdout_objective": round_ai_float(oos_obj, key="objective_value")
+            if oos_obj is not None
+            else None,
+            "overfitting_risk": assess.get("risk_level"),
+            "horizons": {
+                "in_sample": is_horizon,
+                "out_of_sample": oos_horizon,
+                "full_sample": full_horizon,
+                "gap": gap or None,
+            },
         }
         for metric_key in ("sharpe", "cagr", "max_drawdown"):
             raw = metrics.get(metric_key)
             if raw is not None:
                 row[metric_key] = round_ai_float(raw)
         if oos_enabled:
-            val_sh = metrics.get("validation_sharpe")
+            val_sh = metrics.get("validation_sharpe", assess.get("validation_sharpe"))
             if val_sh is not None:
                 row["validation_sharpe"] = round_ai_float(val_sh)
-            gap_sh = assess.get("gap_sharpe")
-            if gap_sh is not None:
-                row["gap_sharpe"] = round_ai_float(gap_sh)
-            if assess.get("risk_level") is not None:
-                row["risk_level"] = assess.get("risk_level")
         candidates.append(row)
     return {
         "round": int(round_index),
@@ -1130,6 +1205,10 @@ def build_round_champion_ai_payload(
         "benchmark": benchmark_ticker,
         "oos_enabled": bool(oos_enabled),
         "incoming_champion_model_code": incoming,
+        "selection_note": (
+            "Weigh horizons.in_sample, horizons.out_of_sample, and horizons.full_sample "
+            "(ttl) together; penalize large horizons.gap and overfitting_risk=high."
+        ),
         "candidates": candidates,
     }
 

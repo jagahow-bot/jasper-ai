@@ -2513,6 +2513,14 @@ Return STRICT JSON only (omit empty factor_choices if none):
 
 
 _MAX_ROUND_CHAMPION_ATTEMPTS = 2
+_ROUND_CHAMPION_OUTPUT_TOKEN_FLOOR = 1024
+_ROUND_CHAMPION_OUTPUT_TOKEN_CEILING = 4096
+
+
+def _round_champion_max_output_tokens(*, attempt: int = 0) -> int:
+    base = max(_ROUND_CHAMPION_OUTPUT_TOKEN_FLOOR, 1024)
+    bump = attempt * 1024
+    return min(_ROUND_CHAMPION_OUTPUT_TOKEN_CEILING, base + bump)
 
 
 def _thinking_config_for_round_champion(*, model: str) -> dict[str, Any] | None:
@@ -2521,13 +2529,61 @@ def _thinking_config_for_round_champion(*, model: str) -> dict[str, Any] | None:
     return None
 
 
+def _round_champion_composite_score(
+    candidate: dict[str, Any],
+    *,
+    oos_enabled: bool,
+) -> float:
+    """Holistic IS/OOS/Full score for deterministic champion fallback."""
+    horizons = candidate.get("horizons") or {}
+    is_h = horizons.get("in_sample") or {}
+    oos_h = horizons.get("out_of_sample") or {}
+    full_h = horizons.get("full_sample") or {}
+
+    is_obj = (
+        is_h.get("objective_value")
+        or candidate.get("objective_value_is")
+        or candidate.get("objective_value")
+    )
+    oos_obj = oos_h.get("objective_value") or candidate.get("holdout_objective")
+    full_obj = full_h.get("objective_value")
+
+    parts: list[float] = []
+    weights: list[float] = []
+    if is_obj is not None:
+        parts.append(float(is_obj))
+        weights.append(0.35)
+    if oos_enabled and oos_obj is not None:
+        parts.append(float(oos_obj))
+        weights.append(0.40)
+    if full_obj is not None:
+        parts.append(float(full_obj))
+        weights.append(0.35 if oos_enabled else 0.65)
+
+    if not parts:
+        base = float(candidate.get("objective_value", -1e9))
+    else:
+        wsum = sum(weights)
+        base = sum(p * w for p, w in zip(parts, weights)) / wsum
+
+    gap = horizons.get("gap") or {}
+    gap_obj = gap.get("objective", candidate.get("gap_objective"))
+    gap_penalty = max(0.0, float(gap_obj)) * 0.5 if gap_obj is not None else 0.0
+
+    risk = str(candidate.get("overfitting_risk", "unknown"))
+    risk_penalty = {"high": 0.3, "moderate": 0.1}.get(risk, 0.0)
+
+    return base - gap_penalty - risk_penalty
+
+
 def _round_champion_fallback_code(payload: dict[str, Any]) -> str | None:
     candidates = payload.get("candidates") or []
     if not candidates:
         return None
+    oos_enabled = bool(payload.get("oos_enabled"))
     best = max(
         candidates,
-        key=lambda c: float(c.get("objective_value") if c.get("objective_value") is not None else -1e9),
+        key=lambda c: _round_champion_composite_score(c, oos_enabled=oos_enabled),
     )
     code = str(best.get("model_code", "")).strip().upper()
     return code or None
@@ -2570,7 +2626,12 @@ def generate_ai_round_champion(
 
     prompt = f"""Institutional quant analyst. English or 中文.
 After this Pro Optuna round, pick the best deployable champion from the trial pool.
-When oos_enabled is true, weigh validation_sharpe and gap_sharpe — not in-sample objective alone.
+Each candidate includes horizons.in_sample (IS), horizons.out_of_sample (OOS holdout), and
+horizons.full_sample (full period / ttl) when available, plus objective_value_is,
+holdout_objective, horizons.gap, and overfitting_risk.
+Weigh ALL available horizons holistically — do NOT pick the highest in-sample objective alone.
+Prefer strong IS + OOS + full-sample risk-adjusted metrics together; penalize large
+horizons.gap.objective / horizons.gap.sharpe and overfitting_risk=high.
 Return STRICT JSON only:
 {{"round_champion_model_code":"Mxxxx","rationale":"1-2 sentences"}}
 round_champion_model_code MUST be one of: {sorted(allowed)}
@@ -2591,7 +2652,7 @@ Payload:
         thinking_config = _thinking_config_for_round_champion(model=model)
         generation_config: dict[str, Any] = {
             "temperature": 0.0,
-            "maxOutputTokens": 256,
+            "maxOutputTokens": _round_champion_max_output_tokens(attempt=attempt),
             "responseMimeType": "application/json",
             "responseSchema": generation_schema,
         }

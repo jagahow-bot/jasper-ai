@@ -932,6 +932,7 @@ def _run_iterative_search(
                 incoming_champion_model_code=round_incoming_model_code,
                 benchmark_ticker=spec.benchmark_ticker,
                 oos_enabled=bool(oos and len(prices_val) > 60),
+                trial_report_cache=trial_report_cache,
             )
 
             def ai_champion_progress(message: str) -> None:
