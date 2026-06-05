@@ -1755,7 +1755,7 @@ def _round_seed_champion_section_lines(learning_context: dict[str, Any]) -> list
 
     out.append(
         "REFINE_AROUND_CHAMPION Incumbent prior-round winner (CHAMPION model_code). "
-        "Refine incrementally from CHAMPION params + PRIOR_ROUND_* — evolve round_setup, "
+        "Refine incrementally from CHAMPION params + PRIOR_ROUND_*; evolve round_setup, "
         "regime_setups, and factor_ranges; do not restart from scratch."
     )
     if narrative_code:
