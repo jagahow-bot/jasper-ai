@@ -54,6 +54,23 @@ def test_trim_leading_incomplete_rows_after_late_drop():
     assert panel.notna().all(axis=1).all()
 
 
+def test_trim_keeps_prep_rows_before_requested_start():
+    """Pre-report rows stay for lookback even when a new ticker lists near start."""
+    early_idx = pd.bdate_range("2015-01-02", "2024-12-31")
+    new_idx = pd.bdate_range("2018-01-15", "2024-12-31")
+    prices = pd.DataFrame(
+        {
+            "SPY": pd.Series(100.0, index=early_idx),
+            "NEW": pd.Series(50.0, index=new_idx),
+        }
+    ).astype(float)
+    trimmed, excluded = _exclude_late_listing_columns(prices.ffill(), "2018-01-01")
+    assert excluded == []
+    panel = _trim_leading_incomplete_rows(trimmed.ffill(), requested_start="2018-01-01")
+    assert str(panel.index[0].date()) == "2015-01-02"
+    assert str(panel.loc[panel.index >= "2018-01-15"].index[0].date()) == "2018-01-15"
+
+
 def test_split_train_validation_uses_early_is_start():
     prices = _make_panel()
     trimmed, _ = _exclude_late_listing_columns(prices, "2015-01-01")

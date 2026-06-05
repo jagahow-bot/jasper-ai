@@ -170,12 +170,26 @@ def ensure_weight_history_anchor(
     schedule: pd.DataFrame,
     anchor: pd.Timestamp,
     keep_tickers: list[str],
+    *,
+    applied_on_or_after: list[pd.Timestamp] | None = None,
 ) -> list[dict[str, Any]]:
-    """Prepend report-start weights when the first applied rebalance is later."""
+    """Prepend report-start weights when day-1 rebalance ran and snapshots start later."""
     wh = list(weight_history or [])
     anchor_str = anchor.strftime("%Y-%m-%d")
     if wh and str(wh[0].get("date", "")) <= anchor_str:
         return wh
+    if not wh:
+        return wh
+    if applied_on_or_after is not None:
+        anchor_ts = pd.Timestamp(anchor)
+        if not any(
+            pd.Timestamp(d) == anchor_ts
+            for d in applied_on_or_after
+            if pd.Timestamp(d) >= anchor_ts
+        ):
+            # Avoid warmup ffill placeholders (e.g. 100% benchmark sleeve) before first
+            # report-window rebalance; UI forward-fills from the first real snapshot.
+            return wh
     anchor_row = _schedule_weight_row(
         schedule, anchor, keep_tickers, date_label=anchor_str
     )
@@ -323,6 +337,21 @@ def _normalize_rebalance_rule(rule: str) -> str:
         "YEARLY": "YE",
     }
     return aliases.get(r, r)
+
+
+def _inject_report_start_rebalance_dates(
+    rebalance_dates: list[pd.Timestamp],
+    index: pd.DatetimeIndex,
+    report_start: str | None,
+) -> list[pd.Timestamp]:
+    """Rebalance on the first trading day on/after the user's report window."""
+    if not report_start:
+        return rebalance_dates
+    try:
+        anchor = first_trading_day_on_or_after(index, report_start)
+    except ValueError:
+        return rebalance_dates
+    return sorted(list(dict.fromkeys([*rebalance_dates, anchor])))
 
 
 def _trading_day_rebalance_dates(index: pd.DatetimeIndex, rule: str) -> list[pd.Timestamp]:
@@ -609,6 +638,9 @@ def _rebalance_schedule_dynamic(
     )
 
     rebalance_dates = _trading_day_rebalance_dates(prices.index, rule)
+    rebalance_dates = _inject_report_start_rebalance_dates(
+        rebalance_dates, prices.index, report_start
+    )
     col_index = {t: i for i, t in enumerate(prices.columns)}
     w_prev = w.copy()
     applied_rebalances = 0
@@ -979,7 +1011,11 @@ def _simulate_pandas(
             _schedule_weight_row(sch, dt, keep_tickers)
         )
     weight_history = ensure_weight_history_anchor(
-        weight_history, sch, hist_anchor, keep_tickers
+        weight_history,
+        sch,
+        hist_anchor,
+        keep_tickers,
+        applied_on_or_after=applied_rebalance_dates,
     )
     metrics["weight_history"] = weight_history
     metrics["weight_history_tickers"] = keep_tickers

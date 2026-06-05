@@ -103,13 +103,64 @@ def _exclude_late_listing_columns(
     return prices[keep].copy(), late
 
 
-def _trim_leading_incomplete_rows(prices: pd.DataFrame) -> pd.DataFrame:
-    """Remove warm-up rows before every column has a price (after ffill)."""
-    complete = prices.notna().all(axis=1)
-    if not complete.any():
+def _trim_leading_incomplete_rows(
+    prices: pd.DataFrame,
+    *,
+    requested_start: str | None = None,
+) -> pd.DataFrame:
+    """Trim incomplete rows while keeping pre-start rows for factor/allocator lookback."""
+    if prices.empty:
         return prices
-    first = complete.idxmax()
-    return prices.loc[first:].copy()
+    n_cols = len(prices.columns)
+    min_cols = max(3, int(n_cols * MIN_ROW_COVERAGE))
+
+    if requested_start is None:
+        complete = prices.notna().all(axis=1)
+        if not complete.any():
+            return prices
+        return prices.loc[complete.idxmax():].copy()
+
+    anchor = pd.Timestamp(requested_start)
+    pre = prices.loc[prices.index < anchor]
+    post = prices.loc[prices.index >= anchor]
+
+    if not post.empty:
+        post_complete = post.notna().all(axis=1)
+        if post_complete.any():
+            post = post.loc[post_complete.idxmax():]
+        else:
+            ok = post.notna().sum(axis=1) >= min_cols
+            if ok.any():
+                post = post.loc[ok.idxmax():]
+
+    if not pre.empty:
+        early_cols = [
+            c
+            for c in pre.columns
+            if (first := _first_valid_date(prices[c])) is not None
+            and first <= anchor
+        ]
+        prep_min = max(1, min(min_cols, len(early_cols)))
+        if early_cols:
+            pre_ok = pre[early_cols].notna().sum(axis=1) >= prep_min
+            if pre_ok.any():
+                pre = pre.loc[pre_ok.idxmax():]
+            else:
+                pre = pre.iloc[0:0]
+        else:
+            pre = pre.iloc[0:0]
+
+    if pre.empty and post.empty:
+        complete = prices.notna().all(axis=1)
+        if not complete.any():
+            return prices
+        return prices.loc[complete.idxmax():].copy()
+    if pre.empty:
+        return post.copy()
+    if post.empty:
+        return pre.copy()
+    combined = pd.concat([pre, post])
+    return combined.loc[~combined.index.duplicated(keep="last")].sort_index()
 
 
 def price_download_start(
@@ -206,7 +257,7 @@ def fetch_prices(
     min_cols = max(3, int(len(valid_cols) * MIN_ROW_COVERAGE))
     prices = prices[prices.notna().sum(axis=1) >= min_cols]
     prices = prices.ffill()
-    prices = _trim_leading_incomplete_rows(prices)
+    prices = _trim_leading_incomplete_rows(prices, requested_start=requested_start)
 
     if len(prices) < MIN_TRADING_DAYS:
         raise ValueError(f"Insufficient overlapping trading days ({len(prices)}); adjust date range")

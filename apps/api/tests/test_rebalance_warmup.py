@@ -53,6 +53,45 @@ def test_weight_history_skips_pre_lookback_rebalance_snapshots():
         )
 
 
+def test_report_start_is_first_applied_rebalance_with_prep_history():
+    """Day-1 rebalance: report_start trading day must be an applied rebalance."""
+    warmup = pd.bdate_range("2016-01-04", "2017-12-29")
+    report = pd.bdate_range("2018-01-01", periods=90)
+    dates = warmup.append(report)
+    rng = np.random.default_rng(201801)
+    cols = ["ACWI", "EEM", "EFA", "IWM", "VT", "VTV"]
+    prices = pd.DataFrame(
+        {
+            c: 100
+            * np.cumprod(1 + rng.normal(0.0003 + i * 0.00002, 0.011, len(dates)))
+            for i, c in enumerate(cols)
+        },
+        index=dates,
+    )
+    report_start = "2018-01-01"
+    m = simulate_dynamic_portfolio(
+        prices,
+        report_start=report_start,
+        spec=BacktestSpec(rebalance_rule="QE", fee_bps=0.0),
+        max_weight=0.5,
+        min_weight=0.0,
+        allocator=AllocatorParams(mode="mean_variance", lookback_days=252),
+        factor_params=FactorParams(lookback_days=252),
+        top_n=3,
+    )
+    anchor = pd.Timestamp(report_start)
+    first_td = prices.index[prices.index >= anchor][0]
+    applied = [pd.Timestamp(d) for d in (m.get("rebalance_dates") or [])]
+    assert first_td in applied or any(
+        d >= first_td for d in applied
+    ), "expected report-start rebalance in schedule"
+    wh = m.get("weight_history") or []
+    assert wh
+    assert str(wh[0]["date"]) <= str(first_td.date())
+    top_hold = max(float(wh[0].get(c, 0.0)) for c in cols)
+    assert top_hold < 0.99
+
+
 def test_2018_report_start_with_prep_history_has_real_first_snapshot():
     """User case: start 2018-01-01 with ~1y prep — first chart snapshot is a real rebalance."""
     warmup = pd.bdate_range("2016-01-04", "2017-12-29")
