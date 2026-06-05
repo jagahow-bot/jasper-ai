@@ -86,16 +86,20 @@ from app.engine.weights import effective_max_weight_cap
 from app.engine.dynamic_objective import (
     DYNAMIC_OBJECTIVE,
     apply_allocator_resolver,
+    apply_class_budget_resolver,
     build_dynamic_backtest_chart_payload,
     build_dynamic_objective_context,
+    class_budget_resolver_from_trial_params,
     factor_params_resolver_from_trial_params,
     has_regime_matrix,
     is_dynamic_objective,
     refresh_dynamic_allocator_resolver,
+    refresh_dynamic_class_budget_resolver,
     resolve_regime_mode,
     serialize_dynamic_timeline,
     trial_scoring_objective,
 )
+from app.engine.asset_class_policy import has_regime_class_quotas
 from app.engine.param_taxonomy import has_regime_factor_ranges
 
 WEIGHT_EPS = 0.001
@@ -470,6 +474,7 @@ def _run_iterative_search(
     prior_round_setup: dict[str, Any] | None = None
     prior_regime_setups: dict[str, Any] | None = None
     prior_regime_factor_ranges: dict[str, Any] | None = None
+    prior_regime_class_quotas: dict[str, Any] | None = None
     prior_factor_ranges: dict[str, Any] | None = None
     prior_factor_choices: dict[str, Any] | None = None
     use_regime_matrix = bool(
@@ -525,6 +530,7 @@ def _run_iterative_search(
                 prior_round_setup=prior_round_setup,
                 prior_regime_setups=prior_regime_setups,
                 prior_regime_factor_ranges=prior_regime_factor_ranges,
+                prior_regime_class_quotas=prior_regime_class_quotas,
                 prior_factor_ranges=prior_factor_ranges,
                 prior_factor_choices=prior_factor_choices,
                 benchmark_ticker=spec.benchmark_ticker,
@@ -592,6 +598,7 @@ def _run_iterative_search(
         round_setup = ai_generation.get("round_setup") or {}
         regime_setups = ai_generation.get("regime_setups") or {}
         regime_factor_ranges = ai_generation.get("regime_factor_ranges") or {}
+        regime_class_quotas = ai_generation.get("regime_class_quotas") or {}
         factor_ranges = ai_generation.get("factor_ranges") or {}
         factor_choices = ai_generation.get("factor_choices") or {}
         optimization_strategy = str(
@@ -606,6 +613,7 @@ def _run_iterative_search(
                 round_setup = dict(prior_round_setup)
                 regime_setups = dict(prior_regime_setups or {})
                 regime_factor_ranges = dict(prior_regime_factor_ranges or {})
+                regime_class_quotas = dict(prior_regime_class_quotas or {})
                 factor_ranges = dict(prior_factor_ranges or {})
                 factor_choices = dict(prior_factor_choices or {})
                 report_progress(
@@ -721,6 +729,14 @@ def _run_iterative_search(
                 regime_setups=regime_setups if has_regime_matrix(regime_setups) else None,
                 shared_round_setup=round_setup,
             )
+            dynamic_ctx = refresh_dynamic_class_budget_resolver(
+                dynamic_ctx,
+                regime_class_quotas=(
+                    regime_class_quotas if has_regime_class_quotas(regime_class_quotas) else None
+                ),
+                shared_round_setup=round_setup,
+                asset_classes=req.asset_classes,
+            )
             allocator_resolver = dynamic_ctx.get("allocator_resolver")
         active_regime_resolver = (
             dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
@@ -745,6 +761,11 @@ def _run_iterative_search(
                 if has_regime_factor_ranges(regime_factor_ranges)
                 else None
             ),
+            regime_class_quotas=(
+                regime_class_quotas
+                if has_regime_class_quotas(regime_class_quotas)
+                else None
+            ),
             factor_ranges=factor_ranges,
             factor_choices=factor_choices,
             param_controls=param_controls_dict,
@@ -757,6 +778,9 @@ def _run_iterative_search(
             asset_classes=req.asset_classes,
             trial_report_cache=trial_report_cache,
             allocator_resolver=allocator_resolver,
+            class_budget_resolver=(
+                dynamic_ctx.get("class_budget_resolver") if dynamic_ctx else None
+            ),
             active_regime_resolver=active_regime_resolver,
         )
 
@@ -1009,6 +1033,14 @@ def _run_iterative_search(
                 "regime_factor_matrix_enabled": has_regime_factor_ranges(
                     regime_factor_ranges
                 ),
+                "regime_class_quotas": (
+                    regime_class_quotas
+                    if has_regime_class_quotas(regime_class_quotas)
+                    else {}
+                ),
+                "regime_class_quota_matrix_enabled": has_regime_class_quotas(
+                    regime_class_quotas
+                ),
                 "factor_ranges": factor_ranges,
                 "factor_choices": factor_choices,
                 "optimization_strategy": optimization_strategy,
@@ -1052,6 +1084,11 @@ def _run_iterative_search(
         prior_regime_factor_ranges = (
             dict(regime_factor_ranges)
             if has_regime_factor_ranges(regime_factor_ranges)
+            else None
+        )
+        prior_regime_class_quotas = (
+            dict(regime_class_quotas)
+            if has_regime_class_quotas(regime_class_quotas)
             else None
         )
         prior_factor_ranges = dict(factor_ranges)
@@ -1520,6 +1557,21 @@ def _assemble_candidates_from_records(
         )
         active_regime_resolver = (
             dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
+        )
+        class_resolver = (
+            class_budget_resolver_from_trial_params(
+                params, active_regime_resolver, asset_classes=req.asset_classes
+            )
+            if dynamic_ctx
+            else None
+        )
+        if class_resolver is None and dynamic_ctx:
+            class_resolver = dynamic_ctx.get("class_budget_resolver")
+        sim_kw = apply_class_budget_resolver(
+            sim_kw,
+            prices,
+            class_resolver,
+            asset_classes=req.asset_classes,
         )
         factor_resolver = factor_params_resolver_from_trial_params(
             params,
@@ -2129,6 +2181,9 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             allocator_resolver=(
                 dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
             ),
+            class_budget_resolver=(
+                dynamic_ctx.get("class_budget_resolver") if dynamic_ctx else None
+            ),
             active_regime_resolver=(
                 dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
             ),
@@ -2517,6 +2572,19 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None,
     )
     if dynamic_ctx:
+        champ_class_resolver = class_budget_resolver_from_trial_params(
+            best_params,
+            dynamic_ctx.get("active_regime_resolver"),
+            asset_classes=req.asset_classes,
+        )
+        if champ_class_resolver is None:
+            champ_class_resolver = dynamic_ctx.get("class_budget_resolver")
+        champion_sim_kw = apply_class_budget_resolver(
+            champion_sim_kw,
+            prices,
+            champ_class_resolver,
+            asset_classes=req.asset_classes,
+        )
         champ_factor_resolver = factor_params_resolver_from_trial_params(
             best_params,
             dynamic_ctx.get("active_regime_resolver"),
@@ -2767,6 +2835,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             "regime_mode": dynamic_ctx.get("regime_mode"),
             "fast_risk_off_exit": dynamic_ctx.get("fast_risk_off_exit"),
         }
+        if dynamic_ctx.get("regime_class_quotas"):
+            narrative_facts["regime_class_quotas"] = dynamic_ctx.get("regime_class_quotas")
         narrative_facts["backtest_methodology"] = (
             str(narrative_facts.get("backtest_methodology", ""))
             + " Dynamic objective: regime detector v2 (walk-forward on benchmark) "

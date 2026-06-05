@@ -23,6 +23,13 @@ from app.engine.regime_detection_cache import (
     compute_regime_detection_bundle,
     get_or_compute_regime_bundle,
 )
+from app.engine.asset_class_policy import (
+    build_class_budget_resolver,
+    class_budget_by_regime_from_trial_params,
+    class_budget_from_params,
+    has_regime_class_quotas,
+    normalize_regime_class_quotas,
+)
 from app.engine.regime_policy import (
     REGIME_OBJECTIVE_MAP,
     RegimeSignal,
@@ -455,3 +462,94 @@ def apply_allocator_resolver(
     out["allocator"] = resolver(first_dt)
     out["allocator_resolver"] = resolver
     return out
+
+
+def build_regime_class_budget_resolver(
+    active_regime_resolver: Callable[[pd.Timestamp], RegimeSignal],
+    regime_class_quotas: dict[str, Any],
+    *,
+    shared_setup: dict[str, Any] | None = None,
+    asset_classes: list[str] | None = None,
+) -> Callable[[pd.Timestamp], dict[str, float]] | None:
+    """Per-rebalance class budget from AI regime_class_quotas matrix."""
+    if not has_regime_class_quotas(regime_class_quotas):
+        return None
+    budget_by_regime = normalize_regime_class_quotas(
+        regime_class_quotas,
+        shared_setup=shared_setup,
+        asset_classes=asset_classes,
+    )
+    if not budget_by_regime:
+        return None
+    return build_class_budget_resolver(active_regime_resolver, budget_by_regime)
+
+
+def class_budget_resolver_from_trial_params(
+    params: dict[str, Any],
+    active_regime_resolver: Callable[[pd.Timestamp], RegimeSignal] | None,
+    *,
+    asset_classes: list[str] | None = None,
+) -> Callable[[pd.Timestamp], dict[str, float]] | None:
+    """Match Optuna trial flat keys when report assembly re-runs simulates."""
+    budget_by_regime = class_budget_by_regime_from_trial_params(
+        params, asset_classes=asset_classes
+    )
+    if not budget_by_regime or active_regime_resolver is None:
+        return None
+    return build_class_budget_resolver(active_regime_resolver, budget_by_regime)
+
+
+def refresh_dynamic_class_budget_resolver(
+    dynamic_ctx: dict[str, Any],
+    *,
+    regime_class_quotas: dict[str, Any] | None,
+    shared_round_setup: dict[str, Any] | None = None,
+    asset_classes: list[str] | None = None,
+) -> dict[str, Any]:
+    """Update class_budget_resolver after a Pro round AI seed."""
+    active = dynamic_ctx.get("active_regime_resolver")
+    if active is None or not has_regime_class_quotas(regime_class_quotas):
+        out = dict(dynamic_ctx)
+        out.pop("class_budget_resolver", None)
+        out.pop("regime_class_quotas", None)
+        return out
+    resolver = build_regime_class_budget_resolver(
+        active,
+        regime_class_quotas or {},
+        shared_setup=shared_round_setup,
+        asset_classes=asset_classes,
+    )
+    matrix = normalize_regime_class_quotas(
+        regime_class_quotas,
+        shared_setup=shared_round_setup,
+        asset_classes=asset_classes,
+    )
+    out = dict(dynamic_ctx)
+    out["class_budget_resolver"] = resolver
+    out["regime_class_quotas"] = matrix
+    return out
+
+
+def apply_class_budget_resolver(
+    sim_kw: dict[str, Any],
+    prices: pd.DataFrame,
+    resolver: Callable[[pd.Timestamp], dict[str, float]] | None,
+    *,
+    fallback_params: dict[str, Any] | None = None,
+    asset_classes: list[str] | None = None,
+) -> dict[str, Any]:
+    if resolver is None:
+        return sim_kw
+    first_dt = prices.index[0]
+    out = dict(sim_kw)
+    out["class_budget"] = resolver(first_dt)
+    out["class_budget_resolver"] = resolver
+    return out
+
+
+def default_class_budget_from_setup(
+    setup: dict[str, Any] | None,
+    *,
+    asset_classes: list[str] | None = None,
+) -> dict[str, float]:
+    return class_budget_from_params(setup or {}, asset_classes=asset_classes)

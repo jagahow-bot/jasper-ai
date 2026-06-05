@@ -605,6 +605,7 @@ def _rebalance_schedule_dynamic(
     max_turnover: float | None = None,
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
+    class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
     max_holdings: int | None = None,
@@ -664,6 +665,9 @@ def _rebalance_schedule_dynamic(
         factor_step = (
             factor_params_resolver(dt) if factor_params_resolver else factor_params
         )
+        budget_step = (
+            class_budget_resolver(dt) if class_budget_resolver else class_budget
+        )
         f_lb = int(
             max(
                 factor_step.lookback_days,
@@ -692,7 +696,7 @@ def _rebalance_schedule_dynamic(
                 top_n=sleeve_n,
                 tickers=list(prices.columns),
                 universe_by_ticker=universe_by_ticker,
-                class_budget=class_budget,
+                class_budget=budget_step,
             )
             chosen = _ensure_chosen_respects_cap(
                 scores,
@@ -918,6 +922,7 @@ def _simulate_pandas(
     max_turnover: float | None = None,
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
+    class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
     report_start: str | None = None,
 ) -> dict[str, Any]:
     holdings_top_n = effective_top_n(top_n, spec)
@@ -947,6 +952,7 @@ def _simulate_pandas(
             max_turnover=max_turnover,
             universe_by_ticker=universe_by_ticker,
             class_budget=class_budget,
+            class_budget_resolver=class_budget_resolver,
             report_start=report_start,
         )
     else:
@@ -1053,6 +1059,7 @@ def simulate_dynamic_portfolio(
     max_turnover: float | None = None,
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
+    class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
     report_start: str | None = None,
 ) -> dict[str, Any]:
     w0 = np.ones(len(prices.columns), dtype=float) / max(len(prices.columns), 1)
@@ -1073,6 +1080,7 @@ def simulate_dynamic_portfolio(
         max_turnover=max_turnover,
         universe_by_ticker=universe_by_ticker,
         class_budget=class_budget,
+        class_budget_resolver=class_budget_resolver,
         report_start=report_start,
     )
 

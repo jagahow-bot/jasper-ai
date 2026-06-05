@@ -21,6 +21,7 @@ from app.engine.factors import (
     VALUE_INDICATOR_CHOICES,
 )
 from app.engine.mutable_params import PARAM_DEDUP_KEYS, RUN_LEVEL_FIXED_KEYS
+from app.engine.asset_class_policy import TOP_LEVEL_QUOTA_KEYS
 from app.engine.dynamic_objective import (
     REGIME_ALLOCATOR_KEYS,
     REGIME_KEYS,
@@ -1295,6 +1296,16 @@ _REGIME_FACTOR_RANGES_SCHEMA: dict[str, Any] = {
     "properties": {r: _REGIME_FACTOR_SLICE_SCHEMA for r in REGIME_KEYS},
 }
 
+_REGIME_CLASS_QUOTA_SLICE_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {k: ai_number_schema() for k in TOP_LEVEL_QUOTA_KEYS},
+}
+
+_REGIME_CLASS_QUOTAS_SCHEMA: dict[str, Any] = {
+    "type": "OBJECT",
+    "properties": {r: _REGIME_CLASS_QUOTA_SLICE_SCHEMA for r in REGIME_KEYS},
+}
+
 _FACTOR_RANGE_SCHEMA_PROPS: dict[str, Any] = {
     key: factor_range_array_schema(key) for key in FACTOR_NUMERIC_KEYS
 }
@@ -1345,6 +1356,7 @@ def _round_seed_response_schema(
     }
     if include_regime_matrix:
         properties["regime_setups"] = dict(_REGIME_SETUPS_SCHEMA)
+        properties["regime_class_quotas"] = dict(_REGIME_CLASS_QUOTAS_SCHEMA)
         if include_regime_factor_ranges:
             properties["regime_factor_ranges"] = dict(_REGIME_FACTOR_RANGES_SCHEMA)
     properties["optimization_strategy"] = {"type": "STRING"}
@@ -1666,6 +1678,10 @@ def _build_round_seed_learning_block(learning_context: dict[str, Any]) -> str:
             )
         )
 
+    prev_regime_quotas = learning_context.get("prior_regime_class_quotas")
+    if isinstance(prev_regime_quotas, dict) and prev_regime_quotas:
+        lines.append("PRIOR_REGIME_CLASS_QUOTAS " + _json_compact(prev_regime_quotas))
+
     champ = learning_context.get("champion")
     champ_params = learning_context.get("champion_record_params")
     champ_m = learning_context.get("champion_record_metrics")
@@ -1927,6 +1943,7 @@ def generate_ai_round_seed(
         "round_setup": {},
         "regime_setups": {},
         "regime_factor_ranges": {},
+        "regime_class_quotas": {},
         "factor_ranges": {},
         "factor_choices": {},
         "error": "missing_api_key",
@@ -2009,9 +2026,14 @@ def generate_ai_round_seed(
    risk_off, neutral, risk_on. Each slice uses ONLY: {regime_alloc_keys}.
    Align allocator mode/lookback with regime intent ({regime_objective_hint}).
    Simulation applies the active regime's slice at each rebalance (V2 detector).
-   round_setup still holds shared caps (top_n, max_weight, class weights); do NOT duplicate
-   factor keys inside regime_setups.
-5) regime_factor_ranges (REQUIRED for dynamic objective) — per-regime Optuna bounds for factor
+   round_setup still holds shared caps (top_n, max_weight); do NOT duplicate factor keys
+   inside regime_setups.
+5) regime_class_quotas (REQUIRED for dynamic objective) — per-regime Top-N class sleeve quotas
+   keyed risk_off / neutral / risk_on. Each slice uses ONLY: {", ".join(TOP_LEVEL_QUOTA_KEYS)}.
+   Values in [0,1]; normalize so allowed sleeves sum to 1 per regime. Risk-off may tilt defensive
+   (higher w_bond / w_commodity); risk-on may tilt w_equity. Simulation applies the active
+   regime's quotas at each rebalance (with regime_setups allocator).
+6) regime_factor_ranges (REQUIRED for dynamic objective) — per-regime Optuna bounds for factor
    numerics ({factor_num_keys}), keyed risk_off / neutral / risk_on. Optuna samples
    risk_off__w_mom, neutral__w_mom, etc.; simulation uses the active regime's slice each rebalance.
    {regime_factor_guidance}
@@ -2021,7 +2043,7 @@ def generate_ai_round_seed(
 """
 
     factor_ranges_section = (
-        f"2) regime_factor_ranges — see item 5 above.\n   {regime_factor_guidance}"
+        f"2) regime_factor_ranges — see item 6 above.\n   {regime_factor_guidance}"
         if dynamic_matrix and regime_factor_guidance
         else f"""2) factor_ranges — Optuna sampling bounds for this round (see strategy below).
    Allowed numeric keys: {factor_num_keys}. Each value is [low, high] within global bounds.
@@ -2075,6 +2097,7 @@ Return STRICT JSON only (omit empty factor_choices if none):
 {{"rationale":"...", "optimization_strategy":"...", "performance_assessment":"...",
 "round_setup":{{...}},
 {('"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
+{('"regime_class_quotas":{"risk_off":{"w_equity":0.3,"w_bond":0.5,...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
 {('"regime_factor_ranges":{"risk_off":{"<every numeric key>":[lo,hi],...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix and not split_regime_factors else ("" if dynamic_matrix else f'"factor_ranges":{{"<every numeric key>":[low,high], ...}},'))}
 "factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
 """
@@ -2091,6 +2114,7 @@ Return STRICT JSON only (omit empty factor_choices if none):
             '"round_setup":{...},'
             + (
                 '"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},'
+                '"regime_class_quotas":{"risk_off":{"w_equity":0.3,...},"neutral":{...},"risk_on":{...}},'
                 + (
                     ""
                     if split_regime_factors
@@ -2216,6 +2240,7 @@ Return STRICT JSON only (omit empty factor_choices if none):
                 "round_setup": normalized["round_setup"],
                 "regime_setups": normalized.get("regime_setups") or {},
                 "regime_factor_ranges": normalized.get("regime_factor_ranges") or {},
+                "regime_class_quotas": normalized.get("regime_class_quotas") or {},
                 "factor_ranges": normalized["factor_ranges"],
                 "factor_choices": normalized["factor_choices"],
                 "generation_mode": "pro_round_seed",
@@ -2234,6 +2259,7 @@ Return STRICT JSON only (omit empty factor_choices if none):
         "round_setup": {},
         "regime_setups": {},
         "regime_factor_ranges": {},
+        "regime_class_quotas": {},
         "factor_ranges": {},
         "factor_choices": {},
         "error": last_error or "ai_round_seed_failed",

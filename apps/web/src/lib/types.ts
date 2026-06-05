@@ -246,6 +246,8 @@ export interface ProRoundSnapshot {
   regime_matrix_enabled?: boolean;
   regime_factor_ranges?: Record<string, Record<string, [number, number] | number[]>>;
   regime_factor_matrix_enabled?: boolean;
+  regime_class_quotas?: Record<string, Record<string, number>>;
+  regime_class_quota_matrix_enabled?: boolean;
   factor_ranges?: Record<string, [number, number] | number[]>;
   factor_choices?: Record<string, string>;
   optimization_strategy?: string;

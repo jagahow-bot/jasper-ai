@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.engine.asset_class_policy import ALL_ALLOC_WEIGHT_KEYS
+from app.engine.asset_class_policy import (
+    ALL_ALLOC_WEIGHT_KEYS,
+    CLASS_BUDGET_KEYS,
+    TOP_LEVEL_QUOTA_KEYS,
+    has_regime_class_quotas,
+    normalize_regime_class_quotas,
+    regime_class_quota_param_key,
+)
 from app.engine.param_bounds import (
     RunBlueprint,
     cap_search_high,
@@ -235,6 +242,21 @@ def _normalize_regime_setups_seed(
     return normalize_regime_setups(raw, shared_setup=shared_setup)
 
 
+def _normalize_regime_class_quotas_seed(
+    raw: Any,
+    *,
+    shared_setup: dict[str, Any] | None,
+    asset_classes: list[str] | None = None,
+) -> dict[str, dict[str, float]]:
+    if not isinstance(raw, dict):
+        return {}
+    return normalize_regime_class_quotas(
+        raw,
+        shared_setup=shared_setup,
+        asset_classes=asset_classes,
+    )
+
+
 def complete_factor_ranges(
     factor_ranges: dict[str, Any] | None,
     *,
@@ -288,6 +310,8 @@ def build_pro_round_param_controls(
     factor_choices: dict[str, Any] | None,
     regime_setups: dict[str, Any] | None = None,
     regime_factor_ranges: dict[str, Any] | None = None,
+    regime_class_quotas: dict[str, Any] | None = None,
+    asset_classes: list[str] | None = None,
 ) -> dict[str, dict]:
     """Force setup fixed; factor numerics search within AI ranges; categoricals fixed."""
     controls = normalize_param_controls(base_controls, blueprint)
@@ -298,6 +322,7 @@ def build_pro_round_param_controls(
     regime_factor_active = matrix_active and has_regime_factor_ranges(
         regime_factor_ranges
     )
+    regime_quota_active = matrix_active and has_regime_class_quotas(regime_class_quotas)
     if not regime_factor_active:
         factor_ranges = complete_factor_ranges(
             factor_ranges,
@@ -306,8 +331,12 @@ def build_pro_round_param_controls(
         )
     skip_allocator_keys = matrix_active
 
+    skip_class_quota_keys = regime_quota_active
+
     for key in SETUP_PARAM_KEYS:
         if skip_allocator_keys and key in REGIME_ALLOCATOR_KEYS:
+            continue
+        if skip_class_quota_keys and key in TOP_LEVEL_QUOTA_KEYS:
             continue
         if key in setup and setup[key] is not None:
             fixed = setup[key]
@@ -343,6 +372,21 @@ def build_pro_round_param_controls(
                     }
                 else:
                     controls[key] = {"mode": "fixed", "fixed": val}
+
+    if regime_quota_active:
+        quota_matrix = normalize_regime_class_quotas(
+            regime_class_quotas,
+            shared_setup=setup,
+            asset_classes=asset_classes,
+        )
+        for regime in REGIME_KEYS:
+            budget = quota_matrix.get(regime) or {}
+            for ac, weight in budget.items():
+                keys = CLASS_BUDGET_KEYS.get(ac, ())
+                if not keys:
+                    continue
+                optuna_key = regime_class_quota_param_key(regime, keys[0])
+                controls[optuna_key] = {"mode": "fixed", "fixed": float(weight)}
 
     if regime_factor_active:
         normalized_regime_ranges = _normalize_regime_factor_ranges_seed(
@@ -455,6 +499,10 @@ def summarize_prior_round_seed(
         regime_factor_ranges = _round_regime_factor_ranges_dict(
             seed_dict.get("regime_factor_ranges")
         )
+    regime_class_quotas = _normalize_regime_class_quotas_seed(
+        seed_dict.get("regime_class_quotas"),
+        shared_setup=setup,
+    )
     out: dict[str, Any] = {
         "round_setup": setup,
         "factor_ranges": ranges,
@@ -464,6 +512,8 @@ def summarize_prior_round_seed(
         out["regime_setups"] = regime_setups
     if regime_factor_ranges:
         out["regime_factor_ranges"] = regime_factor_ranges
+    if regime_class_quotas:
+        out["regime_class_quotas"] = regime_class_quotas
     return out
 
 
@@ -484,6 +534,7 @@ def normalize_round_seed(
         "factor_choices": {},
         "regime_setups": {},
         "regime_factor_ranges": {},
+        "regime_class_quotas": {},
     }
     raw_setup = seed.get("round_setup") or {}
     if isinstance(raw_setup, dict):
@@ -537,6 +588,14 @@ def normalize_round_seed(
                         blueprint=blueprint,
                         param_controls=controls,
                     )
+
+    quota_raw = seed.get("regime_class_quotas")
+    if isinstance(quota_raw, dict) and quota_raw:
+        normalized_quotas = _normalize_regime_class_quotas_seed(
+            quota_raw, shared_setup=out["round_setup"]
+        )
+        if normalized_quotas:
+            out["regime_class_quotas"] = normalized_quotas
 
     cleaned = sanitize_for_ai(out)
     return cleaned if isinstance(cleaned, dict) else out

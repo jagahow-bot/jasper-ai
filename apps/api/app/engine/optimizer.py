@@ -15,7 +15,10 @@ import optuna
 import pandas as pd
 
 from app.engine.asset_class_policy import (
+    TOP_LEVEL_QUOTA_KEYS,
     class_budget_from_params,
+    has_regime_class_quotas,
+    regime_class_quota_param_key,
     zero_disallowed_class_params,
 )
 from app.engine.allocator import AllocatorParams
@@ -50,6 +53,7 @@ from app.engine.param_bounds import (
 from app.engine.dynamic_objective import (
     REGIME_KEYS,
     build_regime_factor_params_resolver,
+    class_budget_resolver_from_trial_params,
     has_regime_matrix,
 )
 from app.engine.param_taxonomy import (
@@ -102,6 +106,7 @@ def run_optuna_search(
     round_setup: dict | None = None,
     regime_setups: dict | None = None,
     regime_factor_ranges: dict | None = None,
+    regime_class_quotas: dict | None = None,
     factor_ranges: dict | None = None,
     factor_choices: dict | None = None,
     active_regime_resolver: Callable[[pd.Timestamp], str] | None = None,
@@ -119,6 +124,7 @@ def run_optuna_search(
     asset_classes: list[str] | None = None,
     trial_report_cache: TrialReportCache | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
+    class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
     prices_sim_panel: pd.DataFrame | None = None,
 ) -> list[tuple[float, dict, dict]]:
     records: list[tuple[float, dict, dict]] = []
@@ -145,6 +151,8 @@ def run_optuna_search(
             factor_choices=factor_choices,
             regime_setups=regime_setups,
             regime_factor_ranges=regime_factor_ranges,
+            regime_class_quotas=regime_class_quotas,
+            asset_classes=asset_classes,
         )
     else:
         param_controls = normalize_param_controls(param_controls, blueprint)
@@ -152,6 +160,11 @@ def run_optuna_search(
         pro_round_mode
         and has_regime_matrix(regime_setups)
         and has_regime_factor_ranges(regime_factor_ranges)
+    )
+    regime_quota_active = bool(
+        pro_round_mode
+        and has_regime_matrix(regime_setups)
+        and has_regime_class_quotas(regime_class_quotas)
     )
 
     def _ctl(key: str) -> dict | None:
@@ -463,6 +476,14 @@ def run_optuna_search(
             w_lowvol = _seed_or_suggest_float(trial, seed, "w_lowvol", 0.0, 2.0)
             w_trend = _seed_or_suggest_float(trial, seed, "w_trend", 0.0, 1.5)
             w_drawdown = _seed_or_suggest_float(trial, seed, "w_drawdown", 0.0, 1.5)
+        regime_quota_flat: dict[str, float] = {}
+        if regime_quota_active:
+            for regime in REGIME_KEYS:
+                for quota_key in TOP_LEVEL_QUOTA_KEYS:
+                    optuna_key = regime_class_quota_param_key(regime, quota_key)
+                    regime_quota_flat[optuna_key] = _seed_or_suggest_float(
+                        trial, seed, optuna_key, 0.0, 1.0
+                    )
         w_equity = _seed_or_suggest_float(trial, seed, "w_equity", 0.0, 1.0)
         w_bond = _seed_or_suggest_float(trial, seed, "w_bond", 0.0, 1.0)
         w_commodity = _seed_or_suggest_float(trial, seed, "w_commodity", 0.0, 1.0)
@@ -573,6 +594,18 @@ def run_optuna_search(
         class_budget = class_budget_from_params(
             trial_params_pre, asset_classes=asset_classes
         )
+        trial_class_resolver = class_budget_resolver
+        if regime_quota_active and active_regime_resolver is not None:
+            quota_trial_params = {
+                **trial_params_pre,
+                **regime_quota_flat,
+                "regime_class_quota_matrix": True,
+            }
+            trial_class_resolver = class_budget_resolver_from_trial_params(
+                quota_trial_params,
+                active_regime_resolver,
+                asset_classes=asset_classes,
+            ) or class_budget_resolver
 
         sim_panel = prices_sim_panel if prices_sim_panel is not None else prices_train
         report_train = str(prices_train.index[0].date())
@@ -596,6 +629,7 @@ def run_optuna_search(
             max_turnover=float(max_turnover_actual),
             universe_by_ticker=universe_by_ticker,
             class_budget=class_budget,
+            class_budget_resolver=trial_class_resolver,
             allocator_resolver=allocator_resolver,
             factor_params_resolver=factor_params_resolver,
         )
@@ -664,6 +698,9 @@ def run_optuna_search(
         if regime_factor_flat:
             params.update(regime_factor_flat)
             params["regime_factor_matrix"] = True
+        if regime_quota_flat:
+            params.update(regime_quota_flat)
+            params["regime_class_quota_matrix"] = True
         if bounds_violations:
             params["bounds_violations"] = bounds_violations
         train_m_holdout: dict | None = None

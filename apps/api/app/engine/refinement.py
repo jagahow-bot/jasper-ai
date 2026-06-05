@@ -825,6 +825,7 @@ def build_round_seed_learning_payload(
     prior_round_setup: dict[str, Any] | None = None,
     prior_regime_setups: dict[str, Any] | None = None,
     prior_regime_factor_ranges: dict[str, Any] | None = None,
+    prior_regime_class_quotas: dict[str, Any] | None = None,
     prior_factor_ranges: dict[str, Any] | None = None,
     prior_factor_choices: dict[str, Any] | None = None,
     failed_records: list[dict[str, Any]] | None = None,
@@ -863,6 +864,7 @@ def build_round_seed_learning_payload(
             "round_setup": prior_round_setup or {},
             "regime_setups": prior_regime_setups or {},
             "regime_factor_ranges": prior_regime_factor_ranges or {},
+            "regime_class_quotas": prior_regime_class_quotas or {},
             "factor_ranges": prior_factor_ranges or {},
             "factor_choices": prior_factor_choices or {},
         },
@@ -874,6 +876,8 @@ def build_round_seed_learning_payload(
         ctx["prior_regime_setups"] = prior_seed["regime_setups"]
     if prior_seed.get("regime_factor_ranges"):
         ctx["prior_regime_factor_ranges"] = prior_seed["regime_factor_ranges"]
+    if prior_seed.get("regime_class_quotas"):
+        ctx["prior_regime_class_quotas"] = prior_seed["regime_class_quotas"]
     if prior_seed.get("factor_ranges"):
         ctx["prior_factor_ranges"] = prior_seed["factor_ranges"]
     if prior_seed.get("factor_choices"):

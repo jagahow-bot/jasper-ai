@@ -29,7 +29,12 @@ import {
   SUB_ASSET_PARAM_KEYS,
   type SubAssetClassKey,
 } from "@/lib/constants";
-import { quotaKeysForClasses } from "@/lib/asset-class-policy";
+import {
+  REGIME_QUOTA_KEYS,
+  type RegimeQuotaKey,
+  normalizeRegimeClassQuotas,
+  quotaKeysForClasses,
+} from "@/lib/asset-class-policy";
 import {
   alignDualAxisZeroDomains,
   capDomainMax,
@@ -746,6 +751,37 @@ export function ResultsDashboard({
     [selected],
   );
 
+  const proRefinementForQuotas = result.narrative_facts.pro_refinement as
+    | { per_round?: { regime_class_quotas?: Record<string, Record<string, number>> }[] }
+    | null
+    | undefined;
+
+  const regimeQuotaMatrix = useMemo(() => {
+    const fromFacts = result.narrative_facts.regime_class_quotas as
+      | Record<string, Record<string, number>>
+      | undefined;
+    const perRound = (proRefinementForQuotas?.per_round ?? [])
+      .map((r) => r.regime_class_quotas)
+      .filter(Boolean)
+      .at(-1);
+    return normalizeRegimeClassQuotas(fromFacts ?? perRound ?? null);
+  }, [result.narrative_facts.regime_class_quotas, proRefinementForQuotas]);
+
+  const activeRegimeForQuotas = (
+    (result.narrative_facts.current_regime as { regime?: string } | undefined)?.regime ??
+    (
+      (result.narrative_facts.dynamic_objective_timeline as { regime?: string }[] | undefined)?.at(
+        -1,
+      )?.regime
+    )
+  ) as RegimeQuotaKey | undefined;
+
+  const [quotaRegimeTab, setQuotaRegimeTab] = useState<RegimeQuotaKey>(
+    activeRegimeForQuotas && REGIME_QUOTA_KEYS.includes(activeRegimeForQuotas as RegimeQuotaKey)
+      ? (activeRegimeForQuotas as RegimeQuotaKey)
+      : "neutral",
+  );
+
   if (!selected) return null;
   const top = selected;
   const activeHoldingsCount =
@@ -839,6 +875,8 @@ export function ResultsDashboard({
     ASSET_CLASS_LABELS[key as keyof typeof ASSET_CLASS_LABELS] ??
     paramToSubLabel[key] ??
     key;
+  const activeRegime = activeRegimeForQuotas;
+
   const classQuota = Object.fromEntries(
     quotaKeyList.map((k) => [k, Number(params[k] ?? 0)]),
   );
@@ -847,13 +885,23 @@ export function ResultsDashboard({
     0,
   );
   const targetTopN = Number(params["top_n_actual"] ?? request.top_n);
-  const quotaRows = Object.entries(classQuota).map(([k, v]) => ({
-    cls: quotaLabel(k),
-    target_count: Math.round((quotaSum > 0 ? v / quotaSum : 0) * targetTopN),
-  }));
   const allowedClassSet = assetClassFilter?.length
     ? new Set(assetClassFilter)
     : null;
+  const staticQuotaRows = Object.entries(classQuota).map(([k, v]) => ({
+    cls: quotaLabel(k),
+    target_count: Math.round((quotaSum > 0 ? v / quotaSum : 0) * targetTopN),
+  }));
+  const regimeBudget = regimeQuotaMatrix?.[quotaRegimeTab];
+  const regimeQuotaRows = regimeBudget
+    ? Object.entries(regimeBudget)
+        .filter(([cls]) => !allowedClassSet || allowedClassSet.has(cls))
+        .map(([cls, w]) => ({
+          cls: quotaLabel(cls),
+          target_count: Math.round(Number(w) * targetTopN),
+        }))
+    : staticQuotaRows;
+  const quotaRows = regimeQuotaMatrix ? regimeQuotaRows : staticQuotaRows;
   const exposureByClass =
     top.analytics?.exposure?.by_asset_class &&
     Object.keys(top.analytics.exposure.by_asset_class).length > 0
@@ -1672,9 +1720,32 @@ export function ResultsDashboard({
             sleeves excluded from search and Top-N screening.
           </p>
         ) : null}
+        {regimeQuotaMatrix ? (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {REGIME_QUOTA_KEYS.map((regime) => (
+              <button
+                key={regime}
+                type="button"
+                onClick={() => setQuotaRegimeTab(regime)}
+                className={`px-2 py-1 font-pixel text-[8px] border ${
+                  quotaRegimeTab === regime
+                    ? "border-[var(--cyan)] text-[var(--cyan)]"
+                    : "border-[var(--border)] text-dim"
+                }`}
+              >
+                {regime.replace("_", " ")}
+                {activeRegime === regime ? " · active" : ""}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
-            <p className="mb-2 text-xs text-dim">Target names (from AI params)</p>
+            <p className="mb-2 text-xs text-dim">
+              {regimeQuotaMatrix
+                ? `Target names (${quotaRegimeTab.replace("_", " ")} regime)`
+                : "Target names (from AI params)"}
+            </p>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={quotaRows}>
                 <CartesianGrid stroke="#334155" strokeDasharray="3 3" />

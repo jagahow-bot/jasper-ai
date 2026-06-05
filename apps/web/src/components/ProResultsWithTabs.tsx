@@ -167,6 +167,7 @@ function RoundBenchmarkBanner({
 function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
   const setup = round.round_setup ?? {};
   const regimes = round.regime_setups ?? {};
+  const regimeQuotas = round.regime_class_quotas ?? {};
   const ranges = round.factor_ranges ?? {};
   const choices = round.factor_choices ?? {};
   const setupEntries = Object.entries(setup).filter(([, v]) => v != null);
@@ -213,6 +214,29 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
                     <li key={k}>
                       <span className="text-[var(--fg)]">{formatParamLabel(k)}:</span>{" "}
                       {String(v)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {round.regime_class_quota_matrix_enabled &&
+      Object.keys(regimeQuotas).length > 0 ? (
+        <div className="md:col-span-2">
+          <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">
+            Regime class quotas (Top-N sleeves per regime)
+          </p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {Object.entries(regimeQuotas).map(([regime, slice]) => (
+              <div key={regime} className="border border-[var(--border)] p-2">
+                <p className="mb-1 font-pixel text-[8px] text-[var(--fg)]">{regime}</p>
+                <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
+                  {Object.entries(slice as Record<string, number>).map(([k, v]) => (
+                    <li key={k}>
+                      <span className="text-[var(--fg)]">{formatParamLabel(k)}:</span>{" "}
+                      {(Number(v) * 100).toFixed(1)}%
                     </li>
                   ))}
                 </ul>

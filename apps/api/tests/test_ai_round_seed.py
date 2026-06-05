@@ -54,6 +54,9 @@ def test_round_seed_response_schema_dynamic_full_regime_ranges():
     )
     props = schema["properties"]
     assert props["factor_ranges"]["properties"] == {}
+    assert "regime_class_quotas" in props
+    quota_props = props["regime_class_quotas"]["properties"]
+    assert set(quota_props.keys()) == set(REGIME_KEYS)
     regime_props = props["regime_factor_ranges"]["properties"]
     assert set(regime_props.keys()) == set(REGIME_KEYS)
     for regime in REGIME_KEYS:
