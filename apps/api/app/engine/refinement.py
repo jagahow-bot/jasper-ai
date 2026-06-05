@@ -1080,3 +1080,70 @@ def summarize_params_for_ai(params: dict[str, Any], *, full: bool = False) -> st
         else:
             parts.append(f"{k}={v}")
     return ", ".join(parts) if parts else str(params)[:120]
+
+
+def build_round_champion_ai_payload(
+    pool_records: list[tuple[float, dict, dict]],
+    *,
+    objective_effective: str,
+    round_index: int,
+    incoming_champion_model_code: str | None,
+    benchmark_ticker: str,
+    oos_enabled: bool,
+) -> dict[str, Any]:
+    """Slim per-round trial metrics for post-Optuna AI champion selection."""
+    candidates: list[dict[str, Any]] = []
+    incoming = (
+        str(incoming_champion_model_code).strip().upper()
+        if incoming_champion_model_code
+        else None
+    )
+    for score, params, metrics in records_in_model_code_order(pool_records):
+        code = str(params.get("model_code", "")).strip().upper()
+        if not code:
+            continue
+        assess = metrics.get("overfitting_assessment") or {}
+        role = "incoming_champion" if incoming and code == incoming else "challenger"
+        obj = record_objective_sort_value(objective_effective, score, metrics)
+        row: dict[str, Any] = {
+            "model_code": code,
+            "role": role,
+            "objective_value": round_ai_float(obj),
+        }
+        for metric_key in ("sharpe", "cagr", "max_drawdown"):
+            raw = metrics.get(metric_key)
+            if raw is not None:
+                row[metric_key] = round_ai_float(raw)
+        if oos_enabled:
+            val_sh = metrics.get("validation_sharpe")
+            if val_sh is not None:
+                row["validation_sharpe"] = round_ai_float(val_sh)
+            gap_sh = assess.get("gap_sharpe")
+            if gap_sh is not None:
+                row["gap_sharpe"] = round_ai_float(gap_sh)
+            if assess.get("risk_level") is not None:
+                row["risk_level"] = assess.get("risk_level")
+        candidates.append(row)
+    return {
+        "round": int(round_index),
+        "objective": objective_effective,
+        "benchmark": benchmark_ticker,
+        "oos_enabled": bool(oos_enabled),
+        "incoming_champion_model_code": incoming,
+        "candidates": candidates,
+    }
+
+
+def record_for_model_code(
+    pool_records: list[tuple[float, dict, dict]],
+    model_code: str | None,
+) -> tuple[float, dict, dict] | None:
+    """Find a pool record by catalog model_code (case-insensitive)."""
+    if not model_code:
+        return None
+    target = str(model_code).strip().upper()
+    for rec in pool_records:
+        mc = str(rec[1].get("model_code", "")).strip().upper()
+        if mc == target:
+            return rec
+    return None

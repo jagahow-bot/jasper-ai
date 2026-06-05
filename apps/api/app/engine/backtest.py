@@ -47,7 +47,11 @@ from app.models import (
 from app.profiles import get_universe, get_universe_meta, pin_guaranteed_supplements
 from app.engine.allocator import AllocatorParams
 from app.engine.analytics import build_full_analytics, build_slim_analytics
-from app.engine.ai_params import generate_ai_param_sets, generate_ai_round_seed
+from app.engine.ai_params import (
+    generate_ai_param_sets,
+    generate_ai_round_champion,
+    generate_ai_round_seed,
+)
 from app.engine.factors import FactorParams, factor_params_from_dict
 from app.engine.ai_universe import refine_universe_with_ai
 from app.engine.refinement import (
@@ -58,7 +62,9 @@ from app.engine.refinement import (
     build_round_seed_learning_payload,
     compute_round_benchmark_fields,
     merge_round_seed_budget_fields,
+    build_round_champion_ai_payload,
     build_round_competition_pool,
+    record_for_model_code,
     record_objective_sort_value,
     model_signature as refinement_model_signature,
     model_code_sort_key,
@@ -912,6 +918,49 @@ def _run_iterative_search(
         )
 
         round_best = best_record_in_pool(pool_records, objective_effective)
+        round_winner_model_code: str | None = None
+        if round_best and round_best[1].get("model_code"):
+            round_winner_model_code = str(round_best[1]["model_code"])
+
+        ai_round_champion_code = round_winner_model_code
+        ai_champion_rationale = ""
+        if pool_records:
+            champ_payload = build_round_champion_ai_payload(
+                pool_records,
+                objective_effective=objective_effective,
+                round_index=round_idx + 1,
+                incoming_champion_model_code=round_incoming_model_code,
+                benchmark_ticker=spec.benchmark_ticker,
+                oos_enabled=bool(oos and len(prices_val) > 60),
+            )
+
+            def ai_champion_progress(message: str) -> None:
+                report_progress(
+                    global_trial,
+                    est_trials,
+                    message,
+                    champion_record[2]["sharpe"] if champion_record else None,
+                    round_idx + 1,
+                    max_rounds,
+                    _convergence_preview_payload(convergence_history),
+                )
+
+            ai_champ = generate_ai_round_champion(
+                payload=champ_payload,
+                progress_cb=ai_champion_progress,
+            )
+            picked = ai_champ.get("round_champion_model_code")
+            if picked:
+                ai_round_champion_code = str(picked)
+            if ai_champ.get("rationale"):
+                ai_champion_rationale = str(ai_champ.get("rationale")).strip()
+
+        ai_champion_record = (
+            record_for_model_code(pool_records, ai_round_champion_code)
+            if ai_round_champion_code
+            else None
+        )
+
         if round_best:
             round_best_score, _round_best_params, _round_best_metrics = round_best
             round_best_obj_value = _record_objective_sort_value(
@@ -923,8 +972,11 @@ def _run_iterative_search(
                 else float("-inf")
             )
             round_improved = round_best_obj_value > baseline_score + min_gain
-            champion_score = round_best_obj_value
-            champion_record = round_best
+            carry_record = ai_champion_record or round_best
+            champion_score = _record_objective_sort_value(
+                objective_effective, carry_record[0], carry_record[2]
+            )
+            champion_record = carry_record
             if round_improved:
                 rounds_without_gain = 0
             else:
@@ -961,9 +1013,6 @@ def _run_iterative_search(
         )
         round_winner_params = round_best[1] if round_best else None
         pool_signatures = [_model_signature(r[1]) for r in trial_order_records]
-        round_winner_model_code: str | None = None
-        if round_best and round_best[1].get("model_code"):
-            round_winner_model_code = str(round_best[1]["model_code"])
 
         record_model_codes = [
             str(r[1].get("model_code", ""))
@@ -1010,7 +1059,9 @@ def _run_iterative_search(
         if trial_report_cache is not None and retired_model_codes:
             trial_report_cache.drop_model_codes(retired_model_codes)
             maybe_collect_garbage(1, round_idx + 1)
-        if round_winner_model_code:
+        if ai_round_champion_code:
+            carry_champion_model_code = ai_round_champion_code
+        elif round_winner_model_code:
             carry_champion_model_code = round_winner_model_code
         elif round_incoming_model_code:
             carry_champion_model_code = round_incoming_model_code
@@ -1068,6 +1119,8 @@ def _run_iterative_search(
                 "pool_model_codes": pool_model_codes,
                 "incoming_champion_model_code": round_incoming_model_code,
                 "round_winner_model_code": round_winner_model_code,
+                "ai_champion_model_code": ai_round_champion_code,
+                "ai_champion_rationale": ai_champion_rationale,
                 "round_challenger_model_codes": round_challenger_model_codes,
                 "incoming_champion_score": (
                     round(float(incoming_champion_score), 6)
@@ -1137,12 +1190,19 @@ def _run_iterative_search(
 
     # all_records already in chronological Optuna trial order across rounds.
     rounds_done = len(per_round)
+    final_ai_champion_code: str | None = None
+    for pr in per_round:
+        code = pr.get("ai_champion_model_code")
+        if code:
+            final_ai_champion_code = str(code)
     meta = {
         "rounds_completed": rounds_done,
         "trials_total": global_trial,
         "final_champion_params": (
             champion_record[1] if champion_record is not None else None
         ),
+        "ai_champion_model_code": final_ai_champion_code,
+        "champion_model_code": final_ai_champion_code,
         "champion_adjusted_score": champion_score if champion_record else None,
         "stopped_reason": (
             "patience"
@@ -2252,11 +2312,15 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
 
     final_champion_code: str | None = None
     if pro_mode:
-        final_champion_params = refinement_meta.get("final_champion_params")
-        if isinstance(final_champion_params, dict):
-            mc = final_champion_params.get("model_code")
-            if mc:
-                final_champion_code = str(mc)
+        ai_code = refinement_meta.get("ai_champion_model_code")
+        if ai_code:
+            final_champion_code = str(ai_code)
+        if not final_champion_code:
+            final_champion_params = refinement_meta.get("final_champion_params")
+            if isinstance(final_champion_params, dict):
+                mc = final_champion_params.get("model_code")
+                if mc:
+                    final_champion_code = str(mc)
     records_for_report = top_records_for_report(
         list(records),
         objective_effective,
@@ -2296,19 +2360,26 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     for c in candidates:
         c.is_champion = False
     if pro_mode:
-        final_champion_params = refinement_meta.get("final_champion_params")
-        if isinstance(final_champion_params, dict):
-            champ_sig = _model_signature(final_champion_params)
+        champ_code = final_champion_code
+        if champ_code:
             for c in candidates:
-                if _model_signature(c.params or {}) == champ_sig:
+                if c.model_code == champ_code:
                     c.is_champion = True
                     break
-            if not any(c.is_champion for c in candidates):
-                champ_code = str(final_champion_params.get("model_code", ""))
+        if not any(c.is_champion for c in candidates):
+            final_champion_params = refinement_meta.get("final_champion_params")
+            if isinstance(final_champion_params, dict):
+                champ_sig = _model_signature(final_champion_params)
                 for c in candidates:
-                    if champ_code and c.model_code == champ_code:
+                    if _model_signature(c.params or {}) == champ_sig:
                         c.is_champion = True
                         break
+                if not any(c.is_champion for c in candidates):
+                    fallback_code = str(final_champion_params.get("model_code", ""))
+                    for c in candidates:
+                        if fallback_code and c.model_code == fallback_code:
+                            c.is_champion = True
+                            break
     else:
         for c in candidates:
             if c.rank == 1:
@@ -2379,11 +2450,13 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 f"top {pr_top_n} of {pr_feasible} pool models "
                 f"(using search cache when available)…"
             )
-            round_winner_code_pre = pr.get("round_winner_model_code")
+            round_champion_code_pre = (
+                pr.get("ai_champion_model_code") or pr.get("round_winner_model_code")
+            )
             pr_full_codes = _champion_model_codes_from_records(
                 display_records,
                 explicit_code=(
-                    str(round_winner_code_pre) if round_winner_code_pre else None
+                    str(round_champion_code_pre) if round_champion_code_pre else None
                 ),
             )
             pr_candidates = _assemble_candidates_from_records(
@@ -2431,6 +2504,18 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 pool_model_codes = sorted(cand_codes)
             winner_params = pr.get("round_winner_params")
             incoming_params = pr.get("incoming_champion_params")
+            ai_champion_code = pr.get("ai_champion_model_code")
+            champion_params = winner_params
+            if ai_champion_code:
+                for _s, p, _m in display_records:
+                    if str(p.get("model_code", "")) == str(ai_champion_code):
+                        champion_params = p
+                        break
+            champion_sig = (
+                _model_signature(champion_params)
+                if isinstance(champion_params, dict)
+                else None
+            )
             winner_sig = (
                 _model_signature(winner_params)
                 if isinstance(winner_params, dict)
@@ -2450,7 +2535,13 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 c.is_champion = False
             for c in pr_candidates:
                 sig = _model_signature(c.params or {})
-                if winner_sig and sig == winner_sig:
+                if champion_sig and sig == champion_sig:
+                    c.is_champion = True
+                elif (
+                    not champion_sig
+                    and winner_sig
+                    and sig == winner_sig
+                ):
                     c.is_champion = True
                 role = "challenger"
                 if incoming_sig and sig == incoming_sig:
@@ -2625,12 +2716,21 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
 
     best = _best_candidate(candidates) or candidates[0]
     champion_model_code = best.model_code if best else None
+    ai_champion_model_code: str | None = None
     if pro_mode:
-        final_champion_params = refinement_meta.get("final_champion_params")
-        if isinstance(final_champion_params, dict):
-            pro_code = final_champion_params.get("model_code")
-            if pro_code:
-                champion_model_code = str(pro_code)
+        ai_pick = refinement_meta.get("ai_champion_model_code")
+        if ai_pick:
+            ai_champion_model_code = str(ai_pick)
+            champion_model_code = ai_champion_model_code
+        elif refinement_meta.get("final_champion_params"):
+            final_champion_params = refinement_meta.get("final_champion_params")
+            if isinstance(final_champion_params, dict):
+                pro_code = final_champion_params.get("model_code")
+                if pro_code:
+                    champion_model_code = str(pro_code)
+                    ai_champion_model_code = champion_model_code
+    else:
+        ai_champion_model_code = champion_model_code
     portfolio_catalog = all_record_catalog
     bench = benchmark_metrics(prices, spec.benchmark_ticker, spec)
 
@@ -2687,6 +2787,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "top_models_requested": req.top_models,
         "trials_completed": trials_completed,
         "champion_model_code": champion_model_code,
+        "ai_champion_model_code": ai_champion_model_code,
         "pro_refinement": (
             {
                 **{k: v for k, v in refinement_meta.items() if k != "per_round"},

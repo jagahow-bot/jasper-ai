@@ -2511,3 +2511,110 @@ Return STRICT JSON only (omit empty factor_choices if none):
         "error": last_error or "ai_round_seed_failed",
     }
 
+
+def _round_champion_fallback_code(payload: dict[str, Any]) -> str | None:
+    candidates = payload.get("candidates") or []
+    if not candidates:
+        return None
+    best = max(
+        candidates,
+        key=lambda c: float(c.get("objective_value") if c.get("objective_value") is not None else -1e9),
+    )
+    code = str(best.get("model_code", "")).strip().upper()
+    return code or None
+
+
+def generate_ai_round_champion(
+    *,
+    payload: dict[str, Any],
+    progress_cb: Callable[[str], None] | None = None,
+) -> dict[str, Any]:
+    """One Gemini call after each Pro Optuna round: pick deployable round champion."""
+    model = settings.gemini_model
+    fallback = _round_champion_fallback_code(payload)
+    empty: dict[str, Any] = {
+        "enabled": False,
+        "model": model,
+        "round_champion_model_code": fallback,
+        "rationale": "",
+        "error": "missing_api_key",
+    }
+    key = settings.gemini_api_key
+    if not key:
+        return empty
+
+    candidates = payload.get("candidates") or []
+    allowed = {
+        str(c.get("model_code", "")).strip().upper()
+        for c in candidates
+        if c.get("model_code")
+    }
+    if not allowed:
+        empty["error"] = "no_candidates"
+        empty["round_champion_model_code"] = None
+        return empty
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+    round_no = payload.get("round", "?")
+    if progress_cb:
+        progress_cb(f"Round {round_no}: AI selecting round champion…")
+
+    prompt = f"""Institutional quant analyst. English or 中文.
+After this Pro Optuna round, pick the best deployable champion from the trial pool.
+When oos_enabled is true, weigh validation_sharpe and gap_sharpe — not in-sample objective alone.
+Return STRICT JSON only:
+{{"round_champion_model_code":"Mxxxx","rationale":"1-2 sentences"}}
+round_champion_model_code MUST be one of: {sorted(allowed)}
+Payload:
+{dumps_for_ai(payload)}"""
+
+    thinking_config = _thinking_config_for_round_seed(model=model)
+    generation_config: dict[str, Any] = {
+        "temperature": 0.0,
+        "maxOutputTokens": 512,
+        "responseMimeType": "application/json",
+        "responseSchema": {
+            "type": "OBJECT",
+            "properties": {
+                "round_champion_model_code": {"type": "STRING"},
+                "rationale": {"type": "STRING"},
+            },
+            "required": ["round_champion_model_code", "rationale"],
+        },
+    }
+    try:
+        _finish, text = _gemini_round_seed_post(
+            url=url,
+            req_prompt=prompt,
+            generation_config=generation_config,
+            model=model,
+            thinking_config=thinking_config,
+        )
+        parsed = _extract_json(text) or {}
+        code = str(parsed.get("round_champion_model_code", "")).strip().upper()
+        rationale = str(parsed.get("rationale", "")).strip()
+        if code in allowed:
+            return {
+                "enabled": True,
+                "model": model,
+                "round_champion_model_code": code,
+                "rationale": rationale,
+                "error": None,
+            }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "enabled": False,
+            "model": model,
+            "round_champion_model_code": fallback,
+            "rationale": "",
+            "error": str(exc),
+        }
+
+    return {
+        "enabled": False,
+        "model": model,
+        "round_champion_model_code": fallback,
+        "rationale": "",
+        "error": "parse_failed",
+    }
+

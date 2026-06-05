@@ -102,7 +102,7 @@ describe("performance-compare-chart", () => {
     expect(rows.find((r) => r.model_code === "M0001")?.isSelected).toBe(false);
   });
 
-  it("prefers ai_recommended_model_code over champion_model_code", () => {
+  it("prefers ai_champion_model_code over champion_model_code", () => {
     const candidates = [
       { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: true },
       { model_code: "M0009", rank: 9, sharpe: 1.2, is_champion: false },
@@ -110,7 +110,7 @@ describe("performance-compare-chart", () => {
     expect(
       resolveChampionModelKey(candidates, {
         champion_model_code: "M0001",
-        ai_recommended_model_code: "M0009",
+        ai_champion_model_code: "M0009",
       }),
     ).toBe("M0009");
   });
@@ -125,18 +125,18 @@ describe("performance-compare-chart", () => {
     ).toBe("M0009");
   });
 
-  it("resolveChampionCandidateIndex prefers AI over is_champion", () => {
+  it("resolveChampionCandidateIndex prefers ai_champion over is_champion", () => {
     const candidates = [
       { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: false },
       { model_code: "M0007", rank: 7, sharpe: 1.2, is_champion: true },
     ];
     expect(
       resolveChampionCandidateIndex(candidates, {
-        ai_recommended_model_code: "M0001",
+        ai_champion_model_code: "M0001",
       }),
     ).toBe(0);
     expect(resolveDefaultSelectedRowKey(candidates, {
-      ai_recommended_model_code: "M0001",
+      ai_champion_model_code: "M0001",
     })).toBe("M0001-r1-i0");
   });
 

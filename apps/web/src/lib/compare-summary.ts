@@ -285,13 +285,10 @@ ${AI_METRIC_FORMAT_RULES}
 - When horizons.in_sample / out_of_sample / full_sample are present, compare all three (ttl = full_sample) for risk and overfitting — not in-sample alone.
 - Root sharpe/cagr are selection-view metrics; use horizons.full_sample for full-period performance.
 - candidates are sorted by objective rank (best first); rank is the score order, not catalog model number.
-- pro_in_sample_champion (if present) is the Pro in-sample ★ pick for reference only — NOT your recommendation.
-- Your job: pick the best deployable model and set recommended_model_code. Open the summary with that model and why you recommend it.
-- Do NOT open by critiquing pro_in_sample_champion or the first candidate in the list. Do not use phrasing like "the select professional in-sample model (Mxxxx)".
-- Mention pro_in_sample_champion only briefly when it differs from your pick; never make it the narrative lead.
-- Do not call any model a "designated Pro champion"; use neutral phrasing.
-- Return ONLY valid JSON (no markdown): {"recommended_model_code":"Mxxxx","summary":"2-3 paragraphs of prose, no bullets or metric dumps"}
-- recommended_model_code MUST be one of the candidate model_code values in the payload.
+- pro_in_sample_champion (if present) is the API-designated champion (★) — reference it; do NOT override or re-pick a champion.
+- Write narrative comparison prose only; do NOT select or recommend a different champion model.
+- Open with a balanced cross-trial overview; mention pro_in_sample_champion when relevant.
+- Return ONLY valid JSON (no markdown): {"summary":"2-3 paragraphs of prose, no bullets or metric dumps"}
 No invented numbers.`;
 }
 
@@ -304,7 +301,7 @@ export function buildCompareUserPrompt(slim: CompareSummaryPayload): string {
   return (
     `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
     `${slim.candidate_count_total ?? slim.candidates.length} trials by objective rank. ` +
-    `Recommend one model; open summary with your pick and rationale. ` +
+    `Narrative comparison only — champion is already chosen server-side. ` +
     `${proNote} ` +
     `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`
   );

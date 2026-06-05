@@ -126,14 +126,14 @@ export function candidateModelKey(c: { model_code?: string | null; rank?: number
   return normalizeModelCode(c, 0);
 }
 
-/** Champion model_code for ★ marking; AI compare pick > API champion_model_code > is_champion. */
+/** Champion model_code for ★ marking; API ai_champion_model_code > champion_model_code > is_champion. */
 export function resolveChampionModelKey(
   candidates: PerformanceCompareCandidate[],
   narrativeFacts?: Record<string, unknown> | null,
 ): string | null {
-  const aiPick = narrativeFacts?.ai_recommended_model_code;
-  if (typeof aiPick === "string" && aiPick.trim()) {
-    const code = aiPick.trim().toUpperCase();
+  const aiChampion = narrativeFacts?.ai_champion_model_code;
+  if (typeof aiChampion === "string" && aiChampion.trim()) {
+    const code = aiChampion.trim().toUpperCase();
     const match = candidates.find((c) => candidateModelKey(c) === code);
     if (match) return candidateModelKey(match);
     return code;
@@ -192,9 +192,7 @@ export function resolveChampionCandidateIndex(
 export function readPersistedAiChampionCode(
   narrativeFacts?: Record<string, unknown> | null,
 ): string | null {
-  const raw =
-    narrativeFacts?.ai_recommended_model_code ??
-    narrativeFacts?.ai_champion_model_code;
+  const raw = narrativeFacts?.ai_champion_model_code;
   if (typeof raw !== "string" || !raw.trim()) return null;
   return raw.trim().toUpperCase();
 }

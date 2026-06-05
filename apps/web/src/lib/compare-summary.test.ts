@@ -121,7 +121,7 @@ M0010 Sharpe:
     expect(slim.candidates[0]?.is_champion).toBeUndefined();
   });
 
-  it("compare prompts lead with AI recommendation not Pro in-sample champion", () => {
+  it("compare prompts are narrative-only and reference server champion", () => {
     const slim = slimComparePayload({
       benchmark: "VT",
       objective_label: "Dynamic",
@@ -134,15 +134,9 @@ M0010 Sharpe:
     const system = buildCompareSystemPrompt();
     const user = buildCompareUserPrompt(slim);
 
-    expect(system).toContain("Open the summary with that model");
-    expect(system).toContain("Do NOT open by critiquing pro_in_sample_champion");
-    expect(system).toContain(
-      'Do not use phrasing like "the select professional in-sample model (Mxxxx)"',
-    );
-
-    expect(user.indexOf("Recommend one model")).toBeLessThan(
-      user.indexOf("Pro in-sample"),
-    );
+    expect(system).toContain("do NOT select or recommend a different champion");
+    expect(system).not.toContain("recommended_model_code");
+    expect(user).toContain("Narrative comparison only");
     expect(user).toContain("do not open with this");
     const payload = JSON.parse(user.slice(user.indexOf("{"))) as {
       candidates: { model_code: string }[];
