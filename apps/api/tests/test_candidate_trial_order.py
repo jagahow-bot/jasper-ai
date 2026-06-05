@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.engine.backtest import _rerank_candidates_by_objective
+from app.engine.refinement import top_records_for_report
 from app.models import PortfolioCandidate
 
 
@@ -32,3 +33,14 @@ def test_rerank_assigns_objective_ranks_without_reordering():
     out = _rerank_candidates_by_objective(candidates, "max_sharpe")
     assert [c.model_code for c in out] == ["M0001", "M0002", "M0003"]
     assert [c.rank for c in out] == [3, 1, 2]
+
+
+def test_top_records_for_report_keeps_trial_order_not_objective_order():
+    records = [
+        (0.50, {"optuna_trial_number": 2, "model_code": "M0003"}, {"objective_value_is": 0.50}),
+        (0.95, {"optuna_trial_number": 0, "model_code": "M0001"}, {"objective_value_is": 0.95}),
+        (0.60, {"optuna_trial_number": 1, "model_code": "M0002"}, {"objective_value_is": 0.60}),
+        (0.40, {"optuna_trial_number": 3, "model_code": "M0004"}, {"objective_value_is": 0.40}),
+    ]
+    out = top_records_for_report(records, "max_sharpe", top_n_models=3)
+    assert [r[1]["model_code"] for r in out] == ["M0001", "M0002", "M0003"]

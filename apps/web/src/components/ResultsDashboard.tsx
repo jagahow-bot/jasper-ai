@@ -517,7 +517,7 @@ export function ResultsDashboard({
     equity,
   ]);
 
-  const preserveTrialOrder = Boolean(result.narrative_facts.is_round_view);
+  const preserveTrialOrder = true;
 
   const modelSelectOptions = useMemo(() => {
     const indexed = result.candidates.map((c, i) => ({ c, i }));
@@ -614,6 +614,10 @@ export function ResultsDashboard({
 
   if (!selected) return null;
   const top = selected;
+  const activeHoldingsCount =
+    weightCapAudit?.active_holdings != null
+      ? Number(weightCapAudit.active_holdings)
+      : Object.values(top.weights ?? {}).filter((w) => Number(w) > 0.0001).length;
   const donut = Object.entries(top.weights ?? {})
     .filter(([, w]) => w > 0.01)
     .map(([name, value]) => ({ name, value }));
@@ -1021,10 +1025,12 @@ export function ResultsDashboard({
         )}
         <p className="mt-3 text-xs text-dim">
           engine {String(result.narrative_facts.engine ?? "—")} · holdings{" "}
-          {String(result.narrative_facts.top_holdings_count ?? Object.keys(top.weights).length)}
+          {String(
+            result.narrative_facts.top_holdings_count ?? activeHoldingsCount,
+          )}
           (cap{" "}
           {String(result.narrative_facts.max_holdings_constraint ?? request.max_holdings ?? "—")}
-          )
+          ; weight chart may list more tickers across rebalances)
           · max weight{" "}
           {(Math.max(...Object.values(top.weights)) * 100).toFixed(1)}% (run cap{" "}
           {(Number(result.narrative_facts.max_weight_constraint ?? 0) * 100).toFixed(0)}% ·

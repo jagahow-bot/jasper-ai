@@ -1,3 +1,4 @@
+import { compareModelCode } from "./align-y-axis-zero";
 import { formatPctDecimal } from "./ai-metric-format";
 import { candidateModelKey } from "./performance-compare-chart";
 
@@ -250,7 +251,19 @@ function slimCandidate(
   };
 }
 
-/** Pro/final ★ champion for compare narrative (AI pick > explicit code > is_champion). */
+/** Sort candidates in Optuna trial order (M0001, M0002, …). */
+export function sortCandidatesByTrialOrder(
+  candidates: CompareCandidateLite[],
+): CompareCandidateLite[] {
+  return [...candidates].sort((a, b) =>
+    compareModelCode(
+      candidateModelKey(a) || `M?${a.rank ?? 0}`,
+      candidateModelKey(b) || `M?${b.rank ?? 0}`,
+    ),
+  );
+}
+
+/** AI recommendation for compare (AI pick > explicit code > is_champion > first trial). */
 export function resolveCompareChampion(
   candidates: CompareCandidateLite[],
   championModelCode?: string | null,
@@ -279,30 +292,14 @@ export function slimComparePayload(
   options?: SlimComparePayloadOptions,
 ): CompareSummaryPayload {
   const horizonMode = options?.horizonMode ?? "all";
-  const sorted = [...payload.candidates].sort(
-    (a, b) => (a.rank ?? 999) - (b.rank ?? 999),
-  );
-  const champ = resolveCompareChampion(
-    sorted,
-    payload.champion_model_code,
-    payload.ai_recommended_model_code,
-  );
-  const champKey = champ ? candidateModelKey(champ) : null;
-  const ordered = champKey
-    ? [
-        champ!,
-        ...sorted.filter((c) => candidateModelKey(c) !== champKey),
-      ]
-    : sorted;
+  const sorted = sortCandidatesByTrialOrder(payload.candidates);
   return {
     benchmark: payload.benchmark,
     objective: payload.objective,
     objective_label: payload.objective_label,
-    champion_model_code:
-      payload.champion_model_code ??
-      (champ?.model_code ? candidateModelKey(champ) : null),
+    champion_model_code: payload.champion_model_code ?? null,
     candidate_count_total: sorted.length,
-    candidates: ordered
+    candidates: sorted
       .slice(0, maxCandidates)
       .map((c) => slimCandidate(c, horizonMode)),
   };
@@ -339,52 +336,61 @@ function horizonLine(code: string, label: string, h?: HorizonSnap): string {
 }
 
 export function buildCompareFallback(payload: CompareSummaryPayload): string {
-  const sorted = [...payload.candidates].sort(
-    (a, b) => (a.rank ?? 999) - (b.rank ?? 999),
-  );
-  const champ = resolveCompareChampion(
+  const sorted = sortCandidatesByTrialOrder(payload.candidates);
+  if (!sorted.length) return "No models to compare.";
+  const obj = payload.objective_label ?? payload.objective ?? "n/a";
+  const total = payload.candidate_count_total ?? sorted.length;
+  const proStar = sorted.find((c) => c.is_champion === true);
+  const proCode = payload.champion_model_code?.trim().toUpperCase()
+    ?? (proStar ? candidateModelKey(proStar) : null);
+  const focus = resolveCompareChampion(
     sorted,
     payload.champion_model_code,
     payload.ai_recommended_model_code,
-  );
-  if (!champ) return "No models to compare.";
-  const champCode = champ.model_code ?? "M?";
-  const obj = payload.objective_label ?? payload.objective ?? "n/a";
-  const total = payload.candidate_count_total ?? sorted.length;
+  ) ?? sorted[0];
+  const focusCode = focus.model_code ?? "M?";
 
   const p1 = [
-    `Across ${total} models vs ${payload.benchmark} (${obj}), ${champCode} is the Pro champion (★) on the selection objective.`,
-    `Selection view: CAGR ${formatPctDecimal(champ.cagr)}, Sharpe ${champ.sharpe ?? "—"}, ` +
-      `max drawdown ${formatPctDecimal(champ.max_drawdown)}, turnover ${formatPctDecimal(champ.turnover_avg)}.`,
+    `Across ${total} Optuna trials vs ${payload.benchmark} (${obj}), models are listed in trial order (M0001 = first trial).`,
+    `${focusCode} — CAGR ${formatPctDecimal(focus.cagr)}, Sharpe ${focus.sharpe ?? "—"}, ` +
+      `max drawdown ${formatPctDecimal(focus.max_drawdown)}, turnover ${formatPctDecimal(focus.turnover_avg)}.`,
   ].join(" ");
 
-  const full = champ.horizons?.full_sample;
-  const oos = champ.horizons?.out_of_sample;
+  const full = focus.horizons?.full_sample;
+  const oos = focus.horizons?.out_of_sample;
   const p2Parts: string[] = [];
   if (full) {
-    p2Parts.push(horizonLine(champCode, "full sample", full));
+    p2Parts.push(horizonLine(focusCode, "full sample", full));
   }
-  if (oos && champ.validation_sharpe != null) {
+  if (oos && focus.validation_sharpe != null) {
     p2Parts.push(
-      `Holdout validation Sharpe ${champ.validation_sharpe}; ` +
-        horizonLine(champCode, "out-of-sample", oos),
+      `Holdout validation Sharpe ${focus.validation_sharpe}; ` +
+        horizonLine(focusCode, "out-of-sample", oos),
     );
   }
+  if (proCode && proCode !== candidateModelKey(focus)) {
+    const pro = sorted.find((c) => candidateModelKey(c) === proCode);
+    if (pro) {
+      p2Parts.push(
+        `Pro in-sample selection (★) is ${proCode} (objective rank ${pro.rank ?? "—"}).`,
+      );
+    }
+  }
   const peers = sorted.filter(
-    (c) => candidateModelKey(c) !== candidateModelKey(champ),
+    (c) => candidateModelKey(c) !== candidateModelKey(focus),
   );
   const runner = peers[0];
   const p2 =
     p2Parts.length > 0
       ? p2Parts.join(" ")
       : runner
-        ? `Next ranked ${runner.model_code ?? "M?"}: Sharpe ${runner.sharpe ?? "—"}, CAGR ${formatPctDecimal(runner.cagr)}.`
+        ? `Next trial ${runner.model_code ?? "M?"}: Sharpe ${runner.sharpe ?? "—"}, CAGR ${formatPctDecimal(runner.cagr)}.`
         : "";
 
   const others = peers.slice(0, 3);
   const p3 =
     others.length > 0
-      ? `Peers to watch: ${others
+      ? `Other trials: ${others
           .map(
             (c) =>
               `${c.model_code ?? "M?"} (Sharpe ${c.sharpe ?? "—"}, CAGR ${formatPctDecimal(c.cagr)})`,

@@ -351,6 +351,32 @@ def is_feasible(w: np.ndarray, max_weight: float, min_names: int) -> bool:
 
 
 
+def apply_max_holdings(
+    w: np.ndarray,
+    max_holdings: int | None,
+    *,
+    max_weight: float | None = None,
+) -> np.ndarray:
+    """Keep at most max_holdings positive weights; zero the rest and renormalize."""
+    if max_holdings is None or int(max_holdings) <= 0:
+        return np.asarray(w, dtype=float).copy()
+    cap = int(max_holdings)
+    w = np.asarray(w, dtype=float).copy()
+    w = np.maximum(w, 0.0)
+    active = np.where(w > WEIGHT_EPS)[0]
+    if len(active) <= cap:
+        return w
+    keep_idx = active[np.argsort(w[active])[::-1][:cap]]
+    out = np.zeros_like(w)
+    out[keep_idx] = w[keep_idx]
+    s = float(out.sum())
+    if s > 1e-12:
+        out /= s
+    if max_weight is not None and float(max_weight) < 1.0 - 1e-12:
+        out = project_max_weight(out, float(max_weight))
+    return out
+
+
 def apply_min_holding_weight(
     w: np.ndarray,
     min_weight: float,

@@ -338,16 +338,18 @@ def test_signature_ignores_bounds_violations_and_model_code():
 
 
 def test_assign_search_model_codes_once_and_immutable():
-    """Standard Optuna path assigns sequential codes; existing codes are preserved."""
+    """Standard Optuna path assigns codes from trial number; existing codes are preserved."""
     trials = [_rec(1, 0.9), _rec(2, 0.8), _rec(3, 0.7)]
+    trials[0][1]["optuna_trial_number"] = 0
     trials[1][1]["model_code"] = "M0042"
+    trials[2][1]["optuna_trial_number"] = 2
     assign_search_model_codes(trials, next_model_no=[1])
     assert trials[0][1]["model_code"] == "M0001"
     assert trials[1][1]["model_code"] == "M0042"
-    assert trials[2][1]["model_code"] == "M0002"
+    assert trials[2][1]["model_code"] == "M0003"
     assign_search_model_codes(trials, next_model_no=[99])
     assert trials[0][1]["model_code"] == "M0001"
-    assert trials[2][1]["model_code"] == "M0002"
+    assert trials[2][1]["model_code"] == "M0003"
 
 
 def test_round2_loser_m0007_not_in_round3_allowlist():

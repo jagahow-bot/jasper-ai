@@ -55,12 +55,40 @@ def params_for_champion_seed(params: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in params.items() if k not in skip}
 
 
+def _optuna_trial_sort_key(params: dict) -> tuple[int, int]:
+    try:
+        return (int(params.get("optuna_trial_number", 10**9)), 0)
+    except (TypeError, ValueError):
+        return (10**9, id(params))
+
+
+def records_in_optuna_trial_order(
+    records: list[tuple[float, dict, dict]],
+) -> list[tuple[float, dict, dict]]:
+    """Stable Optuna trial order (trial number, not completion or objective)."""
+    return sorted(records, key=lambda r: _optuna_trial_sort_key(r[1]))
+
+
+def top_records_for_report(
+    records: list[tuple[float, dict, dict]],
+    objective_effective: str,
+    top_n_models: int,
+) -> list[tuple[float, dict, dict]]:
+    """Pick top-N by objective, return in Optuna trial order for display."""
+    ranked = sorted(
+        records,
+        key=lambda r: record_objective_sort_value(objective_effective, r[0], r[2]),
+        reverse=True,
+    )[:top_n_models]
+    return records_in_optuna_trial_order(ranked)
+
+
 def assign_search_model_codes(
     records: list[tuple[float, dict, dict]],
     *,
     next_model_no: list[int],
 ) -> None:
-    """Assign sequential model_code to each search trial (standard Optuna path).
+    """Assign model_code from Optuna trial number (M0001 = trial 0).
 
     model_code is immutable after search assignment; the report phase must only read
     params["model_code"] and must not re-encode via signature maps.
@@ -68,6 +96,12 @@ def assign_search_model_codes(
     for _score, params, _metrics in records:
         if params.get("model_code"):
             continue
+        try:
+            trial_no = int(params["optuna_trial_number"])
+            params["model_code"] = f"M{trial_no + 1:04d}"
+            continue
+        except (KeyError, TypeError, ValueError):
+            pass
         code = f"M{next_model_no[0]:04d}"
         next_model_no[0] += 1
         params["model_code"] = code

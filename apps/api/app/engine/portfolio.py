@@ -11,6 +11,7 @@ import pandas as pd
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC, effective_top_n
 from app.engine.allocator import AllocatorParams, solve_weights
 from app.engine.weights import (
+    apply_max_holdings,
     apply_min_holding_weight,
     audit_weight_cap,
     max_weight_violation_amount,
@@ -84,7 +85,7 @@ def select_weight_chart_tickers(
     Seed with per-date top holdings (cumulative weight until 1 - OTHER_MAX), then greedily add
     the candidate that most reduces the worst-date Other until the cap is met.
     """
-    del top_n  # retained for API compatibility; no hard sleeve-count cap
+    del top_n  # chart picks for Other≤10%; not the run max_holdings cap
 
     candidates: set[str] = set()
     keep_set: set[str] = set()
@@ -602,6 +603,11 @@ def _rebalance_schedule_dynamic(
                 max_turnover=max_turnover,
             )
             w = apply_min_holding_weight(w, min_weight, max_weight=max_weight)
+            w = apply_max_holdings(
+                w,
+                max_holdings,
+                max_weight=max_weight,
+            )
             row_audit = audit_weight_cap(
                 w,
                 max_weight,

@@ -104,15 +104,16 @@ M0010 Sharpe:
     ).toBe("M0001");
   });
 
-  it("slimComparePayload puts champion first", () => {
+  it("slimComparePayload keeps Optuna trial order", () => {
     const slim = slimComparePayload({
       benchmark: "VT",
+      champion_model_code: "M0009",
       candidates: [
-        { model_code: "M0001", rank: 1, sharpe: 1.5, is_champion: false },
-        { model_code: "M0009", rank: 9, sharpe: 1.2, is_champion: true },
+        { model_code: "M0009", rank: 1, sharpe: 1.5, is_champion: true },
+        { model_code: "M0001", rank: 9, sharpe: 1.2, is_champion: false },
       ],
     });
-    expect(slim.candidates[0]?.model_code).toBe("M0009");
+    expect(slim.candidates.map((c) => c.model_code)).toEqual(["M0001", "M0009"]);
     expect(slim.champion_model_code).toBe("M0009");
   });
 
@@ -196,7 +197,8 @@ M0010 Sharpe:
     });
     expect(looksLikeMetricDump(text)).toBe(false);
     expect(text).toContain("M0001");
-    expect(text).toContain("champion");
+    expect(text).toContain("Optuna trials");
+    expect(text).not.toMatch(/designated Pro champion/i);
     expect(text).toContain("research and education");
   });
 });

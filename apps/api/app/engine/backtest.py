@@ -58,10 +58,10 @@ from app.engine.refinement import (
     compute_round_benchmark_fields,
     merge_round_seed_budget_fields,
     build_round_competition_pool,
-    order_records_champion_first,
     record_objective_sort_value,
     model_signature as refinement_model_signature,
     pool_records_in_trial_order,
+    top_records_for_report,
     params_for_champion_seed,
     pro_round_display_allowlist,
     pro_round_report_top_n,
@@ -2169,25 +2169,17 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             f"Packaging report: {message}",
         )
 
-    champion_for_sort = None
     final_champion_code: str | None = None
     if pro_mode:
         final_champion_params = refinement_meta.get("final_champion_params")
         if isinstance(final_champion_params, dict):
-            champion_for_sort = _find_record_by_params(records, final_champion_params)
             mc = final_champion_params.get("model_code")
             if mc:
                 final_champion_code = str(mc)
-    records_for_report = (
-        order_records_champion_first(list(records), champion_for_sort)
-        if champion_for_sort is not None
-        else sorted(
-            records,
-            key=lambda r: record_objective_sort_value(
-                objective_effective, r[0], r[2]
-            ),
-            reverse=True,
-        )
+    records_for_report = top_records_for_report(
+        list(records),
+        objective_effective,
+        top_n_models,
     )
     final_full_codes = _champion_model_codes_from_records(
         records_for_report,
@@ -2689,7 +2681,13 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             ),
             "error": ai_generation.get("error"),
         },
-        "top_holdings_count": len(best.weights),
+        "top_holdings_count": (
+            int((best.analytics or {}).get("weight_cap_audit", {}).get("active_holdings"))
+            if isinstance(best.analytics, dict)
+            and (best.analytics or {}).get("weight_cap_audit", {}).get("active_holdings")
+            is not None
+            else len(best.weights)
+        ),
         "max_weight_observed": round(max(best.weights.values()), 4) if best.weights else None,
         "max_weight_trial_param": round(best_cap, 4),
         "max_weight_actual": round(best_cap, 4),
