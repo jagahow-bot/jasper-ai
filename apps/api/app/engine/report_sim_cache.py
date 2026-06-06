@@ -160,17 +160,40 @@ class TrialReportCache:
             self._by_key.pop(f"code:{code}", None)
 
     def get_bundle(self, params: dict[str, Any]) -> ReportSimBundle | None:
+        code = params.get("model_code")
+        if code:
+            hit = self._by_key.get(f"code:{code}")
+            if hit is not None:
+                return hit
         sig = model_signature(params)
         sig_key = f"sig:{sig}"
         hit = self._by_key.get(sig_key)
         if hit is not None:
             return hit
-        code = params.get("model_code")
         if code:
             code_s = str(code)
             if self._sig_to_code.get(sig) == code_s:
                 return self._by_key.get(f"code:{code_s}")
         return None
+
+    def refresh_from_record_metrics(
+        self, params: dict[str, Any], metrics: dict[str, Any]
+    ) -> None:
+        """Re-stash per-trial IS/OOS from optimizer snapshots keyed by model_code."""
+        code = params.get("model_code")
+        train_snap = metrics.get("train_metrics")
+        if not code or not isinstance(train_snap, dict) or not train_snap:
+            return
+        val_snap = metrics.get("validation_metrics")
+        val_m = copy.deepcopy(val_snap) if isinstance(val_snap, dict) else None
+        existing = self.get_bundle(params)
+        full_m = existing.full_m if existing else None
+        self.stash_from_trial(
+            params,
+            train_m=copy.deepcopy(train_snap),
+            val_m=val_m,
+            full_m=full_m,
+        )
 
     def backfill_from_search_record(
         self,
@@ -187,7 +210,12 @@ class TrialReportCache:
         if not metrics or not isinstance(metrics, dict):
             return
         metrics = slim_search_metrics(metrics)
-        train_m: dict[str, Any] | None = copy.deepcopy(metrics)
+        train_snap = metrics.get("train_metrics")
+        train_m: dict[str, Any] | None = (
+            copy.deepcopy(train_snap)
+            if isinstance(train_snap, dict) and train_snap
+            else copy.deepcopy(metrics)
+        )
         val_snap = metrics.get("validation_metrics")
         val_m: dict[str, Any] | None = (
             copy.deepcopy(val_snap) if isinstance(val_snap, dict) else None

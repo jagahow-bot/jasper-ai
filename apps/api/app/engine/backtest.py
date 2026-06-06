@@ -832,8 +832,9 @@ def _run_iterative_search(
             next_model_no=next_model_no,
         )
         if trial_report_cache is not None:
-            for _, params, _ in round_records:
+            for _, params, metrics in round_records:
                 trial_report_cache.register_model_code(params)
+                trial_report_cache.refresh_from_record_metrics(params, metrics)
 
         global_trial += len(round_records)
         round_best_score = float("-inf")
@@ -860,6 +861,7 @@ def _run_iterative_search(
             select_on_is = has_holdout
             for _, params, metrics in pool_records:
                 trial_report_cache.register_model_code(params)
+                trial_report_cache.refresh_from_record_metrics(params, metrics)
                 trial_report_cache.backfill_from_search_record(
                     params,
                     metrics,

@@ -140,6 +140,76 @@ def test_build_round_champion_payload_distinct_when_cache_differs():
     assert payload["candidates"][2]["horizons"]["in_sample"]["sharpe"] == 0.9
 
 
+def test_refresh_from_record_metrics_breaks_shared_signature_cache():
+    """Pro round tags model_code after Optuna; sig lookup can alias — refresh per code."""
+    stale_metrics = {
+        "sharpe": 0.3645,
+        "cagr": 0.092,
+        "max_drawdown": -0.3353,
+        "objective_value_is": 0.3645,
+        "objective_value_oos": 1.0941,
+        "train_metrics": {
+            "sharpe": 0.3645,
+            "cagr": 0.092,
+            "max_drawdown": -0.3353,
+            "objective_value": 0.3645,
+        },
+        "validation_metrics": {
+            "sharpe": 1.0941,
+            "cagr": 0.177,
+            "max_drawdown": -0.1087,
+            "objective_value": 1.0941,
+        },
+        "overfitting_assessment": {"risk_level": "low"},
+    }
+    shared_params = {"mode": "min_var", "lookback_days": 60, "w_mom": 0.4}
+    cache = TrialReportCache()
+    cache.stash_from_trial(
+        shared_params,
+        train_m=_sim_metrics(sharpe=0.3645),
+        val_m=_sim_metrics(sharpe=1.0941),
+        full_m=None,
+    )
+    pool = []
+    for i, (is_sh, oos_sh) in enumerate([(0.41, 0.95), (0.52, 1.02), (0.63, 1.08)], start=1):
+        params = {
+            **shared_params,
+            "model_code": f"M000{i}",
+            "optuna_trial_number": i - 1,
+            "pro_round_index": 1,
+        }
+        metrics = {
+            **stale_metrics,
+            "train_metrics": {
+                "sharpe": is_sh,
+                "cagr": 0.09 + i * 0.01,
+                "max_drawdown": -0.2,
+                "objective_value": is_sh,
+            },
+            "validation_metrics": {
+                "sharpe": oos_sh,
+                "cagr": 0.15,
+                "max_drawdown": -0.1,
+                "objective_value": oos_sh,
+            },
+        }
+        cache.refresh_from_record_metrics(params, metrics)
+        pool.append((is_sh, params, dict(stale_metrics)))
+    payload = build_round_champion_ai_payload(
+        pool,
+        objective_effective="max_sharpe",
+        round_index=1,
+        incoming_champion_model_code=None,
+        benchmark_ticker="VT",
+        oos_enabled=True,
+        trial_report_cache=cache,
+    )
+    is_vals = [c["objective_value_is"] for c in payload["candidates"]]
+    assert len(set(is_vals)) == 3
+    assert payload["candidates"][0]["horizons"]["in_sample"]["sharpe"] == 0.41
+    assert payload["candidates"][2]["horizons"]["in_sample"]["sharpe"] == 0.63
+
+
 def test_build_round_champion_ai_payload_orders_by_model_code():
     pool = [
         (
