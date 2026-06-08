@@ -1098,6 +1098,21 @@ def _horizon_row_from_snapshot(snap: dict[str, Any] | None) -> dict[str, Any] | 
     return out or None
 
 
+def _trial_sim_slices_from_record(
+    metrics: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Per-trial optimizer snapshots (deep-copied per record in slim_search_metrics)."""
+    if not metrics:
+        return None, None
+    train_snap = metrics.get("train_metrics")
+    if not isinstance(train_snap, dict) or not train_snap:
+        return None, None
+    train_m = copy.deepcopy(train_snap)
+    val_snap = metrics.get("validation_metrics")
+    val_m = copy.deepcopy(val_snap) if isinstance(val_snap, dict) else None
+    return train_m, val_m
+
+
 def resolve_trial_metrics_for_reporting(
     params: dict[str, Any],
     metrics: dict[str, Any],
@@ -1107,11 +1122,14 @@ def resolve_trial_metrics_for_reporting(
     oos_enabled: bool,
     score: float | None = None,
 ) -> dict[str, Any]:
-    """Per-trial IS/OOS metrics; prefer Optuna stash slices over shared search blobs."""
+    """Per-trial IS/OOS metrics; prefer record snapshots, then cache, then search blob."""
     scoring_obj = trial_scoring_objective(objective_effective)
-    bundle = trial_report_cache.get_bundle(params) if trial_report_cache else None
-    train_m = bundle.train_m if bundle else None
-    val_m = bundle.val_m if bundle else None
+    train_m, val_m = _trial_sim_slices_from_record(metrics)
+    if train_m is None and trial_report_cache is not None:
+        bundle = trial_report_cache.get_bundle(params)
+        if bundle is not None:
+            train_m = bundle.train_m
+            val_m = bundle.val_m if val_m is None else val_m
     if train_m is not None:
         assess = assess_overfitting(
             train_m,

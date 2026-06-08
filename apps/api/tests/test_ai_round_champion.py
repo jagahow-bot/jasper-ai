@@ -29,25 +29,13 @@ def _sim_metrics(*, sharpe: float, cagr: float = 0.1) -> dict:
     }
 
 
-def test_resolve_trial_metrics_prefers_cache_over_stale_search_blob():
+def test_resolve_trial_metrics_prefers_cache_when_record_lacks_snapshots():
     stale = {
         "sharpe": 0.36,
         "cagr": 0.092,
         "max_drawdown": -0.3353,
         "objective_value_is": 0.3645,
         "objective_value_oos": 1.0941,
-        "train_metrics": {
-            "sharpe": 0.3645,
-            "cagr": 0.092,
-            "max_drawdown": -0.3353,
-            "objective_value": 0.3645,
-        },
-        "validation_metrics": {
-            "sharpe": 1.0941,
-            "cagr": 0.177,
-            "max_drawdown": -0.1087,
-            "objective_value": 1.0941,
-        },
     }
     cache = TrialReportCache()
     params_a = {"mode": "min_var", "lookback_days": 60, "w_mom": 0.4, "model_code": "M0001"}
@@ -124,7 +112,22 @@ def test_build_round_champion_payload_distinct_when_cache_differs():
             val_m=_sim_metrics(sharpe=oos_sh, cagr=0.08 + i * 0.01),
             full_m=None,
         )
-        pool.append((sh, params, dict(stale_metrics)))
+        record_metrics = {
+            **stale_metrics,
+            "train_metrics": {
+                "sharpe": sh,
+                "cagr": 0.092,
+                "max_drawdown": -0.3353,
+                "objective_value": sh,
+            },
+            "validation_metrics": {
+                "sharpe": oos_sh,
+                "cagr": 0.177,
+                "max_drawdown": -0.1087,
+                "objective_value": oos_sh,
+            },
+        }
+        pool.append((sh, params, record_metrics))
     payload = build_round_champion_ai_payload(
         pool,
         objective_effective="max_sharpe",
@@ -138,6 +141,79 @@ def test_build_round_champion_payload_distinct_when_cache_differs():
     assert len(set(is_vals)) == 3
     assert payload["candidates"][0]["horizons"]["in_sample"]["sharpe"] == 0.5
     assert payload["candidates"][2]["horizons"]["in_sample"]["sharpe"] == 0.9
+
+
+def test_resolve_prefers_record_snapshots_over_aliased_cache():
+    """Record train_metrics are authoritative even when sig cache aliases trials."""
+    cache = TrialReportCache()
+    shared = {"mode": "min_var", "lookback_days": 60, "w_mom": 0.4, "optuna_trial_number": 0}
+    params_a = {**shared, "model_code": "M0001"}
+    params_b = {**shared, "model_code": "M0002"}
+    cache.refresh_from_record_metrics(
+        params_a,
+        {
+            "train_metrics": {"sharpe": 0.99, "cagr": 0.1, "max_drawdown": -0.2, "objective_value": 0.99},
+            "validation_metrics": {"sharpe": 0.5, "cagr": 0.08, "max_drawdown": -0.1, "objective_value": 0.5},
+        },
+    )
+    cache.refresh_from_record_metrics(
+        params_b,
+        {
+            "train_metrics": {"sharpe": 0.41, "cagr": 0.09, "max_drawdown": -0.2, "objective_value": 0.41},
+            "validation_metrics": {"sharpe": 0.95, "cagr": 0.15, "max_drawdown": -0.1, "objective_value": 0.95},
+        },
+    )
+    stale = {
+        "sharpe": 0.3645,
+        "train_metrics": {"sharpe": 0.3645, "cagr": 0.092, "max_drawdown": -0.3353, "objective_value": 0.3645},
+        "validation_metrics": {"sharpe": 1.0941, "cagr": 0.177, "max_drawdown": -0.1087, "objective_value": 1.0941},
+    }
+    out_a = resolve_trial_metrics_for_reporting(
+        params_a,
+        {
+            **stale,
+            "train_metrics": {"sharpe": 0.50, "cagr": 0.11, "max_drawdown": -0.2, "objective_value": 0.50},
+            "validation_metrics": {"sharpe": 0.80, "cagr": 0.09, "max_drawdown": -0.1, "objective_value": 0.80},
+        },
+        trial_report_cache=cache,
+        objective_effective="max_sharpe",
+        oos_enabled=True,
+        score=0.5,
+    )
+    out_b = resolve_trial_metrics_for_reporting(
+        params_b,
+        {
+            **stale,
+            "train_metrics": {"sharpe": 0.63, "cagr": 0.12, "max_drawdown": -0.18, "objective_value": 0.63},
+            "validation_metrics": {"sharpe": 1.08, "cagr": 0.16, "max_drawdown": -0.09, "objective_value": 1.08},
+        },
+        trial_report_cache=cache,
+        objective_effective="max_sharpe",
+        oos_enabled=True,
+        score=0.63,
+    )
+    assert out_a["train_metrics"]["sharpe"] == 0.50
+    assert out_b["train_metrics"]["sharpe"] == 0.63
+    assert out_a["objective_value_is"] != out_b["objective_value_is"]
+
+
+def test_cache_isolates_model_codes_with_shared_signature():
+    shared = {"mode": "min_var", "lookback_days": 60, "w_mom": 0.4, "optuna_trial_number": 0}
+    cache = TrialReportCache()
+    cache.refresh_from_record_metrics(
+        {**shared, "model_code": "M0001"},
+        {"train_metrics": _sim_metrics(sharpe=0.30), "validation_metrics": _sim_metrics(sharpe=0.80)},
+    )
+    cache.refresh_from_record_metrics(
+        {**shared, "model_code": "M0007"},
+        {"train_metrics": _sim_metrics(sharpe=0.55), "validation_metrics": _sim_metrics(sharpe=0.90)},
+    )
+    b1 = cache.get_bundle({**shared, "model_code": "M0001"})
+    b7 = cache.get_bundle({**shared, "model_code": "M0007"})
+    assert b1 is not None and b7 is not None
+    assert b1 is not b7
+    assert b1.train_m["sharpe"] == 0.30
+    assert b7.train_m["sharpe"] == 0.55
 
 
 def test_refresh_from_record_metrics_breaks_shared_signature_cache():
@@ -194,7 +270,7 @@ def test_refresh_from_record_metrics_breaks_shared_signature_cache():
             },
         }
         cache.refresh_from_record_metrics(params, metrics)
-        pool.append((is_sh, params, dict(stale_metrics)))
+        pool.append((is_sh, params, metrics))
     payload = build_round_champion_ai_payload(
         pool,
         objective_effective="max_sharpe",
@@ -208,6 +284,73 @@ def test_refresh_from_record_metrics_breaks_shared_signature_cache():
     assert len(set(is_vals)) == 3
     assert payload["candidates"][0]["horizons"]["in_sample"]["sharpe"] == 0.41
     assert payload["candidates"][2]["horizons"]["in_sample"]["sharpe"] == 0.63
+
+
+def test_resolve_trial_metrics_prefers_record_snapshots_over_aliased_cache():
+    """Production bug: code-keyed cache aliases; per-record train_metrics are authoritative."""
+    cache = TrialReportCache()
+    shared = {"mode": "min_var", "lookback_days": 60, "w_mom": 0.4}
+    cache.stash_from_trial(
+        {**shared, "model_code": "M0001", "optuna_trial_number": 0},
+        train_m=_sim_metrics(sharpe=0.3645),
+        val_m=_sim_metrics(sharpe=1.0941),
+        full_m=None,
+    )
+    stale_top = {
+        "sharpe": 0.3645,
+        "cagr": 0.092,
+        "max_drawdown": -0.3353,
+        "objective_value_is": 0.3645,
+    }
+    params_a = {**shared, "model_code": "M0001", "optuna_trial_number": 0}
+    params_b = {**shared, "model_code": "M0002", "optuna_trial_number": 1}
+    metrics_a = {
+        **stale_top,
+        "train_metrics": {
+            "sharpe": 0.41,
+            "cagr": 0.10,
+            "max_drawdown": -0.2,
+            "objective_value": 0.41,
+        },
+        "validation_metrics": {
+            "sharpe": 0.95,
+            "cagr": 0.16,
+            "max_drawdown": -0.1,
+            "objective_value": 0.95,
+        },
+    }
+    metrics_b = {
+        **stale_top,
+        "train_metrics": {
+            "sharpe": 0.63,
+            "cagr": 0.12,
+            "max_drawdown": -0.18,
+            "objective_value": 0.63,
+        },
+        "validation_metrics": {
+            "sharpe": 1.08,
+            "cagr": 0.19,
+            "max_drawdown": -0.09,
+            "objective_value": 1.08,
+        },
+    }
+    out_a = resolve_trial_metrics_for_reporting(
+        params_a,
+        metrics_a,
+        trial_report_cache=cache,
+        objective_effective="max_sharpe",
+        oos_enabled=True,
+    )
+    out_b = resolve_trial_metrics_for_reporting(
+        params_b,
+        metrics_b,
+        trial_report_cache=cache,
+        objective_effective="max_sharpe",
+        oos_enabled=True,
+    )
+    assert out_a["train_metrics"]["sharpe"] == 0.41
+    assert out_b["train_metrics"]["sharpe"] == 0.63
+    assert out_a["objective_value_is"] != out_b["objective_value_is"]
 
 
 def test_build_round_champion_ai_payload_orders_by_model_code():
@@ -257,9 +400,9 @@ def test_build_round_champion_ai_payload_orders_by_model_code():
     assert codes == ["M0001", "M0002"]
     assert payload["candidates"][0]["role"] == "incoming_champion"
     assert payload["candidates"][1]["role"] == "challenger"
-    assert payload["candidates"][0]["objective_value_is"] == 1.2
+    assert payload["candidates"][0]["objective_value_is"] == 1.4
     assert payload["candidates"][0]["horizons"]["in_sample"]["sharpe"] == 1.4
-    assert payload["candidates"][0]["horizons"]["full_sample"]["objective_value"] == 1.2
+    assert payload["candidates"][0]["horizons"]["full_sample"]["objective_value"] == 1.4
 
 
 def test_build_round_champion_ai_payload_includes_oos_horizons():
@@ -304,10 +447,10 @@ def test_build_round_champion_ai_payload_includes_oos_horizons():
         oos_enabled=True,
     )
     row = payload["candidates"][0]
-    assert row["holdout_objective"] == 0.8
+    assert row["holdout_objective"] == 0.9
     assert row["overfitting_risk"] == "high"
-    assert row["horizons"]["out_of_sample"]["objective_value"] == 0.8
-    assert row["horizons"]["gap"]["objective"] == 0.7
+    assert row["horizons"]["out_of_sample"]["objective_value"] == 0.9
+    assert row["horizons"]["gap"]["objective"] == 0.6
 
 
 def test_record_for_model_code_finds_pool_trial():
