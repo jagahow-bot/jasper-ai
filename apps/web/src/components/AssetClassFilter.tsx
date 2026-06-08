@@ -218,9 +218,9 @@ export function AssetClassFilter({ value, onChange }: Props) {
         </div>
         <p className="text-xs text-dim">
           Layer 1 — pick asset classes to define your full trading pool ({baseCount}{" "}
-          ETFs). Optuna selects holdings from this pool each rebalance; AI does not
-          shrink it to one ETF per category. Rules below only add supplement tickers on
-          top of this base.
+          ETFs). The optimizer selects holdings from this pool at each rebalance; it does
+          not shrink the pool to one ETF per category. The rules below only add
+          supplementary tickers on top of this base.
         </p>
       </div>
 

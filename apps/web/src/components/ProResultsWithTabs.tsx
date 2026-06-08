@@ -227,7 +227,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       Object.keys(regimeQuotas).length > 0 ? (
         <div className="md:col-span-2">
           <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">
-            Regime class quotas (Top-N sleeves per regime)
+            Regime class quotas (Top N asset classes per regime)
           </p>
           <div className="grid gap-2 sm:grid-cols-3">
             {Object.entries(regimeQuotas).map(([regime, slice]) => (
@@ -267,7 +267,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       {setupEntries.length ? (
         <div>
           <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
-            Round setup (shared caps — fixed all trials)
+            Round setup (shared caps applied to all trials)
           </p>
           <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
             {setupEntries.map(([k, v]) => (
@@ -280,7 +280,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       ) : null}
       {rangeEntries.length || choiceEntries.length ? (
         <div>
-          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">Factor search (Optuna samples ranges)</p>
+          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">Factor search (optimizer samples these ranges)</p>
           <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
             {rangeEntries.map(([k, v]) => (
               <li key={k}>
@@ -370,8 +370,8 @@ export function ProResultsWithTabs(props: Props) {
     const round = rounds.find((r) => r.round === tab);
     if (!round) return undefined;
     const improved = round.improved
-      ? "Round winner — incoming champion replaced"
-      : "Round winner held (no min-gain beat vs incoming)";
+      ? "Round winner — replaced the incoming champion"
+      : "Incoming champion held (improvement below threshold)";
     const score = round.round_best_adjusted_score?.toFixed(4) ?? "—";
     return (
       `[${round.narrative_facts.round_label ?? `Round ${round.round}`}]` +

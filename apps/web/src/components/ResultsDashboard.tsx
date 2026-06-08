@@ -931,18 +931,18 @@ export function ResultsDashboard({
       {!trustworthy && (
         <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-4 py-3 text-sm text-[var(--amber)]">
           {dataSource !== "yfinance"
-            ? "WARN: not using live yfinance — metrics are UI test only."
-            : "WARN: metrics look unrealistic (e.g. extreme Sharpe, flat DD) — check data/params."}
+            ? "Heads up: these results use sample data rather than live market data — treat the metrics as illustrative only."
+            : "Heads up: some metrics look unrealistic (e.g. an extreme Sharpe or flat drawdown) — review your data and parameters."}
           {dq?.rows != null && (
             <span className="mt-1 block text-xs opacity-80">
-              Data: {dq.start} → {dq.end}, {dq.rows} sessions · {dataSource}
+              Data: {dq.start} → {dq.end}, {dq.rows} sessions
             </span>
           )}
         </div>
       )}
       {trustworthy && dq && (
         <div className="pixel-badge-cyan inline-block">
-          Live yfinance · {dq.start} → {dq.end} · {dq.rows} sessions
+          Live market data · {dq.start} → {dq.end} · {dq.rows} sessions
           {dq.requested_start && dq.requested_start !== dq.start && (
             <span className="ml-2 text-[var(--amber)]">
               (requested {dq.requested_start}
@@ -974,9 +974,9 @@ export function ResultsDashboard({
             {proRefinement?.stopped_reason === "patience" ? "yes (flat)" : "no (max rounds)"}
           </>
         ) : (
-          <>Param search {trialsRequested} trials</>
+          <>Parameter search · {trialsRequested} trials</>
         )}
-        {" · "}feasible {trialsFeasible} · report {modelsReturned}
+        {" · "}feasible {trialsFeasible} · reported {modelsReturned}
         {modelsTotalCatalog > modelsReturned && (
           <span className="text-[var(--amber)]"> (catalog {modelsTotalCatalog})</span>
         )}
@@ -1314,9 +1314,9 @@ export function ResultsDashboard({
 
       <ChartCard title="Performance comparison" subtitle="Full period">
         <div className="mb-3 border-2 border-[#0a4a4a] bg-[rgba(0,245,255,0.05)] px-3 py-2">
-          <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">AI compare</p>
+          <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">AI comparison</p>
           {compareLoading ? (
-            <p className="text-xs text-dim">Generating compare narrative…</p>
+            <p className="text-xs text-dim">Generating comparison…</p>
           ) : compareSummary ? (
             <div className="space-y-2 text-xs leading-relaxed">
               {compareRetryNote ? (
@@ -1333,7 +1333,7 @@ export function ResultsDashboard({
                 ))}
             </div>
           ) : (
-            <p className="text-xs text-dim">No compare narrative yet</p>
+            <p className="text-xs text-dim">No comparison available yet</p>
           )}
         </div>
         <ResponsiveContainer width="100%" height={300}>
@@ -1585,8 +1585,8 @@ export function ResultsDashboard({
 
       <ChartCard title="Efficient frontier (samples)">
         <p className="mb-2 text-xs text-dim">
-          Blue: search trials (subsampled). Orange: ranked output models (Top-N).
-          The same model_code is not plotted twice.
+          Blue: search trials (sampled). Orange: ranked output models (Top N).
+          Each model appears only once.
         </p>
         <ResponsiveContainer width="100%" height={260}>
           <ScatterChart>
@@ -1695,7 +1695,7 @@ export function ResultsDashboard({
         {assetClassFilter?.length ? (
           <p className="mb-2 text-xs text-dim">
             Universe filter: {assetClassFilter.map(quotaLabel).join(", ")} — other
-            sleeves excluded from search and Top-N screening.
+            asset classes are excluded from the search and Top N screen.
           </p>
         ) : null}
         {regimeQuotaMatrix ? (
@@ -1740,7 +1740,7 @@ export function ResultsDashboard({
             (!top.analytics?.exposure?.by_asset_class ||
               Object.keys(top.analytics.exposure.by_asset_class).length === 0) ? (
               <p className="mb-2 text-[10px] text-dim">
-                Class breakdown from ★ champion (selected trial has slim payload).
+                Class breakdown shown from the ★ champion (the selected trial stores condensed data).
               </p>
             ) : null}
             <ResponsiveContainer width="100%" height={220}>
@@ -1763,7 +1763,7 @@ export function ResultsDashboard({
           Object.keys(top.analytics.factor_summary.factor_contribution).length > 0
         ) ? (
           <p className="mb-2 text-xs text-dim">
-            Factor attribution from ★ champion when the selected trial omits full sim output.
+            Factor attribution shown from the ★ champion when the selected trial omits full simulation output.
           </p>
         ) : null}
         <div className="grid gap-3 lg:grid-cols-2">
@@ -1806,7 +1806,7 @@ export function ResultsDashboard({
       <ChartCard title="Latest allocation (holdings)">
         {Object.keys(top.weights ?? {}).length === 0 ? (
           <p className="text-sm text-dim">
-            Catalog-only model (no full holdings/curves). Pick a model with a full backtest report.
+            Summary-only model (no detailed holdings or curves). Select a model with a full backtest report.
           </p>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
@@ -1862,14 +1862,14 @@ export function ResultsDashboard({
         }
       />
 
-      <ChartCard title="Reproducible params">
+      <ChartCard title="Reproducible parameters">
         {((aiRationalesByRound?.length ?? 0) > 0 || Boolean(aiGen.rationale)) ? (
           <details
             open
             className="mb-3 border-2 border-[var(--border)] bg-[#050508] px-3 py-2"
           >
             <summary className="cursor-pointer text-xs text-[var(--amber)] hover:text-neon">
-              AI param rationale
+              AI parameter rationale
             </summary>
             <div className="mt-2 max-h-72 space-y-3 overflow-y-auto text-xs leading-relaxed text-slate-300">
               {aiRationalesByRound?.length ? (
@@ -1891,7 +1891,7 @@ export function ResultsDashboard({
         )}
         <details className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
           <summary className="cursor-pointer text-xs text-dim hover:text-[var(--cyan)]">
-            Raw JSON (request + params + ai_param_generation)
+            Full run configuration (JSON)
           </summary>
           <pre className="mt-2 max-h-[28rem] overflow-auto whitespace-pre-wrap text-xs text-[var(--cyan)]">
             {JSON.stringify(
@@ -1911,7 +1911,7 @@ export function ResultsDashboard({
       <div className="pixel-panel">
         <QuickRefinements
           request={request}
-          onApply={(next, label) => onQuickTweak(next, label ?? "patch")}
+          onApply={(next, label) => onQuickTweak(next, label ?? "manual adjustment")}
           onApplyAndRun={onQuickTweakAndRun}
         />
         <p className="mt-2 text-xs text-dim">{t("results.refineHint")}</p>

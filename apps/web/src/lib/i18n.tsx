@@ -70,10 +70,10 @@ const en: Dict = {
     "Positions below this weight are dropped each rebalance; remaining weights are renormalized (dust effectively stays in cash).",
   "config.maxTurnover": "Max turnover / rebalance: {pct}%",
   "config.maxTurnoverHint":
-    "Hard cap per rebalance. AI/Optuna may only search up to this slider (never above).",
+    "Hard cap per rebalance. The optimizer only searches up to this slider, never above.",
   "config.maxHoldings": "Max portfolio holdings: {n}",
   "config.maxHoldingsHint":
-    "Hard cap on non-zero holdings each rebalance (factor screen and Optuna cannot exceed this).",
+    "Hard cap on the number of holdings each rebalance (the factor screen and optimizer cannot exceed this).",
   "config.topN": "Factor screen Top N: {n}",
   "config.topNHint":
     "Cross-section rank → Top N → MPT/min-var weights with position caps.",
@@ -178,10 +178,10 @@ const zh: Dict = {
     "每次再平衡时低于该权重的持仓会被剔除；剩余权重重新归一化（零散仓位实际留作现金）。",
   "config.maxTurnover": "每次再平衡最大换手率：{pct}%",
   "config.maxTurnoverHint":
-    "每次再平衡的硬上限。AI/Optuna 最多只能搜索到此滑块值（不会更高）。",
+    "每次再平衡的硬上限。优化器最多只能搜索到此滑块值，不会更高。",
   "config.maxHoldings": "组合最大持仓数：{n}",
   "config.maxHoldingsHint":
-    "每次再平衡非零持仓的硬上限（因子筛选与 Optuna 都不能超过）。",
+    "每次再平衡持仓数量的硬上限（因子筛选与优化器都不能超过）。",
   "config.topN": "因子筛选 Top N：{n}",
   "config.topNHint": "横截面排名 → Top N → 带仓位上限的 MPT/最小方差权重。",
   "config.objective": "优化目标",
@@ -278,10 +278,10 @@ const ko: Dict = {
     "이 비중 미만 종목은 매 리밸런스마다 제외되고 남은 비중은 재정규화됩니다(잔여분은 사실상 현금 유지).",
   "config.maxTurnover": "리밸런스당 최대 회전율: {pct}%",
   "config.maxTurnoverHint":
-    "리밸런스당 상한. AI/Optuna는 이 슬라이더까지만 탐색합니다(초과 불가).",
+    "리밸런스당 상한. 옵티마이저는 이 슬라이더까지만 탐색하며 초과하지 않습니다.",
   "config.maxHoldings": "포트폴리오 최대 보유 종목: {n}",
   "config.maxHoldingsHint":
-    "매 리밸런스 비제로 보유 종목의 상한(팩터 스크리닝과 Optuna 모두 초과 불가).",
+    "매 리밸런스 보유 종목 수의 상한(팩터 스크리닝과 옵티마이저 모두 초과 불가).",
   "config.topN": "팩터 스크리닝 Top N: {n}",
   "config.topNHint":
     "횡단면 랭킹 → Top N → 비중 상한이 적용된 MPT/최소분산 가중치.",

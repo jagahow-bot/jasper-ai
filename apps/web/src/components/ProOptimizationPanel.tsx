@@ -49,13 +49,12 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
             Pro · AI convergence
           </h4>
           <p className="mt-2 text-sm text-dim">
-            Champion-challenger rounds. AI proposes params from history; Optuna
-            scores on in-sample objective until the run stalls. With{" "}
-            <strong className="text-[var(--fg)]">Dynamic</strong> objective, each Pro
-            round seeds a per-regime allocator matrix (risk-off / neutral / risk-on)
-            and full per-regime factor search bounds (all numeric factors × three regimes);
-            Optuna samples prefixed params
-            (e.g. risk_off__w_mom) and simulation applies the active regime slice each rebalance.
+            Champion–challenger rounds. The AI proposes parameters from prior results and
+            the optimizer scores them on the in-sample objective until improvement stalls.
+            With the <strong className="text-[var(--fg)]">Dynamic</strong> objective, each
+            round explores separate factor settings for every market regime
+            (risk-off / neutral / risk-on), and the simulation applies the active regime at
+            each rebalance.
           </p>
         </div>
         <label className="flex shrink-0 cursor-pointer items-center gap-2">
@@ -72,17 +71,15 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
       {isPro && (
         <div className="mt-4 space-y-4 border-t border-[var(--border)] pt-4">
           <p className="text-xs text-dim">
-            Standard trial slider disabled in Pro. Est. max ~{" "}
+            The standard trial slider is disabled in Pro mode. Estimated maximum ~{" "}
             <strong className="text-[var(--amber)]">{estTrials}</strong> backtests
-            (champion +1 per round after round 1; may stop early).
+            (the champion is re-tested once per round after round 1; the run may stop early).
           </p>
           {highTrialCount && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">
-              High trial counts run many backtests. Pro uses one Gemini round seed per
-              refinement round (shared setup, regime matrix, and complete per-regime factor
-              ranges for Dynamic); Optuna runs all trials in that round within those bounds.
-              The ~8 AI param-seed cap applies only to standard optimization (trial
-              slider), not Pro.
+              Higher settings run many backtests. Each round uses a single AI proposal to
+              guide the search, and the optimizer then explores all trials in that round
+              within those bounds.
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
@@ -184,7 +181,7 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
           </div>
           {!value.enable_oos && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">
-              Tip: enable holdout split so trials rank on in-sample only; OOS metrics are diagnostics only.
+              Tip: turn on the holdout split so candidates are ranked on in-sample results only; out-of-sample metrics stay diagnostic.
             </p>
           )}
         </div>

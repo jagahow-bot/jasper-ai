@@ -36,7 +36,9 @@ export function InstitutionalReport({
       );
     }
     return (
-      <p className="text-sm text-dim">No institutional analytics (rerun backtest).</p>
+      <p className="text-sm text-dim">
+        No institutional analytics available — please rerun the backtest.
+      </p>
     );
   }
 

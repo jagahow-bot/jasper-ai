@@ -141,8 +141,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         }
       />
       <p className="text-xs text-dim">
-        Universe filter + class alloc weights (w_equity, w_bond, …) stay aligned — disallowed
-        sleeves are forced to 0 in search.
+        Your universe filter and class allocation weights stay aligned — excluded asset
+        classes are held at zero during the search.
       </p>
 
       <QuickRefinements
@@ -207,10 +207,11 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </label>
 
       <p className="text-xs text-dim">
-        Run sliders above are <strong>hard ceilings</strong> for AI and Optuna. Search explores
-        within 0…slider (or your min/max in AI param controls, capped by the slider).{" "}
-        <strong>Fixed</strong> locks an exact value; <strong>Off</strong> on max weight / turnover /
-        top N means use the run slider value (not unlimited search).
+        The sliders above are <strong>hard ceilings</strong> for the optimizer. The search
+        explores from 0 up to each slider (or the min/max you set in advanced controls, capped
+        by the slider).{" "}
+        <strong>Fixed</strong> locks an exact value; <strong>Off</strong> on max weight, turnover,
+        or Top N uses the slider value rather than searching.
       </p>
 
       <label className="block space-y-2">
@@ -279,8 +280,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         </select>
         <p className="text-xs text-dim">
           {value.objective === "dynamic"
-            ? "Jasper switches the allocator objective each rebalance from benchmark regime (V2): risk-off → min drawdown, neutral → max Sharpe, risk-on → max return. Pro champion selection ranks trials on one in-sample comprehensive score (objective_value_is): 0.45×Sharpe + 0.25×Sortino + 0.20×(5×CAGR) − 0.35×|max DD| − 0.10×turnover—not per-rebalance objectives."
-            : "Optuna trials and Pro champions always score on in-sample when holdout is on; out-of-sample and full-period metrics are shown for comparison only."}
+            ? "Jasper adapts the allocator objective at each rebalance based on the benchmark regime: risk-off → minimize drawdown, neutral → maximize Sharpe, risk-on → maximize return. The Pro champion is chosen on a single in-sample composite score: 0.45×Sharpe + 0.25×Sortino + 0.20×(5×CAGR) − 0.35×|max DD| − 0.10×turnover — not the per-rebalance objectives."
+            : "When a holdout split is on, candidates are always ranked on in-sample results; out-of-sample and full-period metrics are shown for comparison only."}
         </p>
       </label>
       {value.objective === "custom" && (
@@ -293,7 +294,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
             className="pixel-input min-h-20"
           />
           <p className="text-xs text-dim">
-            Parsed into an executable optimization target.
+            Translated into an optimization objective Jasper can run.
           </p>
         </label>
       )}
@@ -338,8 +339,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         />
         <p className="text-xs text-dim">
           {isPro
-            ? "Pro uses round/challenger sliders above."
-            : "Optuna trial count. Above 10 trials, only the first ~8 use Gemini seeds (one batched call); the rest are sampler-only. Output count below."}
+            ? "Pro mode uses the round and challenger sliders above."
+            : "Number of search trials. Beyond 10 trials, the first few use AI-suggested starting points; the rest are explored by the optimizer. Report size is set below."}
         </p>
       </label>
 
@@ -433,14 +434,14 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </label>
 
       <div className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2 text-xs text-dim">
-        Engine: Optuna + standardized backtest · bench SPY · RF 4%
+        Engine: standardized backtest optimizer · benchmark SPY · risk-free 4%
       </div>
       <details className="border-2 border-[var(--border)] bg-[#050508] p-3">
         <summary className="cursor-pointer font-pixel text-[8px] text-[var(--cyan)]">
-          AI param controls (search / fixed / off)
+          Advanced parameter controls (search / fixed / off)
         </summary>
         <p className="mt-2 text-xs text-dim">
-          Trial max single weight search cannot exceed {Math.round(runMaxWeight * 100)}% (run slider).
+          The max single-weight search cannot exceed {Math.round(runMaxWeight * 100)}% (run slider).
         </p>
         <div className="mt-3 space-y-2 border-b border-[var(--border)] pb-3">
           <p className="text-xs text-dim">Categorical</p>
@@ -488,7 +489,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           })}
         </div>
         <div className="mt-3 space-y-2 border-b border-[var(--border)] pb-3">
-          <p className="text-xs text-dim">Factor indicators (per sleeve)</p>
+          <p className="text-xs text-dim">Factor indicators (per factor)</p>
           {FACTOR_INDICATOR_SPECS.map((s) => {
             const c =
               controls[s.key] ??
@@ -536,7 +537,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
                     className="pixel-input py-1 text-xs"
                     title={
                       c.mode === "search"
-                        ? "Search pool uses all options; selection is AI/Optuna seed hint"
+                        ? "The search considers all options; your selection is an AI starting hint"
                         : "Fixed indicator for this factor"
                     }
                   >

@@ -94,7 +94,7 @@ export default function HomePage() {
     {
       id: "welcome",
       role: "assistant",
-      content: `JASPER online. Universe: ${universeMeta.count} ETFs. Configure params below — each rebalance runs factor screen (Top N) then allocator (MPT / min-var).`,
+      content: t("chat.welcome", { count: universeMeta.count }),
     },
   ]);
   const lastProgressMsg = useRef("");
@@ -135,10 +135,16 @@ export default function HomePage() {
       pushMessage(
         setMessages,
         "assistant",
-        `Backtest complete. Best by objective: ${best.model_code ?? "M?"} (vs ${bm}) — Sharpe ${best.sharpe}, max DD ${(best.max_drawdown * 100).toFixed(2)}%, CAGR ${(best.cagr * 100).toFixed(2)}%. Switch model codes in the results panel.`,
+        t("chat.complete", {
+          model: best.model_code ?? "M?",
+          benchmark: bm,
+          sharpe: best.sharpe,
+          mdd: (best.max_drawdown * 100).toFixed(2),
+          cagr: (best.cagr * 100).toFixed(2),
+        }),
       );
     },
-    [],
+    [t],
   );
 
   const pollJob = useCallback(
@@ -180,7 +186,7 @@ export default function HomePage() {
       try {
         const local = findLocalHistoryEntry(id);
         if (local?.result && local.request) {
-          pushMessage(setMessages, "user", `Load history ${id.slice(0, 8)}…`);
+          pushMessage(setMessages, "user", t("chat.loadHistory", { id: id.slice(0, 8) }));
           await presentResult(id, local.result, local.request);
           return;
         }
@@ -191,32 +197,36 @@ export default function HomePage() {
             pushMessage(
               setMessages,
               "system",
-              `Job ${id.slice(0, 8)}… is not completed (${prog.status}).`,
+              t("chat.jobNotCompleted", { id: id.slice(0, 8), status: prog.status }),
             );
             return;
           }
           const [res, req] = await Promise.all([getJobResult(id), getJobRequest(id)]);
-          pushMessage(setMessages, "user", `Load history ${id.slice(0, 8)}…`);
+          pushMessage(setMessages, "user", t("chat.loadHistory", { id: id.slice(0, 8) }));
           await presentResult(id, res, req);
         } catch {
           if (local?.result && local.request) {
-            pushMessage(setMessages, "user", `Load history ${id.slice(0, 8)}… (local)`);
+            pushMessage(
+              setMessages,
+              "user",
+              t("chat.loadHistoryLocal", { id: id.slice(0, 8) }),
+            );
             await presentResult(id, local.result, local.request);
             return;
           }
-          throw new Error("Job not found on server and no local copy available");
+          throw new Error(t("chat.jobNotFound"));
         }
       } catch (e) {
         pushMessage(
           setMessages,
           "system",
-          e instanceof Error ? e.message : "Failed to load backtest history",
+          e instanceof Error ? e.message : t("chat.historyLoadFailed"),
         );
       } finally {
         setHistoryLoadingId(null);
       }
     },
-    [presentResult],
+    [presentResult, t],
   );
 
   const runBacktest = useCallback(
@@ -244,12 +254,12 @@ export default function HomePage() {
         pushMessage(
           setMessages,
           "system",
-          e instanceof Error ? e.message : "Backtest failed",
+          e instanceof Error ? e.message : t("chat.runFailed"),
         );
         setPhase("constraints");
       }
     },
-    [pollJob, request],
+    [pollJob, request, t],
   );
 
   const onRun = useCallback(() => {
@@ -257,35 +267,32 @@ export default function HomePage() {
     pushMessage(
       setMessages,
       "user",
-      isPro ? "Run Pro auto-convergence" : "Run standard backtest + optimize",
+      isPro ? t("chat.userRunPro") : t("chat.userRunStandard"),
     );
     pushMessage(
       setMessages,
       "assistant",
-      isPro
-        ? "ACK — Pro champion-challenger loop starting. Overfitting monitor armed…"
-        : "ACK — spinning up quant engine…",
+      isPro ? t("chat.ackPro") : t("chat.ackStandard"),
     );
     void runBacktest();
-  }, [runBacktest, request?.optimization_mode]);
+  }, [runBacktest, request?.optimization_mode, t]);
 
-  const onQuickTweak = useCallback((next: BacktestRequest, label: string) => {
-    setRequest(next);
-    pushMessage(setMessages, "user", `Tweak: ${label}`);
-    pushMessage(
-      setMessages,
-      "assistant",
-      "Params updated. Tweak more or hit ↻ to rerun immediately.",
-    );
-  }, []);
+  const onQuickTweak = useCallback(
+    (next: BacktestRequest, label: string) => {
+      setRequest(next);
+      pushMessage(setMessages, "user", t("chat.tweak", { label }));
+      pushMessage(setMessages, "assistant", t("chat.tweakApplied"));
+    },
+    [t],
+  );
 
   const onQuickTweakAndRun = useCallback(
     (next: BacktestRequest, label: string) => {
-      pushMessage(setMessages, "user", `Tweak + rerun: ${label}`);
-      pushMessage(setMessages, "assistant", "ACK — recomputing with new params…");
+      pushMessage(setMessages, "user", t("chat.tweakRerun", { label }));
+      pushMessage(setMessages, "assistant", t("chat.ackRerun"));
       void runBacktest(next);
     },
-    [runBacktest],
+    [runBacktest, t],
   );
 
   const header = useMemo(() => {
@@ -370,7 +377,7 @@ export default function HomePage() {
                 request={request}
                 onRerun={() => {
                   setPhase("constraints");
-                  pushMessage(setMessages, "user", "Back to config panel");
+                  pushMessage(setMessages, "user", t("chat.backToConfig"));
                 }}
                 onExport={() => downloadCsv(result, "portfolio")}
                 onQuickTweak={onQuickTweak}
@@ -383,7 +390,7 @@ export default function HomePage() {
                 request={request}
                 onRerun={() => {
                   setPhase("constraints");
-                  pushMessage(setMessages, "user", "Back to config panel");
+                  pushMessage(setMessages, "user", t("chat.backToConfig"));
                 }}
                 onExport={() => downloadCsv(result, "portfolio")}
                 onQuickTweak={onQuickTweak}

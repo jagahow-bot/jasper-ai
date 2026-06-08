@@ -12,7 +12,7 @@ type Props = {
 export function QuickRefinements({ request, onApply, onApplyAndRun }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="font-pixel text-[8px] text-dim">Quick patch</span>
+      <span className="font-pixel text-[8px] text-dim">Quick adjustments</span>
       {QUICK_REFINEMENTS.map((r) => (
         <button
           key={r.id}
