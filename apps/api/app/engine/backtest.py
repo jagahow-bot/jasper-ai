@@ -1348,9 +1348,9 @@ def _build_candidate(
             if bench_t in prices.columns
             else None
         )
-        periodic_equity = train_m["equity"] if oos_enabled else None
+        periodic_equity = train_m.get("equity") if oos_enabled else None
         holdout_equity = (
-            val_m["equity"] if oos_enabled and val_m is not None else None
+            val_m.get("equity") if oos_enabled and val_m is not None else None
         )
         analytics = build_full_analytics(
             port_ret=port_ret,
@@ -1666,8 +1666,12 @@ def _assemble_candidates_from_records(
                 else bundle.complete_no_oos()
             )
         )
-        need_train = train_m is None
-        need_val = val_required and val_m is None
+        need_train = train_m is None or (
+            include_charts and oos and train_m.get("equity") is None
+        )
+        need_val = val_required and (
+            val_m is None or (include_charts and val_m.get("equity") is None)
+        )
         need_full = include_charts and (
             full_m_rank is None or not full_m_rank.get("weight_history")
         )
