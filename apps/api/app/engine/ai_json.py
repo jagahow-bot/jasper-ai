@@ -123,7 +123,9 @@ def round_ai_float(value: float, *, key: str | None = None) -> int | float:
     decimals = _decimals_for_key(key)
     if decimals <= 0:
         return int(round(value))
-    return round(value, decimals)
+    rounded = round(value, decimals)
+    # Format/re-parse strips IEEE tails so json.dumps never emits 0.20000000000000004.
+    return float(f"{rounded:.{decimals}f}")
 
 
 def sanitize_for_ai(value: Any, *, _key: str | None = None) -> Any:
@@ -150,11 +152,41 @@ def sanitize_ai_response(value: Any) -> Any:
 # Gemini occasionally emits multi-kilobyte numeric literals; cap before json.loads.
 _MAX_JSON_NUMERIC_LITERAL_LEN = 24
 _JSON_NUMBER_TAIL_RE = re.compile(r"(\.\d{5,})")
+_BLOATED_FLOAT_RE = re.compile(
+    rf"-?\d+\.\d{{{PARAM_NUMERIC_DECIMALS + 1},}}"
+)
+
+
+def _compact_numeric_literal(literal: str, *, cap: int) -> str:
+    """Shorten one JSON number token (MAX_TOKENS salvage + prompt hygiene)."""
+    if not literal:
+        return literal
+    needs_compact = len(literal) > cap
+    if not needs_compact and "." in literal:
+        frac = literal.split(".", 1)[1]
+        if len(frac) > PARAM_NUMERIC_DECIMALS:
+            needs_compact = True
+    if not needs_compact:
+        return literal
+    head = literal[:cap] if len(literal) > cap else literal
+    try:
+        return str(round_ai_float(float(head)))
+    except ValueError:
+        return head if len(literal) > cap else literal
+
+
+def deflate_json_bloated_floats(text: str) -> str:
+    """Collapse overlong fractional literals (e.g. shrinkage IEEE loops) before json.loads."""
+    return _BLOATED_FLOAT_RE.sub(
+        lambda m: _compact_numeric_literal(m.group(0), cap=_MAX_JSON_NUMERIC_LITERAL_LEN),
+        text,
+    )
 
 
 def prepare_gemini_json_text(text: str) -> str:
     """Normalize raw Gemini JSON before parse (numeric literals + range arrays)."""
-    cleaned = truncate_json_numeric_literals(text.strip())
+    cleaned = deflate_json_bloated_floats(text.strip())
+    cleaned = truncate_json_numeric_literals(cleaned)
     return truncate_json_range_arrays(cleaned)
 
 
@@ -181,12 +213,7 @@ def truncate_json_numeric_literals(text: str, *, max_literal_len: int | None = N
                     i += 1
                 while i < n and text[i].isdigit():
                     i += 1
-            literal = text[start:i]
-            if len(literal) > cap:
-                try:
-                    literal = str(round_ai_float(float(literal)))
-                except ValueError:
-                    literal = literal[:cap]
+            literal = _compact_numeric_literal(text[start:i], cap=cap)
             out.append(literal)
             continue
         if ch.isdigit():
@@ -203,12 +230,7 @@ def truncate_json_numeric_literals(text: str, *, max_literal_len: int | None = N
                     i += 1
                 while i < n and text[i].isdigit():
                     i += 1
-            literal = text[start:i]
-            if len(literal) > cap:
-                try:
-                    literal = str(round_ai_float(float(literal)))
-                except ValueError:
-                    literal = literal[:cap]
+            literal = _compact_numeric_literal(text[start:i], cap=cap)
             out.append(literal)
             continue
         out.append(ch)

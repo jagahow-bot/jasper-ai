@@ -255,14 +255,21 @@ def _direction_cache_key(
     payload = {
         "objective": objective,
         "rebalance_freq": rebalance_freq,
-        "max_weight_cap": round(float(max_weight_cap), 4),
-        "max_turnover_cap": round(float(max_turnover_cap), 4),
+        "max_weight_cap": round_ai_float(float(max_weight_cap), key="max_weight_actual"),
+        "max_turnover_cap": round_ai_float(float(max_turnover_cap), key="max_turnover_actual"),
         "top_n_cap": int(top_n_cap),
         "tradable_count": int(tradable_count),
-        "target": learning_context.get("target_adjusted_score"),
+        "target": _format_ai_number(
+            learning_context.get("target_adjusted_score"),
+            key="target_adjusted_score",
+        )
+        if learning_context
+        else None,
         "champion": {
-            "score": (champ or {}).get("adjusted_score"),
-            "gap": (champ or {}).get("gap_sharpe"),
+            "score": _format_ai_number(
+                (champ or {}).get("adjusted_score"), key="adjusted_score"
+            ),
+            "gap": _format_ai_number((champ or {}).get("gap_sharpe"), key="gap_sharpe"),
             "risk": (champ or {}).get("overfitting_risk"),
             "params": _compact_line(str((champ or {}).get("params_summary")), 120),
         },
@@ -270,7 +277,7 @@ def _direction_cache_key(
             str((learning_context or {}).get("failure_patterns", "")), 180
         ),
     }
-    return json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    return dumps_for_ai(payload)
 
 
 def _default_direction_plan(
@@ -1277,6 +1284,7 @@ _REGIME_SLICE_SCHEMA: dict[str, Any] = {
         "shrinkage": ai_number_schema(),
         "risk_aversion": ai_number_schema(),
     },
+    "required": ["mode", "lookback_days", "shrinkage", "risk_aversion"],
 }
 
 _REGIME_SETUPS_SCHEMA: dict[str, Any] = {
@@ -2274,6 +2282,7 @@ def generate_ai_round_seed(
    Simulation applies the active regime's slice at each rebalance (V2 detector).
    round_setup still holds shared caps (top_n, max_weight); do NOT duplicate factor keys
    inside regime_setups.
+   Example (compact numerics only): {{"risk_off":{{"mode":"min_max_drawdown","lookback_days":252,"shrinkage":0.2,"risk_aversion":6.0}},"neutral":{{"mode":"mean_variance","lookback_days":126,"shrinkage":0.15,"risk_aversion":3.0}},"risk_on":{{"mode":"max_return","lookback_days":63,"shrinkage":0.05,"risk_aversion":1.5}}}}
 5) regime_class_quotas (REQUIRED for dynamic objective) — per-regime Top-N class sleeve quotas
    keyed risk_off / neutral / risk_on. Each slice uses ONLY: {", ".join(TOP_LEVEL_QUOTA_KEYS)}.
    Values in [0,1]; normalize so allowed sleeves sum to 1 per regime. Risk-off may tilt defensive
@@ -2420,6 +2429,10 @@ Return STRICT JSON only (omit empty factor_choices if none):
             if split_regime_factors:
                 round_setup_raw = parsed.get("round_setup")
                 regime_setups_raw = parsed.get("regime_setups")
+                if isinstance(round_setup_raw, dict):
+                    round_setup_raw = sanitize_for_ai(round_setup_raw)
+                if isinstance(regime_setups_raw, dict):
+                    regime_setups_raw = sanitize_for_ai(regime_setups_raw)
                 if not isinstance(round_setup_raw, dict) or not round_setup_raw:
                     last_error = "empty_round_setup"
                     continue

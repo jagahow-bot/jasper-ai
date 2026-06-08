@@ -33,6 +33,31 @@ def test_round_ai_float_weight_noise():
     assert round_ai_float(raw, key="w_value") == 0.4
 
 
+def test_round_ai_float_shrinkage_noise():
+    raw = 0.200000000000000012345678901234567890
+    assert round_ai_float(raw, key="shrinkage") == 0.2
+    assert "00000000000" not in dumps_for_ai({"shrinkage": raw})
+
+
+def test_salvage_regime_setups_bloated_shrinkage():
+    """Regression: MAX_TOKENS mid-regime_setups shrinkage literal must salvage."""
+    from app.engine.ai_params import _extract_json, _salvage_truncated_json
+
+    # Log-realistic: one dot then runaway fractional digits (no embedded dots).
+    long_frac = "0.2" + "0" * 18 + "1234567890" * 200
+    text = (
+        '{"round_setup":{"mode":"max_sharpe","lookback_days":252,"shrinkage":0.1,'
+        '"risk_aversion":3.0,"top_n_actual":15,"max_weight_actual":0.25,'
+        '"max_turnover_actual":0.5,"no_trade_tol":0.005,"turnover_penalty_mult":1.0},'
+        '"regime_setups":{"risk_off":{"mode":"min_max_drawdown","shrinkage":'
+        + long_frac
+    )
+    parsed = _extract_json(text) or _salvage_truncated_json(text)
+    assert parsed is not None
+    assert parsed["regime_setups"]["risk_off"]["shrinkage"] == 0.2
+    assert "00000000000" not in dumps_for_ai(parsed)
+
+
 def test_round_ai_float_int_days():
     assert round_ai_float(252.7, key="lookback_days") == 253
     assert round_ai_float(126.2, key="factor_lookback_days") == 126

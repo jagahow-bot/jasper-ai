@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import json
+import json as json_module
 
+from app.engine.ai_json import dumps_for_ai
 from app.engine.ai_params import (
     _build_learning_context_block_for_mode,
     _extract_json,
@@ -253,7 +254,7 @@ def test_generate_ai_round_seed_posts_thinking_config(monkeypatch):
                         "content": {
                             "parts": [
                                 {
-                                    "text": json.dumps(
+                                    "text": json_module.dumps(
                                         {
                                             "rationale": "test",
                                             "round_setup": {
@@ -341,7 +342,7 @@ def test_generate_ai_round_seed_inherits_thinking_from_global(monkeypatch):
                         "content": {
                             "parts": [
                                 {
-                                    "text": json.dumps(
+                                    "text": json_module.dumps(
                                         {
                                             "rationale": "test",
                                             "round_setup": {
@@ -418,6 +419,90 @@ def test_generate_ai_round_seed_max_tokens_returns_disabled(monkeypatch):
     )
     assert out["enabled"] is False
     assert out["error"] == "gemini_max_tokens"
+
+
+def test_generate_ai_round_seed_max_tokens_salvages_bloated_shrinkage(monkeypatch):
+    """Regression: salvage partial JSON when Gemini loops on regime shrinkage decimals."""
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3-flash-preview")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_thinking_level", "off")
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_param_seed_max_retries", 1
+    )
+
+    long_frac = "0.2" + "0" * 18 + "1234567890" * 200
+    truncated = (
+        '{"rationale":"explore","optimization_strategy":"wide","performance_assessment":"round1",'
+        '"round_setup":{"mode":"max_sharpe","lookback_days":252,"shrinkage":0.1,'
+        '"risk_aversion":3.0,"top_n_actual":15,"max_weight_actual":0.25,'
+        '"max_turnover_actual":0.5,"no_trade_tol":0.005,"turnover_penalty_mult":1.0},'
+        '"regime_setups":{"risk_off":{"mode":"min_max_drawdown","lookback_days":252,'
+        '"shrinkage":'
+        + long_frac
+    )
+    factor_slice = {
+        key: [0.0, 1.0]
+        for key in (
+            "factor_lookback_days",
+            "reversal_lookback_days",
+            "value_lookback_days",
+            "w_mom",
+            "w_reversal",
+            "w_value",
+            "w_lowvol",
+            "w_trend",
+            "w_drawdown",
+        )
+    }
+    factors_payload = {
+        "regime_factor_ranges": {
+            "risk_off": dict(factor_slice),
+            "neutral": dict(factor_slice),
+            "risk_on": dict(factor_slice),
+        }
+    }
+
+    class _FakeResp:
+        def __init__(self, *, finish: str, text: str) -> None:
+            self._finish = finish
+            self._text = text
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "candidates": [
+                    {
+                        "finishReason": self._finish,
+                        "content": {"parts": [{"text": self._text}]},
+                    }
+                ]
+            }
+
+    def _fake_post(_url: str, *, json: dict | None = None, **_: object) -> _FakeResp:
+        req = json or {}
+        schema = req["generationConfig"]["responseSchema"]
+        if "regime_factor_ranges" in schema.get("required", []):
+            return _FakeResp(
+                finish="STOP",
+                text=json_module.dumps(factors_payload),
+            )
+        return _FakeResp(finish="MAX_TOKENS", text=truncated)
+
+    monkeypatch.setattr("app.engine.ai_params.httpx.post", _fake_post)
+    out = generate_ai_round_seed(
+        objective="dynamic",
+        rebalance_freq="monthly",
+        max_weight_cap=0.25,
+        max_turnover_cap=0.5,
+        top_n_cap=15,
+        tradable_count=50,
+        learning_context={"round_index": 1, "total_rounds": 3, "exploration_phase": "explore"},
+    )
+    assert out["enabled"] is True, out.get("error")
+    assert out["regime_setups"]["risk_off"]["shrinkage"] == 0.2
+    assert "00000000000" not in dumps_for_ai(out["regime_setups"])
 
 
 def test_round_seed_schema_factor_arrays_are_length_two():
@@ -517,7 +602,7 @@ def test_generate_ai_round_seed_dynamic_split_regime_factors(monkeypatch):
                     {
                         "finishReason": "STOP",
                         "content": {
-                            "parts": [{"text": json.dumps(self._payload)}]
+                            "parts": [{"text": json_module.dumps(self._payload)}]
                         },
                     }
                 ]
