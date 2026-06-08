@@ -2,6 +2,7 @@
 
 import { BenchmarkRegimeChart } from "@/components/BenchmarkRegimeChart";
 import { RegimeScoreChart } from "@/components/RegimeScoreChart";
+import { useI18n } from "@/lib/i18n";
 import type { ObjectiveSwitchLabResult, RegimePredictionQuality } from "@/lib/types";
 
 function fmt(v: number | null | undefined, digits = 3): string {
@@ -9,17 +10,17 @@ function fmt(v: number | null | undefined, digits = 3): string {
   return v.toFixed(digits);
 }
 
-const REC_LABELS: Record<string, string> = {
-  APPLY: "建議：可考慮套用",
-  NOT_YET: "建議：暫不套用",
-  NEED_MORE_DATA: "建議：需要更多資料",
-};
-
 type Props = {
   result: ObjectiveSwitchLabResult;
 };
 
 export function ObjectiveSwitchLabReport({ result }: Props) {
+  const { t } = useI18n();
+  const recLabels: Record<string, string> = {
+    APPLY: t("objectiveLab.rec.apply"),
+    NOT_YET: t("objectiveLab.rec.notYet"),
+    NEED_MORE_DATA: t("objectiveLab.rec.needMoreData"),
+  };
   const recClass =
     result.recommendation === "APPLY"
       ? "text-[var(--cyan)]"
@@ -30,14 +31,14 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
   return (
     <div className="space-y-5">
       <div className="pixel-panel border-[var(--amber)] bg-[rgba(255,176,0,0.06)] p-4">
-        <p className="font-pixel text-[9px] text-[var(--amber)]">Lab report card</p>
+        <p className="font-pixel text-[9px] text-[var(--amber)]">{t("objectiveLab.reportCard")}</p>
         <p className="mt-2 font-terminal text-lg text-[var(--foreground)]">{result.headline}</p>
         <p className={`mt-2 font-pixel text-[8px] ${recClass}`}>
-          {REC_LABELS[result.recommendation] ?? result.recommendation}
+          {recLabels[result.recommendation] ?? result.recommendation}
         </p>
         {result.oos_sharpe_delta_switch_minus_fixed != null && (
           <p className="mt-1 text-xs text-dim">
-            OOS Sharpe Δ (switch − fixed):{" "}
+            {t("objectiveLab.oosSharpeDelta")}{" "}
             {result.oos_sharpe_delta_switch_minus_fixed >= 0 ? "+" : ""}
             {result.oos_sharpe_delta_switch_minus_fixed.toFixed(3)}
           </p>
@@ -48,22 +49,22 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
 
       {result.detector_version && (
         <p className="text-xs text-dim">
-          Regime detector:{" "}
+          {t("objectiveLab.regimeDetector")}:{" "}
           <span className="pixel-badge-cyan inline-block px-2 py-0.5 font-pixel text-[8px]">
             {result.detector_version.toUpperCase()}
           </span>
           {result.detector_version === "v2"
-            ? " — risk-on / risk-off indicator scores with arbitration"
-            : " — legacy return & volatility thresholds"}
+            ? ` — ${t("objectiveLab.detectorV2")}`
+            : ` — ${t("objectiveLab.detectorLegacy")}`}
           {result.detector_version === "v2" && result.fast_risk_off_exit && (
-            <> · Fast risk-off exit on rebound (21d)</>
+            <> · {t("objectiveLab.fastRiskOffExit")}</>
           )}
         </p>
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <ArmCard title="Fixed objective" arm={result.fixed_arm} />
-        <ArmCard title="Switch policy" arm={result.switch_arm} showSwitches />
+        <ArmCard title={t("objectiveLab.fixedObjective")} arm={result.fixed_arm} />
+        <ArmCard title={t("objectiveLab.switchPolicy")} arm={result.switch_arm} showSwitches />
       </div>
 
       {result.regime_prediction_quality && (
@@ -78,7 +79,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
           {result.benchmark_series && result.benchmark_series.length > 0 && (
             <div>
               <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
-                Benchmark path vs regime
+                {t("objectiveLab.benchmarkVsRegime")}
               </h3>
               <div className="mt-3">
                 <BenchmarkRegimeChart
@@ -94,7 +95,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
             result.regime_score_timeline.length > 0 && (
               <div>
                 <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
-                  Regime scores vs active label
+                  {t("objectiveLab.regimeScores")}
                 </h3>
                 <div className="mt-3">
                   <RegimeScoreChart
@@ -108,27 +109,27 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
           {result.benchmark_series?.length &&
             result.regime_score_timeline?.length && (
               <p className="text-[10px] text-dim">
-                Hover either chart — cursor and tooltip sync by date across both panels.
+                {t("objectiveLab.hoverSyncHint")}
               </p>
             )}
         </div>
       )}
 
       <div className="pixel-panel p-4">
-        <h3 className="font-pixel text-[8px] text-[var(--cyan)]">Regime timeline</h3>
+        <h3 className="font-pixel text-[8px] text-[var(--cyan)]">{t("objectiveLab.regimeTimeline")}</h3>
         <div className="mt-3 max-h-48 overflow-auto font-terminal text-xs">
           <table className="w-full text-left">
             <thead>
               <tr className="text-dim">
-                <th className="pb-1">Date</th>
-                <th>Regime</th>
-                <th>Active</th>
-                <th>Objective</th>
-                <th>Vol</th>
+                <th className="pb-1">{t("common.date")}</th>
+                <th>{t("common.regime")}</th>
+                <th>{t("common.active")}</th>
+                <th>{t("common.objective")}</th>
+                <th>{t("common.vol")}</th>
                 {result.detector_version === "v2" && (
                   <>
-                    <th>Off</th>
-                    <th>On</th>
+                    <th>{t("objectiveLab.off")}</th>
+                    <th>{t("objectiveLab.on")}</th>
                   </>
                 )}
               </tr>

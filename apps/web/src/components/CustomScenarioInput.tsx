@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import type { ScenarioCard } from "@/lib/types";
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export function CustomScenarioInput({ onScenario }: Props) {
+  const { t } = useI18n();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,14 +29,14 @@ export function CustomScenarioInput({ onScenario }: Props) {
         error?: string;
       };
       if (!res.ok) {
-        throw new Error(data.error ?? "Analysis failed");
+        throw new Error(data.error ?? t("customScenario.analysisFailed"));
       }
       if (!data.scenario) {
-        throw new Error("Analysis failed");
+        throw new Error(t("customScenario.analysisFailed"));
       }
       onScenario(data.scenario);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Analysis failed — try again");
+      setError(e instanceof Error ? e.message : t("customScenario.analysisFailedRetry"));
     } finally {
       setLoading(false);
     }
@@ -43,15 +45,15 @@ export function CustomScenarioInput({ onScenario }: Props) {
   return (
     <div className="pixel-panel space-y-4">
       <div>
-        <h3 className="font-pixel text-xs text-neon">Custom macro view</h3>
+        <h3 className="font-pixel text-xs text-neon">{t("customScenario.title")}</h3>
         <p className="mt-2 text-sm text-dim">
-          Describe macro, sector, or risk views — AI maps to a backtestable scenario.
+          {t("customScenario.description")}
         </p>
       </div>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="e.g. Sticky US inflation, Fed stays higher for longer, growth multiples under pressure — tilt short duration bonds and defensives…"
+        placeholder={t("customScenario.placeholder")}
         className="pixel-input min-h-28"
       />
       {error && (
@@ -63,7 +65,7 @@ export function CustomScenarioInput({ onScenario }: Props) {
         disabled={loading || !text.trim()}
         className="pixel-btn w-full disabled:opacity-40"
       >
-        {loading ? "Analyzing…" : "Analyze → scenario"}
+        {loading ? t("customScenario.analyzing") : t("customScenario.analyzeButton")}
       </button>
     </div>
   );

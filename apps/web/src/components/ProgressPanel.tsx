@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/lib/i18n";
 import type { JobProgress, PortfolioVsBenchmark } from "@/lib/types";
 
 type Props = {
@@ -19,6 +20,7 @@ function formatAlpha(value: number | null | undefined): string {
 }
 
 export function ProgressPanel({ progress }: Props) {
+  const { t } = useI18n();
   const belowBench = progress.round_benchmark_status === "below";
   const pvb = progress.round_portfolio_vs_benchmark as PortfolioVsBenchmark | null | undefined;
   const pct =
@@ -29,7 +31,7 @@ export function ProgressPanel({ progress }: Props) {
   return (
     <div className="pixel-panel space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-pixel text-xs text-neon glow-title">Engine running</h3>
+        <h3 className="font-pixel text-xs text-neon glow-title">{t("progress.running")}</h3>
         <span className="font-terminal text-2xl text-[var(--cyan)]">
           {Math.round(pct)}%
         </span>
@@ -52,14 +54,13 @@ export function ProgressPanel({ progress }: Props) {
           role="status"
         >
           <p className="font-pixel text-[9px] text-[var(--amber)]">
-            ROUND UNDERPERFORMED BENCHMARK
+            {t("progress.roundUnderperformed")}
           </p>
           <p className="mt-1 font-pixel text-[8px] leading-relaxed text-[var(--fg)]">
-            Portfolio return trails the benchmark in this sample. Consider wider
-            exploration or strategy tweaks next round.
+            {t("progress.roundUnderperformedHint")}
           </p>
           <p className="mt-2 font-pixel text-[8px] text-[var(--muted)]">
-            Portfolio return {formatPct(pvb?.portfolio_total_return_pct)} · Benchmark{" "}
+            {t("progress.portfolioReturn")} {formatPct(pvb?.portfolio_total_return_pct)} · {t("progress.benchmark")}{" "}
             {formatPct(pvb?.benchmark_total_return_pct)} · Alpha{" "}
             {formatAlpha(progress.round_benchmark_alpha ?? pvb?.alpha)}
           </p>
@@ -69,11 +70,11 @@ export function ProgressPanel({ progress }: Props) {
       <div className="flex flex-wrap gap-4 font-terminal text-sm text-dim">
         {progress.refinement_round != null && (
           <span>
-            Round {progress.refinement_round}/{progress.refinement_rounds_total}
+            {t("progress.round")} {progress.refinement_round}/{progress.refinement_rounds_total}
           </span>
         )}
         {progress.best_sharpe != null && (
-          <span>Best in-sample: {progress.best_sharpe.toFixed(4)}</span>
+          <span>{t("progress.bestInSample")}: {progress.best_sharpe.toFixed(4)}</span>
         )}
       </div>
     </div>

@@ -11,6 +11,7 @@ import {
   regimeBandRanges,
   computeSharedDateDomain,
 } from "@/lib/benchmark-chart-scale";
+import { useI18n } from "@/lib/i18n";
 import type { BenchmarkSeriesPoint, ObjectiveSwitchLabResult } from "@/lib/types";
 import type { RechartsTooltipContentProps } from "@/components/ChartTooltip";
 import {
@@ -56,6 +57,7 @@ function BenchmarkRegimeTooltip({
 }: RechartsTooltipContentProps & {
   regimeTimeline: ObjectiveSwitchLabResult["regime_timeline"];
 }) {
+  const { t } = useI18n();
   if (!active || !payload?.length) return null;
   const ts = Number(label);
   if (!Number.isFinite(ts)) return null;
@@ -67,12 +69,12 @@ function BenchmarkRegimeTooltip({
       className="rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-[11px]"
       style={{ fontSize: 11 }}
     >
-      <p className="text-[var(--foreground)]">Date: {formatAxisDate(ts)}</p>
+      <p className="text-[var(--foreground)]">{t("common.date")}: {formatAxisDate(ts)}</p>
       <p className="text-dim">
-        Cumulative return:{" "}
+        {t("common.cumulativeReturn")}:{" "}
         {typeof value === "number" ? `${value.toFixed(2)}%` : "—"}
       </p>
-      {regime && <p className="text-dim">Active regime: {regime}</p>}
+      {regime && <p className="text-dim">{t("common.activeRegime")}: {regime}</p>}
       {(() => {
         let raw: string | null = null;
         for (const row of regimeTimeline) {
@@ -80,7 +82,7 @@ function BenchmarkRegimeTooltip({
           if (Number.isNaN(rowTs) || rowTs > ts) break;
           if (row.raw_regime) raw = row.raw_regime;
         }
-        return raw ? <p className="text-dim">Raw regime: {raw}</p> : null;
+        return raw ? <p className="text-dim">{t("common.rawRegime")}: {raw}</p> : null;
       })()}
     </div>
   );
@@ -91,13 +93,14 @@ export function BenchmarkRegimeChart({
   regimeTimeline,
   benchmarkTicker,
 }: Props) {
+  const { t } = useI18n();
   if (!benchmarkSeries.length) {
-    return <p className="text-xs text-dim">No benchmark series for chart.</p>;
+    return <p className="text-xs text-dim">{t("benchmarkChart.noSeries")}</p>;
   }
 
   const domain = computeSharedDateDomain(benchmarkSeries, regimeTimeline);
   if (!domain) {
-    return <p className="text-xs text-dim">No valid dates for chart.</p>;
+    return <p className="text-xs text-dim">{t("benchmarkChart.noValidDates")}</p>;
   }
 
   const { min: domainMin, max: domainMax } = domain;
@@ -152,7 +155,7 @@ export function BenchmarkRegimeChart({
             stroke="var(--cyan)"
             dot={false}
             strokeWidth={1.5}
-            name={`${benchmarkTicker} cum. %`}
+            name={t("benchmarkChart.cumPct", { ticker: benchmarkTicker })}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -233,13 +236,11 @@ export function BenchmarkRegimeChart({
             className="inline-block h-2 w-3 rounded-sm border border-[var(--border)]"
             style={{ backgroundColor: "var(--amber)" }}
           />
-          switch
+          {t("common.switch")}
         </span>
       </div>
       <p className="text-[10px] text-dim">
-        Top: {benchmarkTicker} cumulative return (%). Background bands = active regime
-        (hysteresis). Middle strip = active steps (amber = switch). Thin bottom strip = raw
-        arbitration when available. Hover syncs with the regime scores chart below when shown.
+        {t("benchmarkChart.footer", { ticker: benchmarkTicker })}
       </p>
     </div>
   );

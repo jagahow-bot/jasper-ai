@@ -289,7 +289,7 @@ export function ResultsDashboard({
       } catch (err) {
         if (!cancelled) {
           setChartsLoadError(
-            err instanceof Error ? err.message : "Failed to load trajectory",
+            err instanceof Error ? err.message : t("results.failedLoadTrajectory"),
           );
         }
       } finally {
@@ -535,7 +535,7 @@ export function ResultsDashboard({
           setCompareRetryNote(
             json.retried_due_to_token_limit &&
               process.env.NODE_ENV === "development"
-              ? "AI compare retried due to token limit"
+              ? t("results.compareRetried")
               : null,
           );
         }
@@ -902,12 +902,12 @@ export function ResultsDashboard({
   const selectedIndicators = (top.params ?? {}) as Record<string, string | undefined>;
   const factorLogicLabel = (key: string) => {
     const labels: Record<string, string> = {
-      momentum: "Momentum",
-      reversal: "Reversal",
-      value: "Value",
-      lowvol: "Low vol",
-      trend: "Trend",
-      drawdown: "Drawdown",
+      momentum: t("results.factor.momentum"),
+      reversal: t("results.factor.reversal"),
+      value: t("results.factor.value"),
+      lowvol: t("results.factor.lowvol"),
+      trend: t("results.factor.trend"),
+      drawdown: t("results.factor.drawdown"),
     };
     const paramKey: Record<string, string> = {
       momentum: "mom_indicator",
@@ -931,8 +931,8 @@ export function ResultsDashboard({
       {!trustworthy && (
         <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-4 py-3 text-sm text-[var(--amber)]">
           {dataSource !== "yfinance"
-            ? "Heads up: these results use sample data rather than live market data — treat the metrics as illustrative only."
-            : "Heads up: some metrics look unrealistic (e.g. an extreme Sharpe or flat drawdown) — review your data and parameters."}
+            ? t("results.warning.sampleData")
+            : t("results.warning.unrealistic")}
           {dq?.rows != null && (
             <span className="mt-1 block text-xs opacity-80">
               Data: {dq.start} → {dq.end}, {dq.rows} sessions
@@ -942,12 +942,12 @@ export function ResultsDashboard({
       )}
       {trustworthy && dq && (
         <div className="pixel-badge-cyan inline-block">
-          Live market data · {dq.start} → {dq.end} · {dq.rows} sessions
+          {t("results.liveData", { start: String(dq.start ?? "—"), end: String(dq.end ?? "—"), rows: Number(dq.rows ?? 0) })}
           {dq.requested_start && dq.requested_start !== dq.start && (
             <span className="ml-2 text-[var(--amber)]">
-              (requested {dq.requested_start}
+              ({t("results.requested")} {dq.requested_start}
               {dq.excluded_late_listing_count
-                ? ` · ${dq.excluded_late_listing_count} late listings dropped`
+                ? ` · ${dq.excluded_late_listing_count} ${t("results.lateListingsDropped")}`
                 : ""}
               )
             </span>
@@ -961,28 +961,28 @@ export function ResultsDashboard({
       )}
       {result.narrative_facts.is_round_view === true && (
         <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-4 py-2 text-sm text-[var(--amber)]">
-          Viewing: {String(result.narrative_facts.round_label ?? "round")}
-          {result.narrative_facts.improved === true && " · new round best"}
+          {t("results.viewing")}: {String(result.narrative_facts.round_label ?? t("results.round"))}
+          {result.narrative_facts.improved === true && ` · ${t("results.newRoundBest")}`}
         </div>
       )}
       <div className="border-2 border-[var(--border)] bg-[#050508] px-4 py-2 font-terminal text-sm text-dim">
         {optimizationMode === "pro_auto" && !result.narrative_facts.is_round_view ? (
           <>
-            <span className="text-[var(--amber)]">Pro refinement</span>
+            <span className="text-[var(--amber)]">{t("results.proRefinement")}</span>
             {" · "}
-            {proRefinement?.rounds_completed ?? "—"} rounds · {trialsRequested} trials · early stop{" "}
-            {proRefinement?.stopped_reason === "patience" ? "yes (flat)" : "no (max rounds)"}
+            {proRefinement?.rounds_completed ?? "—"} {t("results.rounds")} · {trialsRequested} {t("results.trials")} · {t("results.earlyStop")}{" "}
+            {proRefinement?.stopped_reason === "patience" ? t("common.yes") : t("common.no")}
           </>
         ) : (
-          <>Parameter search · {trialsRequested} trials</>
+          <>{t("results.parameterSearch")} · {trialsRequested} {t("results.trials")}</>
         )}
-        {" · "}feasible {trialsFeasible} · reported {modelsReturned}
+        {" · "}{t("results.feasible")} {trialsFeasible} · {t("results.reported")} {modelsReturned}
         {modelsTotalCatalog > modelsReturned && (
-          <span className="text-[var(--amber)]"> (catalog {modelsTotalCatalog})</span>
+          <span className="text-[var(--amber)]"> ({t("results.catalog")} {modelsTotalCatalog})</span>
         )}
         <span>
           {" "}
-          · rebalance {rebalanceFreq} ({rebalanceApplied}/{rebalanceCount} applied)
+          · {t("results.rebalance")} {rebalanceFreq} ({rebalanceApplied}/{rebalanceCount} {t("results.applied")})
         </span>
       </div>
 
@@ -990,7 +990,7 @@ export function ResultsDashboard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-pixel text-xs text-neon glow-title">{t("results.title")}</h3>
           <span className="pixel-badge-cyan text-[10px]">
-            {sortByModelCode ? "order: model #" : `sort: ${objectiveLabel}`}
+            {sortByModelCode ? t("results.orderByModel") : `${t("results.sort")}: ${objectiveLabel}`}
           </span>
           <label className="flex items-center gap-2 text-xs text-dim">
             {t("results.model")}
@@ -1025,7 +1025,7 @@ export function ResultsDashboard({
         {sampleMetrics?.in_sample && (
           <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2 text-xs">
             <p className="font-pixel text-[8px] text-[var(--amber)]">
-              Ranked on In-Sample ({Math.round((sampleMetrics.train_ratio ?? 0.7) * 100)}%)
+              {t("results.rankedOnInSample")} ({Math.round((sampleMetrics.train_ratio ?? 0.7) * 100)}%)
               {sampleMetrics.train_start && sampleMetrics.train_end
                 ? ` · ${sampleMetrics.train_start} → ${sampleMetrics.train_end}`
                 : sampleMetrics.train_end
@@ -1044,7 +1044,7 @@ export function ResultsDashboard({
                 </div>
               </div>
               <div>
-                <div className="text-dim">Out-of-Sample</div>
+                <div className="text-dim">{t("common.outOfSample")}</div>
                 <div className="text-[var(--cyan)]">
                   {sampleMetrics.out_of_sample
                     ? Number(sampleMetrics.out_of_sample.objective_value).toFixed(4)
@@ -1052,7 +1052,7 @@ export function ResultsDashboard({
                 </div>
               </div>
               <div>
-                <div className="text-dim">Full</div>
+                <div className="text-dim">{t("common.full")}</div>
                 <div className="text-slate-200">
                   {sampleMetrics.full_sample
                     ? Number(sampleMetrics.full_sample.objective_value).toFixed(4)
@@ -1060,7 +1060,7 @@ export function ResultsDashboard({
                 </div>
               </div>
               <div>
-                <div className="text-dim">Gap (In-Sample − Out-of-Sample)</div>
+                <div className="text-dim">{t("results.gapInOut")}</div>
                 <div className="text-[#ff2bd6]">
                   {sampleMetrics.gap?.objective != null
                     ? Number(sampleMetrics.gap.objective).toFixed(4)
@@ -1072,71 +1072,71 @@ export function ResultsDashboard({
         )}
         <p className="mt-4 text-xs text-dim">{t("results.fullPeriod")}</p>
         <div className="mt-2 grid grid-cols-3 gap-3 text-center">
-          <Metric label="Sharpe" value={displayMetrics.sharpe} />
+          <Metric label={t("common.sharpe")} value={displayMetrics.sharpe} />
           <Metric
-            label="Max DD"
+            label={t("common.maxDd")}
             value={displayMetrics.max_drawdown}
             format="pct"
           />
-          <Metric label="CAGR" value={displayMetrics.cagr} format="pct" />
+          <Metric label={t("common.cagr")} value={displayMetrics.cagr} format="pct" />
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-          <Metric label="Vol" value={displayMetrics.volatility} format="pct" />
-          <Metric label="Sortino" value={displayMetrics.sortino} />
-          <Metric label="Calmar" value={fullCalmar} />
+          <Metric label={t("common.vol")} value={displayMetrics.volatility} format="pct" />
+          <Metric label={t("common.sortino")} value={displayMetrics.sortino} />
+          <Metric label={t("common.calmar")} value={fullCalmar} />
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-          <Metric label="VaR 95% (d)" value={top.var_95 ?? 0} format="pct" />
-          <Metric label="CVaR 95% (d)" value={top.cvar_95 ?? 0} format="pct" />
-          <Metric label="Win rate" value={top.win_rate ?? 0} format="pct" />
+          <Metric label={t("results.var95")} value={top.var_95 ?? 0} format="pct" />
+          <Metric label={t("results.cvar95")} value={top.cvar_95 ?? 0} format="pct" />
+          <Metric label={t("results.winRate")} value={top.win_rate ?? 0} format="pct" />
         </div>
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-          <Metric label="Avg turnover" value={top.turnover_avg ?? 0} format="pct" />
-          <Metric label="Total turnover" value={top.turnover_total ?? 0} format="pct" />
-          <Metric label="Max DD days" value={top.max_drawdown_duration_days ?? 0} />
+          <Metric label={t("results.avgTurnover")} value={top.turnover_avg ?? 0} format="pct" />
+          <Metric label={t("results.totalTurnover")} value={top.turnover_total ?? 0} format="pct" />
+          <Metric label={t("results.maxDdDays")} value={top.max_drawdown_duration_days ?? 0} />
         </div>
         {(top.beta != null || top.information_ratio != null) && (
           <div className="mt-3 grid grid-cols-4 gap-3 text-center">
-            <Metric label="Beta" value={top.beta ?? 0} />
-            <Metric label="Alpha" value={top.alpha ?? top.alpha_annual ?? 0} format="pct" />
-            <Metric label="TE" value={top.tracking_error ?? 0} format="pct" />
-            <Metric label="IR" value={top.information_ratio ?? 0} />
+            <Metric label={t("common.beta")} value={top.beta ?? 0} />
+            <Metric label={t("common.alpha")} value={top.alpha ?? top.alpha_annual ?? 0} format="pct" />
+            <Metric label={t("results.te")} value={top.tracking_error ?? 0} format="pct" />
+            <Metric label={t("results.ir")} value={top.information_ratio ?? 0} />
           </div>
         )}
         {showHorizonCompare && inSampleMetrics && outOfSampleMetrics ? (
           <div className="mt-4 border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
             <p className="font-pixel text-[8px] text-[var(--cyan)]">
-              In-Sample · Out-of-Sample · Full
+              {t("results.horizonCompareTitle")}
             </p>
             <p className="mt-1 text-xs text-dim">
-              Key performance metrics across horizons (selection uses In-Sample only).
+              {t("results.horizonMetricsHint")}
             </p>
             <div className="mt-2 overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="text-dim">
                   <tr>
-                    <th className="pb-1">Metric</th>
-                    <th className="pb-1 text-right">In-Sample</th>
-                    <th className="pb-1 text-right">Out-of-Sample</th>
-                    <th className="pb-1 text-right">Full</th>
+                    <th className="pb-1">{t("results.metric")}</th>
+                    <th className="pb-1 text-right">{t("common.inSample")}</th>
+                    <th className="pb-1 text-right">{t("common.outOfSample")}</th>
+                    <th className="pb-1 text-right">{t("common.full")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <HorizonMetricRow
-                    label="Sharpe"
+                    label={t("common.sharpe")}
                     inSample={inSampleMetrics.sharpe}
                     outOfSample={outOfSampleMetrics.sharpe}
                     full={displayMetrics.sharpe}
                   />
                   <HorizonMetricRow
-                    label="CAGR"
+                    label={t("common.cagr")}
                     inSample={inSampleMetrics.cagr}
                     outOfSample={outOfSampleMetrics.cagr}
                     full={displayMetrics.cagr}
                     format="pct"
                   />
                   <HorizonMetricRow
-                    label="Max DD"
+                    label={t("common.maxDd")}
                     inSample={inSampleMetrics.max_drawdown}
                     outOfSample={outOfSampleMetrics.max_drawdown}
                     full={displayMetrics.max_drawdown}
@@ -1156,10 +1156,9 @@ export function ResultsDashboard({
             (sampleMetrics.gap.sharpe != null ||
               sampleMetrics.gap.objective != null) ? (
               <p className="mt-2 text-xs text-dim">
-                In-Sample − Out-of-Sample gap: objective{" "}
+                {t("results.gapObjectiveSharpe")}{" "}
                 {sampleMetrics.gap.objective?.toFixed(4) ?? "—"}, Sharpe{" "}
-                {sampleMetrics.gap.sharpe?.toFixed(4) ?? "—"} (positive = In-Sample
-                stronger).
+                {sampleMetrics.gap.sharpe?.toFixed(4) ?? "—"} ({t("results.positiveInSampleStronger")}).
               </p>
             ) : null}
           </div>
@@ -1168,10 +1167,10 @@ export function ResultsDashboard({
           <div className="mt-3 overflow-x-auto">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-dim">
-                Champion leaderboard · AI trials ranked on In-Sample only
+                {t("results.championLeaderboard")}
               </p>
               <label className="flex items-center gap-2 text-xs text-dim">
-                Sort table by
+                {t("results.sortTableBy")}
                 <select
                   value={leaderboardSort}
                   onChange={(e) =>
@@ -1179,20 +1178,20 @@ export function ResultsDashboard({
                   }
                   className="pixel-input py-0.5 text-xs"
                 >
-                  <option value="in_sample">In-Sample (selection)</option>
-                  <option value="out_of_sample">Out-of-Sample</option>
-                  <option value="full_sample">Full</option>
+                  <option value="in_sample">{t("results.inSampleSelection")}</option>
+                  <option value="out_of_sample">{t("common.outOfSample")}</option>
+                  <option value="full_sample">{t("common.full")}</option>
                 </select>
               </label>
             </div>
             <table className="w-full text-left text-xs">
               <thead className="text-dim">
                 <tr>
-                  <th className="pb-1">Model</th>
-                  <th className="pb-1 text-right">In-Sample</th>
-                  <th className="pb-1 text-right">Out-of-Sample</th>
-                  <th className="pb-1 text-right">Full</th>
-                  <th className="pb-1 text-right">Gap</th>
+                  <th className="pb-1">{t("results.model")}</th>
+                  <th className="pb-1 text-right">{t("common.inSample")}</th>
+                  <th className="pb-1 text-right">{t("common.outOfSample")}</th>
+                  <th className="pb-1 text-right">{t("common.full")}</th>
+                  <th className="pb-1 text-right">{t("common.gap")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1248,17 +1247,15 @@ export function ResultsDashboard({
           </div>
         )}
         <p className="mt-3 text-xs text-dim">
-          engine {String(result.narrative_facts.engine ?? "—")} · holdings{" "}
-          {String(
-            result.narrative_facts.top_holdings_count ?? activeHoldingsCount,
-          )}
-          (cap{" "}
+          {t("results.engine")} {String(result.narrative_facts.engine ?? "—")} · {t("results.holdings")}{" "}
+          {String(result.narrative_facts.top_holdings_count ?? activeHoldingsCount)}
+          ({t("results.cap")}{" "}
           {String(result.narrative_facts.max_holdings_constraint ?? request.max_holdings ?? "—")}
-          ; weight chart may list more tickers across rebalances)
-          · max weight{" "}
-          {(Math.max(...Object.values(top.weights)) * 100).toFixed(1)}% (run cap{" "}
+          ; {t("results.weightChartMayListMore")})
+          · {t("results.maxWeight")}{" "}
+          {(Math.max(...Object.values(top.weights)) * 100).toFixed(1)}% ({t("results.runCap")}{" "}
           {(Number(result.narrative_facts.max_weight_constraint ?? 0) * 100).toFixed(0)}% ·
-          effective{" "}
+          {t("results.effective")}{" "}
           {(
             Number(
               result.narrative_facts.max_weight_effective_cap ??
@@ -1266,17 +1263,13 @@ export function ResultsDashboard({
                 result.narrative_facts.max_weight_actual ??
                 0,
             ) * 100
-          ).toFixed(0)}% · observed{" "}
-          {(
-            Number(result.narrative_facts.max_weight_observed ?? 0) * 100
-          ).toFixed(0)}%)
-          {result.narrative_facts.oos_enabled
-            ? " · selection = In-Sample; Out-of-Sample = pseudo live"
-            : ""}
+          ).toFixed(0)}% · {t("results.observed")}{" "}
+          {(Number(result.narrative_facts.max_weight_observed ?? 0) * 100).toFixed(0)}%)
+          {result.narrative_facts.oos_enabled ? ` · ${t("results.selectionHint")}` : ""}
         </p>
         {weightCapViolation ? (
           <p className="mt-2 border-2 border-[#ff2bd6] bg-[rgba(255,43,214,0.08)] px-2 py-1 text-xs text-[#ff9ae8]">
-            Weight cap breach: observed{" "}
+            {t("results.weightCapBreach")}{" "}
             {(
               Number(
                 weightCapAudit?.worst_observed_weight ??
@@ -1285,7 +1278,7 @@ export function ResultsDashboard({
                   0,
               ) * 100
             ).toFixed(1)}
-            % vs effective cap{" "}
+            % {t("results.vsEffectiveCap")}{" "}
             {(
               Number(
                 weightCapAudit?.max_weight_param ??
@@ -1296,7 +1289,7 @@ export function ResultsDashboard({
             ).toFixed(0)}
             %
             {weightCapAudit?.first_violation_date
-              ? ` · first on ${String(weightCapAudit.first_violation_date)}`
+              ? ` · ${t("results.firstOn")} ${String(weightCapAudit.first_violation_date)}`
               : ""}
             {weightCapAudit?.min_holdings_for_cap != null &&
             weightCapAudit?.tradable_count != null &&
@@ -1304,7 +1297,7 @@ export function ResultsDashboard({
               Number(weightCapAudit.min_holdings_for_cap) ? (
               <span>
                 {" "}
-                · only {String(weightCapAudit.tradable_count)} tradable names (need ≥
+                · {t("results.only")} {String(weightCapAudit.tradable_count)} {t("results.tradableNames")} ({t("results.needAtLeast")}
                 {String(weightCapAudit.min_holdings_for_cap)} for this cap)
               </span>
             ) : null}
@@ -1312,11 +1305,11 @@ export function ResultsDashboard({
         ) : null}
       </div>
 
-      <ChartCard title="Performance comparison" subtitle="Full period">
+      <ChartCard title={t("results.chart.performanceComparison")} subtitle={t("results.fullPeriod")}>
         <div className="mb-3 border-2 border-[#0a4a4a] bg-[rgba(0,245,255,0.05)] px-3 py-2">
-          <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">AI comparison</p>
+          <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">{t("results.aiComparison")}</p>
           {compareLoading ? (
-            <p className="text-xs text-dim">Generating comparison…</p>
+            <p className="text-xs text-dim">{t("results.generatingComparison")}</p>
           ) : compareSummary ? (
             <div className="space-y-2 text-xs leading-relaxed">
               {compareRetryNote ? (
@@ -1333,7 +1326,7 @@ export function ResultsDashboard({
                 ))}
             </div>
           ) : (
-            <p className="text-xs text-dim">No comparison available yet</p>
+            <p className="text-xs text-dim">{t("results.noComparisonYet")}</p>
           )}
         </div>
         <ResponsiveContainer width="100%" height={300}>
@@ -1385,13 +1378,13 @@ export function ResultsDashboard({
                       className="mb-1 font-pixel text-[var(--amber)]"
                       style={{ fontSize: Math.max(11, chartTip - 1) }}
                     >
-                      {row?.isBenchmark ? "benchmark" : "model"} {code}
-                      {row?.isChampion ? " · champion" : ""}
+                      {row?.isBenchmark ? t("results.benchmark") : t("results.model")} {code}
+                      {row?.isChampion ? ` · ${t("results.champion")}` : ""}
                     </div>
-                    <div>CAGR: {Number(row?.cagr_pct ?? 0).toFixed(2)}%</div>
-                    <div>MaxDD：{Number(row?.mdd_pct ?? 0).toFixed(2)}%</div>
-                    <div>Sharpe：{Number(row?.sharpe ?? 0).toFixed(3)}</div>
-                    <div>Sortino：{Number((row as { sortino?: number } | undefined)?.sortino ?? 0).toFixed(3)}</div>
+                    <div>{t("common.cagr")}: {Number(row?.cagr_pct ?? 0).toFixed(2)}%</div>
+                    <div>{t("common.maxDd")}: {Number(row?.mdd_pct ?? 0).toFixed(2)}%</div>
+                    <div>{t("common.sharpe")}: {Number(row?.sharpe ?? 0).toFixed(3)}</div>
+                    <div>{t("common.sortino")}: {Number((row as { sortino?: number } | undefined)?.sortino ?? 0).toFixed(3)}</div>
                   </div>
                 );
               }}
@@ -1416,7 +1409,7 @@ export function ResultsDashboard({
                   ))}
                   {championModelKey ? (
                     <li className="flex items-center gap-1 text-[var(--amber)]">
-                      <span className="font-pixel text-[10px]">★ champion</span>
+                      <span className="font-pixel text-[10px]">★ {t("results.champion")}</span>
                     </li>
                   ) : null}
                 </ul>
@@ -1440,7 +1433,7 @@ export function ResultsDashboard({
               stroke="#60a5fa"
               fontSize={chartTick}
             />
-            <Bar yAxisId="left" dataKey="cagr_pct" fill={METRIC_FILLS.cagr} name="CAGR %">
+            <Bar yAxisId="left" dataKey="cagr_pct" fill={METRIC_FILLS.cagr} name={t("results.cagrPct")}>
               {candidateCompare.map((row) => (
                 <Cell
                   key={`cagr-${row.chartKey}`}
@@ -1462,7 +1455,7 @@ export function ResultsDashboard({
                 />
               ))}
             </Bar>
-            <Bar yAxisId="left" dataKey="mdd_pct" fill={METRIC_FILLS.mdd} name="MaxDD %">
+            <Bar yAxisId="left" dataKey="mdd_pct" fill={METRIC_FILLS.mdd} name={t("results.maxDdPct")}>
               {candidateCompare.map((row) => (
                 <Cell
                   key={`mdd-${row.chartKey}`}
@@ -1484,7 +1477,7 @@ export function ResultsDashboard({
                 />
               ))}
             </Bar>
-            <Bar yAxisId="right" dataKey="sharpe" fill={METRIC_FILLS.sharpe} name="Sharpe">
+            <Bar yAxisId="right" dataKey="sharpe" fill={METRIC_FILLS.sharpe} name={t("common.sharpe")}>
               {candidateCompare.map((row) => (
                 <Cell
                   key={`sharpe-${row.chartKey}`}
@@ -1506,7 +1499,7 @@ export function ResultsDashboard({
                 />
               ))}
             </Bar>
-            <Bar yAxisId="right" dataKey="sortino" fill={METRIC_FILLS.sortino} name="Sortino">
+            <Bar yAxisId="right" dataKey="sortino" fill={METRIC_FILLS.sortino} name={t("common.sortino")}>
               {candidateCompare.map((row) => (
                 <Cell
                   key={`sortino-${row.chartKey}`}
@@ -1535,22 +1528,22 @@ export function ResultsDashboard({
         (result.narrative_facts.dynamic_objectives_used as string[] | undefined)
           ?.length ? (
           <p className="mt-3 text-xs text-dim">
-            Dynamic objectives:{" "}
+            {t("results.dynamicObjectives")}:{" "}
             {(result.narrative_facts.dynamic_objectives_used as string[]).join(", ")}
             {" "}
-            · Regime and objective bands are in Portfolio trajectory and holdings below.
+            · {t("results.dynamicObjectivesHint")}
           </p>
         ) : null}
       </ChartCard>
 
-      <ChartCard title="Portfolio trajectory & holdings">
+      <ChartCard title={t("results.chart.trajectoryHoldings")}>
         {chartsLoading ? (
           <p className="mb-3 flex items-center gap-2 text-xs text-dim">
             <span
               className="inline-block h-3 w-3 animate-spin rounded-full border border-[var(--amber)] border-t-transparent"
               aria-hidden
             />
-            Loading trajectory for {selectedModelCode}…
+            {t("results.loadingTrajectory", { model: selectedModelCode })}
           </p>
         ) : null}
         {chartsLoadError && !chartsReady ? (
@@ -1558,12 +1551,11 @@ export function ResultsDashboard({
         ) : null}
         {dynamicObjectiveChart ? (
           <p className="mb-3 text-xs text-dim">
-            Walk-forward regime and active objective bands (linked cursor with return and weight charts).
-            Pro ★ champion: ranked on In-Sample{" "}
-            <span className="text-[var(--amber)]">comprehensive score</span> (
+            {t("results.walkForwardHint")}{" "}
+            {t("results.proChampionScorePrefix")}{" "}
+            <span className="text-[var(--amber)]">{t("results.comprehensiveScore")}</span> (
             <code className="text-[10px]">objective_value_is</code>
-            ) — 0.45×Sharpe + 0.25×Sortino + 0.20×(5×CAGR) − 0.35×|max DD| − 0.10×turnover —
-            not per-rebalance regime objectives.
+            ) — {t("results.proChampionScoreFormula")}
           </p>
         ) : null}
         {chartsReady ? (
@@ -1578,15 +1570,14 @@ export function ResultsDashboard({
           />
         ) : chartsLoading ? null : (
           <p className="text-xs text-dim">
-            Select a trial above to load its portfolio trajectory and holdings.
+            {t("results.selectTrialHint")}
           </p>
         )}
       </ChartCard>
 
-      <ChartCard title="Efficient frontier (samples)">
+      <ChartCard title={t("results.chart.efficientFrontier")}>
         <p className="mb-2 text-xs text-dim">
-          Blue: search trials (sampled). Orange: ranked output models (Top N).
-          Each model appears only once.
+          {t("results.efficientFrontierHint")}
         </p>
         <ResponsiveContainer width="100%" height={260}>
           <ScatterChart>
@@ -1594,13 +1585,13 @@ export function ResultsDashboard({
             <XAxis
               type="number"
               dataKey="volatility"
-              name="Vol"
+              name={t("common.vol")}
               stroke="#94a3b8"
               fontSize={chartTick}
               tickFormatter={(v) => `${(Number(v) * 100).toFixed(1)}%`}
             >
               <Label
-                value="Ann. vol (%)"
+                value={t("results.annVol")}
                 position="insideBottom"
                 offset={-2}
                 fill="#94a3b8"
@@ -1610,13 +1601,13 @@ export function ResultsDashboard({
             <YAxis
               type="number"
               dataKey="return"
-              name="Return"
+              name={t("common.return")}
               stroke="#94a3b8"
               fontSize={chartTick}
               tickFormatter={(v) => `${(Number(v) * 100).toFixed(1)}%`}
             >
               <Label
-                value="Ann. return (%)"
+                value={t("results.annReturn")}
                 angle={-90}
                 position="insideLeft"
                 offset={8}
@@ -1639,8 +1630,8 @@ export function ResultsDashboard({
                 };
                 const seriesLabel =
                   p?.series === "output" || entry?.name === "Output models"
-                    ? "Output model"
-                    : "Search trial";
+                    ? t("results.outputModel")
+                    : t("results.searchTrial");
                 const label = frontierTooltipLabel(p);
                 return (
                   <div
@@ -1661,22 +1652,22 @@ export function ResultsDashboard({
                         </span>
                       ) : null}
                     </div>
-                    <div>Vol: {((p?.volatility ?? 0) * 100).toFixed(2)}%</div>
-                    <div>Return: {((p?.return ?? 0) * 100).toFixed(2)}%</div>
-                    <div>Sharpe: {Number(p?.sharpe ?? 0).toFixed(3)}</div>
+                    <div>{t("common.vol")}: {((p?.volatility ?? 0) * 100).toFixed(2)}%</div>
+                    <div>{t("common.return")}: {((p?.return ?? 0) * 100).toFixed(2)}%</div>
+                    <div>{t("common.sharpe")}: {Number(p?.sharpe ?? 0).toFixed(3)}</div>
                   </div>
                 );
               }}
             />
             <Legend />
             <Scatter
-              name="Param samples"
+              name={t("results.paramSamples")}
               data={paramFrontierSamples}
               fill="#60a5fa"
             />
             <ZAxis dataKey="isSelected" range={[80, 220]} />
             <Scatter
-              name="Output models"
+              name={t("results.outputModels")}
               data={candidateFrontier}
               fill="#fbbf24"
             >
@@ -1691,11 +1682,10 @@ export function ResultsDashboard({
         </ResponsiveContainer>
       </ChartCard>
 
-      <ChartCard title="AI class quotas (Top N)">
+      <ChartCard title={t("results.chart.aiClassQuotas")}>
         {assetClassFilter?.length ? (
           <p className="mb-2 text-xs text-dim">
-            Universe filter: {assetClassFilter.map(quotaLabel).join(", ")} — other
-            asset classes are excluded from the search and Top N screen.
+            {t("results.universeFilter")}: {assetClassFilter.map(quotaLabel).join(", ")} — {t("results.universeFilterHint")}
           </p>
         ) : null}
         {regimeQuotaMatrix ? (
@@ -1712,7 +1702,7 @@ export function ResultsDashboard({
                 }`}
               >
                 {regime.replace("_", " ")}
-                {activeRegime === regime ? " · active" : ""}
+                {activeRegime === regime ? ` · ${t("common.active")}` : ""}
               </button>
             ))}
           </div>
@@ -1721,8 +1711,8 @@ export function ResultsDashboard({
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
             <p className="mb-2 text-xs text-dim">
               {regimeQuotaMatrix
-                ? `Target names (${quotaRegimeTab.replace("_", " ")} regime)`
-                : "Target names (from AI params)"}
+                ? t("results.targetNamesRegime", { regime: quotaRegimeTab.replace("_", " ") })
+                : t("results.targetNamesAi")}
             </p>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={quotaRows}>
@@ -1730,17 +1720,17 @@ export function ResultsDashboard({
                 <XAxis dataKey="cls" stroke="#94a3b8" fontSize={chartTick} />
                 <YAxis stroke="#94a3b8" fontSize={chartTick} />
                 <Tooltip content={<ChartTooltip valueDecimals={0} />} />
-                <Bar dataKey="target_count" name="Target count" fill="#00f5ff" />
+                <Bar dataKey="target_count" name={t("results.targetCount")} fill="#00f5ff" />
               </BarChart>
             </ResponsiveContainer>
           </div>
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
-            <p className="mb-2 text-xs text-dim">Actual class weights (holdings)</p>
+            <p className="mb-2 text-xs text-dim">{t("results.actualClassWeights")}</p>
             {usingChampionAnalyticsFallback &&
             (!top.analytics?.exposure?.by_asset_class ||
               Object.keys(top.analytics.exposure.by_asset_class).length === 0) ? (
               <p className="mb-2 text-[10px] text-dim">
-                Class breakdown shown from the ★ champion (the selected trial stores condensed data).
+                {t("results.classBreakdownChampion")}
               </p>
             ) : null}
             <ResponsiveContainer width="100%" height={220}>
@@ -1749,27 +1739,27 @@ export function ResultsDashboard({
                 <XAxis dataKey="cls" stroke="#94a3b8" fontSize={chartTick} />
                 <YAxis stroke="#94a3b8" fontSize={chartTick} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
                 <Tooltip content={<ChartTooltip valueIsPct={false} valueDecimals={2} />} />
-                <Bar dataKey="actual_pct" name="Weight %" fill="#39ff14" />
+                <Bar dataKey="actual_pct" name={t("results.weightPct")} fill="#39ff14" />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </ChartCard>
 
-      <ChartCard title="Factor attribution">
+      <ChartCard title={t("results.chart.factorAttribution")}>
         {usingChampionAnalyticsFallback &&
         !(
           top.analytics?.factor_summary?.factor_contribution &&
           Object.keys(top.analytics.factor_summary.factor_contribution).length > 0
         ) ? (
           <p className="mb-2 text-xs text-dim">
-            Factor attribution shown from the ★ champion when the selected trial omits full simulation output.
+            {t("results.factorAttributionChampion")}
           </p>
         ) : null}
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
             {factorContribRows.length === 0 ? (
-              <p className="text-xs text-dim">No factor attribution data</p>
+              <p className="text-xs text-dim">{t("results.noFactorAttribution")}</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={factorContribRows}>
@@ -1777,19 +1767,19 @@ export function ResultsDashboard({
                   <XAxis dataKey="factor" stroke="#94a3b8" fontSize={chartTick} />
                   <YAxis stroke="#94a3b8" fontSize={chartTick} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
                   <Tooltip content={<ChartTooltip valueIsPct={false} valueDecimals={2} />} />
-                  <Bar dataKey="pct" name="Contrib %" fill="#ff2bd6" />
+                  <Bar dataKey="pct" name={t("results.contribPct")} fill="#ff2bd6" />
                 </BarChart>
               </ResponsiveContainer>
             )}
             <p className="mt-2 text-[11px] text-dim">
-              Observations: {String(factorSummary.factor_observations ?? 0)} (rebalance cross-sections)
+              {t("results.observations")}: {String(factorSummary.factor_observations ?? 0)} ({t("results.rebalanceCrossSections")})
             </p>
           </div>
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
-            <p className="mb-2 text-xs text-dim">Factor metric logic</p>
+            <p className="mb-2 text-xs text-dim">{t("results.factorMetricLogic")}</p>
             <div className="max-h-56 space-y-1 overflow-y-auto text-xs">
               {factorLogicRows.length === 0 ? (
-                <p className="text-dim">No metric logic data</p>
+                <p className="text-dim">{t("results.noMetricLogic")}</p>
               ) : (
                 factorLogicRows.map(([k, v]) => (
                   <div key={k} className="border-b border-slate-800 py-1">
@@ -1803,10 +1793,10 @@ export function ResultsDashboard({
         </div>
       </ChartCard>
 
-      <ChartCard title="Latest allocation (holdings)">
+      <ChartCard title={t("results.chart.latestAllocation")}>
         {Object.keys(top.weights ?? {}).length === 0 ? (
           <p className="text-sm text-dim">
-            Summary-only model (no detailed holdings or curves). Select a model with a full backtest report.
+            {t("results.summaryOnlyModel")}
           </p>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
@@ -1826,10 +1816,10 @@ export function ResultsDashboard({
               <table className="w-full text-left text-sm">
                 <thead className="text-dim">
                   <tr>
-                    <th className="pb-2">Date</th>
-                    <th className="pb-2">Ticker</th>
-                    <th className="pb-2">Name</th>
-                    <th className="pb-2 text-right">Wt</th>
+                    <th className="pb-2">{t("common.date")}</th>
+                    <th className="pb-2">{t("common.ticker")}</th>
+                    <th className="pb-2">{t("common.name")}</th>
+                    <th className="pb-2 text-right">{t("institutional.weightShort")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1857,26 +1847,26 @@ export function ResultsDashboard({
         loadingModelCode={selectedModelCode || undefined}
         analyticsNote={
           usingChampionAnalyticsFallback
-            ? "Rolling, exposure, and return tables use ★ champion analytics; headline metrics follow the selected trial."
+            ? t("results.analyticsFallback")
             : undefined
         }
       />
 
-      <ChartCard title="Reproducible parameters">
+      <ChartCard title={t("results.chart.reproducibleParameters")}>
         {((aiRationalesByRound?.length ?? 0) > 0 || Boolean(aiGen.rationale)) ? (
           <details
             open
             className="mb-3 border-2 border-[var(--border)] bg-[#050508] px-3 py-2"
           >
             <summary className="cursor-pointer text-xs text-[var(--amber)] hover:text-neon">
-              AI parameter rationale
+              {t("results.aiParameterRationale")}
             </summary>
             <div className="mt-2 max-h-72 space-y-3 overflow-y-auto text-xs leading-relaxed text-slate-300">
               {aiRationalesByRound?.length ? (
                 aiRationalesByRound.map((text, i) => (
                   <div key={i}>
                     <p className="mb-1 font-pixel text-[8px] text-dim">
-                      {aiRationalesByRound.length > 1 ? `Round ${i + 1}` : "Generation"}
+                      {aiRationalesByRound.length > 1 ? `${t("results.round")} ${i + 1}` : t("results.generation")}
                     </p>
                     <p className="whitespace-pre-wrap">{text}</p>
                   </div>
@@ -1887,11 +1877,11 @@ export function ResultsDashboard({
             </div>
           </details>
         ) : (
-          <p className="mb-3 text-xs text-dim">No AI rationale for this run.</p>
+          <p className="mb-3 text-xs text-dim">{t("results.noAiRationale")}</p>
         )}
         <details className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
           <summary className="cursor-pointer text-xs text-dim hover:text-[var(--cyan)]">
-            Full run configuration (JSON)
+            {t("results.fullRunConfig")}
           </summary>
           <pre className="mt-2 max-h-[28rem] overflow-auto whitespace-pre-wrap text-xs text-[var(--cyan)]">
             {JSON.stringify(
@@ -1911,7 +1901,7 @@ export function ResultsDashboard({
       <div className="pixel-panel">
         <QuickRefinements
           request={request}
-          onApply={(next, label) => onQuickTweak(next, label ?? "manual adjustment")}
+          onApply={(next, label) => onQuickTweak(next, label ?? t("results.manualAdjustment"))}
           onApplyAndRun={onQuickTweakAndRun}
         />
         <p className="mt-2 text-xs text-dim">{t("results.refineHint")}</p>
@@ -1927,8 +1917,8 @@ export function ResultsDashboard({
       </div>
 
       <p className="text-xs text-dim">
-        Disclaimer: research & education only — not investment advice. Data:{" "}
-        {String(result.narrative_facts.data_source ?? "unknown")}.
+        {t("results.disclaimer")}{" "}
+        {String(result.narrative_facts.data_source ?? t("common.unknown"))}.
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import type { BacktestRequest } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 type Props = {
   value: BacktestRequest;
@@ -23,6 +24,7 @@ function estProTrials(v: BacktestRequest): number {
 }
 
 export function ProOptimizationPanel({ value, onChange }: Props) {
+  const { t } = useI18n();
   const isPro = value.optimization_mode === "pro_auto";
   const estTrials = estProTrials(value);
   const highTrialCount = estTrials >= 50;
@@ -46,19 +48,18 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h4 className="font-pixel text-[9px] text-[var(--amber)]">
-            Pro · AI convergence
+            {t("proPanel.title")}
           </h4>
           <p className="mt-2 text-sm text-dim">
-            Champion–challenger rounds. The AI proposes parameters from prior results and
-            the optimizer scores them on the in-sample objective until improvement stalls.
-            With the <strong className="text-[var(--fg)]">Dynamic</strong> objective, each
-            round explores separate factor settings for every market regime
-            (risk-off / neutral / risk-on), and the simulation applies the active regime at
-            each rebalance.
+            {t("proPanel.desc.beforeDynamic")}{" "}
+            <strong className="text-[var(--fg)]">{t("proPanel.dynamic")}</strong>{" "}
+            {t("proPanel.desc.afterDynamic")}
           </p>
         </div>
         <label className="flex shrink-0 cursor-pointer items-center gap-2">
-          <span className="text-xs text-dim">{isPro ? "ON" : "OFF"}</span>
+          <span className="text-xs text-dim">
+            {isPro ? t("common.on") : t("common.off")}
+          </span>
           <input
             type="checkbox"
             checked={isPro}
@@ -71,26 +72,24 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
       {isPro && (
         <div className="mt-4 space-y-4 border-t border-[var(--border)] pt-4">
           <p className="text-xs text-dim">
-            The standard trial slider is disabled in Pro mode. Estimated maximum ~{" "}
+            {t("proPanel.estimationPrefix")}{" "}
             <strong className="text-[var(--amber)]">{estTrials}</strong> backtests
-            (the champion is re-tested once per round after round 1; the run may stop early).
+            {t("proPanel.estimationSuffix")}
           </p>
           {highTrialCount && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">
-              Higher settings run many backtests. Each round uses a single AI proposal to
-              guide the search, and the optimizer then explores all trials in that round
-              within those bounds.
+              {t("proPanel.highTrialsWarning")}
             </p>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block space-y-1">
               <span className="flex justify-between text-xs text-[var(--foreground)]">
-                <span>Round-1 batch</span>
+                <span>{t("proPanel.round1Batch")}</span>
                 <span className="font-terminal text-base text-[var(--amber)]">
                   {value.refinement_batch_size ?? 5}
                 </span>
               </span>
-              <p className="text-xs text-dim">Round-1 parallel trials (3–100).</p>
+              <p className="text-xs text-dim">{t("proPanel.round1BatchHint")}</p>
               <input
                 type="range"
                 min={3}
@@ -111,13 +110,13 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
             </label>
             <label className="block space-y-1">
               <span className="flex justify-between text-xs text-[var(--foreground)]">
-                <span>Challengers / round</span>
+                <span>{t("proPanel.challengersPerRound")}</span>
                 <span className="font-terminal text-base text-[var(--amber)]">
                   {value.refinement_challengers_per_round ?? 4}
                 </span>
               </span>
               <p className="text-xs text-dim">
-                New challengers each round after round 1 (2–100).
+                {t("proPanel.challengersPerRoundHint")}
               </p>
               <input
                 type="range"
@@ -136,12 +135,12 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
             </label>
             <label className="block space-y-1">
               <span className="flex justify-between text-xs text-[var(--foreground)]">
-                <span>Max rounds</span>
+                <span>{t("proPanel.maxRounds")}</span>
                 <span className="font-terminal text-base text-[var(--amber)]">
                   {value.refinement_max_rounds ?? 8}
                 </span>
               </span>
-              <p className="text-xs text-dim">Including round 1 (2–30).</p>
+              <p className="text-xs text-dim">{t("proPanel.maxRoundsHint")}</p>
               <input
                 type="range"
                 min={2}
@@ -159,7 +158,7 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
             </label>
             <label className="block space-y-1">
               <span className="flex justify-between text-xs text-[var(--foreground)]">
-                <span>Patience (rounds)</span>
+                <span>{t("proPanel.patienceRounds")}</span>
                 <span className="font-terminal text-base text-[var(--amber)]">
                   {value.refinement_patience ?? 2}
                 </span>
@@ -181,7 +180,7 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
           </div>
           {!value.enable_oos && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">
-              Tip: turn on the holdout split so candidates are ranked on in-sample results only; out-of-sample metrics stay diagnostic.
+              {t("proPanel.holdoutTip")}
             </p>
           )}
         </div>

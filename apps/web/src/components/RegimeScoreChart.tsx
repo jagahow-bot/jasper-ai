@@ -9,6 +9,7 @@ import {
   labXAxisProps,
   parseDateTs,
 } from "@/lib/benchmark-chart-scale";
+import { useI18n } from "@/lib/i18n";
 import type {
   BenchmarkSeriesPoint,
   ObjectiveSwitchLabResult,
@@ -40,6 +41,7 @@ function RegimeScoreTooltip({
   payload,
   label,
 }: RechartsTooltipContentProps) {
+  const { t } = useI18n();
   if (!active || !payload?.length) return null;
   const ts = Number(label);
   if (!Number.isFinite(ts)) return null;
@@ -55,7 +57,7 @@ function RegimeScoreTooltip({
       className="rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-[11px]"
       style={{ fontSize: 11 }}
     >
-      <p className="text-[var(--foreground)]">Date: {formatAxisDate(ts)}</p>
+      <p className="text-[var(--foreground)]">{t("common.date")}: {formatAxisDate(ts)}</p>
       {payload
         .filter((p) => p.dataKey !== "switched")
         .map((p) => (
@@ -65,13 +67,13 @@ function RegimeScoreTooltip({
           </p>
         ))}
       {scoreWinner && (
-        <p className="text-dim">Score winner at step: {scoreWinner}</p>
+        <p className="text-dim">{t("regimeScore.stepWinner")}: {scoreWinner}</p>
       )}
       {rawRegime && (
-        <p className="text-dim">Raw regime (arbitration): {rawRegime}</p>
+        <p className="text-dim">{t("regimeScore.rawRegime")}: {rawRegime}</p>
       )}
       {activeRegime && (
-        <p className="text-dim">Active regime (hysteresis): {activeRegime}</p>
+        <p className="text-dim">{t("regimeScore.activeRegime")}: {activeRegime}</p>
       )}
     </div>
   );
@@ -82,10 +84,11 @@ export function RegimeScoreChart({
   benchmarkSeries = [],
   regimeTimeline = [],
 }: Props) {
+  const { t } = useI18n();
   if (!scoreTimeline.length) {
     return (
       <p className="text-xs text-dim">
-        No regime scores (use detector V2 or run a longer in-sample window).
+        {t("regimeScore.noScores")}
       </p>
     );
   }
@@ -96,7 +99,7 @@ export function RegimeScoreChart({
     scoreTimeline,
   );
   if (!domain) {
-    return <p className="text-xs text-dim">No valid dates for score chart.</p>;
+    return <p className="text-xs text-dim">{t("regimeScore.noValidDates")}</p>;
   }
 
   const { min: domainMin, max: domainMax } = domain;
@@ -129,7 +132,7 @@ export function RegimeScoreChart({
           <Line
             type="monotone"
             dataKey="risk_off"
-            name="Risk-off score"
+            name={t("regimeScore.riskOffScore")}
             stroke="#ff5050"
             dot={false}
             strokeWidth={1.5}
@@ -137,7 +140,7 @@ export function RegimeScoreChart({
           <Line
             type="monotone"
             dataKey="risk_on"
-            name="Risk-on score"
+            name={t("regimeScore.riskOnScore")}
             stroke="#00dcb4"
             dot={false}
             strokeWidth={1.5}
@@ -145,7 +148,7 @@ export function RegimeScoreChart({
           <Line
             type="monotone"
             dataKey="neutral"
-            name="Neutral (implied)"
+            name={t("regimeScore.neutralImplied")}
             stroke="#ffb000"
             dot={false}
             strokeWidth={1}
@@ -154,9 +157,7 @@ export function RegimeScoreChart({
         </LineChart>
       </ResponsiveContainer>
       <p className="text-[10px] text-dim">
-        63d indicator scores at each walk-forward step (lines). Tooltip: score winner (margin
-        arbitration), raw regime, and active regime after hysteresis. Hover syncs with the
-        benchmark chart above.
+        {t("regimeScore.footer")}
       </p>
     </div>
   );

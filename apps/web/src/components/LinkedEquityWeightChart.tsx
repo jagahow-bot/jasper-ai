@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   activeObjectiveAtTs,
   activeRegimeAtTs,
@@ -65,6 +66,7 @@ function PortfolioEquityTooltip({
 }: RechartsTooltipContentProps & {
   timeline: DynamicObjectiveTimelinePoint[];
 }) {
+  const { t } = useI18n();
   if (!active || !payload?.length) return null;
   const ts = Number(label);
   const dateLabel = formatChartTooltipLabel(label);
@@ -92,12 +94,12 @@ function PortfolioEquityTooltip({
       </div>
       {regime && (
         <p className="text-dim">
-          Regime: {REGIME_DISPLAY_LABELS[regime] ?? regime}
+          {t("linkedChart.tooltipRegime")}: {REGIME_DISPLAY_LABELS[regime] ?? regime}
         </p>
       )}
       {objective && (
         <p className="text-dim">
-          Active objective: {OBJECTIVE_DISPLAY_LABELS[objective] ?? objective}
+          {t("linkedChart.tooltipActiveObjective")}: {OBJECTIVE_DISPLAY_LABELS[objective] ?? objective}
         </p>
       )}
       <ul className="mt-1 space-y-0.5">
@@ -125,6 +127,7 @@ export function LinkedEquityWeightChart({
   colors,
   regimeTimeline = [],
 }: Props) {
+  const { t } = useI18n();
   const timeline = regimeTimeline;
 
   const equityChartData = useMemo(() => {
@@ -229,20 +232,20 @@ export function LinkedEquityWeightChart({
 
   if (!hasEquity && !hasWeights) {
     return (
-      <p className="text-xs text-dim">No equity or weight history for this model.</p>
+      <p className="text-xs text-dim">{t("linkedChart.noHistory")}</p>
     );
   }
 
   return (
     <div className="space-y-3">
       <p className="text-[11px] text-dim">
-        Linked cursor: performance, regime/objective bands, and stacked weights share one date axis.
+        {t("linkedChart.linkedCursorHint")}
       </p>
 
       {hasEquity && (
         <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
-            Cumulative return % · Portfolio vs {benchmarkLabel}
+            {t("linkedChart.cumulativeTitle", { benchmark: benchmarkLabel })}
           </p>
           <ResponsiveContainer width="100%" height={EQUITY_HEIGHT}>
             <LineChart
@@ -407,7 +410,7 @@ export function LinkedEquityWeightChart({
                     {OBJECTIVE_DISPLAY_LABELS[obj] ?? obj}
                   </span>
                 ))}
-                <span className="text-[var(--amber)]">Amber = switch</span>
+                <span className="text-[var(--amber)]">{t("linkedChart.amberSwitch")}</span>
               </div>
             </>
           )}
@@ -417,12 +420,12 @@ export function LinkedEquityWeightChart({
       {hasWeights && (
         <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
-            Holding weights (stacked)
+            {t("linkedChart.holdingsTitle")}
             <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
-              · Other capped at 10% (dynamic allocations)
+              · {t("linkedChart.otherCapHint")}
             </span>
             <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
-              · Hover chart for holdings
+              · {t("linkedChart.hoverHint")}
             </span>
           </p>
           <ResponsiveContainer width="100%" height={WEIGHT_HEIGHT}>
@@ -477,7 +480,7 @@ export function LinkedEquityWeightChart({
                   key="OTHER"
                   type="monotone"
                   dataKey="OTHER"
-                  name="Other"
+                  name={t("linkedChart.other")}
                   stackId="weights"
                   stroke="#64748b"
                   fill="#64748b"

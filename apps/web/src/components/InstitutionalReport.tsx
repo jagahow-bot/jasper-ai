@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useI18n } from "@/lib/i18n";
 import type { PortfolioCandidate } from "@/lib/types";
 
 export function InstitutionalReport({
@@ -25,20 +26,19 @@ export function InstitutionalReport({
   isLoadingAnalytics?: boolean;
   loadingModelCode?: string;
 }) {
+  const { t } = useI18n();
   const a = candidate.analytics;
   const loadingSuffix = loadingModelCode ? ` for ${loadingModelCode}` : "";
   if (!a) {
     if (isLoadingAnalytics) {
       return (
         <div className="space-y-5">
-          <LoadingPlaceholder label={`institutional analytics${loadingSuffix}`} />
+          <LoadingPlaceholder label={`${t("institutional.loadingAnalytics")}${loadingSuffix}`} />
         </div>
       );
     }
     return (
-      <p className="text-sm text-dim">
-        No institutional analytics available — please rerun the backtest.
-      </p>
+      <p className="text-sm text-dim">{t("institutional.noAnalytics")}</p>
     );
   }
 
@@ -59,17 +59,17 @@ export function InstitutionalReport({
         ? ` through ${trainEnd}`
         : "";
   const monthlyTitle = periodicInSample
-    ? `Monthly returns (In-Sample${isRange})`
-    : "Monthly returns (Full)";
+    ? t("institutional.monthlyInSample", { range: isRange })
+    : t("institutional.monthlyFull");
   const annualTitle = periodicInSample
-    ? `Annual returns (In-Sample${isRange})`
-    : "Annual returns (Full)";
+    ? t("institutional.annualInSample", { range: isRange })
+    : t("institutional.annualFull");
   const holdoutMonthlyTitle = valStart
-    ? `Monthly returns (Out-of-Sample from ${valStart})`
-    : "Monthly returns (Out-of-Sample)";
+    ? t("institutional.monthlyOosFrom", { date: valStart })
+    : t("institutional.monthlyOos");
   const holdoutAnnualTitle = valStart
-    ? `Annual returns (Out-of-Sample from ${valStart})`
-    : "Annual returns (Out-of-Sample)";
+    ? t("institutional.annualOosFrom", { date: valStart })
+    : t("institutional.annualOos");
   const rolling = a.rolling ?? { rolling_sharpe: [], rolling_vol: [] };
   const exposure = a.exposure ?? {};
   const rc = a.risk_contribution ?? [];
@@ -91,13 +91,13 @@ export function InstitutionalReport({
   return (
     <div className="space-y-5">
       {isLoadingAnalytics ? (
-        <LoadingPlaceholder label={`institutional analytics${loadingSuffix}`} />
+        <LoadingPlaceholder label={`${t("institutional.loadingAnalytics")}${loadingSuffix}`} />
       ) : null}
       {analyticsNote ? (
         <p className="text-xs text-dim">{analyticsNote}</p>
       ) : null}
       {hasHorizonTable && (
-        <Section title="Performance by horizon (In-Sample · Out-of-Sample · Full)">
+        <Section title={t("institutional.horizonTitle")}>
           <p className="mb-3 text-xs text-dim">
             Trial selection uses In-Sample when holdout is on. In-Sample and Out-of-Sample
             rows are slices of the same continuous Full backtest; they are not separate
@@ -108,22 +108,22 @@ export function InstitutionalReport({
             <table className="w-full text-left text-sm">
               <thead className="text-dim">
                 <tr>
-                  <th className="pb-2">Horizon</th>
+                  <th className="pb-2">{t("institutional.horizon")}</th>
                   <th className="pb-2 text-right">Sharpe</th>
                   <th className="pb-2 text-right">CAGR</th>
-                  <th className="pb-2 text-right">Max DD</th>
-                  <th className="pb-2 text-right">Objective</th>
+                  <th className="pb-2 text-right">{t("institutional.maxDd")}</th>
+                  <th className="pb-2 text-right">{t("common.objective")}</th>
                 </tr>
               </thead>
               <tbody>
                 {horizonIs != null && (
-                  <HorizonRow label="In-Sample" snap={horizonIs} />
+                  <HorizonRow label={t("common.inSample")} snap={horizonIs} />
                 )}
                 {horizonOos != null && (
-                  <HorizonRow label="Out-of-Sample" snap={horizonOos} />
+                  <HorizonRow label={t("common.outOfSample")} snap={horizonOos} />
                 )}
                 {horizonFull != null && (
-                  <HorizonRow label="Full" snap={horizonFull} />
+                  <HorizonRow label={t("common.full")} snap={horizonFull} />
                 )}
               </tbody>
             </table>
@@ -139,22 +139,22 @@ export function InstitutionalReport({
       )}
 
       {execution.rebalance_freq != null ? (
-        <Section title="Rebalance execution">
+        <Section title={t("institutional.rebalanceExecution")}>
           <p className="text-sm">
-            Freq <span className="text-neon">{String(execution.rebalance_freq)}</span>
+            {t("institutional.freq")} <span className="text-neon">{String(execution.rebalance_freq)}</span>
             {" · "}
-            Count <span className="text-neon">{String(execution.rebalance_count)}</span>
+            {t("institutional.count")} <span className="text-neon">{String(execution.rebalance_count)}</span>
           </p>
           {Array.isArray(execution.rebalance_dates_sample) &&
             (execution.rebalance_dates_sample as string[]).length > 0 && (
               <p className="mt-2 text-xs text-dim">
-                Sample dates: {(execution.rebalance_dates_sample as string[]).join(", ")}
+                {t("institutional.sampleDates")}: {(execution.rebalance_dates_sample as string[]).join(", ")}
                 {(execution.rebalance_dates_sample as string[]).length >= 12 ? " …" : ""}
               </p>
             )}
         </Section>
       ) : isLoadingAnalytics ? (
-        <Section title="Rebalance execution">
+        <Section title={t("institutional.rebalanceExecution")}>
           <LoadingPlaceholder />
         </Section>
       ) : null}
@@ -170,13 +170,13 @@ export function InstitutionalReport({
         </div>
       </Section>
 
-      <Section title="Exposure">
+      <Section title={t("institutional.exposure")}>
         {isLoadingAnalytics && exposureEmpty ? (
           <LoadingPlaceholder />
         ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3 text-sm">
-            <div className="mb-2 text-dim">Asset class</div>
+            <div className="mb-2 text-dim">{t("institutional.assetClass")}</div>
             {Object.entries(exposure.by_asset_class ?? {}).map(([k, v]) => (
               <div key={k} className="flex justify-between border-t border-[var(--border)] py-1">
                 <span>{k}</span>
@@ -185,7 +185,7 @@ export function InstitutionalReport({
             ))}
           </div>
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3 text-sm">
-            <div className="mb-2 text-dim">Buckets (region)</div>
+            <div className="mb-2 text-dim">{t("institutional.bucketsRegion")}</div>
             {Object.entries(exposure.by_asset_bucket ?? {}).slice(0, 10).map(([k, v]) => (
               <div key={k} className="flex justify-between border-t border-[var(--border)] py-1">
                 <span>{k}</span>
@@ -194,16 +194,16 @@ export function InstitutionalReport({
             ))}
           </div>
           <div className="space-y-2 border-2 border-[var(--border)] bg-[#050508] p-3 text-sm">
-            <Row label="Equity" value={exposure.equity_pct} />
-            <Row label="Bond" value={exposure.bond_pct} />
-            <Row label="Other" value={exposure.other_pct} />
-            <Row label="Duration proxy (y)" value={exposure.duration_proxy_years} pct={false} />
+            <Row label={t("institutional.equity")} value={exposure.equity_pct} />
+            <Row label={t("institutional.bond")} value={exposure.bond_pct} />
+            <Row label={t("institutional.other")} value={exposure.other_pct} />
+            <Row label={t("institutional.durationProxy")} value={exposure.duration_proxy_years} pct={false} />
           </div>
         </div>
         )}
       </Section>
 
-      <Section title="Risk contribution (top)">
+      <Section title={t("institutional.riskContributionTop")}>
         {isLoadingAnalytics && rc.length === 0 ? (
           <LoadingPlaceholder />
         ) : (
@@ -212,7 +212,7 @@ export function InstitutionalReport({
             <thead className="text-dim">
               <tr>
                 <th className="pb-2">Ticker</th>
-                <th className="pb-2 text-right">Wt</th>
+                <th className="pb-2 text-right">{t("institutional.weightShort")}</th>
                 <th className="pb-2 text-right">Risk %</th>
               </tr>
             </thead>
@@ -250,7 +250,7 @@ export function InstitutionalReport({
         </Section>
       </div>
 
-      <Section title="Drawdown curve">
+      <Section title={t("institutional.drawdownCurve")}>
         <MiniLine data={ddSeries} color="#f87171" pct isLoading={isLoadingAnalytics} />
       </Section>
 
@@ -282,7 +282,7 @@ export function InstitutionalReport({
           </div>
         )}
 
-      <Section title="Drawdown episodes">
+      <Section title={t("institutional.drawdownEpisodes")}>
         {isLoadingAnalytics && ddEps.length === 0 ? (
           <LoadingPlaceholder />
         ) : (
@@ -319,13 +319,14 @@ export function InstitutionalReport({
 }
 
 function LoadingPlaceholder({ label }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <p className="flex items-center gap-2 text-xs text-dim">
       <span
         className="inline-block h-3 w-3 animate-spin rounded-full border border-[var(--amber)] border-t-transparent"
         aria-hidden
       />
-      Loading{label ? ` ${label}` : ""}…
+      {t("common.loading")}{label ? ` ${label}` : ""}…
     </p>
   );
 }
@@ -410,9 +411,10 @@ function MiniLine({
   pct?: boolean;
   isLoading?: boolean;
 }) {
+  const { t } = useI18n();
   if (!data.length) {
     if (isLoading) return <LoadingPlaceholder />;
-    return <p className="text-xs text-dim">Insufficient data</p>;
+    return <p className="text-xs text-dim">{t("institutional.insufficientData")}</p>;
   }
   return (
     <ResponsiveContainer width="100%" height={180}>
@@ -448,17 +450,18 @@ function ReturnTable({
   rows: { period: string; return: number }[];
   isLoading?: boolean;
 }) {
+  const { t } = useI18n();
   if (!rows.length) {
     if (isLoading) return <LoadingPlaceholder />;
-    return <p className="text-xs text-dim">No data</p>;
+    return <p className="text-xs text-dim">{t("institutional.noData")}</p>;
   }
   return (
     <div className="max-h-48 overflow-y-auto text-sm">
       <table className="w-full">
         <thead className="text-dim">
           <tr>
-            <th className="pb-2 text-left">Period</th>
-            <th className="pb-2 text-right">Return</th>
+            <th className="pb-2 text-left">{t("common.period")}</th>
+            <th className="pb-2 text-right">{t("common.return")}</th>
           </tr>
         </thead>
         <tbody>

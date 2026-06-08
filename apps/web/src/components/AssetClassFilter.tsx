@@ -16,6 +16,7 @@ import {
   resolveUniverseFilterPrompts,
   type UniverseFilterRuleResult,
 } from "@/lib/universe-filter-merge";
+import { useI18n } from "@/lib/i18n";
 import type { BacktestRequest } from "@/lib/types";
 
 type Props = {
@@ -28,6 +29,7 @@ function ruleKey(index: number, rule: string) {
 }
 
 export function AssetClassFilter({ value, onChange }: Props) {
+  const { t } = useI18n();
   const [draftText, setDraftText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,7 +138,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
         error?: string;
       };
       if (!res.ok) {
-        throw new Error(data.error ?? "Filter analysis failed");
+        throw new Error(data.error ?? t("assetFilter.analysisFailed"));
       }
       onChange({
         ...value,
@@ -155,7 +157,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
       );
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Filter analysis failed. Try again later.",
+        e instanceof Error ? e.message : t("assetFilter.analysisFailedRetry"),
       );
     } finally {
       setLoading(false);
@@ -187,7 +189,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
-            ASSET CLASSES
+            {t("assetFilter.assetClasses")}
           </span>
           <span className="text-xs text-dim">
             {hasAiApplied ? (
@@ -218,16 +220,14 @@ export function AssetClassFilter({ value, onChange }: Props) {
         </div>
         <p className="text-xs text-dim">
           Layer 1 — pick asset classes to define your full trading pool ({baseCount}{" "}
-          ETFs). The optimizer selects holdings from this pool at each rebalance; it does
-          not shrink the pool to one ETF per category. The rules below only add
-          supplementary tickers on top of this base.
+          ETFs). {t("assetFilter.layer1Hint")}
         </p>
       </div>
 
       <div className="space-y-2 border-t border-[var(--border)] pt-4">
         <div className="flex items-center justify-between">
           <span className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
-            AI UNIVERSE FILTER
+            {t("assetFilter.aiFilter")}
           </span>
           {hasAiApplied && (
             <button
@@ -235,19 +235,18 @@ export function AssetClassFilter({ value, onChange }: Props) {
               onClick={clearCustomFilter}
               className="text-xs text-[var(--cyan)] hover:underline"
             >
-              CLEAR AI FILTER
+              {t("assetFilter.clearAiFilter")}
             </button>
           )}
         </div>
         <p className="text-xs text-dim">
-          Layer 2 — add rules one at a time, then APPLY AI FILTER. Each rule is matched
-          against all {total} ETFs; new tickers are unioned onto your base pool.
+          {t("assetFilter.layer2Hint", { total })}
         </p>
 
         <textarea
           value={draftText}
           onChange={(e) => setDraftText(e.target.value)}
-          placeholder="e.g. short equity hedge ETFs; US tech and healthcare; AI industry theme"
+          placeholder={t("assetFilter.placeholder")}
           className="pixel-input min-h-20"
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -262,7 +261,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
           disabled={!draftText.trim()}
           className="pixel-btn w-full disabled:opacity-40"
         >
-          ADD RULE
+          {t("assetFilter.addRule")}
         </button>
 
         {pendingRules.length > 0 && (
@@ -282,7 +281,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
                   className="shrink-0 text-[var(--magenta)] hover:underline"
                   aria-label={`Remove rule ${index + 1}`}
                 >
-                  REMOVE
+                  {t("assetFilter.remove")}
                 </button>
               </li>
             ))}
@@ -295,7 +294,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
           disabled={loading || pendingRules.length === 0}
           className="pixel-btn w-full disabled:opacity-40"
         >
-          {loading ? "APPLYING…" : "APPLY AI FILTER"}
+          {loading ? t("assetFilter.applying") : t("assetFilter.applyAiFilter")}
         </button>
 
         {error && <p className="text-sm text-[var(--magenta)]">{error}</p>}
@@ -303,7 +302,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
         {(rationale || (perRuleResults && perRuleResults.length > 0)) && (
           <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--panel)] p-3">
             <p className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
-              FILTER RESULTS
+              {t("assetFilter.results")}
             </p>
             {rationale && (
               <p className="text-xs text-[var(--cyan)]">{rationale}</p>
@@ -314,7 +313,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
               {supplementCount > 0 ? (
                 <>
                   <span className="text-[var(--foreground)]">
-                    {supplementCount} supplement ticker
+                    {supplementCount} {t("assetFilter.supplementTicker")}
                     {supplementCount === 1 ? "" : "s"} — guaranteed inclusion in backtest
                   </span>
                   {" · "}
@@ -323,6 +322,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
                 </>
               ) : (
                 <>Apply AI filter to add guaranteed supplement tickers on top of base.</>
+                
               )}
             </p>
             {perRuleResults && perRuleResults.length > 0 && (
@@ -343,33 +343,33 @@ export function AssetClassFilter({ value, onChange }: Props) {
                         </span>
                         <span className="text-dim">
                           {" "}
-                          → {row.matched_tickers.length} matched in full universe
+                          → {row.matched_tickers.length} {t("assetFilter.matchedInUniverse")}
                           {row.added_tickers.length > 0 && (
                             <>
                               ,{" "}
                               <span className="text-[var(--cyan)]">
-                                +{row.added_tickers.length} new
+                                +{row.added_tickers.length} {t("assetFilter.new")}
                               </span>
                             </>
                           )}
-                          {expandedRules[row.rule_index] ? "" : " (expand)"}
+                          {expandedRules[row.rule_index] ? "" : ` (${t("assetFilter.expand")})`}
                         </span>
                       </span>
                     </button>
                     {expandedRules[row.rule_index] && (
                       <div className="mt-1 space-y-1 pl-5 text-dim">
                         {row.categories?.length ? (
-                          <p>Categories: {row.categories.join(", ")}</p>
+                          <p>{t("assetFilter.categories")}: {row.categories.join(", ")}</p>
                         ) : null}
                         <p className="break-words">
-                          Matched:{" "}
+                          {t("assetFilter.matched")}:{" "}
                           {row.matched_tickers.length
                             ? row.matched_tickers.join(", ")
-                            : "(none in universe for this rule)"}
+                            : t("assetFilter.noneForRule")}
                         </p>
                         {row.added_tickers.length > 0 && (
                           <p className="break-words text-[var(--cyan)]">
-                            New vs base: {row.added_tickers.join(", ")}
+                            {t("assetFilter.newVsBase")}: {row.added_tickers.join(", ")}
                           </p>
                         )}
                       </div>
@@ -380,8 +380,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
             )}
             {supplementCount > 0 && (
               <p className="text-xs text-[var(--cyan)]">
-                Guaranteed: {(value.universe_supplement_tickers ?? []).join(", ")} — always
-                included in the backtest universe (highest priority).
+                {t("assetFilter.guaranteed")}: {(value.universe_supplement_tickers ?? []).join(", ")} — {t("assetFilter.guaranteedHint")}
               </p>
             )}
           </div>

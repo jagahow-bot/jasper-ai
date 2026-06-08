@@ -9,11 +9,12 @@ import {
   LAB_Y_AXIS_WIDTH,
   labXAxisProps,
   OBJECTIVE_BAND_COLORS,
-  OBJECTIVE_DISPLAY_LABELS_ZH,
+  OBJECTIVE_DISPLAY_LABELS,
   OBJECTIVE_STRIP_COLORS,
   objectiveBandRanges,
   parseDateTs,
 } from "@/lib/benchmark-chart-scale";
+import { useI18n } from "@/lib/i18n";
 import type {
   BenchmarkSeriesPoint,
   DynamicObjectiveTimelinePoint,
@@ -45,6 +46,7 @@ function DynamicObjectiveTooltip({
   label,
   timeline,
 }: RechartsTooltipContentProps & { timeline: DynamicObjectiveTimelinePoint[] }) {
+  const { t } = useI18n();
   if (!active || !payload?.length) return null;
   const ts = Number(label);
   if (!Number.isFinite(ts)) return null;
@@ -56,14 +58,14 @@ function DynamicObjectiveTooltip({
       className="rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-[11px]"
       style={{ fontSize: 11 }}
     >
-      <p className="text-[var(--foreground)]">日期：{formatAxisDate(ts)}</p>
+      <p className="text-[var(--foreground)]">{t("common.date")}: {formatAxisDate(ts)}</p>
       {objective && (
         <p className="text-dim">
-          目標：{OBJECTIVE_DISPLAY_LABELS_ZH[objective] ?? objective}
+          {t("common.objective")}: {OBJECTIVE_DISPLAY_LABELS[objective] ?? objective}
         </p>
       )}
       <p className="text-dim">
-        報酬率：{typeof value === "number" ? `${value.toFixed(2)}%` : "—"}
+        {t("common.return")}: {typeof value === "number" ? `${value.toFixed(2)}%` : "—"}
       </p>
     </div>
   );
@@ -74,13 +76,14 @@ export function DynamicObjectiveTimelineChart({
   timeline,
   benchmarkTicker,
 }: Props) {
+  const { t } = useI18n();
   if (!benchmarkSeries.length) {
-    return <p className="text-xs text-dim">尚無基準序列可繪圖。</p>;
+    return <p className="text-xs text-dim">{t("dynamicObjective.noSeries")}</p>;
   }
 
   const domain = computeSharedDateDomain(benchmarkSeries, timeline);
   if (!domain) {
-    return <p className="text-xs text-dim">無有效日期可繪圖。</p>;
+    return <p className="text-xs text-dim">{t("dynamicObjective.noValidDates")}</p>;
   }
 
   const { min: domainMin, max: domainMax } = domain;
@@ -130,7 +133,7 @@ export function DynamicObjectiveTimelineChart({
             stroke="var(--cyan)"
             dot={false}
             strokeWidth={1.5}
-            name={`${benchmarkTicker} 累積 %`}
+            name={t("dynamicObjective.cumPct", { ticker: benchmarkTicker })}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -176,12 +179,12 @@ export function DynamicObjectiveTimelineChart({
                   OBJECTIVE_BAND_COLORS[obj] ?? "var(--border)",
               }}
             />
-            {OBJECTIVE_DISPLAY_LABELS_ZH[obj] ?? obj}
+            {OBJECTIVE_DISPLAY_LABELS[obj] ?? obj}
           </span>
         ))}
       </div>
       <p className="text-[10px] text-dim">
-        上：{benchmarkTicker} 累積報酬（%），背景色為各 walk-forward 步驟的作用中目標。下：目標色帶（琥珀色＝切換）。與上方績效圖連動游標。
+        {t("dynamicObjective.footer", { ticker: benchmarkTicker })}
       </p>
     </div>
   );
