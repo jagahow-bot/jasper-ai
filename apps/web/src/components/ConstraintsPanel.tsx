@@ -141,8 +141,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         }
       />
       <p className="text-xs text-dim">
-        Your universe filter and class allocation weights stay aligned — excluded asset
-        classes are held at zero during the search.
+        Your selected asset classes and their target weights stay in sync — anything you
+        leave out is held at zero.
       </p>
 
       <QuickRefinements
@@ -207,11 +207,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </label>
 
       <p className="text-xs text-dim">
-        The sliders above are <strong>hard ceilings</strong> for the optimizer. The search
-        explores from 0 up to each slider (or the min/max you set in advanced controls, capped
-        by the slider).{" "}
-        <strong>Fixed</strong> locks an exact value; <strong>Off</strong> on max weight, turnover,
-        or Top N uses the slider value rather than searching.
+        The sliders above set the <strong>upper limits</strong> Jasper works within. It tries a
+        range of values up to each limit to find the best fit for your goal.
       </p>
 
       <label className="block space-y-2">
@@ -280,8 +277,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         </select>
         <p className="text-xs text-dim">
           {value.objective === "dynamic"
-            ? "Jasper adapts the allocator objective at each rebalance based on the benchmark regime: risk-off → minimize drawdown, neutral → maximize Sharpe, risk-on → maximize return. The Pro champion is chosen on a single in-sample composite score: 0.45×Sharpe + 0.25×Sortino + 0.20×(5×CAGR) − 0.35×|max DD| − 0.10×turnover — not the per-rebalance objectives."
-            : "When a holdout split is on, candidates are always ranked on in-sample results; out-of-sample and full-period metrics are shown for comparison only."}
+            ? "Jasper shifts its goal as the market changes: protect against losses when risk is high, chase returns when conditions are strong, and balance the two in between. The best strategy is picked on a single blended score over the optimization period."
+            : "With a holdout turned on, strategies are ranked on the optimization period; the holdout and full-period results are shown for comparison only."}
         </p>
       </label>
       {value.objective === "custom" && (
@@ -294,7 +291,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
             className="pixel-input min-h-20"
           />
           <p className="text-xs text-dim">
-            Translated into an optimization objective Jasper can run.
+            Jasper turns this into a goal it can optimize for.
           </p>
         </label>
       )}
@@ -339,8 +336,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         />
         <p className="text-xs text-dim">
           {isPro
-            ? "Pro mode uses the round and challenger sliders above."
-            : "Number of search trials. Beyond 10 trials, the first few use AI-suggested starting points; the rest are explored by the optimizer. Report size is set below."}
+            ? "Pro mode manages this for you using the round settings above."
+            : "How many strategies to test. The first few start from AI suggestions; the rest are explored automatically. Set the report size below."}
         </p>
       </label>
 
@@ -434,11 +431,11 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </label>
 
       <div className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2 text-xs text-dim">
-        Engine: standardized backtest optimizer · benchmark SPY · risk-free 4%
+        Benchmark: SPY · Risk-free rate: 4%
       </div>
       <details className="border-2 border-[var(--border)] bg-[#050508] p-3">
         <summary className="cursor-pointer font-pixel text-[8px] text-[var(--cyan)]">
-          Advanced parameter controls (search / fixed / off)
+          Advanced controls (optional)
         </summary>
         <p className="mt-2 text-xs text-dim">
           The max single-weight search cannot exceed {Math.round(runMaxWeight * 100)}% (run slider).

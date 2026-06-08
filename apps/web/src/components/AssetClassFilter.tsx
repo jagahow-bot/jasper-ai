@@ -194,11 +194,11 @@ export function AssetClassFilter({ value, onChange }: Props) {
           <span className="text-xs text-dim">
             {hasAiApplied ? (
               <>
-                base {baseCount} + supplement → {combinedCount} · universe {total}
+                {combinedCount} of {total} ETFs selected
               </>
             ) : (
               <>
-                {baseCount} / {total} names
+                {baseCount} of {total} ETFs selected
               </>
             )}
           </span>
@@ -219,8 +219,8 @@ export function AssetClassFilter({ value, onChange }: Props) {
           })}
         </div>
         <p className="text-xs text-dim">
-          Layer 1 — pick asset classes to define your full trading pool ({baseCount}{" "}
-          ETFs). {t("assetFilter.layer1Hint")}
+          Pick the asset classes to invest across ({baseCount} ETFs).{" "}
+          {t("assetFilter.layer1Hint")}
         </p>
       </div>
 
@@ -308,21 +308,19 @@ export function AssetClassFilter({ value, onChange }: Props) {
               <p className="text-xs text-[var(--cyan)]">{rationale}</p>
             )}
             <p className="text-xs text-dim">
-              Base pool: {baseCount} ticker{baseCount === 1 ? "" : "s"} (asset classes,
-              unchanged by AI).{" "}
+              {baseCount} ETF{baseCount === 1 ? "" : "s"} from your asset classes.{" "}
               {supplementCount > 0 ? (
                 <>
                   <span className="text-[var(--foreground)]">
                     {supplementCount} {t("assetFilter.supplementTicker")}
-                    {supplementCount === 1 ? "" : "s"} — guaranteed inclusion in backtest
+                    {supplementCount === 1 ? "" : "s"} from your search — always included
                   </span>
                   {" · "}
-                  Combined pool: {combinedCount} ticker
-                  {combinedCount === 1 ? "" : "s"} (base ∪ supplements).
+                  {combinedCount} ETF
+                  {combinedCount === 1 ? "" : "s"} in total.
                 </>
               ) : (
-                <>Apply AI filter to add guaranteed supplement tickers on top of base.</>
-                
+                <>Run the search to add more ETFs on top of your selection.</>
               )}
             </p>
             {perRuleResults && perRuleResults.length > 0 && (

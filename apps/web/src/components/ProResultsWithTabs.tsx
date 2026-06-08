@@ -267,7 +267,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       {setupEntries.length ? (
         <div>
           <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
-            Round setup (shared caps applied to all trials)
+            Round setup (applies to every strategy this round)
           </p>
           <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
             {setupEntries.map(([k, v]) => (
@@ -280,7 +280,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       ) : null}
       {rangeEntries.length || choiceEntries.length ? (
         <div>
-          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">Factor search (optimizer samples these ranges)</p>
+          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">Factor search (ranges Jasper explored)</p>
           <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
             {rangeEntries.map(([k, v]) => (
               <li key={k}>
