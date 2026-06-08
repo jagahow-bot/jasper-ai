@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
+import { useI18n } from "@/lib/i18n";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -299,6 +300,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
 }
 
 export function ProResultsWithTabs(props: Props) {
+  const { t } = useI18n();
   const { result } = props;
   const rounds = result.pro_rounds ?? [];
   const [tab, setTab] = useState<TabId>("final");
@@ -315,9 +317,9 @@ export function ProResultsWithTabs(props: Props) {
     const round = rounds.find((r) => r.round === tab);
     if (!round?.candidates?.length) return null;
     const roleLabel: Record<string, string> = {
-      incoming_champion: "Incoming champion",
-      challenger: "Round challenger",
-      round_winner: "Round winner",
+      incoming_champion: t("pro.role.incoming"),
+      challenger: t("pro.role.challenger"),
+      round_winner: t("pro.role.winner"),
     };
     const groups: Record<string, string[]> = {
       incoming_champion: [],
@@ -361,7 +363,7 @@ export function ProResultsWithTabs(props: Props) {
         ) : null}
       </ul>
     );
-  }, [tab, rounds]);
+  }, [tab, rounds, t]);
 
   const narrativePrefix = useMemo(() => {
     if (tab === "final") return undefined;
@@ -386,8 +388,7 @@ export function ProResultsWithTabs(props: Props) {
     <div className="space-y-4">
       <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] p-3">
         <p className="mb-2 font-pixel text-[8px] text-[var(--amber)]">
-          Pro rounds · each tab = incoming champion + round challengers; ★ = round winner (catalog tab
-          = every model ever tried, not the active pool)
+          {t("pro.tabsHint")}
         </p>
         <div className="flex flex-wrap gap-2">
           {rounds.map((r) => (
@@ -406,7 +407,7 @@ export function ProResultsWithTabs(props: Props) {
             onClick={() => setTab("final")}
             className={`pixel-chip ${tab === "final" ? "pixel-chip-active" : ""}`}
           >
-            ALL ROUNDS (catalog)
+            {t("pro.allRounds")}
           </button>
         </div>
         {roundRoleSummary}

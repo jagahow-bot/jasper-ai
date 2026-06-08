@@ -80,6 +80,7 @@ import {
   chartTooltipFontSize,
 } from "@/lib/benchmark-chart-scale";
 import { getUniverseItems } from "@/lib/universe";
+import { useI18n } from "@/lib/i18n";
 
 const CHAMPION_STROKE = "#ffb000";
 const BENCHMARK_FILL = "#ffb000";
@@ -153,6 +154,7 @@ export function ResultsDashboard({
   onQuickTweak,
   onQuickTweakAndRun,
 }: Props) {
+  const { t } = useI18n();
   const chartTick = chartTickFontSize();
   const chartLegend = chartLegendFontSize();
   const chartTip = chartTooltipFontSize();
@@ -986,12 +988,12 @@ export function ResultsDashboard({
 
       <div className="pixel-panel">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-pixel text-xs text-neon glow-title">Results · institutional</h3>
+          <h3 className="font-pixel text-xs text-neon glow-title">{t("results.title")}</h3>
           <span className="pixel-badge-cyan text-[10px]">
             {sortByModelCode ? "order: model #" : `sort: ${objectiveLabel}`}
           </span>
           <label className="flex items-center gap-2 text-xs text-dim">
-            model
+            {t("results.model")}
             <select
               value={selectedChartKey}
               onChange={(e) => setSelectedRowKey(e.target.value)}
@@ -1012,7 +1014,7 @@ export function ResultsDashboard({
         {narrative ? (
           <details className="mt-3 text-sm text-dim">
             <summary className="cursor-pointer hover:text-[var(--cyan)]">
-              Full backtest narrative
+              {t("results.fullNarrative")}
             </summary>
             <p className="mt-2 whitespace-pre-wrap leading-relaxed">
               {narrativePrefix ? `${narrativePrefix}\n\n` : ""}
@@ -1068,7 +1070,7 @@ export function ResultsDashboard({
             </div>
           </div>
         )}
-        <p className="mt-4 text-xs text-dim">Full period</p>
+        <p className="mt-4 text-xs text-dim">{t("results.fullPeriod")}</p>
         <div className="mt-2 grid grid-cols-3 gap-3 text-center">
           <Metric label="Sharpe" value={displayMetrics.sharpe} />
           <Metric
@@ -1912,17 +1914,15 @@ export function ResultsDashboard({
           onApply={(next, label) => onQuickTweak(next, label ?? "patch")}
           onApplyAndRun={onQuickTweakAndRun}
         />
-        <p className="mt-2 text-xs text-dim">
-          Click to patch params · double-click chip to rerun immediately.
-        </p>
+        <p className="mt-2 text-xs text-dim">{t("results.refineHint")}</p>
       </div>
 
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={onRerun} className="pixel-btn">
-          Edit config
+          {t("results.editConfig")}
         </button>
         <button type="button" onClick={onExport} className="pixel-btn">
-          Export CSV
+          {t("results.exportCsv")}
         </button>
       </div>
 

@@ -11,6 +11,7 @@ import {
   type LocalHistoryEntry,
 } from "@/lib/backtest-history";
 import { OBJECTIVE_LABELS } from "@/lib/constants";
+import { useI18n } from "@/lib/i18n";
 import type { JobSummary } from "@/lib/types";
 
 type Props = {
@@ -31,20 +32,21 @@ function statusBadgeClass(status: JobSummary["status"]): string {
 }
 
 export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Props) {
+  const { t } = useI18n();
   const [rows, setRows] = useState<LocalHistoryEntry[]>(() => readLocalBacktestHistory());
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    setFetchError(null);
+    setFetchError(false);
     const local = readLocalBacktestHistory();
     try {
       const apiRows = await listJobs(30);
       setRows(mergeHistoryLists(apiRows, local));
     } catch {
       setRows(local);
-      setFetchError("API offline — local only");
+      setFetchError(true);
     } finally {
       setRefreshing(false);
     }
@@ -56,21 +58,31 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
 
   const empty = rows.length === 0;
 
+  const statusLabel = (status: JobSummary["status"]): string => {
+    const key = `history.status.${status}`;
+    const label = t(key);
+    return label === key ? status : label;
+  };
+
   const subtitle = useMemo(() => {
-    if (fetchError) return fetchError;
-    if (refreshing) return "Syncing…";
-    return `${rows.length} ${rows.length === 1 ? "record" : "records"}`;
-  }, [fetchError, refreshing, rows.length]);
+    if (fetchError) return t("history.apiOffline");
+    if (refreshing) return t("history.syncing");
+    return rows.length === 1
+      ? t("history.record", { count: rows.length })
+      : t("history.records", { count: rows.length });
+  }, [fetchError, refreshing, rows.length, t]);
 
   return (
     <div className="mt-3 flex min-h-0 flex-1 flex-col border-t border-[var(--border)] pt-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="font-pixel text-[9px] text-[var(--amber)]">Backtest history</h2>
+        <h2 className="font-pixel text-[9px] text-[var(--amber)]">{t("history.title")}</h2>
         <button
           type="button"
           className="font-terminal text-sm text-[var(--cyan)] hover:underline disabled:opacity-50"
           onClick={() => void refresh()}
           disabled={refreshing}
+          title={t("history.refresh")}
+          aria-label={t("history.refresh")}
         >
           ↻
         </button>
@@ -79,8 +91,7 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
 
       {empty ? (
         <p className="font-terminal text-sm text-[var(--muted)]">
-          Completed backtests appear here. After refresh, entries may still load from
-          the API when the server retains them.
+          {t("history.empty")}
         </p>
       ) : (
         <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -101,7 +112,7 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className={`${statusBadgeClass(row.status)} text-[8px]`}>
-                        {row.status}
+                        {statusLabel(row.status)}
                       </span>
                       {isPro && (
                         <span className="pixel-badge pixel-badge-warn text-[8px]">PRO</span>
@@ -128,7 +139,7 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
                     disabled={isLoading || row.status !== "completed"}
                     onClick={() => onLoad(row.job_id)}
                   >
-                    {isLoading ? "…" : "LOAD"}
+                    {isLoading ? "…" : t("history.load")}
                   </button>
                 </div>
               </li>

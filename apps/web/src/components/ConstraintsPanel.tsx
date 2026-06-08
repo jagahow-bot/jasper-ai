@@ -15,6 +15,7 @@ import {
   FACTOR_INDICATOR_SPECS,
   formatIndicatorOption,
 } from "@/lib/factor-indicators";
+import { useI18n } from "@/lib/i18n";
 import type { BacktestRequest, Objective, ParamControl } from "@/lib/types";
 
 type Props = {
@@ -24,6 +25,7 @@ type Props = {
 };
 
 export function ConstraintsPanel({ value, onChange, onRun }: Props) {
+  const { t } = useI18n();
   const isPro = value.optimization_mode === "pro_auto";
   const runMaxWeight = Math.max(0.05, value.max_weight);
   const runTopN = value.top_n;
@@ -122,10 +124,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
   return (
     <div className="pixel-panel space-y-5">
       <div>
-        <h3 className="font-pixel text-xs text-neon glow-title">Backtest config</h3>
-        <p className="mt-2 text-sm text-dim">
-          Institutional params. Each rebalance: factor screen → allocator weights.
-        </p>
+        <h3 className="font-pixel text-xs text-neon glow-title">{t("config.title")}</h3>
+        <p className="mt-2 text-sm text-dim">{t("config.subtitle")}</p>
       </div>
 
       <AssetClassFilter
@@ -154,7 +154,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
 
       <label className="block space-y-2">
         <span className="text-sm">
-          Max single weight (hard ceiling): {Math.round(value.max_weight * 100)}%
+          {t("config.maxWeight", { pct: Math.round(value.max_weight * 100) })}
         </span>
         <input
           type="range"
@@ -170,7 +170,9 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
 
       <label className="block space-y-2">
         <span className="text-sm">
-          Min holding weight: {((value.min_weight ?? 0.005) * 100).toFixed(1)}%
+          {t("config.minWeight", {
+            pct: ((value.min_weight ?? 0.005) * 100).toFixed(1),
+          })}
         </span>
         <input
           type="range"
@@ -183,15 +185,12 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           }
           className="w-full"
         />
-        <p className="text-xs text-dim">
-          Positions below this weight are dropped each rebalance; remaining weights are
-          renormalized (dust effectively stays in cash).
-        </p>
+        <p className="text-xs text-dim">{t("config.minWeightHint")}</p>
       </label>
 
       <label className="block space-y-2">
         <span className="text-sm">
-          Max turnover / rebalance: {Math.round(value.max_turnover * 100)}%
+          {t("config.maxTurnover", { pct: Math.round(value.max_turnover * 100) })}
         </span>
         <input
           type="range"
@@ -204,9 +203,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           }
           className="w-full"
         />
-        <p className="text-xs text-dim">
-          Hard cap per rebalance. AI/Optuna may only search up to this slider (never above).
-        </p>
+        <p className="text-xs text-dim">{t("config.maxTurnoverHint")}</p>
       </label>
 
       <p className="text-xs text-dim">
@@ -217,7 +214,9 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </p>
 
       <label className="block space-y-2">
-        <span className="text-sm">Max portfolio holdings: {value.max_holdings ?? 30}</span>
+        <span className="text-sm">
+          {t("config.maxHoldings", { n: value.max_holdings ?? 30 })}
+        </span>
         <input
           type="range"
           min={1}
@@ -229,14 +228,11 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           }
           className="w-full"
         />
-        <p className="text-xs text-dim">
-          Hard cap on non-zero holdings each rebalance (factor screen and Optuna
-          cannot exceed this).
-        </p>
+        <p className="text-xs text-dim">{t("config.maxHoldingsHint")}</p>
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">Factor screen Top N: {value.top_n}</span>
+        <span className="text-sm">{t("config.topN", { n: value.top_n })}</span>
         <input
           type="range"
           min={10}
@@ -246,13 +242,11 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           onChange={(e) => onChange({ ...value, top_n: Number(e.target.value) })}
           className="w-full"
         />
-        <p className="text-xs text-dim">
-          Cross-section rank → Top N → MPT/min-var weights with position caps.
-        </p>
+        <p className="text-xs text-dim">{t("config.topNHint")}</p>
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">Objective</span>
+        <span className="text-sm">{t("config.objective")}</span>
         <select
           value={value.objective}
           onChange={(e) => {
@@ -291,7 +285,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </label>
       {value.objective === "custom" && (
         <label className="block space-y-2">
-          <span className="text-sm">Custom objective text</span>
+          <span className="text-sm">{t("config.customObjective")}</span>
           <textarea
             value={value.objective_custom_text ?? ""}
             onChange={(e) => onChange({ ...value, objective_custom_text: e.target.value })}
@@ -306,20 +300,17 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-2">
-          <span className="text-sm">Start</span>
+          <span className="text-sm">{t("config.start")}</span>
           <input
             type="date"
             value={value.start_date}
             onChange={(e) => onChange({ ...value, start_date: e.target.value })}
             className="pixel-input"
           />
-          <p className="text-xs text-dim">
-            Prices load ~2+ years before this date for lookbacks; day-one weights use that
-            prep (not an equal-weight placeholder).
-          </p>
+          <p className="text-xs text-dim">{t("config.startHint")}</p>
         </label>
         <label className="block space-y-2">
-          <span className="text-sm">End</span>
+          <span className="text-sm">{t("config.end")}</span>
           <input
             type="date"
             value={value.end_date}
@@ -332,7 +323,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       <label
         className={`block space-y-2 ${isPro ? "pointer-events-none opacity-50" : ""}`}
       >
-        <span className="text-sm">Search trials (standard): {value.trials}</span>
+        <span className="text-sm">{t("config.trials", { n: value.trials })}</span>
         <input
           type="range"
           min={5}
@@ -353,7 +344,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">Models in report: {value.top_models}</span>
+        <span className="text-sm">{t("config.topModels", { n: value.top_models })}</span>
         <input
           type="range"
           min={1}
@@ -373,13 +364,13 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           onChange={(e) => onChange({ ...value, enable_oos: e.target.checked })}
           className="accent-[var(--neon)]"
         />
-        Holdout split (optimize on in-sample only; holdout = OOS diagnostics)
+        {t("config.holdout")}
       </label>
 
       {value.enable_oos && (
         <label className="block space-y-2">
           <span className="text-sm">
-            In-sample ratio: {Math.round(value.train_ratio * 100)}% (rest = holdout tail)
+            {t("config.inSampleRatio", { pct: Math.round(value.train_ratio * 100) })}
           </span>
           <input
             type="range"
@@ -395,7 +386,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       )}
 
       <label className="block space-y-2">
-        <span className="text-sm">Trading cost: {value.fee_bps} bps</span>
+        <span className="text-sm">{t("config.fee", { bps: value.fee_bps })}</span>
         <input
           type="range"
           min={0}
@@ -409,7 +400,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">Rebalance frequency</span>
+        <span className="text-sm">{t("config.rebalanceFreq")}</span>
         <select
           value={value.rebalance_freq}
           onChange={(e) => {
@@ -434,10 +425,10 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           }}
           className="pixel-input"
         >
-          <option value="W-FRI">Weekly (Fri)</option>
-          <option value="ME">Monthly (ME)</option>
-          <option value="QE">Quarterly (QE)</option>
-          <option value="YE">Yearly (YE)</option>
+          <option value="W-FRI">{t("config.rebalance.weekly")}</option>
+          <option value="ME">{t("config.rebalance.monthly")}</option>
+          <option value="QE">{t("config.rebalance.quarterly")}</option>
+          <option value="YE">{t("config.rebalance.yearly")}</option>
         </select>
       </label>
 
@@ -633,7 +624,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         onClick={onRun}
         className={`pixel-btn w-full ${isPro ? "pixel-btn-amber" : ""}`}
       >
-        {isPro ? "Run Pro auto-convergence" : "Run backtest + optimize"}
+        {isPro ? t("config.runPro") : t("config.runStandard")}
       </button>
     </div>
   );

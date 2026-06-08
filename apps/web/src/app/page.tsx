@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BacktestHistoryPanel } from "@/components/BacktestHistoryPanel";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { FontSizeControl } from "@/components/FontSizeControl";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
 import { ProgressPanel } from "@/components/ProgressPanel";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
@@ -24,6 +25,7 @@ import { DEFAULT_ASSET_CLASSES } from "@/lib/constants";
 import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
 import { getUniverseMeta } from "@/lib/universe";
+import { useI18n } from "@/lib/i18n";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -74,6 +76,7 @@ function buildDefaultRequest(): BacktestRequest {
 }
 
 export default function HomePage() {
+  const { t } = useI18n();
   const [phase, setPhase] = useState<WizardPhase>("constraints");
   const [request, setRequest] = useState<BacktestRequest | null>(
     buildDefaultRequest(),
@@ -287,14 +290,14 @@ export default function HomePage() {
 
   const header = useMemo(() => {
     const labels: Record<WizardPhase, string> = {
-      scenario: "—",
-      constraints: "CONFIG",
-      running: "RUNNING",
-      results: "RESULTS",
-      export: "EXPORT",
+      scenario: t("header.phase.scenario"),
+      constraints: t("header.phase.constraints"),
+      running: t("header.phase.running"),
+      results: t("header.phase.results"),
+      export: t("header.phase.export"),
     };
     return labels[phase];
-  }, [phase]);
+  }, [phase, t]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -309,26 +312,27 @@ export default function HomePage() {
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <LanguageSwitcher />
             <FontSizeControl />
             {apiOnline === false && (
               <span
                 className="pixel-badge pixel-badge-warn max-w-xs"
-                title="Run npm run dev from repo root"
+                title={t("header.apiOfflineHint")}
               >
-                API offline
+                {t("header.apiOffline")}
               </span>
             )}
             {apiOnline === true && (
-              <span className="pixel-badge pixel-badge-cyan">API linked</span>
+              <span className="pixel-badge pixel-badge-cyan">{t("header.apiLinked")}</span>
             )}
             <span className="pixel-badge">
-              {universeMeta.count} ETFs
+              {t("header.etfs", { count: universeMeta.count })}
             </span>
             <a
               href="/lab/objective-switch"
               className="pixel-badge pixel-badge-link"
             >
-              Objective Switch Lab
+              {t("header.objectiveLab")}
             </a>
           </div>
         </div>
@@ -337,7 +341,7 @@ export default function HomePage() {
       <main className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[360px_1fr]">
         <aside className="pixel-panel pixel-panel-cyan flex h-[calc(100vh-120px)] flex-col">
           <h2 className="mb-3 shrink-0 font-pixel text-[9px] text-[var(--cyan)]">
-            Terminal log
+            {t("header.terminalLog")}
           </h2>
           <div className="min-h-0 flex-1">
             <ChatLog messages={messages} />
