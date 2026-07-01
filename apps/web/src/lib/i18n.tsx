@@ -453,6 +453,157 @@ const en: Dict = {
   "results.factor.lowvol": "Low vol",
   "results.factor.trend": "Trend",
   "results.factor.drawdown": "Drawdown",
+
+  // Constraints — offline + hints
+  "config.runOfflineHint":
+    "The analytics service is offline right now, so backtests can’t run. Please try again in a moment.",
+  "config.assetClassSyncHint":
+    "Your selected asset classes and their target weights stay in sync — anything you leave out is held at zero.",
+  "config.limitsHint":
+    "The sliders above set the upper limits Jasper works within. It tries a range of values up to each limit to find the best fit for your goal.",
+  "config.objectiveHint.dynamic":
+    "Jasper shifts its goal as the market changes: protect against losses when risk is high, chase returns when conditions are strong, and balance the two in between. The best strategy is picked on a single blended score over the optimization period.",
+  "config.objectiveHint.default":
+    "With a holdout turned on, strategies are ranked on the optimization period; the holdout and full-period results are shown for comparison only.",
+  "config.customObjectivePlaceholder":
+    "e.g. low drawdown first, then return, keep turnover modest",
+  "config.customObjectiveHint": "Jasper turns this into a goal it can optimize for.",
+  "config.trialsHint.pro":
+    "Pro mode manages this for you using the round settings above.",
+  "config.trialsHint.standard":
+    "How many strategies to test. The first few start from AI suggestions; the rest are explored automatically. Set the report size below.",
+  "config.benchmarkLine": "Benchmark: SPY · Risk-free rate: 4%",
+
+  // Constraints — advanced controls
+  "config.advanced.title": "Advanced controls (optional)",
+  "config.advanced.maxWeightNote":
+    "The max single-weight search cannot exceed {pct}% (run slider).",
+  "config.advanced.categorical": "Categorical",
+  "config.advanced.factorIndicators": "Factor indicators (per factor)",
+  "config.advanced.search": "Search",
+  "config.advanced.fixed": "Fixed",
+  "config.advanced.off": "Off",
+  "config.advanced.searchHint":
+    "The search considers all options; your selection is an AI starting hint",
+  "config.advanced.fixedHint": "Fixed indicator for this factor",
+
+  // Constraints — categorical labels
+  "config.categorical.objective_mode": "Objective fn",
+  "config.categorical.allocator_mode": "Allocator mode",
+  "config.categorical.rebalance_freq": "Rebalance freq",
+
+  // Constraints — advanced numeric control labels
+  "config.control.subPrefix": "Sub {label}",
+  "config.control.lookback_days": "Allocator lookback (d)",
+  "config.control.shrinkage": "Cov shrinkage",
+  "config.control.risk_aversion": "Risk aversion",
+  "config.control.max_weight_actual": "Max single weight (trial)",
+  "config.control.top_n_actual": "Top N (actual)",
+  "config.control.factor_lookback_days": "Factor lookback (d)",
+  "config.control.reversal_lookback_days": "Reversal lookback (d)",
+  "config.control.value_lookback_days": "Value lookback (d)",
+  "config.control.no_trade_tol": "No-trade band",
+  "config.control.turnover_penalty_mult": "Turnover penalty",
+  "config.control.max_turnover_actual": "Max turnover / rebalance",
+  "config.control.w_mom": "Wt momentum",
+  "config.control.w_reversal": "Wt reversal",
+  "config.control.w_value": "Wt value",
+  "config.control.w_lowvol": "Wt low-vol",
+  "config.control.w_trend": "Wt trend",
+  "config.control.w_drawdown": "Wt drawdown qual",
+  "config.control.w_equity": "Alloc equity",
+  "config.control.w_bond": "Alloc bond",
+  "config.control.w_commodity": "Alloc commodity",
+  "config.control.w_real_estate": "Alloc REIT",
+  "config.control.w_alternative": "Alloc alt",
+
+  // Quick refinements
+  "refinements.bond-tilt.label": "Bond tilt",
+  "refinements.bond-tilt.desc": "Equity + bond focus, drawdown-aware objective",
+  "refinements.dd-guard.label": "Drawdown guard",
+  "refinements.dd-guard.desc": "Minimize max drawdown objective",
+  "refinements.cap-2.label": "Cap −2%",
+  "refinements.cap-2.desc": "Tighter single-name concentration",
+  "refinements.sharpe.label": "Sharpe hunt",
+  "refinements.sharpe.desc": "Maximize Sharpe ratio",
+  "refinements.defensive.label": "Defensive mix",
+  "refinements.defensive.desc": "Bond, REIT, commodity, alternatives",
+  "refinements.equity-only.label": "Equity only",
+  "refinements.equity-only.desc": "Optimize within equity ETFs only",
+
+  // Pro rounds — banner, seed panel, prefix
+  "pro.roundN": "Round {n}",
+  "pro.banner.title": "ROUND UNDERPERFORMED BENCHMARK",
+  "pro.banner.body":
+    "Portfolio return trails the benchmark ({benchmark}) in this sample. Consider wider exploration or strategy tweaks next round.",
+  "pro.banner.stats":
+    "Portfolio return {portfolio} · Benchmark {benchmark} · Alpha {alpha}",
+  "pro.seed.regimeMatrix":
+    "Regime matrix (allocator per regime — used at each rebalance switch)",
+  "pro.seed.regimeQuotas": "Regime class quotas (Top N asset classes per regime)",
+  "pro.seed.assessment": "AI performance assessment",
+  "pro.seed.strategy": "AI optimization strategy",
+  "pro.seed.roundSetup": "Round setup (applies to every strategy this round)",
+  "pro.seed.factorSearch": "Factor search (ranges Jasper explored)",
+  "pro.seed.fixed": "fixed",
+  "pro.prefix.improved": "Round winner — replaced the incoming champion",
+  "pro.prefix.held": "Incoming champion held (improvement below threshold)",
+  "pro.prefix.body":
+    "[{label}] {status} · adj score {score} · {trials} trials · {models} strategies.",
+
+  // Pro rounds — parameter labels
+  "pro.param.mode": "Allocator mode",
+  "pro.param.lookback_days": "Covariance lookback",
+  "pro.param.shrinkage": "Shrinkage",
+  "pro.param.risk_aversion": "Risk aversion",
+  "pro.param.max_weight_actual": "Max weight",
+  "pro.param.top_n_actual": "Top N holdings",
+  "pro.param.max_turnover_actual": "Max turnover",
+  "pro.param.no_trade_tol": "No-trade tolerance",
+  "pro.param.turnover_penalty_mult": "Turnover penalty",
+  "pro.param.factor_lookback_days": "Factor lookback",
+  "pro.param.reversal_lookback_days": "Reversal lookback",
+  "pro.param.value_lookback_days": "Value lookback",
+  "pro.param.w_mom": "Momentum weight",
+  "pro.param.w_reversal": "Reversal weight",
+  "pro.param.w_value": "Value weight",
+  "pro.param.w_lowvol": "Low-vol weight",
+  "pro.param.w_trend": "Trend weight",
+  "pro.param.w_drawdown": "Drawdown weight",
+  "pro.param.w_equity": "Equity quota",
+  "pro.param.w_bond": "Bond quota",
+  "pro.param.w_commodity": "Commodity quota",
+  "pro.param.w_real_estate": "Real estate quota",
+  "pro.param.w_alternative": "Alternative quota",
+  "pro.param.mom_indicator": "Momentum indicator",
+  "pro.param.reversal_indicator": "Reversal indicator",
+  "pro.param.value_indicator": "Value indicator",
+  "pro.param.lowvol_indicator": "Low-vol indicator",
+  "pro.param.trend_indicator": "Trend indicator",
+  "pro.param.drawdown_indicator": "Drawdown indicator",
+
+  // Institutional report — extended
+  "institutional.loadingFor": "for {model}",
+  "institutional.through": "through {date}",
+  "institutional.horizonNote":
+    "Trial selection uses In-Sample when holdout is on. In-Sample and Out-of-Sample rows are slices of the same continuous Full backtest; they are not separate fresh-start runs. Ranked Sharpe on the dashboard may differ slightly from these rows.",
+  "institutional.gapNote":
+    "In-Sample − Out-of-Sample gap: objective {objective}, Sharpe {sharpe} (positive = In-Sample stronger).",
+  "institutional.vsBenchmark": "vs {benchmark}",
+  "institutional.trackingErr": "Tracking err",
+  "institutional.ir": "IR",
+  "institutional.upCapture": "Up capture",
+  "institutional.downCapture": "Down capture",
+  "institutional.riskPct": "Risk %",
+  "institutional.rollingSharpe": "Rolling Sharpe (252D)",
+  "institutional.rollingVol": "Rolling vol (252D)",
+  "institutional.inSampleNote":
+    "Selection and ranking use In-Sample only; periods below exclude the Out-of-Sample tail.",
+  "institutional.ddStart": "Start",
+  "institutional.ddTrough": "Trough",
+  "institutional.ddEnd": "End",
+  "institutional.ddDepth": "Depth",
+  "institutional.ddDays": "Days",
 };
 
 const zh: Dict = {
@@ -871,6 +1022,151 @@ const zh: Dict = {
   "results.factor.lowvol": "低波動",
   "results.factor.trend": "趨勢",
   "results.factor.drawdown": "回撤",
+
+  // Constraints — offline + hints
+  "config.runOfflineHint": "分析服務目前離線，無法執行回測。請稍後再試。",
+  "config.assetClassSyncHint":
+    "你選取的資產類別與目標權重會保持同步 — 未納入的部分一律維持為零。",
+  "config.limitsHint":
+    "上方的滑桿設定 Jasper 運作的上限。它會在每個上限內嘗試一系列數值，找出最符合你目標的設定。",
+  "config.objectiveHint.dynamic":
+    "Jasper 會隨市場變化調整目標：風險高時著重防守，行情強勁時追求報酬，介於兩者之間時取得平衡。最佳策略會以最佳化期間的單一綜合分數挑選。",
+  "config.objectiveHint.default":
+    "開啟保留資料後，策略會以最佳化期間排名；保留期與完整期間的結果僅供比較參考。",
+  "config.customObjectivePlaceholder":
+    "例如：先求低回撤，再求報酬，換手率維持適度",
+  "config.customObjectiveHint": "Jasper 會把它轉化為可最佳化的目標。",
+  "config.trialsHint.pro": "Pro 模式會依上方的輪次設定替你管理。",
+  "config.trialsHint.standard":
+    "要測試多少種策略。前幾個從 AI 建議開始，其餘由系統自動探索。報告數量請在下方設定。",
+  "config.benchmarkLine": "基準：SPY · 無風險利率：4%",
+
+  // Constraints — advanced controls
+  "config.advanced.title": "進階控制（選用）",
+  "config.advanced.maxWeightNote": "單一權重搜尋最高不得超過 {pct}%（執行滑桿）。",
+  "config.advanced.categorical": "類別型",
+  "config.advanced.factorIndicators": "因子指標（每個因子）",
+  "config.advanced.search": "搜尋",
+  "config.advanced.fixed": "固定",
+  "config.advanced.off": "關閉",
+  "config.advanced.searchHint": "搜尋會考量所有選項；你的選擇僅作為 AI 起始提示",
+  "config.advanced.fixedHint": "此因子的固定指標",
+
+  // Constraints — categorical labels
+  "config.categorical.objective_mode": "目標函數",
+  "config.categorical.allocator_mode": "配置器模式",
+  "config.categorical.rebalance_freq": "再平衡頻率",
+
+  // Constraints — advanced numeric control labels
+  "config.control.subPrefix": "子類 {label}",
+  "config.control.lookback_days": "配置器回顧期（日）",
+  "config.control.shrinkage": "共變異數收縮",
+  "config.control.risk_aversion": "風險趨避",
+  "config.control.max_weight_actual": "單一標的最大權重（試驗）",
+  "config.control.top_n_actual": "Top N（實際）",
+  "config.control.factor_lookback_days": "因子回顧期（日）",
+  "config.control.reversal_lookback_days": "反轉回顧期（日）",
+  "config.control.value_lookback_days": "價值回顧期（日）",
+  "config.control.no_trade_tol": "免交易區間",
+  "config.control.turnover_penalty_mult": "換手率懲罰",
+  "config.control.max_turnover_actual": "每次再平衡最大換手率",
+  "config.control.w_mom": "動能權重",
+  "config.control.w_reversal": "反轉權重",
+  "config.control.w_value": "價值權重",
+  "config.control.w_lowvol": "低波動權重",
+  "config.control.w_trend": "趨勢權重",
+  "config.control.w_drawdown": "回撤品質權重",
+  "config.control.w_equity": "股票配置",
+  "config.control.w_bond": "債券配置",
+  "config.control.w_commodity": "商品配置",
+  "config.control.w_real_estate": "REIT 配置",
+  "config.control.w_alternative": "另類配置",
+
+  // Quick refinements
+  "refinements.bond-tilt.label": "債券傾斜",
+  "refinements.bond-tilt.desc": "聚焦股票＋債券，採用回撤導向目標",
+  "refinements.dd-guard.label": "回撤防護",
+  "refinements.dd-guard.desc": "以最小化最大回撤為目標",
+  "refinements.cap-2.label": "上限 −2%",
+  "refinements.cap-2.desc": "收緊單一標的集中度",
+  "refinements.sharpe.label": "夏普追求",
+  "refinements.sharpe.desc": "最大化夏普值",
+  "refinements.defensive.label": "防禦組合",
+  "refinements.defensive.desc": "債券、REIT、商品、另類資產",
+  "refinements.equity-only.label": "僅股票",
+  "refinements.equity-only.desc": "僅在股票 ETF 中最佳化",
+
+  // Pro rounds — banner, seed panel, prefix
+  "pro.roundN": "第 {n} 輪",
+  "pro.banner.title": "本輪表現落後基準",
+  "pro.banner.body":
+    "本樣本中，投資組合報酬落後基準（{benchmark}）。下一輪可考慮擴大探索或調整策略。",
+  "pro.banner.stats": "投資組合報酬 {portfolio} · 基準 {benchmark} · Alpha {alpha}",
+  "pro.seed.regimeMatrix": "市場狀態矩陣（各狀態的配置器 — 於每次再平衡切換時採用）",
+  "pro.seed.regimeQuotas": "市場狀態類別配額（各狀態的 Top N 資產類別）",
+  "pro.seed.assessment": "AI 績效評估",
+  "pro.seed.strategy": "AI 最佳化策略",
+  "pro.seed.roundSetup": "本輪設定（套用於本輪每一個策略）",
+  "pro.seed.factorSearch": "因子搜尋（Jasper 探索的範圍）",
+  "pro.seed.fixed": "固定",
+  "pro.prefix.improved": "本輪優勝者 — 取代了原本的領先者",
+  "pro.prefix.held": "原領先者保留（進步幅度低於門檻）",
+  "pro.prefix.body":
+    "[{label}] {status} · 調整後分數 {score} · {trials} 次試驗 · {models} 種策略。",
+
+  // Pro rounds — parameter labels
+  "pro.param.mode": "配置器模式",
+  "pro.param.lookback_days": "共變異數回顧期",
+  "pro.param.shrinkage": "收縮",
+  "pro.param.risk_aversion": "風險趨避",
+  "pro.param.max_weight_actual": "最大權重",
+  "pro.param.top_n_actual": "Top N 持股",
+  "pro.param.max_turnover_actual": "最大換手率",
+  "pro.param.no_trade_tol": "免交易容忍度",
+  "pro.param.turnover_penalty_mult": "換手率懲罰",
+  "pro.param.factor_lookback_days": "因子回顧期",
+  "pro.param.reversal_lookback_days": "反轉回顧期",
+  "pro.param.value_lookback_days": "價值回顧期",
+  "pro.param.w_mom": "動能權重",
+  "pro.param.w_reversal": "反轉權重",
+  "pro.param.w_value": "價值權重",
+  "pro.param.w_lowvol": "低波動權重",
+  "pro.param.w_trend": "趨勢權重",
+  "pro.param.w_drawdown": "回撤權重",
+  "pro.param.w_equity": "股票配額",
+  "pro.param.w_bond": "債券配額",
+  "pro.param.w_commodity": "商品配額",
+  "pro.param.w_real_estate": "不動產配額",
+  "pro.param.w_alternative": "另類配額",
+  "pro.param.mom_indicator": "動能指標",
+  "pro.param.reversal_indicator": "反轉指標",
+  "pro.param.value_indicator": "價值指標",
+  "pro.param.lowvol_indicator": "低波動指標",
+  "pro.param.trend_indicator": "趨勢指標",
+  "pro.param.drawdown_indicator": "回撤指標",
+
+  // Institutional report — extended
+  "institutional.loadingFor": "（{model}）",
+  "institutional.through": "至 {date}",
+  "institutional.horizonNote":
+    "開啟保留資料時，試驗挑選以樣本內為準。樣本內與樣本外列是同一段連續完整回測的切片，並非各自重新起算的獨立執行。儀表板上的排名夏普值可能與這些列略有差異。",
+  "institutional.gapNote":
+    "樣本內 − 樣本外落差：目標 {objective}、夏普 {sharpe}（正值代表樣本內較強）。",
+  "institutional.vsBenchmark": "vs {benchmark}",
+  "institutional.trackingErr": "追蹤誤差",
+  "institutional.ir": "資訊比率",
+  "institutional.upCapture": "上行捕捉",
+  "institutional.downCapture": "下行捕捉",
+  "institutional.riskPct": "風險 %",
+  "institutional.rollingSharpe": "滾動夏普值（252 日）",
+  "institutional.rollingVol": "滾動波動度（252 日）",
+  "institutional.inSampleNote":
+    "挑選與排名僅使用樣本內；下方各期間不含樣本外尾段。",
+  "institutional.ddStart": "起始",
+  "institutional.ddTrough": "谷底",
+  "institutional.ddEnd": "結束",
+  "institutional.ddDepth": "深度",
+  "institutional.ddDays": "天數",
 };
 
 const ko: Dict = {
@@ -1289,6 +1585,155 @@ const ko: Dict = {
   "results.factor.lowvol": "저변동성",
   "results.factor.trend": "추세",
   "results.factor.drawdown": "낙폭",
+
+  // Constraints — offline + hints
+  "config.runOfflineHint":
+    "지금은 분석 서비스가 오프라인이라 백테스트를 실행할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  "config.assetClassSyncHint":
+    "선택한 자산군과 목표 비중은 서로 동기화됩니다 — 포함하지 않은 항목은 0으로 유지됩니다.",
+  "config.limitsHint":
+    "위 슬라이더는 Jasper가 작동하는 상한을 설정합니다. 각 상한까지 다양한 값을 시도해 목표에 가장 잘 맞는 설정을 찾습니다.",
+  "config.objectiveHint.dynamic":
+    "Jasper는 시장 변화에 따라 목표를 바꿉니다: 위험이 높을 때는 손실을 방어하고, 여건이 강할 때는 수익을 추구하며, 그 사이에서는 둘의 균형을 맞춥니다. 최적 전략은 최적화 기간의 단일 종합 점수로 선택됩니다.",
+  "config.objectiveHint.default":
+    "홀드아웃을 켜면 전략이 최적화 기간으로 순위가 매겨지며, 홀드아웃과 전체 기간 결과는 비교용으로만 표시됩니다.",
+  "config.customObjectivePlaceholder":
+    "예: 낙폭을 먼저 낮추고, 그다음 수익, 회전율은 적정 수준 유지",
+  "config.customObjectiveHint": "Jasper가 이를 최적화할 수 있는 목표로 바꿔 줍니다.",
+  "config.trialsHint.pro": "Pro 모드가 위의 라운드 설정을 사용해 대신 관리합니다.",
+  "config.trialsHint.standard":
+    "테스트할 전략 수. 처음 몇 개는 AI 제안에서 시작하고, 나머지는 자동으로 탐색됩니다. 보고서 크기는 아래에서 설정하세요.",
+  "config.benchmarkLine": "벤치마크: SPY · 무위험 수익률: 4%",
+
+  // Constraints — advanced controls
+  "config.advanced.title": "고급 설정(선택)",
+  "config.advanced.maxWeightNote":
+    "단일 비중 탐색은 {pct}%를 초과할 수 없습니다(실행 슬라이더).",
+  "config.advanced.categorical": "범주형",
+  "config.advanced.factorIndicators": "팩터 지표(팩터별)",
+  "config.advanced.search": "탐색",
+  "config.advanced.fixed": "고정",
+  "config.advanced.off": "끄기",
+  "config.advanced.searchHint":
+    "탐색은 모든 옵션을 고려하며, 선택한 값은 AI 시작 힌트로만 사용됩니다",
+  "config.advanced.fixedHint": "이 팩터의 고정 지표",
+
+  // Constraints — categorical labels
+  "config.categorical.objective_mode": "목적 함수",
+  "config.categorical.allocator_mode": "배분기 모드",
+  "config.categorical.rebalance_freq": "리밸런싱 주기",
+
+  // Constraints — advanced numeric control labels
+  "config.control.subPrefix": "하위 {label}",
+  "config.control.lookback_days": "배분기 회고 기간(일)",
+  "config.control.shrinkage": "공분산 축소",
+  "config.control.risk_aversion": "위험 회피",
+  "config.control.max_weight_actual": "단일 최대 비중(시행)",
+  "config.control.top_n_actual": "Top N(실제)",
+  "config.control.factor_lookback_days": "팩터 회고 기간(일)",
+  "config.control.reversal_lookback_days": "리버설 회고 기간(일)",
+  "config.control.value_lookback_days": "가치 회고 기간(일)",
+  "config.control.no_trade_tol": "무거래 구간",
+  "config.control.turnover_penalty_mult": "회전율 패널티",
+  "config.control.max_turnover_actual": "리밸런싱당 최대 회전율",
+  "config.control.w_mom": "모멘텀 가중치",
+  "config.control.w_reversal": "리버설 가중치",
+  "config.control.w_value": "가치 가중치",
+  "config.control.w_lowvol": "저변동성 가중치",
+  "config.control.w_trend": "추세 가중치",
+  "config.control.w_drawdown": "낙폭 품질 가중치",
+  "config.control.w_equity": "주식 배분",
+  "config.control.w_bond": "채권 배분",
+  "config.control.w_commodity": "원자재 배분",
+  "config.control.w_real_estate": "REIT 배분",
+  "config.control.w_alternative": "대체 배분",
+
+  // Quick refinements
+  "refinements.bond-tilt.label": "채권 기울이기",
+  "refinements.bond-tilt.desc": "주식＋채권 중심, 낙폭 고려 목표",
+  "refinements.dd-guard.label": "낙폭 방어",
+  "refinements.dd-guard.desc": "최대 낙폭 최소화 목표",
+  "refinements.cap-2.label": "상한 −2%",
+  "refinements.cap-2.desc": "단일 종목 집중도 축소",
+  "refinements.sharpe.label": "샤프 추구",
+  "refinements.sharpe.desc": "샤프 비율 최대화",
+  "refinements.defensive.label": "방어형 조합",
+  "refinements.defensive.desc": "채권, REIT, 원자재, 대체자산",
+  "refinements.equity-only.label": "주식만",
+  "refinements.equity-only.desc": "주식 ETF 내에서만 최적화",
+
+  // Pro rounds — banner, seed panel, prefix
+  "pro.roundN": "{n}라운드",
+  "pro.banner.title": "이번 라운드가 벤치마크에 못 미침",
+  "pro.banner.body":
+    "이 표본에서 포트폴리오 수익률이 벤치마크({benchmark})를 밑돌았습니다. 다음 라운드에서는 탐색 범위를 넓히거나 전략을 조정해 보세요.",
+  "pro.banner.stats":
+    "포트폴리오 수익률 {portfolio} · 벤치마크 {benchmark} · 알파 {alpha}",
+  "pro.seed.regimeMatrix": "국면 매트릭스(국면별 배분기 — 리밸런싱 전환마다 적용)",
+  "pro.seed.regimeQuotas": "국면 자산군 쿼터(국면별 Top N 자산군)",
+  "pro.seed.assessment": "AI 성과 평가",
+  "pro.seed.strategy": "AI 최적화 전략",
+  "pro.seed.roundSetup": "라운드 설정(이번 라운드의 모든 전략에 적용)",
+  "pro.seed.factorSearch": "팩터 탐색(Jasper가 탐색한 범위)",
+  "pro.seed.fixed": "고정",
+  "pro.prefix.improved": "라운드 우승자 — 기존 선두를 교체함",
+  "pro.prefix.held": "기존 선두 유지(개선폭이 기준 미만)",
+  "pro.prefix.body":
+    "[{label}] {status} · 조정 점수 {score} · 시행 {trials}회 · 전략 {models}개.",
+
+  // Pro rounds — parameter labels
+  "pro.param.mode": "배분기 모드",
+  "pro.param.lookback_days": "공분산 회고 기간",
+  "pro.param.shrinkage": "축소",
+  "pro.param.risk_aversion": "위험 회피",
+  "pro.param.max_weight_actual": "최대 비중",
+  "pro.param.top_n_actual": "Top N 보유 종목",
+  "pro.param.max_turnover_actual": "최대 회전율",
+  "pro.param.no_trade_tol": "무거래 허용치",
+  "pro.param.turnover_penalty_mult": "회전율 패널티",
+  "pro.param.factor_lookback_days": "팩터 회고 기간",
+  "pro.param.reversal_lookback_days": "리버설 회고 기간",
+  "pro.param.value_lookback_days": "가치 회고 기간",
+  "pro.param.w_mom": "모멘텀 가중치",
+  "pro.param.w_reversal": "리버설 가중치",
+  "pro.param.w_value": "가치 가중치",
+  "pro.param.w_lowvol": "저변동성 가중치",
+  "pro.param.w_trend": "추세 가중치",
+  "pro.param.w_drawdown": "낙폭 가중치",
+  "pro.param.w_equity": "주식 쿼터",
+  "pro.param.w_bond": "채권 쿼터",
+  "pro.param.w_commodity": "원자재 쿼터",
+  "pro.param.w_real_estate": "부동산 쿼터",
+  "pro.param.w_alternative": "대체 쿼터",
+  "pro.param.mom_indicator": "모멘텀 지표",
+  "pro.param.reversal_indicator": "리버설 지표",
+  "pro.param.value_indicator": "가치 지표",
+  "pro.param.lowvol_indicator": "저변동성 지표",
+  "pro.param.trend_indicator": "추세 지표",
+  "pro.param.drawdown_indicator": "낙폭 지표",
+
+  // Institutional report — extended
+  "institutional.loadingFor": "({model})",
+  "institutional.through": "{date}까지",
+  "institutional.horizonNote":
+    "홀드아웃이 켜져 있으면 시행 선택은 인샘플을 사용합니다. 인샘플과 아웃오브샘플 행은 동일한 연속 전체 백테스트의 구간이며, 각각 새로 시작한 별개의 실행이 아닙니다. 대시보드의 순위 샤프는 이 행들과 약간 다를 수 있습니다.",
+  "institutional.gapNote":
+    "인샘플 − 아웃오브샘플 격차: 목표 {objective}, 샤프 {sharpe}(양수면 인샘플이 더 강함).",
+  "institutional.vsBenchmark": "vs {benchmark}",
+  "institutional.trackingErr": "추적 오차",
+  "institutional.ir": "정보 비율",
+  "institutional.upCapture": "상승 포착",
+  "institutional.downCapture": "하락 포착",
+  "institutional.riskPct": "위험 %",
+  "institutional.rollingSharpe": "롤링 샤프(252일)",
+  "institutional.rollingVol": "롤링 변동성(252일)",
+  "institutional.inSampleNote":
+    "선택과 순위는 인샘플만 사용하며, 아래 기간은 아웃오브샘플 구간을 제외합니다.",
+  "institutional.ddStart": "시작",
+  "institutional.ddTrough": "저점",
+  "institutional.ddEnd": "종료",
+  "institutional.ddDepth": "깊이",
+  "institutional.ddDays": "일수",
 };
 
 const DICTS: Record<Lang, Dict> = { en, zh, ko };

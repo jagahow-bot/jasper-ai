@@ -22,11 +22,13 @@ type Props = {
   value: BacktestRequest;
   onChange: (next: BacktestRequest) => void;
   onRun: () => void;
+  apiOnline?: boolean | null;
 };
 
-export function ConstraintsPanel({ value, onChange, onRun }: Props) {
+export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
   const { t } = useI18n();
   const isPro = value.optimization_mode === "pro_auto";
+  const offline = apiOnline === false;
   const runMaxWeight = Math.max(0.05, value.max_weight);
   const runTopN = value.top_n;
   const runMaxTurnover = value.max_turnover;
@@ -34,56 +36,56 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
     () => {
       const subAssetControlSpecs = SUB_ASSET_CLASS_KEYS.map((subKey) => ({
         key: SUB_ASSET_PARAM_KEYS[subKey],
-        label: `Sub ${SUB_ASSET_CLASS_LABELS[subKey]}`,
+        label: t("config.control.subPrefix", { label: SUB_ASSET_CLASS_LABELS[subKey] }),
         min: 0,
         max: 1,
         step: 0.05,
       }));
       return [
-    { key: "lookback_days", label: "Allocator lookback (d)", min: 126, max: 504, step: 21 },
-    { key: "shrinkage", label: "Cov shrinkage", min: 0, max: 0.5, step: 0.05 },
-    { key: "risk_aversion", label: "Risk aversion", min: 0.5, max: 12, step: 0.5 },
+    { key: "lookback_days", label: t("config.control.lookback_days"), min: 126, max: 504, step: 21 },
+    { key: "shrinkage", label: t("config.control.shrinkage"), min: 0, max: 0.5, step: 0.05 },
+    { key: "risk_aversion", label: t("config.control.risk_aversion"), min: 0.5, max: 12, step: 0.5 },
     {
       key: "max_weight_actual",
-      label: "Max single weight (trial)",
+      label: t("config.control.max_weight_actual"),
       min: 0.05,
       max: runMaxWeight,
       step: 0.01,
     },
-    { key: "top_n_actual", label: "Top N (actual)", min: 5, max: Math.min(120, runTopN), step: 1 },
-    { key: "factor_lookback_days", label: "Factor lookback (d)", min: 126, max: 504, step: 21 },
-    { key: "reversal_lookback_days", label: "Reversal lookback (d)", min: 63, max: 252, step: 21 },
-    { key: "value_lookback_days", label: "Value lookback (d)", min: 63, max: 252, step: 21 },
-    { key: "no_trade_tol", label: "No-trade band", min: 0, max: 0.02, step: 0.001 },
-    { key: "turnover_penalty_mult", label: "Turnover penalty", min: 0.5, max: 3, step: 0.1 },
+    { key: "top_n_actual", label: t("config.control.top_n_actual"), min: 5, max: Math.min(120, runTopN), step: 1 },
+    { key: "factor_lookback_days", label: t("config.control.factor_lookback_days"), min: 126, max: 504, step: 21 },
+    { key: "reversal_lookback_days", label: t("config.control.reversal_lookback_days"), min: 63, max: 252, step: 21 },
+    { key: "value_lookback_days", label: t("config.control.value_lookback_days"), min: 63, max: 252, step: 21 },
+    { key: "no_trade_tol", label: t("config.control.no_trade_tol"), min: 0, max: 0.02, step: 0.001 },
+    { key: "turnover_penalty_mult", label: t("config.control.turnover_penalty_mult"), min: 0.5, max: 3, step: 0.1 },
     {
       key: "max_turnover_actual",
-      label: "Max turnover / rebalance",
+      label: t("config.control.max_turnover_actual"),
       min: 0.05,
       max: Math.max(0.05, runMaxTurnover),
       step: 0.05,
     },
-    { key: "w_mom", label: "Wt momentum", min: 0, max: 2, step: 0.1 },
-    { key: "w_reversal", label: "Wt reversal", min: 0, max: 2, step: 0.1 },
-    { key: "w_value", label: "Wt value", min: 0, max: 2, step: 0.1 },
-    { key: "w_lowvol", label: "Wt low-vol", min: 0, max: 2, step: 0.1 },
-    { key: "w_trend", label: "Wt trend", min: 0, max: 1.5, step: 0.1 },
-    { key: "w_drawdown", label: "Wt drawdown qual", min: 0, max: 1.5, step: 0.1 },
-    { key: "w_equity", label: "Alloc equity", min: 0, max: 1, step: 0.05 },
-    { key: "w_bond", label: "Alloc bond", min: 0, max: 1, step: 0.05 },
-    { key: "w_commodity", label: "Alloc commodity", min: 0, max: 1, step: 0.05 },
-    { key: "w_real_estate", label: "Alloc REIT", min: 0, max: 1, step: 0.05 },
-    { key: "w_alternative", label: "Alloc alt", min: 0, max: 1, step: 0.05 },
+    { key: "w_mom", label: t("config.control.w_mom"), min: 0, max: 2, step: 0.1 },
+    { key: "w_reversal", label: t("config.control.w_reversal"), min: 0, max: 2, step: 0.1 },
+    { key: "w_value", label: t("config.control.w_value"), min: 0, max: 2, step: 0.1 },
+    { key: "w_lowvol", label: t("config.control.w_lowvol"), min: 0, max: 2, step: 0.1 },
+    { key: "w_trend", label: t("config.control.w_trend"), min: 0, max: 1.5, step: 0.1 },
+    { key: "w_drawdown", label: t("config.control.w_drawdown"), min: 0, max: 1.5, step: 0.1 },
+    { key: "w_equity", label: t("config.control.w_equity"), min: 0, max: 1, step: 0.05 },
+    { key: "w_bond", label: t("config.control.w_bond"), min: 0, max: 1, step: 0.05 },
+    { key: "w_commodity", label: t("config.control.w_commodity"), min: 0, max: 1, step: 0.05 },
+    { key: "w_real_estate", label: t("config.control.w_real_estate"), min: 0, max: 1, step: 0.05 },
+    { key: "w_alternative", label: t("config.control.w_alternative"), min: 0, max: 1, step: 0.05 },
     ...subAssetControlSpecs,
   ];
     },
-    [runMaxWeight, runTopN, runMaxTurnover],
+    [runMaxWeight, runTopN, runMaxTurnover, t],
   );
   const controls = value.param_controls ?? {};
   const categoricalSpecs = [
     {
       key: "objective_mode",
-      label: "Objective fn",
+      label: t("config.categorical.objective_mode"),
       options: [
         "max_sharpe",
         "max_return",
@@ -99,13 +101,13 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
     },
     {
       key: "allocator_mode",
-      label: "Allocator mode",
+      label: t("config.categorical.allocator_mode"),
       options: ["auto", "mean_variance", "min_var", "risk_parity", "max_diversification"],
       defaultFixed: "auto",
     },
     {
       key: "rebalance_freq",
-      label: "Rebalance freq",
+      label: t("config.categorical.rebalance_freq"),
       options: ["W-FRI", "ME", "QE", "YE"],
       defaultFixed: value.rebalance_freq,
     },
@@ -140,10 +142,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           })
         }
       />
-      <p className="text-xs text-dim">
-        Your selected asset classes and their target weights stay in sync — anything you
-        leave out is held at zero.
-      </p>
+      <p className="text-xs text-dim">{t("config.assetClassSyncHint")}</p>
 
       <QuickRefinements
         request={value}
@@ -206,10 +205,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         <p className="text-xs text-dim">{t("config.maxTurnoverHint")}</p>
       </label>
 
-      <p className="text-xs text-dim">
-        The sliders above set the <strong>upper limits</strong> Jasper works within. It tries a
-        range of values up to each limit to find the best fit for your goal.
-      </p>
+      <p className="text-xs text-dim">{t("config.limitsHint")}</p>
 
       <label className="block space-y-2">
         <span className="text-sm">
@@ -277,8 +273,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         </select>
         <p className="text-xs text-dim">
           {value.objective === "dynamic"
-            ? "Jasper shifts its goal as the market changes: protect against losses when risk is high, chase returns when conditions are strong, and balance the two in between. The best strategy is picked on a single blended score over the optimization period."
-            : "With a holdout turned on, strategies are ranked on the optimization period; the holdout and full-period results are shown for comparison only."}
+            ? t("config.objectiveHint.dynamic")
+            : t("config.objectiveHint.default")}
         </p>
       </label>
       {value.objective === "custom" && (
@@ -287,12 +283,10 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           <textarea
             value={value.objective_custom_text ?? ""}
             onChange={(e) => onChange({ ...value, objective_custom_text: e.target.value })}
-            placeholder="e.g. low drawdown first, then return, keep turnover modest"
+            placeholder={t("config.customObjectivePlaceholder")}
             className="pixel-input min-h-20"
           />
-          <p className="text-xs text-dim">
-            Jasper turns this into a goal it can optimize for.
-          </p>
+          <p className="text-xs text-dim">{t("config.customObjectiveHint")}</p>
         </label>
       )}
 
@@ -336,8 +330,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
         />
         <p className="text-xs text-dim">
           {isPro
-            ? "Pro mode manages this for you using the round settings above."
-            : "How many strategies to test. The first few start from AI suggestions; the rest are explored automatically. Set the report size below."}
+            ? t("config.trialsHint.pro")
+            : t("config.trialsHint.standard")}
         </p>
       </label>
 
@@ -431,17 +425,17 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       </label>
 
       <div className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2 text-xs text-dim">
-        Benchmark: SPY · Risk-free rate: 4%
+        {t("config.benchmarkLine")}
       </div>
       <details className="border-2 border-[var(--border)] bg-[#050508] p-3">
         <summary className="cursor-pointer font-pixel text-[8px] text-[var(--cyan)]">
-          Advanced controls (optional)
+          {t("config.advanced.title")}
         </summary>
         <p className="mt-2 text-xs text-dim">
-          The max single-weight search cannot exceed {Math.round(runMaxWeight * 100)}% (run slider).
+          {t("config.advanced.maxWeightNote", { pct: Math.round(runMaxWeight * 100) })}
         </p>
         <div className="mt-3 space-y-2 border-b border-[var(--border)] pb-3">
-          <p className="text-xs text-dim">Categorical</p>
+          <p className="text-xs text-dim">{t("config.advanced.categorical")}</p>
           {categoricalSpecs.map((s) => {
             const runLevelFixed =
               s.key === "objective_mode" || s.key === "rebalance_freq";
@@ -464,9 +458,9 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
                   }
                   className="pixel-input py-1 text-xs"
                 >
-                  <option value="search">Search</option>
-                  <option value="fixed">Fixed</option>
-                  <option value="off">Off</option>
+                  <option value="search">{t("config.advanced.search")}</option>
+                  <option value="fixed">{t("config.advanced.fixed")}</option>
+                  <option value="off">{t("config.advanced.off")}</option>
                 </select>
                 <select
                   value={String(c.fixed ?? s.defaultFixed)}
@@ -486,7 +480,7 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
           })}
         </div>
         <div className="mt-3 space-y-2 border-b border-[var(--border)] pb-3">
-          <p className="text-xs text-dim">Factor indicators (per factor)</p>
+          <p className="text-xs text-dim">{t("config.advanced.factorIndicators")}</p>
           {FACTOR_INDICATOR_SPECS.map((s) => {
             const c =
               controls[s.key] ??
@@ -518,9 +512,9 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
                   }
                   className="pixel-input py-1 text-xs"
                 >
-                  <option value="search">Search</option>
-                  <option value="fixed">Fixed</option>
-                  <option value="off">Off</option>
+                  <option value="search">{t("config.advanced.search")}</option>
+                  <option value="fixed">{t("config.advanced.fixed")}</option>
+                  <option value="off">{t("config.advanced.off")}</option>
                 </select>
                 {(c.mode === "search" || c.mode === "fixed") && (
                   <select
@@ -534,8 +528,8 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
                     className="pixel-input py-1 text-xs"
                     title={
                       c.mode === "search"
-                        ? "The search considers all options; your selection is an AI starting hint"
-                        : "Fixed indicator for this factor"
+                        ? t("config.advanced.searchHint")
+                        : t("config.advanced.fixedHint")
                     }
                   >
                     {s.options.map((op) => (
@@ -567,9 +561,9 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
                   onChange={(e) => setControl(s.key, { mode: e.target.value as ParamControl["mode"] })}
                   className="pixel-input py-1"
                 >
-                  <option value="search">Search</option>
-                  <option value="fixed">Fixed</option>
-                  <option value="off">Off</option>
+                  <option value="search">{t("config.advanced.search")}</option>
+                  <option value="fixed">{t("config.advanced.fixed")}</option>
+                  <option value="off">{t("config.advanced.off")}</option>
                 </select>
                 {c.mode === "fixed" ? (
                   <input
@@ -620,10 +614,18 @@ export function ConstraintsPanel({ value, onChange, onRun }: Props) {
       <button
         type="button"
         onClick={onRun}
-        className={`pixel-btn w-full ${isPro ? "pixel-btn-amber" : ""}`}
+        disabled={offline}
+        aria-disabled={offline}
+        title={offline ? t("config.runOfflineHint") : undefined}
+        className={`pixel-btn w-full ${isPro ? "pixel-btn-amber" : ""} ${
+          offline ? "cursor-not-allowed opacity-50" : ""
+        }`}
       >
         {isPro ? t("config.runPro") : t("config.runStandard")}
       </button>
+      {offline ? (
+        <p className="text-xs text-[var(--amber)]">{t("config.runOfflineHint")}</p>
+      ) : null}
     </div>
   );
 }

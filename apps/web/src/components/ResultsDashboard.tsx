@@ -125,10 +125,20 @@ const COLORS = [
 
 const SELECTED_STROKE = "#f97316";
 
-/** Prefer ticker when catalog name is CJK (legacy universe labels). */
-function holdingDisplayName(ticker: string, catalogName?: string): string {
+/**
+ * Prefer ticker when catalog name is CJK (legacy universe labels), except when
+ * the UI is in a CJK language where the localized name is the better label.
+ */
+function holdingDisplayName(
+  ticker: string,
+  catalogName?: string,
+  lang?: string,
+): string {
   if (!catalogName || catalogName === ticker) return ticker;
-  if (/[\u4e00-\u9fff\u3040-\u30ff]/.test(catalogName)) return ticker;
+  const preferLocalized = lang === "zh" || lang === "ko";
+  if (!preferLocalized && /[\u4e00-\u9fff\u3040-\u30ff]/.test(catalogName)) {
+    return ticker;
+  }
   return catalogName;
 }
 
@@ -154,7 +164,7 @@ export function ResultsDashboard({
   onQuickTweak,
   onQuickTweakAndRun,
 }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const chartTick = chartTickFontSize();
   const chartLegend = chartLegendFontSize();
   const chartTip = chartTooltipFontSize();
@@ -442,10 +452,10 @@ export function ResultsDashboard({
       .sort(([, a], [, b]) => b - a)
       .map(([ticker, weight]) => ({
         ticker,
-        name: holdingDisplayName(ticker, tickerNameMap.get(ticker)),
+        name: holdingDisplayName(ticker, tickerNameMap.get(ticker), lang),
         weight,
       }));
-  }, [selected?.weights, tickerNameMap]);
+  }, [selected?.weights, tickerNameMap, lang]);
 
   const benchTicker = String(
     (result.narrative_facts.backtest_spec as { benchmark?: string } | undefined)
@@ -1012,15 +1022,15 @@ export function ResultsDashboard({
           </label>
         </div>
         {narrative ? (
-          <details className="mt-3 text-sm text-dim">
-            <summary className="cursor-pointer hover:text-[var(--cyan)]">
+          <div className="mt-3 border-2 border-[var(--cyan)] bg-[rgba(0,245,255,0.04)] px-4 py-3 text-sm text-dim">
+            <p className="mb-2 font-pixel text-[8px] text-[var(--cyan)]">
               {t("results.fullNarrative")}
-            </summary>
-            <p className="mt-2 whitespace-pre-wrap leading-relaxed">
+            </p>
+            <p className="whitespace-pre-wrap leading-relaxed text-[#cbd5e1]">
               {narrativePrefix ? `${narrativePrefix}\n\n` : ""}
               {narrative}
             </p>
-          </details>
+          </div>
         ) : null}
         {sampleMetrics?.in_sample && (
           <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2 text-xs">

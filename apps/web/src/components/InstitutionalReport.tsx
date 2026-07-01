@@ -28,7 +28,9 @@ export function InstitutionalReport({
 }) {
   const { t } = useI18n();
   const a = candidate.analytics;
-  const loadingSuffix = loadingModelCode ? ` for ${loadingModelCode}` : "";
+  const loadingSuffix = loadingModelCode
+    ? ` ${t("institutional.loadingFor", { model: loadingModelCode })}`
+    : "";
   if (!a) {
     if (isLoadingAnalytics) {
       return (
@@ -56,7 +58,7 @@ export function InstitutionalReport({
     trainStart && trainEnd
       ? ` ${trainStart} → ${trainEnd}`
       : trainEnd
-        ? ` through ${trainEnd}`
+        ? ` ${t("institutional.through", { date: trainEnd })}`
         : "";
   const monthlyTitle = periodicInSample
     ? t("institutional.monthlyInSample", { range: isRange })
@@ -98,19 +100,14 @@ export function InstitutionalReport({
       ) : null}
       {hasHorizonTable && (
         <Section title={t("institutional.horizonTitle")}>
-          <p className="mb-3 text-xs text-dim">
-            Trial selection uses In-Sample when holdout is on. In-Sample and Out-of-Sample
-            rows are slices of the same continuous Full backtest; they are not separate
-            fresh-start runs. Ranked Sharpe on the dashboard may differ slightly from these
-            rows.
-          </p>
+          <p className="mb-3 text-xs text-dim">{t("institutional.horizonNote")}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-dim">
                 <tr>
                   <th className="pb-2">{t("institutional.horizon")}</th>
-                  <th className="pb-2 text-right">Sharpe</th>
-                  <th className="pb-2 text-right">CAGR</th>
+                  <th className="pb-2 text-right">{t("common.sharpe")}</th>
+                  <th className="pb-2 text-right">{t("common.cagr")}</th>
                   <th className="pb-2 text-right">{t("institutional.maxDd")}</th>
                   <th className="pb-2 text-right">{t("common.objective")}</th>
                 </tr>
@@ -131,8 +128,10 @@ export function InstitutionalReport({
           {horizonGap != null &&
             (horizonGap.sharpe != null || horizonGap.objective != null) && (
               <p className="mt-2 text-xs text-dim">
-                In-Sample − Out-of-Sample gap: objective {horizonGap.objective ?? "—"},
-                Sharpe {horizonGap.sharpe ?? "—"} (positive = In-Sample stronger).
+                {t("institutional.gapNote", {
+                  objective: horizonGap.objective ?? "—",
+                  sharpe: horizonGap.sharpe ?? "—",
+                })}
               </p>
             )}
         </Section>
@@ -159,14 +158,14 @@ export function InstitutionalReport({
         </Section>
       ) : null}
 
-      <Section title={`vs ${benchmark}`}>
+      <Section title={t("institutional.vsBenchmark", { benchmark })}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Kpi label="Beta" value={rel.beta ?? candidate.beta} />
-          <Kpi label="Alpha" value={rel.alpha ?? rel.alpha_annual ?? candidate.alpha ?? candidate.alpha_annual} />
-          <Kpi label="Tracking err" value={rel.tracking_error ?? candidate.tracking_error} />
-          <Kpi label="IR" value={rel.information_ratio ?? candidate.information_ratio} />
-          <Kpi label="Up capture" value={rel.up_capture} />
-          <Kpi label="Down capture" value={rel.down_capture} />
+          <Kpi label={t("common.beta")} value={rel.beta ?? candidate.beta} />
+          <Kpi label={t("common.alpha")} value={rel.alpha ?? rel.alpha_annual ?? candidate.alpha ?? candidate.alpha_annual} />
+          <Kpi label={t("institutional.trackingErr")} value={rel.tracking_error ?? candidate.tracking_error} />
+          <Kpi label={t("institutional.ir")} value={rel.information_ratio ?? candidate.information_ratio} />
+          <Kpi label={t("institutional.upCapture")} value={rel.up_capture} />
+          <Kpi label={t("institutional.downCapture")} value={rel.down_capture} />
         </div>
       </Section>
 
@@ -211,9 +210,9 @@ export function InstitutionalReport({
           <table className="w-full text-left text-sm">
             <thead className="text-dim">
               <tr>
-                <th className="pb-2">Ticker</th>
+                <th className="pb-2">{t("common.ticker")}</th>
                 <th className="pb-2 text-right">{t("institutional.weightShort")}</th>
-                <th className="pb-2 text-right">Risk %</th>
+                <th className="pb-2 text-right">{t("institutional.riskPct")}</th>
               </tr>
             </thead>
             <tbody>
@@ -233,14 +232,14 @@ export function InstitutionalReport({
       </Section>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title="Rolling Sharpe (252D)">
+        <Section title={t("institutional.rollingSharpe")}>
           <MiniLine
             data={rolling.rolling_sharpe ?? []}
             color="#00f5ff"
             isLoading={isLoadingAnalytics}
           />
         </Section>
-        <Section title="Rolling vol (252D)">
+        <Section title={t("institutional.rollingVol")}>
           <MiniLine
             data={rolling.rolling_vol ?? []}
             color="#ff2bd6"
@@ -257,10 +256,7 @@ export function InstitutionalReport({
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title={monthlyTitle}>
           {periodicInSample && (
-            <p className="mb-2 text-xs text-dim">
-              Selection and ranking use In-Sample only; periods below exclude the
-              Out-of-Sample tail.
-            </p>
+            <p className="mb-2 text-xs text-dim">{t("institutional.inSampleNote")}</p>
           )}
           <ReturnTable rows={periodic.monthly ?? []} isLoading={isLoadingAnalytics} />
         </Section>
@@ -290,11 +286,11 @@ export function InstitutionalReport({
           <table className="w-full text-left text-sm">
             <thead className="text-dim">
               <tr>
-                <th className="pb-2">Start</th>
-                <th className="pb-2">Trough</th>
-                <th className="pb-2">End</th>
-                <th className="pb-2 text-right">Depth</th>
-                <th className="pb-2 text-right">Days</th>
+                <th className="pb-2">{t("institutional.ddStart")}</th>
+                <th className="pb-2">{t("institutional.ddTrough")}</th>
+                <th className="pb-2">{t("institutional.ddEnd")}</th>
+                <th className="pb-2 text-right">{t("institutional.ddDepth")}</th>
+                <th className="pb-2 text-right">{t("institutional.ddDays")}</th>
               </tr>
             </thead>
             <tbody>

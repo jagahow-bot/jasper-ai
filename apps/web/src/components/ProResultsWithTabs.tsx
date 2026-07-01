@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type TFn } from "@/lib/i18n";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -82,39 +82,41 @@ function mergeAllPortfolios(base: BacktestResult): BacktestResult {
   };
 }
 
-function formatParamLabel(key: string): string {
-  const labels: Record<string, string> = {
-    mode: "Allocator mode",
-    lookback_days: "Covariance lookback",
-    shrinkage: "Shrinkage",
-    risk_aversion: "Risk aversion",
-    max_weight_actual: "Max weight",
-    top_n_actual: "Top N holdings",
-    max_turnover_actual: "Max turnover",
-    no_trade_tol: "No-trade tolerance",
-    turnover_penalty_mult: "Turnover penalty",
-    factor_lookback_days: "Factor lookback",
-    reversal_lookback_days: "Reversal lookback",
-    value_lookback_days: "Value lookback",
-    w_mom: "Momentum weight",
-    w_reversal: "Reversal weight",
-    w_value: "Value weight",
-    w_lowvol: "Low-vol weight",
-    w_trend: "Trend weight",
-    w_drawdown: "Drawdown weight",
-    w_equity: "Equity quota",
-    w_bond: "Bond quota",
-    w_commodity: "Commodity quota",
-    w_real_estate: "Real estate quota",
-    w_alternative: "Alternative quota",
-    mom_indicator: "Momentum indicator",
-    reversal_indicator: "Reversal indicator",
-    value_indicator: "Value indicator",
-    lowvol_indicator: "Low-vol indicator",
-    trend_indicator: "Trend indicator",
-    drawdown_indicator: "Drawdown indicator",
-  };
-  return labels[key] ?? key.replace(/_/g, " ");
+const PARAM_LABEL_KEYS = new Set([
+  "mode",
+  "lookback_days",
+  "shrinkage",
+  "risk_aversion",
+  "max_weight_actual",
+  "top_n_actual",
+  "max_turnover_actual",
+  "no_trade_tol",
+  "turnover_penalty_mult",
+  "factor_lookback_days",
+  "reversal_lookback_days",
+  "value_lookback_days",
+  "w_mom",
+  "w_reversal",
+  "w_value",
+  "w_lowvol",
+  "w_trend",
+  "w_drawdown",
+  "w_equity",
+  "w_bond",
+  "w_commodity",
+  "w_real_estate",
+  "w_alternative",
+  "mom_indicator",
+  "reversal_indicator",
+  "value_indicator",
+  "lowvol_indicator",
+  "trend_indicator",
+  "drawdown_indicator",
+]);
+
+function formatParamLabel(key: string, t: TFn): string {
+  if (PARAM_LABEL_KEYS.has(key)) return t(`pro.param.${key}`);
+  return key.replace(/_/g, " ");
 }
 
 function formatPct(value: number | null | undefined): string {
@@ -140,6 +142,7 @@ function RoundBenchmarkBanner({
   pvb?: PortfolioVsBenchmark | null;
   benchmarkTicker: string;
 }) {
+  const { t } = useI18n();
   if (status !== "below") return null;
   const portRet = pvb?.portfolio_total_return_pct;
   const benchRet = pvb?.benchmark_total_return_pct;
@@ -151,21 +154,24 @@ function RoundBenchmarkBanner({
       role="status"
     >
       <p className="font-pixel text-[9px] text-[var(--amber)]">
-        ROUND UNDERPERFORMED BENCHMARK
+        {t("pro.banner.title")}
       </p>
       <p className="mt-1 font-pixel text-[8px] leading-relaxed text-[var(--fg)]">
-        Portfolio return trails the benchmark ({benchmarkTicker}) in this sample.
-        Consider wider exploration or strategy tweaks next round.
+        {t("pro.banner.body", { benchmark: benchmarkTicker })}
       </p>
       <p className="mt-2 font-pixel text-[8px] text-[var(--muted)]">
-        Portfolio return {formatPct(portRet)} · Benchmark {formatPct(benchRet)} · Alpha{" "}
-        {formatAlpha(alphaVal)}
+        {t("pro.banner.stats", {
+          portfolio: formatPct(portRet),
+          benchmark: formatPct(benchRet),
+          alpha: formatAlpha(alphaVal),
+        })}
       </p>
     </div>
   );
 }
 
 function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
+  const { t } = useI18n();
   const setup = round.round_setup ?? {};
   const regimes = round.regime_setups ?? {};
   const regimeQuotas = round.regime_class_quotas ?? {};
@@ -204,7 +210,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       {round.regime_matrix_enabled && regimeEntries.length ? (
         <div className="md:col-span-2">
           <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
-            Regime matrix (allocator per regime — used at each rebalance switch)
+            {t("pro.seed.regimeMatrix")}
           </p>
           <div className="grid gap-2 sm:grid-cols-3">
             {regimeEntries.map(([regime, slice]) => (
@@ -213,7 +219,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
                 <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
                   {Object.entries(slice as Record<string, unknown>).map(([k, v]) => (
                     <li key={k}>
-                      <span className="text-[var(--fg)]">{formatParamLabel(k)}:</span>{" "}
+                      <span className="text-[var(--fg)]">{formatParamLabel(k, t)}:</span>{" "}
                       {String(v)}
                     </li>
                   ))}
@@ -227,7 +233,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       Object.keys(regimeQuotas).length > 0 ? (
         <div className="md:col-span-2">
           <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">
-            Regime class quotas (Top N asset classes per regime)
+            {t("pro.seed.regimeQuotas")}
           </p>
           <div className="grid gap-2 sm:grid-cols-3">
             {Object.entries(regimeQuotas).map(([regime, slice]) => (
@@ -236,7 +242,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
                 <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
                   {Object.entries(slice as Record<string, number>).map(([k, v]) => (
                     <li key={k}>
-                      <span className="text-[var(--fg)]">{formatParamLabel(k)}:</span>{" "}
+                      <span className="text-[var(--fg)]">{formatParamLabel(k, t)}:</span>{" "}
                       {(Number(v) * 100).toFixed(1)}%
                     </li>
                   ))}
@@ -253,26 +259,26 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
               benchStatus === "below" ? "text-[var(--amber)]" : "text-[var(--fg)]"
             }`}
           >
-            AI performance assessment
+            {t("pro.seed.assessment")}
           </p>
           <p className="font-pixel text-[8px] leading-relaxed">{assessment}</p>
         </div>
       ) : null}
       {strategy ? (
         <div className="md:col-span-2">
-          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">AI optimization strategy</p>
+          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">{t("pro.seed.strategy")}</p>
           <p className="font-pixel text-[8px] leading-relaxed text-[var(--muted)]">{strategy}</p>
         </div>
       ) : null}
       {setupEntries.length ? (
         <div>
           <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
-            Round setup (applies to every strategy this round)
+            {t("pro.seed.roundSetup")}
           </p>
           <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
             {setupEntries.map(([k, v]) => (
               <li key={k}>
-                <span className="text-[var(--fg)]">{formatParamLabel(k)}:</span> {String(v)}
+                <span className="text-[var(--fg)]">{formatParamLabel(k, t)}:</span> {String(v)}
               </li>
             ))}
           </ul>
@@ -280,16 +286,16 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       ) : null}
       {rangeEntries.length || choiceEntries.length ? (
         <div>
-          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">Factor search (ranges Jasper explored)</p>
+          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">{t("pro.seed.factorSearch")}</p>
           <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
             {rangeEntries.map(([k, v]) => (
               <li key={k}>
-                <span className="text-[var(--fg)]">{formatParamLabel(k)}:</span> [{v[0]}, {v[1]}]
+                <span className="text-[var(--fg)]">{formatParamLabel(k, t)}:</span> [{v[0]}, {v[1]}]
               </li>
             ))}
             {choiceEntries.map(([k, v]) => (
               <li key={k}>
-                <span className="text-[var(--fg)]">{formatParamLabel(k)}:</span> {String(v)} (fixed)
+                <span className="text-[var(--fg)]">{formatParamLabel(k, t)}:</span> {String(v)} ({t("pro.seed.fixed")})
               </li>
             ))}
           </ul>
@@ -369,16 +375,21 @@ export function ProResultsWithTabs(props: Props) {
     if (tab === "final") return undefined;
     const round = rounds.find((r) => r.round === tab);
     if (!round) return undefined;
-    const improved = round.improved
-      ? "Round winner — replaced the incoming champion"
-      : "Incoming champion held (improvement below threshold)";
+    const status = round.improved
+      ? t("pro.prefix.improved")
+      : t("pro.prefix.held");
     const score = round.round_best_adjusted_score?.toFixed(4) ?? "—";
-    return (
-      `[${round.narrative_facts.round_label ?? `Round ${round.round}`}]` +
-      ` ${improved} · adj score ${score} · ` +
-      `${round.trials_in_round} trials · ${round.candidates.length} models.`
-    );
-  }, [tab, rounds]);
+    const label = round.narrative_facts.round_label
+      ? String(round.narrative_facts.round_label)
+      : t("pro.roundN", { n: round.round });
+    return t("pro.prefix.body", {
+      label,
+      status,
+      score,
+      trials: round.trials_in_round,
+      models: round.candidates.length,
+    });
+  }, [tab, rounds, t]);
 
   if (!rounds.length) {
     return <ResultsDashboard {...props} />;

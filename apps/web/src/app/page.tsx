@@ -363,7 +363,12 @@ export default function HomePage() {
         <section className="space-y-5">
           {phase === "constraints" && request && (
             <>
-              <ConstraintsPanel value={request} onChange={setRequest} onRun={onRun} />
+              <ConstraintsPanel
+                value={request}
+                onChange={setRequest}
+                onRun={onRun}
+                apiOnline={apiOnline}
+              />
             </>
           )}
 
