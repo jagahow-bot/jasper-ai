@@ -72,6 +72,15 @@ class BacktestRequest(BaseModel):
         ),
     )
     objective: Objective
+    regime_adaptive: bool = Field(
+        default=False,
+        description=(
+            "Regime-adaptive allocation: the portfolio allocator switches preset per "
+            "market regime (risk_off/neutral/risk_on) while the chosen objective still "
+            "drives trial/champion ranking. objective=dynamic implies this and also "
+            "ranks on the blended composite score (backward compatible)."
+        ),
+    )
     backtest_mode: BacktestMode = BacktestMode.static
     start_date: str = "2018-01-01"
     end_date: str = "2024-12-31"

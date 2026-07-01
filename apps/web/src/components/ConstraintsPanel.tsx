@@ -28,6 +28,7 @@ type Props = {
 export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
   const { t } = useI18n();
   const isPro = value.optimization_mode === "pro_auto";
+  const dynamicObjective = value.objective === "dynamic";
   const offline = apiOnline === false;
   const runMaxWeight = Math.max(0.05, value.max_weight);
   const runTopN = value.top_n;
@@ -289,6 +290,28 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           <p className="text-xs text-dim">{t("config.customObjectiveHint")}</p>
         </label>
       )}
+
+      <div className="space-y-2 border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={dynamicObjective || Boolean(value.regime_adaptive)}
+            disabled={dynamicObjective}
+            onChange={(e) =>
+              onChange({ ...value, regime_adaptive: e.target.checked })
+            }
+            className="accent-[var(--neon)]"
+          />
+          {t("config.regimeAdaptive")}
+        </label>
+        <p className="text-xs text-dim">
+          {dynamicObjective
+            ? t("config.regimeAdaptiveHint.dynamic")
+            : Boolean(value.regime_adaptive)
+              ? t("config.regimeAdaptiveHint.on")
+              : t("config.regimeAdaptiveHint.off")}
+        </p>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-2">

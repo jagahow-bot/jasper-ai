@@ -468,9 +468,16 @@ const en: Dict = {
   "config.limitsHint":
     "The sliders above set the upper limits Jasper works within. It tries a range of values up to each limit to find the best fit for your goal.",
   "config.objectiveHint.dynamic":
-    "Dynamic adapts the portfolio to the market regime — defensive when risk is high, growth-seeking when conditions are strong, balanced in between. Champions are ranked on one blended composite score (risk-adjusted return + growth + drawdown + trading cost), not a single metric. To be judged purely on one goal such as Max CAGR, pick that goal instead — note it then runs a single strategy across all regimes (no regime switching).",
+    "Dynamic adapts the portfolio to the market regime — defensive when risk is high, growth-seeking when conditions are strong, balanced in between. Champions are ranked on one blended composite score (risk-adjusted return + growth + drawdown + trading cost), not a single metric. To be judged purely on one goal such as Max CAGR while still switching by regime, pick that goal and turn on Regime-adaptive allocation below.",
   "config.objectiveHint.default":
     "With a holdout turned on, strategies are ranked on the optimization period; the holdout and full-period results are shown for comparison only.",
+  "config.regimeAdaptive": "Regime-adaptive allocation",
+  "config.regimeAdaptiveHint.dynamic":
+    "Always on with the Dynamic goal: the allocator switches preset by market regime (defensive / balanced / growth) every rebalance.",
+  "config.regimeAdaptiveHint.on":
+    "On: the allocator switches preset by market regime (risk-off / neutral / risk-on) each rebalance, while your chosen goal above still decides how strategies are ranked.",
+  "config.regimeAdaptiveHint.off":
+    "Off: one allocation style is used across all market conditions. Turn on to let the allocator adapt by regime while keeping your ranking goal above.",
   "config.customObjectivePlaceholder":
     "e.g. low drawdown first, then return, keep turnover modest",
   "config.customObjectiveHint": "Jasper turns this into a goal it can optimize for.",
@@ -1042,9 +1049,16 @@ const zh: Dict = {
   "config.limitsHint":
     "上方的滑桿設定 Jasper 運作的上限。它會在每個上限內嘗試一系列數值，找出最符合你目標的設定。",
   "config.objectiveHint.dynamic":
-    "「動態」會讓投資組合隨市場狀態自動切換配置風格：風險高時偏防守、行情強勁時追求成長、介於兩者之間時取得平衡。冠軍策略是以單一綜合分數挑選（風險調整後報酬＋成長＋回撤＋交易成本），而非單一指標。若想單純以某個目標（例如最大 CAGR）排名，請直接選擇該目標 — 但要注意，此時所有市場狀態都會套用同一套固定策略（不會隨市場切換）。",
+    "「動態」會讓投資組合隨市場狀態自動切換配置風格：風險高時偏防守、行情強勁時追求成長、介於兩者之間時取得平衡。冠軍策略是以單一綜合分數挑選（風險調整後報酬＋成長＋回撤＋交易成本），而非單一指標。若想單純以某個目標（例如最大 CAGR）排名、同時仍隨市場切換配置，請選擇該目標並開啟下方的「隨市場狀態調整配置」。",
   "config.objectiveHint.default":
     "開啟保留資料後，策略會以最佳化期間排名；保留期與完整期間的結果僅供比較參考。",
+  "config.regimeAdaptive": "隨市場狀態調整配置",
+  "config.regimeAdaptiveHint.dynamic":
+    "選擇「動態」目標時一律開啟：配置器會在每次再平衡依市場狀態（防守／平衡／成長）切換預設配置風格。",
+  "config.regimeAdaptiveHint.on":
+    "開啟：配置器會在每次再平衡依市場狀態（風險趨避／中性／風險偏好）切換預設風格，而上方選定的目標仍決定策略的排名方式。",
+  "config.regimeAdaptiveHint.off":
+    "關閉：所有市場狀態都套用同一套配置風格。開啟後，配置會隨市場狀態調整，同時仍以上方目標排名。",
   "config.customObjectivePlaceholder":
     "例如：先求低回撤，再求報酬，換手率維持適度",
   "config.customObjectiveHint": "Jasper 會把它轉化為可最佳化的目標。",
@@ -1612,9 +1626,16 @@ const ko: Dict = {
   "config.limitsHint":
     "위 슬라이더는 Jasper가 작동하는 상한을 설정합니다. 각 상한까지 다양한 값을 시도해 목표에 가장 잘 맞는 설정을 찾습니다.",
   "config.objectiveHint.dynamic":
-    "동적 모드는 시장 국면에 따라 포트폴리오를 조정합니다: 위험이 높으면 방어적으로, 여건이 강하면 성장 추구로, 그 사이에서는 균형을 맞춥니다. 챔피언은 단일 지표가 아니라 하나의 종합 점수(위험조정 수익 + 성장 + 낙폭 + 거래비용)로 순위가 매겨집니다. 최대 CAGR 같은 단일 목표만으로 평가받으려면 그 목표를 직접 선택하세요 — 다만 그럴 경우 모든 국면에서 동일한 단일 전략이 실행됩니다(국면 전환 없음).",
+    "동적 모드는 시장 국면에 따라 포트폴리오를 조정합니다: 위험이 높으면 방어적으로, 여건이 강하면 성장 추구로, 그 사이에서는 균형을 맞춥니다. 챔피언은 단일 지표가 아니라 하나의 종합 점수(위험조정 수익 + 성장 + 낙폭 + 거래비용)로 순위가 매겨집니다. 최대 CAGR 같은 단일 목표로 순위를 매기면서도 국면에 따라 전환하려면, 그 목표를 선택하고 아래의 '국면 적응형 배분'을 켜세요.",
   "config.objectiveHint.default":
     "홀드아웃을 켜면 전략이 최적화 기간으로 순위가 매겨지며, 홀드아웃과 전체 기간 결과는 비교용으로만 표시됩니다.",
+  "config.regimeAdaptive": "국면 적응형 배분",
+  "config.regimeAdaptiveHint.dynamic":
+    "동적 목표에서는 항상 켜져 있습니다: 배분기가 리밸런스마다 시장 국면(방어 / 균형 / 성장)에 따라 프리셋을 전환합니다.",
+  "config.regimeAdaptiveHint.on":
+    "켜짐: 배분기가 리밸런스마다 시장 국면(위험 회피 / 중립 / 위험 선호)에 따라 프리셋을 전환하며, 위에서 선택한 목표는 여전히 전략 순위를 결정합니다.",
+  "config.regimeAdaptiveHint.off":
+    "꺼짐: 모든 시장 상황에서 하나의 배분 방식이 사용됩니다. 켜면 위의 순위 목표는 유지하면서 배분이 국면에 따라 조정됩니다.",
   "config.customObjectivePlaceholder":
     "예: 낙폭을 먼저 낮추고, 그다음 수익, 회전율은 적정 수준 유지",
   "config.customObjectiveHint": "Jasper가 이를 최적화할 수 있는 목표로 바꿔 줍니다.",

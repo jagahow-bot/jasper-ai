@@ -315,7 +315,10 @@ def _load_price_panel(
     prices = trim_prices_to_report_window(prices_full[tickers].copy(), req.start_date)
 
     dynamic_ctx: dict[str, Any] | None = None
-    if is_dynamic_objective(objective_effective):
+    regime_adaptive = bool(getattr(req, "regime_adaptive", False)) or is_dynamic_objective(
+        objective_effective
+    )
+    if regime_adaptive:
         regime_mode = resolve_regime_mode(
             str(req.experiment.regime_mode)
             if req.experiment and req.experiment.enabled

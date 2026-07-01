@@ -58,6 +58,12 @@ export interface BacktestRequest {
   /** Minimum holding weight; smaller positions dropped before sim/display */
   min_weight?: number;
   objective: Objective;
+  /**
+   * Regime-adaptive allocation: allocator preset switches by market regime
+   * (risk_off/neutral/risk_on) while the chosen objective still drives ranking.
+   * objective="dynamic" implies this and also ranks on the blended composite score.
+   */
+  regime_adaptive?: boolean;
   backtest_mode: BacktestMode;
   start_date: string;
   end_date: string;

@@ -473,9 +473,10 @@ def _run_iterative_search(
     prior_regime_class_quotas: dict[str, Any] | None = None
     prior_factor_ranges: dict[str, Any] | None = None
     prior_factor_choices: dict[str, Any] | None = None
-    use_regime_matrix = bool(
-        dynamic_ctx and is_dynamic_objective(objective_effective)
-    )
+    # dynamic_ctx is present whenever regime-adaptive allocation is on (dynamic objective
+    # or the standalone regime_adaptive flag), so the AI per-regime allocator matrix applies
+    # to any objective, not just objective=dynamic.
+    use_regime_matrix = bool(dynamic_ctx)
     bench_ref_metrics = benchmark_metrics(
         prices_train, spec.benchmark_ticker, spec
     )
@@ -1764,7 +1765,7 @@ def _assemble_candidates_from_records(
                 include_charts=include_charts,
             )
         )
-        if is_dynamic_objective(objective_effective) and dynamic_ctx:
+        if dynamic_ctx:
             cand = candidates[-1]
             analytics = dict(cand.analytics or {})
             sm = dict(analytics.get("sample_metrics") or {})
@@ -1991,6 +1992,9 @@ def _find_record_by_params(
 def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> BacktestResult:
     objective_effective = _resolve_objective(req.objective.value, req.objective_custom_text)
     dynamic_mode = is_dynamic_objective(objective_effective)
+    # Regime-adaptive allocation can be enabled independently of the composite dynamic
+    # objective. objective=dynamic always implies it (backward compatible).
+    regime_adaptive = bool(getattr(req, "regime_adaptive", False)) or dynamic_mode
     trial_objective = trial_scoring_objective(objective_effective)
     regime_mode = resolve_regime_mode(
         str(req.experiment.regime_mode)
@@ -2052,7 +2056,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
 
     dynamic_ctx: dict[str, Any] | None = None
-    if dynamic_mode:
+    if regime_adaptive:
         dynamic_ctx = build_dynamic_objective_context(
             prices_full,
             spec.benchmark_ticker,
@@ -2061,8 +2065,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         )
         if len(dynamic_ctx.get("objectives_used") or []) < 1:
             raise ValueError(
-                "Dynamic objective needs enough benchmark history for regime walk-forward; "
-                "extend the date range or change benchmark."
+                "Regime-adaptive allocation needs enough benchmark history for the regime "
+                "walk-forward; extend the date range or change benchmark."
             )
 
     oos = req.enable_oos
@@ -2135,8 +2139,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         f"Loaded {len(tickers)} tickers, {data_meta['rows']} trading days. "
         f"Each rebalance: factor Top-N screen + allocator weights (not static weights)."
         + (
-            " Dynamic objective: regime V2 sets allocator preset per rebalance."
-            if dynamic_mode
+            " Regime-adaptive: regime V2 sets allocator preset per rebalance."
+            if regime_adaptive
             else ""
         ),
     )
@@ -2774,6 +2778,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "objective_label": objective_map.get(objective_effective, objective_effective),
         "trial_scoring_objective": trial_objective if dynamic_mode else objective_effective,
         "dynamic_objective_enabled": dynamic_mode,
+        "regime_adaptive": regime_adaptive,
         "data_source": data_meta["data_source"],
         "data_quality": data_meta,
         "engine": "optuna+pandas+pro" if pro_mode else "optuna+pandas",
@@ -2937,7 +2942,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         )
         dynamic_timeline = [DynamicObjectiveTimelinePoint(**row) for row in timeline_rows]
         dynamic_benchmark_series = benchmark_series
-        narrative_facts["dynamic_objective_mode"] = True
+        narrative_facts["dynamic_objective_mode"] = dynamic_mode
+        narrative_facts["regime_adaptive"] = True
         narrative_facts["dynamic_objective_timeline"] = timeline_rows
         narrative_facts["dynamic_objective_benchmark_series"] = benchmark_series
         narrative_facts["dynamic_objectives_used"] = dynamic_ctx.get("objectives_used")
@@ -2952,11 +2958,17 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         }
         if dynamic_ctx.get("regime_class_quotas"):
             narrative_facts["regime_class_quotas"] = dynamic_ctx.get("regime_class_quotas")
+        ranking_note = (
+            "Optuna trial ranking uses the blended dynamic composite score on in-sample."
+            if dynamic_mode
+            else f"Optuna trial ranking uses {objective_label(objective_effective)} on in-sample."
+        )
         narrative_facts["backtest_methodology"] = (
             str(narrative_facts.get("backtest_methodology", ""))
-            + " Dynamic objective: regime detector v2 (walk-forward on benchmark) "
-            "maps risk_off→min max drawdown, neutral→max Sharpe, risk_on→max return; "
-            "Optuna trial ranking uses max Sharpe on in-sample."
+            + " Regime-adaptive allocation: regime detector v2 (walk-forward on benchmark) "
+            "maps risk_off→min max drawdown, neutral→max Sharpe, risk_on→max return "
+            "allocator presets per rebalance. "
+            + ranking_note
         )
 
     result = BacktestResult(

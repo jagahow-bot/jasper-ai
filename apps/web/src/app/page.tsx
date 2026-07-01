@@ -50,6 +50,7 @@ function buildDefaultRequest(): BacktestRequest {
     max_weight: 0.5,
     min_weight: 0.005,
     objective: "max_sharpe",
+    regime_adaptive: false,
     backtest_mode: "static",
     start_date: "2018-01-01",
     end_date: "2024-12-31",
