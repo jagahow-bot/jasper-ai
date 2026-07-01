@@ -9,7 +9,7 @@ import {
   labXAxisProps,
   parseDateTs,
 } from "@/lib/benchmark-chart-scale";
-import { useI18n } from "@/lib/i18n";
+import { regimeLabel, useI18n } from "@/lib/i18n";
 import type {
   BenchmarkSeriesPoint,
   ObjectiveSwitchLabResult,
@@ -67,13 +67,13 @@ function RegimeScoreTooltip({
           </p>
         ))}
       {scoreWinner && (
-        <p className="text-dim">{t("regimeScore.stepWinner")}: {scoreWinner}</p>
+        <p className="text-dim">{t("regimeScore.stepWinner")}: {regimeLabel(t, scoreWinner)}</p>
       )}
       {rawRegime && (
-        <p className="text-dim">{t("regimeScore.rawRegime")}: {rawRegime}</p>
+        <p className="text-dim">{t("regimeScore.rawRegime")}: {regimeLabel(t, rawRegime)}</p>
       )}
       {activeRegime && (
-        <p className="text-dim">{t("regimeScore.activeRegime")}: {activeRegime}</p>
+        <p className="text-dim">{t("regimeScore.activeRegime")}: {regimeLabel(t, activeRegime)}</p>
       )}
     </div>
   );

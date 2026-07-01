@@ -61,7 +61,7 @@ export function ProgressPanel({ progress }: Props) {
           </p>
           <p className="mt-2 font-pixel text-[8px] text-[var(--muted)]">
             {t("progress.portfolioReturn")} {formatPct(pvb?.portfolio_total_return_pct)} · {t("progress.benchmark")}{" "}
-            {formatPct(pvb?.benchmark_total_return_pct)} · Alpha{" "}
+            {formatPct(pvb?.benchmark_total_return_pct)} · {t("common.alpha")}{" "}
             {formatAlpha(progress.round_benchmark_alpha ?? pvb?.alpha)}
           </p>
         </div>

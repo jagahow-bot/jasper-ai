@@ -9,12 +9,11 @@ import {
   LAB_Y_AXIS_WIDTH,
   labXAxisProps,
   OBJECTIVE_BAND_COLORS,
-  OBJECTIVE_DISPLAY_LABELS,
   OBJECTIVE_STRIP_COLORS,
   objectiveBandRanges,
   parseDateTs,
 } from "@/lib/benchmark-chart-scale";
-import { useI18n } from "@/lib/i18n";
+import { objectiveBandLabel, useI18n } from "@/lib/i18n";
 import type {
   BenchmarkSeriesPoint,
   DynamicObjectiveTimelinePoint,
@@ -61,7 +60,7 @@ function DynamicObjectiveTooltip({
       <p className="text-[var(--foreground)]">{t("common.date")}: {formatAxisDate(ts)}</p>
       {objective && (
         <p className="text-dim">
-          {t("common.objective")}: {OBJECTIVE_DISPLAY_LABELS[objective] ?? objective}
+          {t("common.objective")}: {objectiveBandLabel(t, objective)}
         </p>
       )}
       <p className="text-dim">
@@ -179,7 +178,7 @@ export function DynamicObjectiveTimelineChart({
                   OBJECTIVE_BAND_COLORS[obj] ?? "var(--border)",
               }}
             />
-            {OBJECTIVE_DISPLAY_LABELS[obj] ?? obj}
+            {objectiveBandLabel(t, obj)}
           </span>
         ))}
       </div>

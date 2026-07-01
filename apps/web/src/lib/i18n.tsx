@@ -253,6 +253,15 @@ const en: Dict = {
   "linkedChart.otherCapHint": "Smaller holdings grouped as “Other”",
   "linkedChart.hoverHint": "Hover the chart to see holdings",
   "linkedChart.other": "Other",
+  "linkedChart.portfolio": "Portfolio",
+
+  // Market regime + allocator objective band labels (shared across charts)
+  "regime.risk_off": "Risk-off",
+  "regime.neutral": "Neutral",
+  "regime.risk_on": "Risk-on",
+  "objectiveBand.max_sharpe": "Max Sharpe",
+  "objectiveBand.max_return": "Max CAGR",
+  "objectiveBand.min_max_drawdown": "Min Max DD",
 
   "objectiveLab.rec.apply": "Recommendation: apply",
   "objectiveLab.rec.notYet": "Recommendation: not yet",
@@ -328,6 +337,9 @@ const en: Dict = {
 
   // Results extended
   "results.failedLoadTrajectory": "Couldn’t load this chart",
+  "results.dataRange": "Data: {start} → {end}, {rows} sessions",
+  "results.endsOn": "ends {date}",
+  "results.forThisCap": "for this cap",
   "results.compareRetried": "AI comparison was retried",
   "results.warning.sampleData":
     "Heads up: results use sample data rather than live market data. Treat metrics as illustrative.",
@@ -836,6 +848,15 @@ const zh: Dict = {
   "linkedChart.otherCapHint": "較小的持股歸為「其他」",
   "linkedChart.hoverHint": "將游標移到圖表上查看持股",
   "linkedChart.other": "其他",
+  "linkedChart.portfolio": "投資組合",
+
+  // Market regime + allocator objective band labels (shared across charts)
+  "regime.risk_off": "風險趨避",
+  "regime.neutral": "中性",
+  "regime.risk_on": "風險偏好",
+  "objectiveBand.max_sharpe": "最大夏普",
+  "objectiveBand.max_return": "最大 CAGR",
+  "objectiveBand.min_max_drawdown": "最小最大回撤",
 
   "objectiveLab.rec.apply": "建議：採用",
   "objectiveLab.rec.notYet": "建議：暫不採用",
@@ -911,6 +932,9 @@ const zh: Dict = {
 
   // Results extended
   "results.failedLoadTrajectory": "無法載入此圖表",
+  "results.dataRange": "資料：{start} → {end}，{rows} 個交易日",
+  "results.endsOn": "結束於 {date}",
+  "results.forThisCap": "才能滿足此上限",
   "results.compareRetried": "已重試 AI 比較",
   "results.warning.sampleData":
     "提醒：結果使用範例資料，而非即時市場資料。請將指標視為示意。",
@@ -1412,6 +1436,15 @@ const ko: Dict = {
   "linkedChart.otherCapHint": "비중이 작은 종목은 ‘기타’로 묶음",
   "linkedChart.hoverHint": "차트에 마우스를 올리면 보유 종목 표시",
   "linkedChart.other": "기타",
+  "linkedChart.portfolio": "포트폴리오",
+
+  // Market regime + allocator objective band labels (shared across charts)
+  "regime.risk_off": "위험 회피",
+  "regime.neutral": "중립",
+  "regime.risk_on": "위험 선호",
+  "objectiveBand.max_sharpe": "최대 샤프",
+  "objectiveBand.max_return": "최대 CAGR",
+  "objectiveBand.min_max_drawdown": "최소 최대 낙폭",
 
   "objectiveLab.rec.apply": "추천: 적용",
   "objectiveLab.rec.notYet": "추천: 아직 아님",
@@ -1487,6 +1520,9 @@ const ko: Dict = {
 
   // Results extended
   "results.failedLoadTrajectory": "이 차트를 불러오지 못했습니다",
+  "results.dataRange": "데이터: {start} → {end}, 거래일 {rows}일",
+  "results.endsOn": "{date} 종료",
+  "results.forThisCap": "이 상한을 충족하려면",
   "results.compareRetried": "AI 비교를 다시 시도했습니다",
   "results.warning.sampleData":
     "참고: 결과는 실시간 시장 데이터가 아닌 샘플 데이터를 사용합니다. 지표는 예시로만 봐 주세요.",
@@ -1789,6 +1825,22 @@ export type TFn = (key: string, params?: Record<string, string | number>) => str
 export function translate(lang: Lang, key: string, params?: Record<string, string | number>): string {
   const template = DICTS[lang]?.[key] ?? DICTS.en[key] ?? key;
   return interpolate(template, params);
+}
+
+/** Localized market-regime label (risk_off/neutral/risk_on) with safe fallback. */
+export function regimeLabel(t: TFn, regime?: string | null): string {
+  if (!regime) return "";
+  const key = `regime.${regime}`;
+  const val = t(key);
+  return val === key ? regime.replace(/_/g, " ") : val;
+}
+
+/** Localized allocator objective band label with safe fallback. */
+export function objectiveBandLabel(t: TFn, objective?: string | null): string {
+  if (!objective) return "";
+  const key = `objectiveBand.${objective}`;
+  const val = t(key);
+  return val === key ? objective.replace(/_/g, " ") : val;
 }
 
 export function readStoredLang(): Lang {

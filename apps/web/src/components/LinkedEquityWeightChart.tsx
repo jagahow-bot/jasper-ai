@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useI18n } from "@/lib/i18n";
+import { objectiveBandLabel, regimeLabel, useI18n } from "@/lib/i18n";
 import {
   activeObjectiveAtTs,
   activeRegimeAtTs,
@@ -16,11 +16,9 @@ import {
   LAB_Y_AXIS_WIDTH,
   labXAxisProps,
   OBJECTIVE_BAND_COLORS,
-  OBJECTIVE_DISPLAY_LABELS,
   objectiveBandRanges,
   parseDateTs,
   REGIME_BAND_COLORS,
-  REGIME_DISPLAY_LABELS,
   REGIME_STRIP_COLORS,
   regimeBandRanges,
 } from "@/lib/benchmark-chart-scale";
@@ -94,12 +92,12 @@ function PortfolioEquityTooltip({
       </div>
       {regime && (
         <p className="text-dim">
-          {t("linkedChart.tooltipRegime")}: {REGIME_DISPLAY_LABELS[regime] ?? regime}
+          {t("linkedChart.tooltipRegime")}: {regimeLabel(t, regime)}
         </p>
       )}
       {objective && (
         <p className="text-dim">
-          {t("linkedChart.tooltipActiveObjective")}: {OBJECTIVE_DISPLAY_LABELS[objective] ?? objective}
+          {t("linkedChart.tooltipActiveObjective")}: {objectiveBandLabel(t, objective)}
         </p>
       )}
       <ul className="mt-1 space-y-0.5">
@@ -306,7 +304,7 @@ export function LinkedEquityWeightChart({
               <Line
                 type="monotone"
                 dataKey="portfolio"
-                name="Portfolio"
+                name={t("linkedChart.portfolio")}
                 stroke="#39ff14"
                 dot={false}
                 strokeWidth={2}
@@ -395,7 +393,7 @@ export function LinkedEquityWeightChart({
                           REGIME_STRIP_COLORS[regime] ?? "var(--border)",
                       }}
                     />
-                    {REGIME_DISPLAY_LABELS[regime] ?? regime}
+                    {regimeLabel(t, regime)}
                   </span>
                 ))}
                 {objectivesInRun.map((obj) => (
@@ -407,7 +405,7 @@ export function LinkedEquityWeightChart({
                           OBJECTIVE_BAND_COLORS[obj] ?? "var(--border)",
                       }}
                     />
-                    {OBJECTIVE_DISPLAY_LABELS[obj] ?? obj}
+                    {objectiveBandLabel(t, obj)}
                   </span>
                 ))}
                 <span className="text-[var(--amber)]">{t("linkedChart.amberSwitch")}</span>

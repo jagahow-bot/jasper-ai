@@ -11,7 +11,7 @@ import {
   regimeBandRanges,
   computeSharedDateDomain,
 } from "@/lib/benchmark-chart-scale";
-import { useI18n } from "@/lib/i18n";
+import { regimeLabel, useI18n } from "@/lib/i18n";
 import type { BenchmarkSeriesPoint, ObjectiveSwitchLabResult } from "@/lib/types";
 import type { RechartsTooltipContentProps } from "@/components/ChartTooltip";
 import {
@@ -74,7 +74,7 @@ function BenchmarkRegimeTooltip({
         {t("common.cumulativeReturn")}:{" "}
         {typeof value === "number" ? `${value.toFixed(2)}%` : "—"}
       </p>
-      {regime && <p className="text-dim">{t("common.activeRegime")}: {regime}</p>}
+      {regime && <p className="text-dim">{t("common.activeRegime")}: {regimeLabel(t, regime)}</p>}
       {(() => {
         let raw: string | null = null;
         for (const row of regimeTimeline) {
@@ -82,7 +82,7 @@ function BenchmarkRegimeTooltip({
           if (Number.isNaN(rowTs) || rowTs > ts) break;
           if (row.raw_regime) raw = row.raw_regime;
         }
-        return raw ? <p className="text-dim">{t("common.rawRegime")}: {raw}</p> : null;
+        return raw ? <p className="text-dim">{t("common.rawRegime")}: {regimeLabel(t, raw)}</p> : null;
       })()}
     </div>
   );
@@ -228,7 +228,7 @@ export function BenchmarkRegimeChart({
               className="inline-block h-2 w-3 rounded-sm border border-[var(--border)]"
               style={{ backgroundColor: color }}
             />
-            {regime}
+            {regimeLabel(t, regime)}
           </span>
         ))}
         <span className="inline-flex items-center gap-1">

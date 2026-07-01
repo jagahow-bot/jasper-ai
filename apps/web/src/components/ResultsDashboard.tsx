@@ -80,7 +80,7 @@ import {
   chartTooltipFontSize,
 } from "@/lib/benchmark-chart-scale";
 import { getUniverseItems } from "@/lib/universe";
-import { useI18n } from "@/lib/i18n";
+import { regimeLabel, useI18n } from "@/lib/i18n";
 
 const CHAMPION_STROKE = "#ffb000";
 const BENCHMARK_FILL = "#ffb000";
@@ -598,11 +598,16 @@ export function ResultsDashboard({
   }, [result.narrative_facts.backtest_spec]);
 
   const dynamicObjectiveChart = useMemo(() => {
-    const isDynamic =
+    // Show the regime / allocator-objective overlay whenever regime-adaptive
+    // allocation ran — either via objective=dynamic (composite) or the standalone
+    // regime_adaptive toggle under any ranking objective (e.g. Max CAGR).
+    const showRegimeOverlay =
       request.objective === "dynamic" ||
+      request.regime_adaptive === true ||
       result.narrative_facts.objective === "dynamic" ||
-      result.narrative_facts.dynamic_objective_mode === true;
-    if (!isDynamic) return null;
+      result.narrative_facts.dynamic_objective_mode === true ||
+      result.narrative_facts.regime_adaptive === true;
+    if (!showRegimeOverlay) return null;
 
     const fromResult = result.dynamic_objective_timeline ?? [];
     const fromFacts = result.narrative_facts.dynamic_objective_timeline as
@@ -644,6 +649,7 @@ export function ResultsDashboard({
     return { timeline, benchmarkSeries };
   }, [
     request.objective,
+    request.regime_adaptive,
     result.dynamic_objective_timeline,
     result.dynamic_objective_benchmark_series,
     result.narrative_facts,
@@ -972,7 +978,11 @@ export function ResultsDashboard({
             : t("results.warning.unrealistic")}
           {dq?.rows != null && (
             <span className="mt-1 block text-xs opacity-80">
-              Data: {dq.start} → {dq.end}, {dq.rows} sessions
+              {t("results.dataRange", {
+                start: String(dq.start ?? "—"),
+                end: String(dq.end ?? "—"),
+                rows: Number(dq.rows ?? 0),
+              })}
             </span>
           )}
         </div>
@@ -1066,7 +1076,7 @@ export function ResultsDashboard({
               {sampleMetrics.train_start && sampleMetrics.train_end
                 ? ` · ${sampleMetrics.train_start} → ${sampleMetrics.train_end}`
                 : sampleMetrics.train_end
-                  ? ` · ends ${sampleMetrics.train_end}`
+                  ? ` · ${t("results.endsOn", { date: String(sampleMetrics.train_end) })}`
                   : trainPeriod?.start && trainPeriod?.end
                     ? ` · ${trainPeriod.start} → ${trainPeriod.end}`
                     : ""}
@@ -1074,7 +1084,7 @@ export function ResultsDashboard({
             <div className="mt-2 grid grid-cols-2 gap-2 text-center font-terminal text-sm sm:grid-cols-4">
               <div>
                 <div className="text-dim">
-                  In-Sample {sampleMetrics.objective_label ?? objectiveLabel}
+                  {t("common.inSample")} {sampleMetrics.objective_label ?? objectiveLabel}
                 </div>
                 <div className="text-neon">
                   {Number(sampleMetrics.in_sample.objective_value).toFixed(4)}
@@ -1217,7 +1227,7 @@ export function ResultsDashboard({
               sampleMetrics.gap.objective != null) ? (
               <p className="mt-2 text-xs text-dim">
                 {t("results.gapObjectiveSharpe")}{" "}
-                {sampleMetrics.gap.objective?.toFixed(4) ?? "—"}, Sharpe{" "}
+                {sampleMetrics.gap.objective?.toFixed(4) ?? "—"}, {t("common.sharpe")}{" "}
                 {sampleMetrics.gap.sharpe?.toFixed(4) ?? "—"} ({t("results.positiveInSampleStronger")}).
               </p>
             ) : null}
@@ -1363,7 +1373,7 @@ export function ResultsDashboard({
               <span>
                 {" "}
                 · {t("results.only")} {String(weightCapAudit.tradable_count)} {t("results.tradableNames")} ({t("results.needAtLeast")}
-                {String(weightCapAudit.min_holdings_for_cap)} for this cap)
+                {String(weightCapAudit.min_holdings_for_cap)} {t("results.forThisCap")})
               </span>
             ) : null}
           </p>
@@ -1616,11 +1626,16 @@ export function ResultsDashboard({
         ) : null}
         {dynamicObjectiveChart ? (
           <p className="mb-3 text-xs text-dim">
-            {t("results.walkForwardHint")}{" "}
-            {t("results.proChampionScorePrefix")}{" "}
-            <span className="text-[var(--amber)]">{t("results.comprehensiveScore")}</span> (
-            <code className="text-[10px]">objective_value_is</code>
-            ) — {t("results.proChampionScoreFormula")}
+            {t("results.walkForwardHint")}
+            {isDynamicObjective ? (
+              <>
+                {" "}
+                {t("results.proChampionScorePrefix")}{" "}
+                <span className="text-[var(--amber)]">{t("results.comprehensiveScore")}</span> (
+                <code className="text-[10px]">objective_value_is</code>
+                ) — {t("results.proChampionScoreFormula")}
+              </>
+            ) : null}
           </p>
         ) : null}
         {chartsReady ? (
@@ -1766,7 +1781,7 @@ export function ResultsDashboard({
                     : "border-[var(--border)] text-dim"
                 }`}
               >
-                {regime.replace("_", " ")}
+                {regimeLabel(t, regime)}
                 {activeRegime === regime ? ` · ${t("common.active")}` : ""}
               </button>
             ))}
@@ -1776,7 +1791,7 @@ export function ResultsDashboard({
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
             <p className="mb-2 text-xs text-dim">
               {regimeQuotaMatrix
-                ? t("results.targetNamesRegime", { regime: quotaRegimeTab.replace("_", " ") })
+                ? t("results.targetNamesRegime", { regime: regimeLabel(t, quotaRegimeTab) })
                 : t("results.targetNamesAi")}
             </p>
             <ResponsiveContainer width="100%" height={220}>

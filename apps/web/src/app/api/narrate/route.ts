@@ -13,6 +13,10 @@ ${AI_METRIC_FORMAT_RULES}
 - Discuss IS vs OOS vs full-sample gaps for overfitting / generalization when holdout is enabled.
 - top_sharpe / top_cagr on the root object are champion display metrics (in-sample when holdout on); full_sample lives under report_horizons.full_sample.
 - train_* / validation_* mirror holdout diagnostics; prefer report_horizons for structured comparison.
+- Objective: always describe the optimization/ranking objective as objective_label (the user's pick, e.g. "Max CAGR"). Never claim a different objective, and never invent an objective not in the facts.
+  - When dynamic_objective_mode is true, the strategy is ranked on a blended composite ("dynamic") score — you may call it a dynamic/composite objective.
+  - When regime_adaptive is true but dynamic_objective_mode is false, the ALLOCATOR preset switches by market regime (risk_off/neutral/risk_on) each rebalance while ranking still uses objective_label. Describe this as regime-adaptive allocation with {objective_label} ranking — do NOT call it a dynamic or multi-objective strategy, and do NOT say the objective itself changes over time.
+  - dynamic_objectives_used lists the per-regime allocator presets, not the ranking objective; only reference it as allocator behavior.
 - Mention: each rebalance runs factor Top-N screen then allocator (dynamic), if narrative_facts mentions it.
 - Mention max_weight_constraint vs max_weight_trial_param vs max_weight_observed when discussing concentration risk.
 - Mention assumptions: fee_bps, rebalance_freq, benchmark (backtest_spec).

@@ -2737,17 +2737,19 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     portfolio_catalog = all_record_catalog
     bench = benchmark_metrics(prices, spec.benchmark_ticker, spec)
 
+    # Labels mirror the web objective selector (OBJECTIVE_LABELS) so the AI summary
+    # states the same user-facing objective the user picked (e.g. "Max CAGR").
     objective_map = {
         "max_sharpe": "Max Sharpe",
-        "max_return": "Max Return",
-        "min_max_drawdown": "Min Max Drawdown",
+        "max_return": "Max CAGR",
+        "min_max_drawdown": "Min Max DD",
         "max_sortino": "Max Sortino",
         "min_cvar": "Min CVaR",
         "risk_parity_erc": "Risk Parity (ERC)",
         "max_diversification": "Max Diversification",
         "mean_variance_utility": "Mean-Variance Utility",
-        "custom": "Custom Objective",
-        "dynamic": "Dynamic (regime-based)",
+        "custom": "Custom objective",
+        "dynamic": "Dynamic — regime-adaptive (composite score)",
     }
     narrative_facts: dict[str, Any] = {
         "scenario_id": req.scenario_id,

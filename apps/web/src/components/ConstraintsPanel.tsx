@@ -266,11 +266,16 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           }}
           className="pixel-input"
         >
-          {Object.entries(OBJECTIVE_LABELS).map(([k, label]) => (
-            <option key={k} value={k}>
-              {label}
-            </option>
-          ))}
+          {Object.entries(OBJECTIVE_LABELS)
+            // "dynamic" is retired from the selector — regime switching is now the
+            // standalone Regime-adaptive toggle below. Kept only for legacy jobs
+            // that were saved with objective=dynamic so the control still renders.
+            .filter(([k]) => k !== "dynamic" || value.objective === "dynamic")
+            .map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
         </select>
         <p className="text-xs text-dim">
           {value.objective === "dynamic"

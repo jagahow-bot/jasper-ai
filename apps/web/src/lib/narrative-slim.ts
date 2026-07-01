@@ -115,7 +115,9 @@ export function buildJobNarrativeFacts(
     oos_enabled: baseFacts.oos_enabled,
     report_analysis_note: baseFacts.report_analysis_note,
     objective: baseFacts.objective,
+    objective_input: baseFacts.objective_input,
     objective_label: baseFacts.objective_label,
+    trial_scoring_objective: baseFacts.trial_scoring_objective,
     optimization_mode: baseFacts.optimization_mode,
     backtest_spec: spec
       ? {
@@ -146,6 +148,7 @@ export function buildJobNarrativeFacts(
     data_source: baseFacts.data_source,
     metrics_trustworthy: baseFacts.metrics_trustworthy,
     dynamic_objective_mode: baseFacts.dynamic_objective_mode,
+    regime_adaptive: baseFacts.regime_adaptive,
     dynamic_objectives_used: baseFacts.dynamic_objectives_used,
     current_regime: baseFacts.current_regime,
     is_round_view: baseFacts.is_round_view,
