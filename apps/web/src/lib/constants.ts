@@ -104,7 +104,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const OBJECTIVE_LABELS: Record<string, string> = {
-  dynamic: "Dynamic (regime-based)",
+  dynamic: "Dynamic — regime-adaptive (composite score)",
   max_sharpe: "Max Sharpe",
   max_return: "Max CAGR",
   min_max_drawdown: "Min Max DD",

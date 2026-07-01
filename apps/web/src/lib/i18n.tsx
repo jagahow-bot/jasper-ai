@@ -468,7 +468,7 @@ const en: Dict = {
   "config.limitsHint":
     "The sliders above set the upper limits Jasper works within. It tries a range of values up to each limit to find the best fit for your goal.",
   "config.objectiveHint.dynamic":
-    "Jasper shifts its goal as the market changes: protect against losses when risk is high, chase returns when conditions are strong, and balance the two in between. The best strategy is picked on a single blended score over the optimization period.",
+    "Dynamic adapts the portfolio to the market regime — defensive when risk is high, growth-seeking when conditions are strong, balanced in between. Champions are ranked on one blended composite score (risk-adjusted return + growth + drawdown + trading cost), not a single metric. To be judged purely on one goal such as Max CAGR, pick that goal instead — note it then runs a single strategy across all regimes (no regime switching).",
   "config.objectiveHint.default":
     "With a holdout turned on, strategies are ranked on the optimization period; the holdout and full-period results are shown for comparison only.",
   "config.customObjectivePlaceholder":
@@ -1042,7 +1042,7 @@ const zh: Dict = {
   "config.limitsHint":
     "上方的滑桿設定 Jasper 運作的上限。它會在每個上限內嘗試一系列數值，找出最符合你目標的設定。",
   "config.objectiveHint.dynamic":
-    "Jasper 會隨市場變化調整目標：風險高時著重防守，行情強勁時追求報酬，介於兩者之間時取得平衡。最佳策略會以最佳化期間的單一綜合分數挑選。",
+    "「動態」會讓投資組合隨市場狀態自動切換配置風格：風險高時偏防守、行情強勁時追求成長、介於兩者之間時取得平衡。冠軍策略是以單一綜合分數挑選（風險調整後報酬＋成長＋回撤＋交易成本），而非單一指標。若想單純以某個目標（例如最大 CAGR）排名，請直接選擇該目標 — 但要注意，此時所有市場狀態都會套用同一套固定策略（不會隨市場切換）。",
   "config.objectiveHint.default":
     "開啟保留資料後，策略會以最佳化期間排名；保留期與完整期間的結果僅供比較參考。",
   "config.customObjectivePlaceholder":
@@ -1612,7 +1612,7 @@ const ko: Dict = {
   "config.limitsHint":
     "위 슬라이더는 Jasper가 작동하는 상한을 설정합니다. 각 상한까지 다양한 값을 시도해 목표에 가장 잘 맞는 설정을 찾습니다.",
   "config.objectiveHint.dynamic":
-    "Jasper는 시장 변화에 따라 목표를 바꿉니다: 위험이 높을 때는 손실을 방어하고, 여건이 강할 때는 수익을 추구하며, 그 사이에서는 둘의 균형을 맞춥니다. 최적 전략은 최적화 기간의 단일 종합 점수로 선택됩니다.",
+    "동적 모드는 시장 국면에 따라 포트폴리오를 조정합니다: 위험이 높으면 방어적으로, 여건이 강하면 성장 추구로, 그 사이에서는 균형을 맞춥니다. 챔피언은 단일 지표가 아니라 하나의 종합 점수(위험조정 수익 + 성장 + 낙폭 + 거래비용)로 순위가 매겨집니다. 최대 CAGR 같은 단일 목표만으로 평가받으려면 그 목표를 직접 선택하세요 — 다만 그럴 경우 모든 국면에서 동일한 단일 전략이 실행됩니다(국면 전환 없음).",
   "config.objectiveHint.default":
     "홀드아웃을 켜면 전략이 최적화 기간으로 순위가 매겨지며, 홀드아웃과 전체 기간 결과는 비교용으로만 표시됩니다.",
   "config.customObjectivePlaceholder":
