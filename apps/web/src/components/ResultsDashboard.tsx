@@ -1040,6 +1040,11 @@ export function ResultsDashboard({
         </span>
       </div>
 
+      <ReportGroup
+        index={1}
+        title={t("report.group.summary")}
+        subtitle={t("report.group.summaryHint")}
+      >
       <div className="pixel-panel">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-pixel text-xs text-neon glow-title">{t("results.title")}</h3>
@@ -1386,7 +1391,13 @@ export function ResultsDashboard({
           </p>
         ) : null}
       </div>
+      </ReportGroup>
 
+      <ReportGroup
+        index={2}
+        title={t("report.group.performance")}
+        subtitle={t("report.group.performanceHint")}
+      >
       <ChartCard title={t("results.chart.performanceComparison")} subtitle={t("results.fullPeriod")}>
         <div className="mb-3 border-2 border-[#0a4a4a] bg-[rgba(0,245,255,0.05)] px-3 py-2">
           <p className="ui-section-title mb-1">{t("results.aiComparison")}</p>
@@ -1617,7 +1628,13 @@ export function ResultsDashboard({
           </p>
         ) : null}
       </ChartCard>
+      </ReportGroup>
 
+      <ReportGroup
+        index={3}
+        title={t("report.group.journey")}
+        subtitle={t("report.group.journeyHint")}
+      >
       <ChartCard title={t("results.chart.trajectoryHoldings")}>
         {chartsLoading ? (
           <p className="mb-3 flex items-center gap-2 text-xs text-dim">
@@ -1661,7 +1678,66 @@ export function ResultsDashboard({
           </p>
         )}
       </ChartCard>
+      </ReportGroup>
 
+      <ReportGroup
+        index={4}
+        title={t("report.group.holdings")}
+        subtitle={t("report.group.holdingsHint")}
+      >
+      <ChartCard title={t("results.chart.latestAllocation")}>
+        {Object.keys(top.weights ?? {}).length === 0 ? (
+          <p className="text-sm text-dim">
+            {t("results.summaryOnlyModel")}
+          </p>
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie data={donut} dataKey="value" nameKey="name" innerRadius={50}>
+                    {donut.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<ChartTooltip valueDecimals={2} valueIsPct />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="max-h-60 overflow-y-auto border-2 border-[var(--border)] bg-[#050508] p-3">
+              <table className="w-full text-left text-sm">
+                <thead className="text-dim">
+                  <tr>
+                    <th className="pb-2">{t("common.date")}</th>
+                    <th className="pb-2">{t("common.ticker")}</th>
+                    <th className="pb-2">{t("common.name")}</th>
+                    <th className="pb-2 text-right">{t("institutional.weightShort")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allocationRows.map(({ ticker, name, weight }) => (
+                    <tr key={ticker} className="border-t border-[var(--border)]">
+                      <td className="py-1.5 text-dim">{latestAllocationDate}</td>
+                      <td className="py-1.5">{ticker}</td>
+                      <td className="py-1.5 text-dim">{name}</td>
+                      <td className="py-1.5 text-right text-neon">
+                        {(weight * 100).toFixed(2)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </ChartCard>
+      </ReportGroup>
+
+      <ReportGroup
+        index={5}
+        title={t("report.group.strategy")}
+        subtitle={t("report.group.strategyHint")}
+      >
       <ChartCard title={t("results.chart.efficientFrontier")}>
         <p className="mb-2 text-xs text-dim">
           {t("results.efficientFrontierHint")}
@@ -1846,7 +1922,7 @@ export function ResultsDashboard({
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
             {factorContribRows.length === 0 ? (
-              <p className="text-xs text-dim">{t("results.noFactorAttribution")}</p>
+              <p className="ui-hint">{t("results.noFactorAttribution")}</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={factorContribRows}>
@@ -1858,20 +1934,20 @@ export function ResultsDashboard({
                 </BarChart>
               </ResponsiveContainer>
             )}
-            <p className="mt-2 text-[11px] text-dim">
+            <p className="ui-hint mt-2">
               {t("results.observations")}: {String(factorSummary.factor_observations ?? 0)} ({t("results.rebalanceCrossSections")})
             </p>
           </div>
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
-            <p className="mb-2 text-xs text-dim">{t("results.factorMetricLogic")}</p>
-            <div className="max-h-56 space-y-1 overflow-y-auto text-xs">
+            <p className="ui-section-title mb-2">{t("results.factorMetricLogic")}</p>
+            <div className="max-h-56 space-y-1 overflow-y-auto">
               {factorLogicRows.length === 0 ? (
-                <p className="text-dim">{t("results.noMetricLogic")}</p>
+                <p className="ui-hint">{t("results.noMetricLogic")}</p>
               ) : (
                 factorLogicRows.map(([k, v]) => (
                   <div key={k} className="border-b border-slate-800 py-1">
-                    <span className="text-slate-300">{factorLogicLabel(k)}</span>
-                    <div className="text-slate-500">{String(v)}</div>
+                    <span className="ui-body text-slate-200">{factorLogicLabel(k)}</span>
+                    <div className="ui-hint">{String(v)}</div>
                   </div>
                 ))
               )}
@@ -1879,54 +1955,13 @@ export function ResultsDashboard({
           </div>
         </div>
       </ChartCard>
+      </ReportGroup>
 
-      <ChartCard title={t("results.chart.latestAllocation")}>
-        {Object.keys(top.weights ?? {}).length === 0 ? (
-          <p className="text-sm text-dim">
-            {t("results.summaryOnlyModel")}
-          </p>
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie data={donut} dataKey="value" nameKey="name" innerRadius={50}>
-                    {donut.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip valueDecimals={2} valueIsPct />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="max-h-60 overflow-y-auto border-2 border-[var(--border)] bg-[#050508] p-3">
-              <table className="w-full text-left text-sm">
-                <thead className="text-dim">
-                  <tr>
-                    <th className="pb-2">{t("common.date")}</th>
-                    <th className="pb-2">{t("common.ticker")}</th>
-                    <th className="pb-2">{t("common.name")}</th>
-                    <th className="pb-2 text-right">{t("institutional.weightShort")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allocationRows.map(({ ticker, name, weight }) => (
-                    <tr key={ticker} className="border-t border-[var(--border)]">
-                      <td className="py-1.5 text-dim">{latestAllocationDate}</td>
-                      <td className="py-1.5">{ticker}</td>
-                      <td className="py-1.5 text-dim">{name}</td>
-                      <td className="py-1.5 text-right text-neon">
-                        {(weight * 100).toFixed(2)}%
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </ChartCard>
-
+      <ReportGroup
+        index={6}
+        title={t("report.group.institutional")}
+        subtitle={t("report.group.institutionalHint")}
+      >
       <InstitutionalReport
         candidate={institutionalCandidate ?? top}
         benchmark={benchTicker}
@@ -1938,7 +1973,13 @@ export function ResultsDashboard({
             : undefined
         }
       />
+      </ReportGroup>
 
+      <ReportGroup
+        index={7}
+        title={t("report.group.reproducibility")}
+        subtitle={t("report.group.reproducibilityHint")}
+      >
       <ChartCard title={t("results.chart.reproducibleParameters")}>
         {((aiRationalesByRound?.length ?? 0) > 0 || Boolean(aiGen.rationale)) ? (
           <details
@@ -1983,6 +2024,7 @@ export function ResultsDashboard({
           </pre>
         </details>
       </ChartCard>
+      </ReportGroup>
 
 
       <div className="pixel-panel">
@@ -2075,12 +2117,46 @@ function ChartCard({
   return (
     <div className="pixel-panel">
       <div className="mb-3">
-        <h4 className="font-pixel text-[8px] text-[var(--cyan)]">{title}</h4>
+        <h4 className="ui-panel-title text-[var(--cyan)]">{title}</h4>
         {subtitle ? (
-          <p className="mt-0.5 text-[10px] text-dim">{subtitle}</p>
+          <p className="ui-hint mt-0.5">{subtitle}</p>
         ) : null}
       </div>
       {children}
     </div>
+  );
+}
+
+/**
+ * Visual grouping for the report so it reads top-to-bottom as a guided story:
+ * summary → performance → journey → holdings → strategy → institutional →
+ * reproducibility. Each group gets a numbered accent header and a bordered
+ * container so retail readers can tell where one section ends and the next
+ * begins.
+ */
+function ReportGroup({
+  index,
+  title,
+  subtitle,
+  children,
+}: {
+  index: number;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-5 border-l-4 border-[var(--border)] pl-3 sm:pl-4">
+      <header className="border-b-2 border-[var(--border)] bg-[rgba(0,245,255,0.03)] px-3 py-2">
+        <div className="flex items-baseline gap-3">
+          <span className="font-pixel text-[10px] text-[var(--amber)]">
+            {String(index).padStart(2, "0")}
+          </span>
+          <h3 className="ui-panel-title text-neon glow-title">{title}</h3>
+        </div>
+        {subtitle ? <p className="ui-hint mt-1">{subtitle}</p> : null}
+      </header>
+      <div className="space-y-5">{children}</div>
+    </section>
   );
 }

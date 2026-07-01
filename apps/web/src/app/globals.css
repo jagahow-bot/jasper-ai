@@ -191,40 +191,48 @@ body::after {
   }
 
   /*
-   * Semantic typographic scale. Sizes are in rem so they scale with the
-   * FontSizeControl (--font-size-root), unlike ad-hoc `text-[8px]` literals
-   * which stay fixed. Use these for a consistent title → body → hint hierarchy:
-   *   .ui-section-title  pixel caps label above a chart/table/section
-   *   .ui-panel-title    larger pixel heading for a whole panel
-   *   .ui-body           default reading prose (AI summaries, descriptions)
-   *   .ui-hint           secondary helper / caption text (dimmed)
-   *   .ui-chart-label    compact labels inside charts and dense tables
+   * ── Semantic typographic scale ────────────────────────────────────────
+   * All sizes are in rem so they scale with the FontSizeControl
+   * (--font-size-root, default 18px), unlike ad-hoc `text-[8px]` literals
+   * which stay fixed no matter the A− / A+ setting. Prefer these classes
+   * over hardcoded pixel sizes so every level grows/shrinks together.
+   *
+   * The hierarchy (px shown at the 18px default root):
+   *   Level 1  Page / big section titles ...... glow-title / h2..h3 (page.tsx)
+   *   Level 2  Panel & chart-card titles ....... .ui-panel-title   ~13px pixel caps
+   *            Minor caps sub-label ............ .ui-section-title ~12px pixel caps
+   *   Level 3  Body / table cells / prose ...... .ui-body          ~15px terminal
+   *   Level 4  Hints / footnotes / axis labels . .ui-hint          ~13px terminal (dim)
+   *            Dense chart / table labels ...... .ui-chart-label   ~13px terminal
+   *
+   * Level 4 is intentionally the floor: ~13px at default, never below ~11.5px
+   * even at the smallest A− step (16px root) so footnotes stay legible.
    */
-  .ui-section-title {
-    @apply font-pixel uppercase tracking-wider;
-    font-size: 0.5rem;
-    color: var(--cyan);
-  }
-
   .ui-panel-title {
     @apply font-pixel uppercase tracking-wider;
-    font-size: 0.62rem;
+    font-size: 0.72rem;
+  }
+
+  .ui-section-title {
+    @apply font-pixel uppercase tracking-wider;
+    font-size: 0.66rem;
+    color: var(--cyan);
   }
 
   .ui-body {
     @apply font-terminal leading-relaxed;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
   }
 
   .ui-hint {
     @apply font-terminal leading-relaxed;
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     color: var(--text-dim);
   }
 
   .ui-chart-label {
     @apply font-terminal;
-    font-size: 0.62rem;
+    font-size: 0.72rem;
   }
 
   .glow-title {

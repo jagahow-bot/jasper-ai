@@ -606,6 +606,7 @@ def _run_iterative_search(
             param_controls=param_controls_dict,
             progress_cb=ai_progress,
             learning_context=learning_context,
+            language=req.report_language,
         )
         round_setup = ai_generation.get("round_setup") or {}
         regime_setups = ai_generation.get("regime_setups") or {}

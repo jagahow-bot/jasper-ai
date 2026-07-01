@@ -2176,6 +2176,25 @@ def _request_regime_factor_ranges_split(
     return {"regime_factor_ranges": _coerce_regime_factor_ranges(ranges)}, ""
 
 
+def _round_seed_language_directive(language: str | None) -> str:
+    """Directive so seed rationale/strategy/assessment match the user's UI locale."""
+    lang = (language or "en").strip().lower()
+    if lang.startswith("zh"):
+        return (
+            "Write rationale, optimization_strategy, and performance_assessment in "
+            "Traditional Chinese (繁體中文). Keep model codes (e.g. M0001), tickers, "
+            "and numbers as-is."
+        )
+    if lang.startswith("ko"):
+        return (
+            "Write rationale, optimization_strategy, and performance_assessment in "
+            "Korean (한국어). Keep model codes (e.g. M0001), tickers, and numbers as-is."
+        )
+    return (
+        "Write rationale, optimization_strategy, and performance_assessment in English."
+    )
+
+
 def generate_ai_round_seed(
     *,
     objective: str,
@@ -2187,6 +2206,7 @@ def generate_ai_round_seed(
     param_controls: dict[str, dict] | None = None,
     progress_cb: Callable[[int, int, str], None] | None = None,
     learning_context: dict[str, Any] | None = None,
+    language: str | None = None,
 ) -> dict[str, Any]:
     """One Gemini call per Pro round: fixed round_setup + factor_ranges + factor_choices."""
     key = settings.gemini_api_key
@@ -2309,6 +2329,7 @@ def generate_ai_round_seed(
 You are an institutional quant research assistant.
 Generate exactly ONE Pro-round seed for champion-challenger refinement.
 Output the final JSON immediately; no markdown or commentary.
+{_round_seed_language_directive(language)}
 
 Architecture (critical):
 1) round_setup — fixed for ALL Optuna trials this round (portfolio/model setup only).
@@ -2321,7 +2342,7 @@ Architecture (critical):
 3) factor_choices — ONLY categorical indicators you fix this round; omit unchanged keys.
    Allowed keys: {factor_cat_keys}.
 {regime_block}
-optimization_strategy (required): 2–4 sentences (English or 中文, match rationale tone) explaining
+optimization_strategy (required): 2–4 sentences (match the required rationale language) explaining
 why you chose wide vs narrow factor_ranges given REFINEMENT_BUDGET, EXPLORATION_PHASE, champion vs
 benchmark (if any), and TARGET.
 {_ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES}

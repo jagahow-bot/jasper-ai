@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { useI18n } from "@/lib/i18n";
+import { chartTickFontSize } from "@/lib/benchmark-chart-scale";
 import type { PortfolioCandidate } from "@/lib/types";
 
 export function InstitutionalReport({
@@ -40,7 +41,7 @@ export function InstitutionalReport({
       );
     }
     return (
-      <p className="text-sm text-dim">{t("institutional.noAnalytics")}</p>
+      <p className="ui-body text-dim">{t("institutional.noAnalytics")}</p>
     );
   }
 
@@ -48,33 +49,17 @@ export function InstitutionalReport({
   const periodic = a.periodic_returns ?? { monthly: [], annual: [] };
   const periodicHoldout = a.periodic_returns_holdout;
   const sampleMetrics = a.sample_metrics;
-  const periodicInSample =
-    a.periodic_returns_scope === "in_sample" ||
-    sampleMetrics?.selection === "in_sample";
-  const trainStart = sampleMetrics?.train_start;
-  const trainEnd = sampleMetrics?.train_end;
-  const valStart = sampleMetrics?.val_start;
-  const isRange =
-    trainStart && trainEnd
-      ? ` ${trainStart} → ${trainEnd}`
-      : trainEnd
-        ? ` ${t("institutional.through", { date: trainEnd })}`
-        : "";
-  const monthlyTitle = periodicInSample
-    ? t("institutional.monthlyInSample", { range: isRange })
-    : t("institutional.monthlyFull");
-  const annualTitle = periodicInSample
-    ? t("institutional.annualInSample", { range: isRange })
-    : t("institutional.annualFull");
-  const holdoutMonthlyTitle = valStart
-    ? t("institutional.monthlyOosFrom", { date: valStart })
-    : t("institutional.monthlyOos");
-  const holdoutAnnualTitle = valStart
-    ? t("institutional.annualOosFrom", { date: valStart })
-    : t("institutional.annualOos");
+  // Full-period returns: merge the primary (in-sample or full-sample) series with
+  // any out-of-sample holdout tail so we present a single continuous period.
+  const fullMonthly = mergePeriodicReturns(periodic.monthly, periodicHoldout?.monthly);
+  const fullAnnual = mergePeriodicReturns(periodic.annual, periodicHoldout?.annual);
   const rolling = a.rolling ?? { rolling_sharpe: [], rolling_vol: [] };
   const exposure = a.exposure ?? {};
   const rc = a.risk_contribution ?? [];
+  const holdingStats = computeHoldingStats(
+    a.weight_history ?? [],
+    a.weight_history_tickers ?? [],
+  );
   const ddEps = a.drawdown_episodes ?? [];
   const ddSeries = a.drawdown_series ?? [];
   const execution = (a as { execution?: Record<string, unknown> }).execution ?? {};
@@ -96,11 +81,11 @@ export function InstitutionalReport({
         <LoadingPlaceholder label={`${t("institutional.loadingAnalytics")}${loadingSuffix}`} />
       ) : null}
       {analyticsNote ? (
-        <p className="text-xs text-dim">{analyticsNote}</p>
+        <p className="ui-hint">{analyticsNote}</p>
       ) : null}
       {hasHorizonTable && (
         <Section title={t("institutional.horizonTitle")}>
-          <p className="mb-3 text-xs text-dim">{t("institutional.horizonNote")}</p>
+          <p className="ui-hint mb-3">{t("institutional.horizonNote")}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-dim">
@@ -127,7 +112,7 @@ export function InstitutionalReport({
           </div>
           {horizonGap != null &&
             (horizonGap.sharpe != null || horizonGap.objective != null) && (
-              <p className="mt-2 text-xs text-dim">
+              <p className="ui-hint mt-2">
                 {t("institutional.gapNote", {
                   objective: horizonGap.objective ?? "—",
                   sharpe: horizonGap.sharpe ?? "—",
@@ -146,7 +131,7 @@ export function InstitutionalReport({
           </p>
           {Array.isArray(execution.rebalance_dates_sample) &&
             (execution.rebalance_dates_sample as string[]).length > 0 && (
-              <p className="mt-2 text-xs text-dim">
+              <p className="ui-hint mt-2">
                 {t("institutional.sampleDates")}: {(execution.rebalance_dates_sample as string[]).join(", ")}
                 {(execution.rebalance_dates_sample as string[]).length >= 12 ? " …" : ""}
               </p>
@@ -202,32 +187,63 @@ export function InstitutionalReport({
         )}
       </Section>
 
-      <Section title={t("institutional.riskContributionTop")}>
-        {isLoadingAnalytics && rc.length === 0 ? (
+      <Section title={t("institutional.coreHoldingsTitle")}>
+        {isLoadingAnalytics && holdingStats.length === 0 && rc.length === 0 ? (
           <LoadingPlaceholder />
+        ) : holdingStats.length > 0 ? (
+          <>
+            <p className="mb-3 text-xs text-dim">{t("institutional.coreHoldingsNote")}</p>
+            <div className="max-h-56 overflow-y-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="text-dim">
+                  <tr>
+                    <th className="pb-2">{t("common.ticker")}</th>
+                    <th className="pb-2 text-right" title={t("institutional.avgWeightHint")}>
+                      {t("institutional.avgWeight")}
+                    </th>
+                    <th className="pb-2 text-right" title={t("institutional.holdFrequencyHint")}>
+                      {t("institutional.holdFrequency")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {holdingStats.slice(0, 15).map((row) => (
+                    <tr key={row.ticker} className="border-t border-[var(--border)]">
+                      <td className="py-1">{row.ticker}</td>
+                      <td className="py-1 text-right">{(row.avgWeight * 100).toFixed(2)}%</td>
+                      <td className="py-1 text-right text-[var(--cyan)]">
+                        {(row.pctPeriodsHeld * 100).toFixed(0)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
-        <div className="max-h-56 overflow-y-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-dim">
-              <tr>
-                <th className="pb-2">{t("common.ticker")}</th>
-                <th className="pb-2 text-right">{t("institutional.weightShort")}</th>
-                <th className="pb-2 text-right">{t("institutional.riskPct")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rc.slice(0, 15).map((row) => (
-                <tr key={row.ticker} className="border-t border-[var(--border)]">
-                  <td className="py-1">{row.ticker}</td>
-                  <td className="py-1 text-right">{(row.weight * 100).toFixed(2)}%</td>
-                  <td className="py-1 text-right text-[var(--cyan)]">
-                    {(row.risk_contrib * 100).toFixed(2)}%
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+          <>
+            <p className="mb-3 text-xs text-dim">{t("institutional.coreHoldingsNote")}</p>
+            <div className="max-h-56 overflow-y-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="text-dim">
+                  <tr>
+                    <th className="pb-2">{t("common.ticker")}</th>
+                    <th className="pb-2 text-right">{t("institutional.weightShort")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rc.slice(0, 15).map((row) => (
+                    <tr key={row.ticker} className="border-t border-[var(--border)]">
+                      <td className="py-1">{row.ticker}</td>
+                      <td className="py-1 text-right text-[var(--cyan)]">
+                        {(row.weight * 100).toFixed(2)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Section>
 
@@ -254,29 +270,13 @@ export function InstitutionalReport({
       </Section>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Section title={monthlyTitle}>
-          {periodicInSample && (
-            <p className="mb-2 text-xs text-dim">{t("institutional.inSampleNote")}</p>
-          )}
-          <ReturnTable rows={periodic.monthly ?? []} isLoading={isLoadingAnalytics} />
+        <Section title={t("institutional.monthlyFull")}>
+          <ReturnTable rows={fullMonthly} isLoading={isLoadingAnalytics} />
         </Section>
-        <Section title={annualTitle}>
-          <ReturnTable rows={periodic.annual ?? []} isLoading={isLoadingAnalytics} />
+        <Section title={t("institutional.annualFull")}>
+          <ReturnTable rows={fullAnnual} isLoading={isLoadingAnalytics} />
         </Section>
       </div>
-
-      {periodicHoldout &&
-        ((periodicHoldout.monthly?.length ?? 0) > 0 ||
-          (periodicHoldout.annual?.length ?? 0) > 0) && (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Section title={holdoutMonthlyTitle}>
-              <ReturnTable rows={periodicHoldout.monthly ?? []} />
-            </Section>
-            <Section title={holdoutAnnualTitle}>
-              <ReturnTable rows={periodicHoldout.annual ?? []} />
-            </Section>
-          </div>
-        )}
 
       <Section title={t("institutional.drawdownEpisodes")}>
         {isLoadingAnalytics && ddEps.length === 0 ? (
@@ -312,6 +312,70 @@ export function InstitutionalReport({
       </Section>
     </div>
   );
+}
+
+type HoldingStat = {
+  ticker: string;
+  avgWeight: number;
+  peakWeight: number;
+  pctPeriodsHeld: number;
+};
+
+// A holding is counted as "held" on a rebalance date when its weight clears this
+// floor (0.5%), filtering out negligible residual positions.
+const HOLDING_PRESENT_EPS = 0.005;
+
+/**
+ * Summarise how a portfolio actually used each holding across its rebalance
+ * history: how often it was held and how large it typically was. This replaces
+ * the abstract "risk %" (marginal variance contribution) with numbers a retail
+ * user can read directly. Weights come from `weight_history` (fractions summing
+ * to ~1 per date); the trimmed `OTHER` bucket is ignored.
+ */
+function computeHoldingStats(
+  weightHistory: ({ date: string } & Record<string, number | string>)[],
+  tickers: string[],
+): HoldingStat[] {
+  if (!weightHistory.length || !tickers.length) return [];
+  const stats = tickers
+    .filter((tk) => tk && tk !== "OTHER")
+    .map((tk) => {
+      let sum = 0;
+      let peak = 0;
+      let held = 0;
+      for (const row of weightHistory) {
+        const w = Number(row[tk] ?? 0) || 0;
+        sum += w;
+        if (w > peak) peak = w;
+        if (w > HOLDING_PRESENT_EPS) held += 1;
+      }
+      return {
+        ticker: tk,
+        avgWeight: sum / weightHistory.length,
+        peakWeight: peak,
+        pctPeriodsHeld: held / weightHistory.length,
+      };
+    })
+    .filter((s) => s.peakWeight > HOLDING_PRESENT_EPS);
+  stats.sort((a, b) => b.avgWeight - a.avgWeight);
+  return stats;
+}
+
+type PeriodicRow = { period: string; return: number };
+
+function mergePeriodicReturns(
+  primary?: PeriodicRow[],
+  extra?: PeriodicRow[],
+): PeriodicRow[] {
+  const byPeriod = new Map<string, number>();
+  for (const row of primary ?? []) byPeriod.set(row.period, row.return);
+  // Holdout (OOS) periods extend the primary series; keep primary on any overlap.
+  for (const row of extra ?? []) {
+    if (!byPeriod.has(row.period)) byPeriod.set(row.period, row.return);
+  }
+  return Array.from(byPeriod.entries())
+    .map(([period, ret]) => ({ period, return: ret }))
+    .sort((x, y) => x.period.localeCompare(y.period));
 }
 
 function LoadingPlaceholder({ label }: { label?: string }) {
@@ -361,7 +425,7 @@ function HorizonRow({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="pixel-panel">
-      <h4 className="mb-3 font-pixel text-[8px] text-[var(--cyan)]">{title}</h4>
+      <h4 className="ui-panel-title mb-3 text-[var(--cyan)]">{title}</h4>
       {children}
     </div>
   );
@@ -371,7 +435,7 @@ function Kpi({ label, value }: { label: string; value?: number | null }) {
   const v = value == null ? "—" : typeof value === "number" ? value.toFixed(3) : String(value);
   return (
     <div className="border-2 border-[var(--border)] bg-[#050508] p-2 text-center">
-      <div className="text-xs text-dim">{label}</div>
+      <div className="ui-hint">{label}</div>
       <div className="font-terminal text-lg text-neon">{v}</div>
     </div>
   );
@@ -408,9 +472,10 @@ function MiniLine({
   isLoading?: boolean;
 }) {
   const { t } = useI18n();
+  const axisFont = chartTickFontSize();
   if (!data.length) {
     if (isLoading) return <LoadingPlaceholder />;
-    return <p className="text-xs text-dim">{t("institutional.insufficientData")}</p>;
+    return <p className="ui-hint">{t("institutional.insufficientData")}</p>;
   }
   return (
     <ResponsiveContainer width="100%" height={180}>
@@ -419,13 +484,13 @@ function MiniLine({
         <XAxis
           dataKey="date"
           stroke="#5a7a5a"
-          fontSize={11}
+          fontSize={axisFont}
           minTickGap={24}
           tickFormatter={(v) => String(v).slice(2)}
         />
         <YAxis
           stroke="#5a7a5a"
-          fontSize={11}
+          fontSize={axisFont}
           width={40}
           tickFormatter={(v) => (pct ? `${(Number(v) * 100).toFixed(0)}%` : String(v))}
         />
@@ -449,7 +514,7 @@ function ReturnTable({
   const { t } = useI18n();
   if (!rows.length) {
     if (isLoading) return <LoadingPlaceholder />;
-    return <p className="text-xs text-dim">{t("institutional.noData")}</p>;
+    return <p className="ui-hint">{t("institutional.noData")}</p>;
   }
   return (
     <div className="max-h-48 overflow-y-auto text-sm">

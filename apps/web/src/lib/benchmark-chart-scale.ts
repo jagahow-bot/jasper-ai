@@ -20,11 +20,13 @@ export const LAB_CHART_MARGIN = { top: 8, right: 8, left: 0, bottom: 0 };
 export const LAB_Y_AXIS_WIDTH = 44;
 
 const CHART_FONT_ROOT_DEFAULT = 18;
-const CHART_TICK_FONT_MIN = 12;
-const CHART_LEGEND_FONT_MIN = 13;
+// Axis tick floor. Kept at 13px so chart labels never read smaller than the
+// .ui-hint / .ui-chart-label footnotes (Level 4 of the typographic scale).
+const CHART_TICK_FONT_MIN = 13;
+const CHART_LEGEND_FONT_MIN = 14;
 const CHART_TOOLTIP_FONT_MIN = 13;
 
-/** Recharts tick size scaled from html --font-size-root (default 18px). */
+/** Recharts tick size scaled from html --font-size-root (default 18px → 15px). */
 export function chartTickFontSize(): number {
   if (typeof window === "undefined") return CHART_TICK_FONT_MIN;
   const raw = getComputedStyle(document.documentElement)
@@ -32,7 +34,7 @@ export function chartTickFontSize(): number {
     .trim();
   const root = parseInt(raw, 10);
   if (!Number.isFinite(root)) return CHART_TICK_FONT_MIN;
-  return Math.max(CHART_TICK_FONT_MIN, Math.round(root * 0.78));
+  return Math.max(CHART_TICK_FONT_MIN, Math.round(root * 0.82));
 }
 
 export function chartLegendFontSize(): number {
