@@ -12,6 +12,21 @@
 #   - Free tier may not include disks; upgrade to a paid plan and confirm the disk
 #     addon in Dashboard → jasper-ai-api → Disks if history disappears after deploy.
 #   - Only writes under mountPath survive restarts; keep JOB_HISTORY_DIR inside it.
+#
+# Email notifications (jasper-ai-api, OPTIONAL): when a user supplies an email
+# with a run, a best-effort message is sent when the job completes/fails. The
+# feature is fully disabled until SMTP_HOST is set — no email = nothing sent.
+# Configure these as SECRET env vars in Dashboard → jasper-ai-api → Environment
+# (do NOT commit real secrets to this blueprint):
+#   - SMTP_HOST      e.g. smtp.sendgrid.net / smtp.resend.com / smtp.gmail.com
+#   - SMTP_PORT      587 (STARTTLS, default) or 465 (implicit SSL, set SMTP_SSL=true)
+#   - SMTP_USER      SMTP username (SendGrid: literal "apikey"; Resend: "resend")
+#   - SMTP_PASSWORD  SMTP password / API key  (SECRET)
+#   - SMTP_FROM      verified From address (falls back to SMTP_USER if unset)
+#   - SMTP_STARTTLS  "true" (default) for port 587
+#   - SMTP_SSL       "true" only for implicit-TLS providers on port 465
+#   - PUBLIC_WEB_URL public URL of jasper-ai-web (e.g. https://jasper-ai-web.onrender.com)
+#                    used to build the "view results" deep link (/?job=<id>) in the email
 services:
   - type: web
     name: jasper-ai-api

@@ -101,6 +101,10 @@ const en: Dict = {
   "config.rebalance.yearly": "Yearly",
   "config.runStandard": "Run backtest",
   "config.runPro": "Run Pro optimization",
+  "config.notifyEmail": "Email me when done (optional)",
+  "config.notifyEmailPlaceholder": "you@example.com",
+  "config.notifyEmailHint":
+    "Backtests run on the server, so you can close this tab. If you enter an email, we'll notify you when the run finishes or fails.",
 
   // Pro rounds tabs
   "pro.tabsHint":
@@ -789,6 +793,10 @@ const zh: Dict = {
   "config.rebalance.yearly": "每年",
   "config.runStandard": "執行回測",
   "config.runPro": "執行 Pro 最佳化",
+  "config.notifyEmail": "完成後寄信通知我（選填）",
+  "config.notifyEmailPlaceholder": "you@example.com",
+  "config.notifyEmailHint":
+    "回測在伺服器端執行，你可以關閉此分頁。若填入電子郵件，回測完成或失敗時我們會通知你。",
 
   // Pro rounds tabs
   "pro.tabsHint":
@@ -1460,6 +1468,10 @@ const ko: Dict = {
   "config.rebalance.yearly": "매년",
   "config.runStandard": "백테스트 실행",
   "config.runPro": "Pro 최적화 실행",
+  "config.notifyEmail": "완료되면 이메일로 알림 (선택)",
+  "config.notifyEmailPlaceholder": "you@example.com",
+  "config.notifyEmailHint":
+    "백테스트는 서버에서 실행되므로 이 탭을 닫아도 됩니다. 이메일을 입력하면 실행이 완료되거나 실패할 때 알려드립니다.",
 
   // Pro rounds tabs
   "pro.tabsHint":

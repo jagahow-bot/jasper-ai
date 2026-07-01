@@ -24,6 +24,38 @@ _jobs: dict[str, dict] = {}
 _lock = threading.Lock()
 
 
+def _notify_async(
+    job_id: str,
+    req: BacktestRequest,
+    *,
+    status: str,
+    result: BacktestResult | None = None,
+    error: str | None = None,
+) -> None:
+    """Fire off a terminal-state email without blocking the job thread.
+
+    Import is local so the email stack (and its config) is only touched when a
+    job actually finishes, and any unexpected error here can never affect the
+    job's recorded result.
+    """
+    if not (req.notify_email or "").strip():
+        return
+    try:
+        from app.notifications import notifications_configured, send_job_notification
+
+        if not notifications_configured():
+            return
+
+        threading.Thread(
+            target=send_job_notification,
+            args=(job_id, req),
+            kwargs={"status": status, "result": result, "error": error},
+            daemon=True,
+        ).start()
+    except Exception:  # noqa: BLE001 — notification must never break a job
+        pass
+
+
 def _public_log_message(message: str) -> str:
     """User-facing job progress (pass-through from backtest search/assembly).
 
@@ -118,6 +150,7 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
             persist_completed_job(job_id, req, result)
         except Exception:  # noqa: BLE001
             pass
+        _notify_async(job_id, req, status="completed", result=result)
     except Exception as exc:  # noqa: BLE001
         with _lock:
             _jobs[job_id]["progress"] = JobProgress(
@@ -126,6 +159,7 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
                 trials_total=_estimated_trials_total(req),
             )
             _jobs[job_id]["error"] = str(exc)
+        _notify_async(job_id, req, status="failed", error=_public_log_message(str(exc)))
 
 
 def _hydrate_from_disk(job_id: str) -> bool:

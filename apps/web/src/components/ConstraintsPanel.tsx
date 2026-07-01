@@ -639,6 +639,22 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
         </div>
       </details>
 
+      <label className="block space-y-2">
+        <span className="text-sm">{t("config.notifyEmail")}</span>
+        <input
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          value={value.notify_email ?? ""}
+          onChange={(e) =>
+            onChange({ ...value, notify_email: e.target.value || null })
+          }
+          placeholder={t("config.notifyEmailPlaceholder")}
+          className="pixel-input"
+        />
+        <p className="text-xs text-dim">{t("config.notifyEmailHint")}</p>
+      </label>
+
       <button
         type="button"
         onClick={onRun}

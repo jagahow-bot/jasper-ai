@@ -283,6 +283,18 @@ export default function HomePage() {
     [presentResult, t],
   );
 
+  // Deep link from notification emails: /?job=<id> auto-loads that job's
+  // results on first mount so recipients land straight on their report.
+  const deepLinkLoaded = useRef(false);
+  useEffect(() => {
+    if (deepLinkLoaded.current) return;
+    if (typeof window === "undefined") return;
+    const jobParam = new URLSearchParams(window.location.search).get("job");
+    if (!jobParam) return;
+    deepLinkLoaded.current = true;
+    void loadHistoricalJob(jobParam);
+  }, [loadHistoricalJob]);
+
   const runBacktest = useCallback(
     async (reqOverride?: BacktestRequest) => {
       const req = reqOverride ?? request;

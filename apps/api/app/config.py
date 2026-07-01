@@ -122,6 +122,52 @@ class Settings(BaseSettings):
     )
     use_mock_engine: bool = False
     optuna_trials: int = 50
+
+    # --- Email notifications (optional) ---------------------------------------
+    # When SMTP_HOST is set, completed/failed backtest jobs that carry a
+    # notify_email will trigger a best-effort email. All fields are optional so
+    # the feature stays fully disabled until an operator configures a provider.
+    smtp_host: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("smtp_host", "SMTP_HOST"),
+    )
+    smtp_port: int = Field(
+        default=587,
+        validation_alias=AliasChoices("smtp_port", "SMTP_PORT"),
+    )
+    smtp_user: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("smtp_user", "SMTP_USER"),
+    )
+    smtp_password: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("smtp_password", "SMTP_PASSWORD"),
+    )
+    smtp_from: str | None = Field(
+        default=None,
+        description="From address; falls back to SMTP_USER when unset.",
+        validation_alias=AliasChoices("smtp_from", "SMTP_FROM"),
+    )
+    smtp_starttls: bool = Field(
+        default=True,
+        description="Use STARTTLS (typical for port 587). Ignored when SMTP_SSL is on.",
+        validation_alias=AliasChoices("smtp_starttls", "SMTP_STARTTLS"),
+    )
+    smtp_ssl: bool = Field(
+        default=False,
+        description="Use implicit TLS/SSL (typical for port 465).",
+        validation_alias=AliasChoices("smtp_ssl", "SMTP_SSL"),
+    )
+    # Public base URL of the web app, used to build a deep link to results in
+    # the notification email (e.g. https://jasper-ai-web.onrender.com).
+    public_web_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "public_web_url",
+            "PUBLIC_WEB_URL",
+            "WEB_APP_URL",
+        ),
+    )
     ai_universe_pick_representatives_per_category: bool = Field(
         default=False,
         validation_alias=AliasChoices(

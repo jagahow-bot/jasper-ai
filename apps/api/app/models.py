@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Objective(str, Enum):
@@ -197,6 +197,23 @@ class BacktestRequest(BaseModel):
         default="en",
         description="UI locale (en/zh/ko) for AI-generated prose such as the round champion rationale.",
     )
+    notify_email: str | None = Field(
+        default=None,
+        description=(
+            "Optional email address to notify when the job reaches a terminal "
+            "state (completed/failed). Empty strings are normalized to None; "
+            "malformed values are ignored silently at send time so a typo never "
+            "blocks the run."
+        ),
+    )
+
+    @field_validator("notify_email", mode="before")
+    @classmethod
+    def _normalize_notify_email(cls, v: object) -> str | None:
+        if v is None:
+            return None
+        text = str(v).strip()
+        return text or None
 
     def resolved_universe_filter_prompts(self) -> list[str]:
         """Merged stacked prompts + legacy single-line filter."""

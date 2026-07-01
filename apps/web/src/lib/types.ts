@@ -97,6 +97,8 @@ export interface BacktestRequest {
   experiment?: ExperimentRequest;
   /** UI locale (en/zh/ko) forwarded so AI-generated prose matches the user's language. */
   report_language?: string;
+  /** Optional email to notify when the (server-side) job finishes or fails. */
+  notify_email?: string | null;
 }
 
 export interface ConvergencePreviewPoint {
