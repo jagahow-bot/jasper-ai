@@ -6,6 +6,7 @@ import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { FontSizeControl } from "@/components/FontSizeControl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
+import { LiveStatusCard } from "@/components/LiveStatusCard";
 import { ProgressPanel } from "@/components/ProgressPanel";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
@@ -86,6 +87,7 @@ export default function HomePage() {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
+  const [statusFeed, setStatusFeed] = useState<string[]>([]);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [narrative, setNarrative] = useState("");
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
@@ -99,6 +101,7 @@ export default function HomePage() {
     },
   ]);
   const lastProgressMsg = useRef("");
+  const lastRoundRef = useRef(0);
 
   useEffect(() => {
     void checkApiHealth().then(setApiOnline);
@@ -152,13 +155,21 @@ export default function HomePage() {
     async (id: string) => {
       const prog = await getJobProgress(id);
       setProgress(prog);
-      if (
-        prog.message &&
-        prog.message !== lastProgressMsg.current &&
-        prog.status === "running"
-      ) {
-        lastProgressMsg.current = prog.message;
-        pushMessage(setMessages, "assistant", prog.message);
+      // Live progress goes to the prominent status card (not the chat log) so
+      // long runs don't flood the conversation with one line per trial. Only
+      // round transitions are surfaced as chat milestones.
+      if (prog.status === "running" && prog.message) {
+        if (prog.message !== lastProgressMsg.current) {
+          lastProgressMsg.current = prog.message;
+          setStatusFeed((prev) => [prog.message, ...prev].slice(0, 12));
+        }
+        const round = prog.refinement_round ?? 0;
+        if (round > lastRoundRef.current) {
+          lastRoundRef.current = round;
+          if (round > 1) {
+            pushMessage(setMessages, "assistant", prog.message);
+          }
+        }
       }
       if (prog.status === "completed") {
         const res = await getJobResult(id);
@@ -239,7 +250,9 @@ export default function HomePage() {
       setPhase("running");
       setResult(null);
       setNarrative("");
+      setStatusFeed([]);
       lastProgressMsg.current = "";
+      lastRoundRef.current = 0;
 
       try {
         const { job_id } = await createJob({ ...req, experiment: undefined });
@@ -351,6 +364,9 @@ export default function HomePage() {
           <h2 className="mb-3 shrink-0 font-pixel text-[9px] text-[var(--cyan)]">
             {t("header.terminalLog")}
           </h2>
+          {phase === "running" && progress && (
+            <LiveStatusCard progress={progress} feed={statusFeed} />
+          )}
           <div className="min-h-0 flex-1">
             <ChatLog messages={messages} />
           </div>

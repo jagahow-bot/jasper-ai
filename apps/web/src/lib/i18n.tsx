@@ -205,6 +205,11 @@ const en: Dict = {
   "progress.round": "Round",
   "progress.bestInSample": "Best so far",
 
+  "live.badge": "LIVE",
+  "live.working": "Working…",
+  "live.trial": "Strategy {n}/{total}",
+  "live.recentActivity": "Recent activity",
+
   "customScenario.title": "Your market view",
   "customScenario.description":
     "Describe your macro, sector, or risk outlook, and Jasper turns it into a strategy you can backtest.",
@@ -800,6 +805,11 @@ const zh: Dict = {
   "progress.round": "輪次",
   "progress.bestInSample": "目前最佳",
 
+  "live.badge": "即時",
+  "live.working": "執行中…",
+  "live.trial": "策略 {n}/{total}",
+  "live.recentActivity": "近期動態",
+
   "customScenario.title": "你的市場觀點",
   "customScenario.description":
     "描述你對總體經濟、產業或風險的看法，Jasper 會把它轉化為可回測的策略。",
@@ -1387,6 +1397,11 @@ const ko: Dict = {
   "progress.benchmark": "벤치마크",
   "progress.round": "라운드",
   "progress.bestInSample": "현재까지 최고",
+
+  "live.badge": "실시간",
+  "live.working": "실행 중…",
+  "live.trial": "전략 {n}/{total}",
+  "live.recentActivity": "최근 활동",
 
   "customScenario.title": "나의 시장 관점",
   "customScenario.description":

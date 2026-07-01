@@ -27,17 +27,26 @@ export function ProgressPanel({ progress }: Props) {
     progress.trials_total > 0
       ? Math.min(100, (progress.trial / progress.trials_total) * 100)
       : 0;
+  const hasTrials = progress.trials_total > 0 && progress.trial > 0;
+  const isRunning = progress.status === "running" || progress.status === "pending";
 
   return (
     <div className="pixel-panel space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-pixel text-xs text-neon glow-title">{t("progress.running")}</h3>
+        <h3 className="flex items-center gap-2 font-pixel text-xs text-neon glow-title">
+          {isRunning && <span className="live-dot" aria-hidden />}
+          {t("progress.running")}
+        </h3>
         <span className="font-terminal text-2xl text-[var(--cyan)]">
           {Math.round(pct)}%
         </span>
       </div>
 
-      <div className="h-3 overflow-hidden border-2 border-[var(--border)] bg-[#050508]">
+      <div
+        className={`h-3 overflow-hidden border-2 border-[var(--border)] bg-[#050508] ${
+          isRunning ? "live-bar" : ""
+        }`}
+      >
         <div
           className="h-full bg-[var(--neon)] transition-all duration-300"
           style={{ width: `${pct}%` }}
@@ -47,6 +56,12 @@ export function ProgressPanel({ progress }: Props) {
       <p className="font-terminal text-lg text-[var(--foreground)]">
         {progress.message}
       </p>
+
+      {hasTrials && (
+        <p className="font-terminal text-sm text-dim">
+          {t("live.trial", { n: progress.trial, total: progress.trials_total })}
+        </p>
+      )}
 
       {belowBench ? (
         <div
