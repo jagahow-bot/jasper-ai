@@ -1,16 +1,19 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
+import { type AiLang, languageDirective, normalizeAiLang } from "@/lib/ai-language";
 import { AI_METRIC_FORMAT_RULES, formatAlpha, formatPctDecimal } from "@/lib/ai-metric-format";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
 
-const SYSTEM = `Institutional quant analyst. English summary, 2-3 short paragraphs.
+function buildSystem(lang: AiLang): string {
+  return `Institutional quant analyst. ${languageDirective(lang)} 2-3 short paragraphs.
 ${AI_METRIC_FORMAT_RULES}
 - Compare to benchmark using fields under candidate and benchmark_metrics / benchmark_relative.
 - When report_horizons is present, summarize in_sample, out_of_sample, and full_sample (ttl) together; note IS−OOS gaps if holdout enabled.
 - Prefer "alpha" (field alpha or benchmark_relative.alpha) over "annual alpha".
 - Describe style from params only; do not invent performance.
 - End: For research and education only — not investment advice.`;
+}
 
 type Payload = {
   rank: number;
@@ -69,7 +72,9 @@ function buildFallback(p: Payload): string {
 }
 
 export async function POST(req: Request) {
-  const payload = (await req.json()) as Payload;
+  const body = (await req.json()) as Payload & { lang?: string };
+  const lang = normalizeAiLang(body.lang);
+  const payload = body;
 
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return NextResponse.json({ summary: buildFallback(payload), source: "template" });
@@ -79,7 +84,7 @@ export async function POST(req: Request) {
     const { text } = await generateText({
       model: google(GEMINI_MODEL),
       maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-      system: SYSTEM,
+      system: buildSystem(lang),
       prompt: `Summarize model ${payload.model_code ?? `M?`} vs ${payload.benchmark}. Objective: "${payload.objective_label ?? payload.objective ?? "n/a"}". Use model_code in prose.\n${JSON.stringify(payload, null, 2)}`,
     });
     return NextResponse.json({ summary: text.trim(), source: "gemini" });

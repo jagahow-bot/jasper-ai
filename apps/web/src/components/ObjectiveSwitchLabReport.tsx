@@ -2,7 +2,7 @@
 
 import { BenchmarkRegimeChart } from "@/components/BenchmarkRegimeChart";
 import { RegimeScoreChart } from "@/components/RegimeScoreChart";
-import { useI18n } from "@/lib/i18n";
+import { regimeLabel, useI18n } from "@/lib/i18n";
 import type { ObjectiveSwitchLabResult, RegimePredictionQuality } from "@/lib/types";
 
 function fmt(v: number | null | undefined, digits = 3): string {
@@ -78,7 +78,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
         <div className="pixel-panel p-4 space-y-6">
           {result.benchmark_series && result.benchmark_series.length > 0 && (
             <div>
-              <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
+              <h3 className="ui-section-title">
                 {t("objectiveLab.benchmarkVsRegime")}
               </h3>
               <div className="mt-3">
@@ -94,7 +94,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
             result.regime_score_timeline &&
             result.regime_score_timeline.length > 0 && (
               <div>
-                <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
+                <h3 className="ui-section-title">
                   {t("objectiveLab.regimeScores")}
                 </h3>
                 <div className="mt-3">
@@ -116,7 +116,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
       )}
 
       <div className="pixel-panel p-4">
-        <h3 className="font-pixel text-[8px] text-[var(--cyan)]">{t("objectiveLab.regimeTimeline")}</h3>
+        <h3 className="ui-section-title">{t("objectiveLab.regimeTimeline")}</h3>
         <div className="mt-3 max-h-48 overflow-auto font-terminal text-xs">
           <table className="w-full text-left">
             <thead>
@@ -159,6 +159,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
 }
 
 function PredictionQualitySection({ quality }: { quality: RegimePredictionQuality }) {
+  const { t } = useI18n();
   const score = quality.overall_alignment_score;
   const grade = quality.alignment_grade;
   const regimes = ["risk_off", "neutral", "risk_on"] as const;
@@ -167,22 +168,16 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
 
   return (
     <div className="pixel-panel p-4">
-      <h3 className="font-pixel text-[8px] text-[var(--cyan)]">
-        Regime prediction quality (episode-based)
+      <h3 className="ui-section-title">
+        {t("objectiveLab.predictionQualityTitle")}
       </h3>
       <p className="mt-1 text-[10px] text-dim">
-        Scores each contiguous active-regime episode by benchmark behavior from switch-in
-        until the label changes: risk_on if return &gt; 0; risk_off if segment ann. vol ≥
-        1.15× the lab episode-vol median; neutral relative to the prior episode—after
-        risk_on, return ≤ 0 or below the prior risk_on segment return; after risk_off,
-        segment vol below the prior risk_off segment; otherwise |return| ≤ 3%. Return and
-        drawdown are for context. Unlike a fixed 21-day forward window per step. Does not
-        replace Sharpe A/B.
+        {t("objectiveLab.predictionQualityDesc")}
       </p>
       {score != null && (
         <p className="mt-2 font-terminal text-lg text-[var(--foreground)]">
-          Episode alignment {score.toFixed(0)}/100
-          {grade ? ` · grade ${grade}` : ""}
+          {t("objectiveLab.episodeAlignment", { score: score.toFixed(0) })}
+          {grade ? ` · ${t("objectiveLab.grade", { grade })}` : ""}
         </p>
       )}
       <ul className="mt-2 space-y-1 text-xs text-dim">
@@ -193,11 +188,11 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
       <table className="mt-4 w-full text-left font-terminal text-xs">
         <thead>
           <tr className="text-dim">
-            <th className="pb-1">Regime</th>
-            <th>Episodes</th>
-            <th>Median days</th>
-            <th>Avg return</th>
-            <th>Hit rate</th>
+            <th className="pb-1">{t("common.regime")}</th>
+            <th>{t("objectiveLab.episodes")}</th>
+            <th>{t("objectiveLab.medianDays")}</th>
+            <th>{t("objectiveLab.avgReturn")}</th>
+            <th>{t("objectiveLab.hitRate")}</th>
           </tr>
         </thead>
         <tbody>
@@ -206,7 +201,7 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
             if (!q?.segment_count) {
               return (
                 <tr key={r}>
-                  <td className="py-0.5">{r}</td>
+                  <td className="py-0.5">{regimeLabel(t, r)}</td>
                   <td colSpan={4} className="text-dim">
                     —
                   </td>
@@ -215,7 +210,7 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
             }
             return (
               <tr key={r}>
-                <td className="py-0.5">{r}</td>
+                <td className="py-0.5">{regimeLabel(t, r)}</td>
                 <td>{q.segment_count}</td>
                 <td>{q.median_length_days ?? "—"}</td>
                 <td>
@@ -232,17 +227,17 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
       {notable && (notable.longest.length > 0 || notable.failed.length > 0) && (
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {notable.longest.length > 0 && (
-            <SegmentList title="Longest episodes" episodes={notable.longest} />
+            <SegmentList title={t("objectiveLab.longestEpisodes")} episodes={notable.longest} />
           )}
           {notable.failed.length > 0 && (
             <div>
-              <SegmentList title="Largest misses" episodes={notable.failed} highlightMiss />
+              <SegmentList
+                title={t("objectiveLab.largestMisses")}
+                episodes={notable.failed}
+                highlightMiss
+              />
               <p className="mt-2 text-[10px] text-dim">
-                Hits: risk_on (return &gt; 0), risk_off (segment vol ≥ 1.15× episode-vol
-                median), neutral (weakened after risk_on, calmer vol after risk_off, else
-                |return| ≤ 3%). Largest misses rank by return shortfall (risk_on), vol
-                shortfall (risk_off), or continued strength / insufficient vol drop
-                (neutral).
+                {t("objectiveLab.missesLegend")}
               </p>
             </div>
           )}
@@ -251,13 +246,14 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
       {fwd && fwd.forward_horizon_days > 0 && (
         <div className="mt-4 rounded border border-[var(--border)] p-3">
           <p className="font-pixel text-[8px] text-dim">
-            Secondary: {fwd.forward_horizon_days}d forward (per step)
+            {t("objectiveLab.secondaryForward", { days: fwd.forward_horizon_days })}
           </p>
           {fwd.overall_alignment_score != null && (
             <p className="mt-1 text-xs text-dim">
-              Step-level alignment {fwd.overall_alignment_score.toFixed(0)}/100 — same
-              return-based rules on {fwd.forward_horizon_days}d forward windows; headline
-              score above uses full episodes.
+              {t("objectiveLab.stepLevelAlignment", {
+                score: fwd.overall_alignment_score.toFixed(0),
+                days: fwd.forward_horizon_days,
+              })}
             </p>
           )}
           {fwd.switch_timing.length > 0 && (
@@ -287,6 +283,7 @@ function SegmentList({
   episodes: NonNullable<RegimePredictionQuality["notable_segments"]>["longest"];
   highlightMiss?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div>
       <p className="font-pixel text-[8px] text-[var(--amber)]">{title}</p>
@@ -298,9 +295,9 @@ function SegmentList({
               highlightMiss && !ep.aligned_with_regime ? "text-[var(--amber)]" : ""
             }
           >
-            {ep.start_date} → {ep.end_date} · {ep.regime} · {ep.length_days}d ·{" "}
+            {ep.start_date} → {ep.end_date} · {regimeLabel(t, ep.regime)} · {ep.length_days}d ·{" "}
             {(ep.segment_return * 100).toFixed(2)}% ·{" "}
-            {ep.aligned_with_regime ? "hit" : "miss"}
+            {ep.aligned_with_regime ? t("objectiveLab.hit") : t("objectiveLab.miss")}
             {!ep.aligned_with_regime && ep.miss_reason ? ` (${ep.miss_reason})` : ""}
           </li>
         ))}
@@ -318,18 +315,21 @@ function ArmCard({
   arm: ObjectiveSwitchLabResult["fixed_arm"];
   showSwitches?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="rounded border border-[var(--border)] bg-[var(--panel)] p-4">
-      <p className="font-pixel text-[8px] text-[var(--cyan)]">{title}</p>
+      <p className="ui-section-title">{title}</p>
       <p className="mt-1 text-sm">{arm.objective}</p>
       {showSwitches && (
-        <p className="text-xs text-dim">Regime switches: {arm.switch_count}</p>
+        <p className="text-xs text-dim">
+          {t("objectiveLab.regimeSwitches", { count: arm.switch_count })}
+        </p>
       )}
       <ul className="mt-3 space-y-1 text-xs text-dim">
-        <li>IS Sharpe {fmt(arm.in_sample?.sharpe)}</li>
-        <li>OOS Sharpe {fmt(arm.out_of_sample?.sharpe)}</li>
-        <li>IS return {fmt(arm.in_sample?.return_pct, 1)}%</li>
-        <li>IS max DD {fmt(arm.in_sample?.max_drawdown, 2)}</li>
+        <li>{t("objectiveLab.isSharpe")} {fmt(arm.in_sample?.sharpe)}</li>
+        <li>{t("objectiveLab.oosSharpe")} {fmt(arm.out_of_sample?.sharpe)}</li>
+        <li>{t("objectiveLab.isReturn")} {fmt(arm.in_sample?.return_pct, 1)}%</li>
+        <li>{t("objectiveLab.isMaxDd")} {fmt(arm.in_sample?.max_drawdown, 2)}</li>
       </ul>
     </div>
   );

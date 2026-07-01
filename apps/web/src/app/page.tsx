@@ -78,7 +78,7 @@ function buildDefaultRequest(): BacktestRequest {
 }
 
 export default function HomePage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [phase, setPhase] = useState<WizardPhase>("constraints");
   const [request, setRequest] = useState<BacktestRequest | null>(
     buildDefaultRequest(),
@@ -120,16 +120,9 @@ export default function HomePage() {
       );
       const champion =
         championIdx >= 0 ? res.candidates[championIdx] : res.candidates[0];
-      const narrFacts = champion
-        ? buildJobNarrativeFacts(res.narrative_facts, champion)
-        : res.narrative_facts;
-      const narrRes = await fetch("/api/narrate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ facts: narrFacts }),
-      });
-      const narrJson = (await narrRes.json()) as { narrative: string };
-      setNarrative(narrJson.narrative);
+      // Job-level narrative is generated reactively (see effect below) so it
+      // regenerates in the active language when the user switches locale.
+      setNarrative("");
       setPhase("results");
       const best = champion ?? res.candidates[0];
       const bm = String(
@@ -150,6 +143,41 @@ export default function HomePage() {
     },
     [t],
   );
+
+  // Regenerate the job-level AI narrative whenever the result or the active
+  // language changes, so zh/ko users get the summary in their language.
+  useEffect(() => {
+    if (!result || result.candidates.length === 0) {
+      setNarrative("");
+      return;
+    }
+    let cancelled = false;
+    const championIdx = resolveChampionCandidateIndex(
+      result.candidates,
+      result.narrative_facts,
+    );
+    const champion =
+      championIdx >= 0 ? result.candidates[championIdx] : result.candidates[0];
+    const narrFacts = champion
+      ? buildJobNarrativeFacts(result.narrative_facts, champion)
+      : result.narrative_facts;
+    void (async () => {
+      try {
+        const narrRes = await fetch("/api/narrate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ facts: narrFacts, lang }),
+        });
+        const narrJson = (await narrRes.json()) as { narrative: string };
+        if (!cancelled) setNarrative(narrJson.narrative);
+      } catch {
+        /* keep prior narrative on failure */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [result, lang]);
 
   const pollJob = useCallback(
     async (id: string) => {
@@ -255,7 +283,11 @@ export default function HomePage() {
       lastRoundRef.current = 0;
 
       try {
-        const { job_id } = await createJob({ ...req, experiment: undefined });
+        const { job_id } = await createJob({
+          ...req,
+          experiment: undefined,
+          report_language: lang,
+        });
         setJobId(job_id);
         setActiveJobId(job_id);
 
@@ -273,7 +305,7 @@ export default function HomePage() {
         setPhase("constraints");
       }
     },
-    [pollJob, request, t],
+    [pollJob, request, t, lang],
   );
 
   const onRun = useCallback(() => {

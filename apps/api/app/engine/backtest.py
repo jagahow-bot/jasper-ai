@@ -944,6 +944,7 @@ def _run_iterative_search(
             ai_champ = generate_ai_round_champion(
                 payload=champ_payload,
                 progress_cb=ai_champion_progress,
+                language=req.report_language,
             )
             picked = ai_champ.get("round_champion_model_code")
             if picked:

@@ -1,3 +1,4 @@
+import { type AiLang, languageDirective } from "./ai-language";
 import { compareModelCode } from "./align-y-axis-zero";
 import { AI_METRIC_FORMAT_RULES, formatPctDecimal } from "./ai-metric-format";
 import { candidateModelKey } from "./performance-compare-chart";
@@ -36,12 +37,15 @@ export type CompareSummaryPayload = {
   benchmark: string;
   objective?: string;
   objective_label?: string;
+  /** Single champion authority (AI round-champion chain → final ai_champion_model_code). */
   champion_model_code?: string | null;
-  /** Server-side reason the champion (★) was selected (AI round-champion rationale). */
+  /** AI-selected champion code; the single source of truth for the ★. */
+  ai_champion_model_code?: string | null;
+  /** The AI's own reason for selecting the champion (★) during the Pro rounds. */
   champion_rationale?: string | null;
-  /** Pro in-sample ★ in slim payload; same as champion_model_code when set. */
+  /** AI-selected champion (★) in slim payload; same as champion_model_code when set. */
   pro_in_sample_champion?: string | null;
-  /** When set (e.g. from Gemini compare), overrides Pro ★ for UI alignment. */
+  /** When set (e.g. from Gemini compare), overrides ★ for UI alignment. */
   ai_recommended_model_code?: string | null;
   candidates: CompareCandidateLite[];
   candidate_count_total?: number;
@@ -290,34 +294,38 @@ export function sortCandidatesByRank(
   });
 }
 
-export function buildCompareSystemPrompt(): string {
-  return `Institutional quant analyst. English only.
+export function buildCompareSystemPrompt(lang: AiLang = "en"): string {
+  return `Institutional quant analyst. ${languageDirective(lang)}
 ${AI_METRIC_FORMAT_RULES}
 - When horizons.in_sample / out_of_sample / full_sample are present, compare all three (ttl = full_sample) for risk and overfitting — not in-sample alone.
 - Root sharpe/cagr are selection-view metrics; use horizons.full_sample for full-period performance.
 - candidates are sorted by objective rank (best first); rank is the score order, not catalog model number.
-- pro_in_sample_champion (if present) is the API-designated champion (★) — reference it; do NOT override or re-pick a champion.
-- champion_rationale (if present) is the server's reason for choosing the champion (★). Explain that reasoning in plain language and say how the champion compares to the top-ranked alternatives; the champion may not top any single metric because it is chosen for the composite score plus robustness.
+- pro_in_sample_champion (if present) is the AI-selected champion (★), chosen by the AI across the Pro rounds. It is the single champion authority — reference it; do NOT override, re-pick, or introduce any other champion.
+- champion_rationale (if present) is the AI's own reason for choosing the champion (★). Explain that reasoning in plain language and say how the champion compares to the top-ranked alternatives; the champion may not top any single metric because the AI chose it for the composite score plus robustness.
 - Write narrative comparison prose only; do NOT select or recommend a different champion model.
-- Open with a balanced cross-trial overview; mention pro_in_sample_champion when relevant.
+- Open with a balanced cross-trial overview; mention pro_in_sample_champion (the AI's ★) when relevant, and never contradict it.
 - Return ONLY valid JSON (no markdown): {"summary":"2-3 paragraphs of prose, no bullets or metric dumps"}
 No invented numbers.`;
 }
 
-export function buildCompareUserPrompt(slim: CompareSummaryPayload): string {
+export function buildCompareUserPrompt(
+  slim: CompareSummaryPayload,
+  lang: AiLang = "en",
+): string {
   const proRef = slim.pro_in_sample_champion ?? slim.champion_model_code;
   const proNote =
     proRef && proRef !== "none"
-      ? `Pro in-sample ★ (reference only, do not open with this): ${proRef}.`
+      ? `AI-selected champion ★ (reference only, do not open with this): ${proRef}.`
       : "";
   const rationaleNote = slim.champion_rationale?.trim()
-    ? `Champion rationale to explain (why ${proRef ?? "the champion"} was selected): ${slim.champion_rationale.trim()}`
+    ? `Champion rationale to explain (why the AI selected ${proRef ?? "the champion"}): ${slim.champion_rationale.trim()}`
     : "";
   return (
     `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
     `${slim.candidate_count_total ?? slim.candidates.length} trials by objective rank. ` +
-    `Narrative comparison only — champion is already chosen server-side. ` +
+    `Narrative comparison only — the champion (★) was already chosen by the AI; explain that choice, do not re-pick. ` +
     `${proNote} ${rationaleNote} ` +
+    `${languageDirective(lang)} ` +
     `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`
   );
 }
@@ -329,7 +337,7 @@ export function resolveFallbackRecommendedCode(
   const sorted = sortCandidatesByRank(payload.candidates);
   const pick = resolveCompareChampion(
     sorted,
-    payload.champion_model_code,
+    payload.ai_champion_model_code ?? payload.champion_model_code,
     payload.ai_recommended_model_code,
   );
   const code = pick ? candidateModelKey(pick) : null;
@@ -366,15 +374,21 @@ export function slimComparePayload(
 ): CompareSummaryPayload {
   const horizonMode = options?.horizonMode ?? "all";
   const sorted = sortCandidatesByRank(payload.candidates);
-  const proChampion = payload.champion_model_code?.trim().toUpperCase() ?? null;
+  // Single champion authority: AI champion first, then champion_model_code (which
+  // the backend already mirrors from ai_champion_model_code in Pro mode).
+  const aiChampion =
+    payload.ai_champion_model_code?.trim().toUpperCase() ||
+    payload.champion_model_code?.trim().toUpperCase() ||
+    null;
   const rationale = payload.champion_rationale?.trim();
   return {
     benchmark: payload.benchmark,
     objective: payload.objective,
     objective_label: payload.objective_label,
-    champion_model_code: proChampion,
+    champion_model_code: aiChampion,
+    ai_champion_model_code: aiChampion,
     champion_rationale: rationale ? rationale.slice(0, 600) : null,
-    pro_in_sample_champion: proChampion,
+    pro_in_sample_champion: aiChampion,
     candidate_count_total: sorted.length,
     candidates: sorted
       .slice(0, maxCandidates)
@@ -418,11 +432,13 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
   const obj = payload.objective_label ?? payload.objective ?? "n/a";
   const total = payload.candidate_count_total ?? sorted.length;
   const proStar = sorted.find((c) => c.is_champion === true);
-  const proCode = payload.champion_model_code?.trim().toUpperCase()
-    ?? (proStar ? candidateModelKey(proStar) : null);
+  const proCode =
+    payload.ai_champion_model_code?.trim().toUpperCase() ??
+    payload.champion_model_code?.trim().toUpperCase() ??
+    (proStar ? candidateModelKey(proStar) : null);
   const focus = resolveCompareChampion(
     sorted,
-    payload.champion_model_code,
+    payload.ai_champion_model_code ?? payload.champion_model_code,
     payload.ai_recommended_model_code,
   ) ?? sorted[0];
   const focusCode = focus.model_code ?? "M?";
@@ -449,13 +465,13 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
     const pro = sorted.find((c) => candidateModelKey(c) === proCode);
     if (pro) {
       p2Parts.push(
-        `Pro in-sample selection (★) is ${proCode} (objective rank ${pro.rank ?? "—"}).`,
+        `AI-selected champion (★) is ${proCode} (objective rank ${pro.rank ?? "—"}).`,
       );
     }
   }
   const rationale = payload.champion_rationale?.trim();
   if (rationale) {
-    p2Parts.push(`Why ${focusCode} was selected: ${rationale}`);
+    p2Parts.push(`Why the AI selected ${focusCode}: ${rationale}`);
   }
   const peers = sorted.filter(
     (c) => candidateModelKey(c) !== candidateModelKey(focus),

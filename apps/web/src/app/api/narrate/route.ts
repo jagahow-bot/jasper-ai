@@ -1,12 +1,14 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
+import { type AiLang, languageDirective, normalizeAiLang } from "@/lib/ai-language";
 import { AI_METRIC_FORMAT_RULES, formatPctDecimal } from "@/lib/ai-metric-format";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
 import { slimNarrativeFacts } from "@/lib/narrative-slim";
 import { validateNarrative } from "@/lib/narrative-validate";
 
-const SYSTEM = `You are a quant strategy analyst. Write in English using only JSON facts.
+function buildSystem(lang: AiLang): string {
+  return `You are a quant strategy analyst. ${languageDirective(lang)} Use only JSON facts.
 ${AI_METRIC_FORMAT_RULES}
 - Trial selection / champion pick uses in-sample only when report_horizons.oos_enabled is true (see report_analysis_note).
 - For interpretation, always use report_horizons when present: compare in_sample, out_of_sample, and full_sample (ttl) Sharpe/CAGR/max drawdown/objective_value.
@@ -22,9 +24,14 @@ ${AI_METRIC_FORMAT_RULES}
 - Mention assumptions: fee_bps, rebalance_freq, benchmark (backtest_spec).
 - If a field is null, say "not provided"
 - End with: For research and education only — not investment advice.`;
+}
 
 export async function POST(req: Request) {
-  const { facts } = (await req.json()) as { facts: Record<string, unknown> };
+  const { facts, lang: rawLang } = (await req.json()) as {
+    facts: Record<string, unknown>;
+    lang?: string;
+  };
+  const lang = normalizeAiLang(rawLang);
 
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return NextResponse.json({
@@ -35,7 +42,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const text = await generateWithValidation(facts);
+    const text = await generateWithValidation(facts, lang);
     return NextResponse.json({ narrative: text, source: "gemini", validated: true });
   } catch {
     return NextResponse.json({
@@ -46,7 +53,7 @@ export async function POST(req: Request) {
   }
 }
 
-async function generateWithValidation(facts: Record<string, unknown>) {
+async function generateWithValidation(facts: Record<string, unknown>, lang: AiLang) {
   const slim = slimNarrativeFacts(facts);
   let text = "";
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -64,7 +71,7 @@ async function generateWithValidation(facts: Record<string, unknown>) {
           },
         },
       },
-      system: SYSTEM,
+      system: buildSystem(lang),
       prompt: `Write 2-4 paragraphs interpreting this backtest:\n${JSON.stringify(slim, null, 2)}${extra}`,
     });
     text = result.text;

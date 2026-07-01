@@ -190,6 +190,43 @@ body::after {
     color: var(--text-dim);
   }
 
+  /*
+   * Semantic typographic scale. Sizes are in rem so they scale with the
+   * FontSizeControl (--font-size-root), unlike ad-hoc `text-[8px]` literals
+   * which stay fixed. Use these for a consistent title → body → hint hierarchy:
+   *   .ui-section-title  pixel caps label above a chart/table/section
+   *   .ui-panel-title    larger pixel heading for a whole panel
+   *   .ui-body           default reading prose (AI summaries, descriptions)
+   *   .ui-hint           secondary helper / caption text (dimmed)
+   *   .ui-chart-label    compact labels inside charts and dense tables
+   */
+  .ui-section-title {
+    @apply font-pixel uppercase tracking-wider;
+    font-size: 0.5rem;
+    color: var(--cyan);
+  }
+
+  .ui-panel-title {
+    @apply font-pixel uppercase tracking-wider;
+    font-size: 0.62rem;
+  }
+
+  .ui-body {
+    @apply font-terminal leading-relaxed;
+    font-size: 0.8rem;
+  }
+
+  .ui-hint {
+    @apply font-terminal leading-relaxed;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+  }
+
+  .ui-chart-label {
+    @apply font-terminal;
+    font-size: 0.62rem;
+  }
+
   .glow-title {
     text-shadow: 0 0 12px rgba(57, 255, 20, 0.5);
   }

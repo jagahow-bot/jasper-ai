@@ -530,10 +530,17 @@ export function ResultsDashboard({
                 request.objective,
             ),
             champion_model_code:
-              typeof result.narrative_facts.champion_model_code === "string"
-                ? result.narrative_facts.champion_model_code
+              typeof result.narrative_facts.ai_champion_model_code === "string"
+                ? result.narrative_facts.ai_champion_model_code
+                : typeof result.narrative_facts.champion_model_code === "string"
+                  ? result.narrative_facts.champion_model_code
+                  : championModelKey,
+            ai_champion_model_code:
+              typeof result.narrative_facts.ai_champion_model_code === "string"
+                ? result.narrative_facts.ai_champion_model_code
                 : championModelKey,
             champion_rationale: championRationale?.text ?? null,
+            lang,
             candidates: result.candidates.map((c) => {
               const sm = c.analytics?.sample_metrics;
               return {
@@ -588,7 +595,7 @@ export function ResultsDashboard({
     return () => {
       cancelled = true;
     };
-  }, [compareEffectKey]);
+  }, [compareEffectKey, lang]);
 
   const benchmarkBarMetrics = useMemo(() => {
     const spec = result.narrative_facts.backtest_spec as
@@ -1382,11 +1389,11 @@ export function ResultsDashboard({
 
       <ChartCard title={t("results.chart.performanceComparison")} subtitle={t("results.fullPeriod")}>
         <div className="mb-3 border-2 border-[#0a4a4a] bg-[rgba(0,245,255,0.05)] px-3 py-2">
-          <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">{t("results.aiComparison")}</p>
+          <p className="ui-section-title mb-1">{t("results.aiComparison")}</p>
           {compareLoading ? (
-            <p className="text-xs text-dim">{t("results.generatingComparison")}</p>
+            <p className="ui-hint">{t("results.generatingComparison")}</p>
           ) : compareSummary ? (
-            <div className="space-y-2 text-xs leading-relaxed">
+            <div className="ui-body space-y-2">
               {compareRetryNote ? (
                 <p className="text-[10px] text-amber-400/90">{compareRetryNote}</p>
               ) : null}
@@ -1401,7 +1408,7 @@ export function ResultsDashboard({
                 ))}
             </div>
           ) : (
-            <p className="text-xs text-dim">{t("results.noComparisonYet")}</p>
+            <p className="ui-hint">{t("results.noComparisonYet")}</p>
           )}
         </div>
         <ResponsiveContainer width="100%" height={300}>

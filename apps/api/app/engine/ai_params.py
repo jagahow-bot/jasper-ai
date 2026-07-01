@@ -2602,10 +2602,27 @@ def _round_champion_fallback_code(payload: dict[str, Any]) -> str | None:
     return code or None
 
 
+def _round_champion_language_directive(language: str | None) -> str:
+    """Prompt directive so the rationale prose matches the user's UI locale."""
+    lang = (language or "en").strip().lower()
+    if lang.startswith("zh"):
+        return (
+            "Write the rationale in Traditional Chinese (繁體中文). "
+            "Keep model codes (e.g. M0001), tickers, and numbers as-is."
+        )
+    if lang.startswith("ko"):
+        return (
+            "Write the rationale in Korean (한국어). "
+            "Keep model codes (e.g. M0001), tickers, and numbers as-is."
+        )
+    return "Write the rationale in English."
+
+
 def generate_ai_round_champion(
     *,
     payload: dict[str, Any],
     progress_cb: Callable[[str], None] | None = None,
+    language: str | None = None,
 ) -> dict[str, Any]:
     """One Gemini call after each Pro Optuna round: pick deployable round champion."""
     model = settings.gemini_model
@@ -2637,7 +2654,7 @@ def generate_ai_round_champion(
     if progress_cb:
         progress_cb(f"Round {round_no}: AI selecting round champion…")
 
-    prompt = f"""Institutional quant analyst. English or 中文.
+    prompt = f"""Institutional quant analyst. {_round_champion_language_directive(language)}
 After this Pro Optuna round, pick the best deployable champion from the trial pool.
 Each candidate includes horizons.in_sample (IS), horizons.out_of_sample (OOS holdout), and
 horizons.full_sample (full period / ttl) when available, plus objective_value_is,

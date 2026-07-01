@@ -1,6 +1,7 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
+import { type AiLang, normalizeAiLang } from "@/lib/ai-language";
 import {
   buildCompareFallback,
   buildCompareSystemPrompt,
@@ -16,7 +17,9 @@ import {
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
 
 export async function POST(req: Request) {
-  const payload = (await req.json()) as CompareSummaryPayload;
+  const body = (await req.json()) as CompareSummaryPayload & { lang?: string };
+  const lang = normalizeAiLang(body.lang);
+  const payload = body;
 
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     const fallback = buildCompareFallback(payload);
@@ -28,7 +31,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await generateCompareSummary(payload);
+    const result = await generateCompareSummary(payload, lang);
     return NextResponse.json({
       summary: result.summary,
       recommended_model_code: null,
@@ -56,10 +59,11 @@ type CompareSummaryOutcome = {
 
 async function generateCompareSummary(
   payload: CompareSummaryPayload,
+  lang: AiLang,
 ): Promise<CompareSummaryOutcome> {
   let retriedDueToTokenLimit = false;
   const slim = slimComparePayload(payload);
-  const prompt = buildCompareUserPrompt(slim);
+  const prompt = buildCompareUserPrompt(slim, lang);
 
   const generateRequest = {
     model: google(GEMINI_MODEL),
@@ -71,7 +75,7 @@ async function generateCompareSummary(
         },
       },
     },
-    system: buildCompareSystemPrompt(),
+    system: buildCompareSystemPrompt(lang),
     prompt,
   };
 

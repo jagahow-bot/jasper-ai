@@ -193,6 +193,10 @@ class BacktestRequest(BaseModel):
         default=None,
         description="Optional sandbox experiment config; ignored unless explicitly enabled.",
     )
+    report_language: str = Field(
+        default="en",
+        description="UI locale (en/zh/ko) for AI-generated prose such as the round champion rationale.",
+    )
 
     def resolved_universe_filter_prompts(self) -> list[str]:
         """Merged stacked prompts + legacy single-line filter."""

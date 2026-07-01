@@ -95,6 +95,8 @@ export interface BacktestRequest {
   refinement_patience?: number;
   refinement_min_improvement?: number;
   experiment?: ExperimentRequest;
+  /** UI locale (en/zh/ko) forwarded so AI-generated prose matches the user's language. */
+  report_language?: string;
 }
 
 export interface ConvergencePreviewPoint {
