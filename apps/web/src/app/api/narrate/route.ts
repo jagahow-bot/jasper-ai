@@ -22,6 +22,7 @@ ${AI_METRIC_FORMAT_RULES}
 - Mention: each rebalance runs factor Top-N screen then allocator (dynamic), if narrative_facts mentions it.
 - Mention max_weight_constraint vs max_weight_trial_param vs max_weight_observed when discussing concentration risk.
 - Mention assumptions: fee_bps, rebalance_freq, benchmark (backtest_spec).
+- Benchmark honesty: when backtest_spec.benchmark_metrics is present, compare the champion's full-sample Sharpe/CAGR/max drawdown to it. If the strategy underperformed the benchmark on the objective (e.g. lower Sharpe/CAGR, or a worse/deeper max drawdown), say so plainly and objectively — do NOT overstate the result. Then note the user can keep iterating from this run (adjust factors, constraints, universe, or objective and re-run) instead of starting over.
 - If a field is null, say "not provided"
 - End with: For research and education only — not investment advice.`;
 }

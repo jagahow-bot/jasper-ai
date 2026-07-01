@@ -1,5 +1,16 @@
-/** Min/max of values, always spanning 0 when data crosses or touches zero. */
-export function extentWithZero(values: number[]): [number, number] {
+/**
+ * Min/max of values, always spanning 0 when data crosses or touches zero.
+ *
+ * When the data crosses zero and `minSideRatio` > 0, the smaller (minority)
+ * side is expanded so it occupies at least that fraction of the total span.
+ * This keeps a visible, padded negative band when metrics (Sharpe, CAGR,
+ * Sortino, drawdown) go negative instead of squashing them into a sliver
+ * against the axis edge.
+ */
+export function extentWithZero(
+  values: number[],
+  minSideRatio = 0,
+): [number, number] {
   let min = 0;
   let max = 0;
   for (const v of values) {
@@ -11,6 +22,12 @@ export function extentWithZero(values: number[]): [number, number] {
     if (min === 0) return [-1, 1];
     if (min > 0) return [0, min * 1.1];
     return [min * 1.1, 0];
+  }
+  if (minSideRatio > 0 && min < 0 && max > 0) {
+    const r = Math.min(minSideRatio, 0.49);
+    const span = max - min;
+    if (-min / span < r) min = (-r * max) / (1 - r);
+    if (max / (max - min) < r) max = (-r * min) / (1 - r);
   }
   return [min, max];
 }

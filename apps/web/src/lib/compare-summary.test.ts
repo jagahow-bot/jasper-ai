@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  benchmarkComparisonMetric,
   buildCompareEffectKey,
   buildCompareFallback,
   buildCompareSystemPrompt,
   buildCompareUserPrompt,
+  candidateBeatsBenchmark,
+  computeAllCandidatesBelowBenchmark,
   isAcceptableCompareSummary,
   isGeminiMaxTokensFinish,
   looksLikeMetricDump,
@@ -293,6 +296,113 @@ M0010 Sharpe:
     expect(first.candidates).toHaveLength(10);
     expect(first.candidates[0]?.horizons?.in_sample).toBeDefined();
     expect(first.candidates[0]?.horizons?.full_sample).toBeDefined();
+  });
+
+  it("benchmarkComparisonMetric maps objective to the deciding metric", () => {
+    expect(benchmarkComparisonMetric("max_sharpe")).toBe("sharpe");
+    expect(benchmarkComparisonMetric("Max CAGR")).toBe("cagr");
+    expect(benchmarkComparisonMetric("min_max_drawdown")).toBe("max_drawdown");
+    expect(benchmarkComparisonMetric("dynamic")).toBe("sharpe");
+  });
+
+  it("candidateBeatsBenchmark uses full-sample metric and drawdown magnitude", () => {
+    const bm = { sharpe: 0.8, cagr: 0.1, max_drawdown: -0.2 };
+    expect(
+      candidateBeatsBenchmark(
+        { rank: 1, horizons: { full_sample: { sharpe: 0.9 } } },
+        bm,
+        "sharpe",
+      ),
+    ).toBe(true);
+    expect(candidateBeatsBenchmark({ rank: 1, sharpe: 0.5 }, bm, "sharpe")).toBe(
+      false,
+    );
+    // Smaller drawdown magnitude wins.
+    expect(
+      candidateBeatsBenchmark({ rank: 1, max_drawdown: -0.1 }, bm, "max_drawdown"),
+    ).toBe(true);
+    expect(
+      candidateBeatsBenchmark({ rank: 1, max_drawdown: -0.3 }, bm, "max_drawdown"),
+    ).toBe(false);
+  });
+
+  it("computeAllCandidatesBelowBenchmark flags only when every trial loses", () => {
+    const benchmark_metrics = { sharpe: 1.0, cagr: 0.12, max_drawdown: -0.2 };
+    const losers = [
+      { rank: 1, sharpe: 0.7 },
+      { rank: 2, sharpe: 0.5 },
+    ];
+    expect(
+      computeAllCandidatesBelowBenchmark({
+        benchmark_metrics,
+        objective: "max_sharpe",
+        candidates: losers,
+      }),
+    ).toBe(true);
+
+    const oneWinner = [
+      { rank: 1, sharpe: 1.3 },
+      { rank: 2, sharpe: 0.5 },
+    ];
+    expect(
+      computeAllCandidatesBelowBenchmark({
+        benchmark_metrics,
+        objective: "max_sharpe",
+        candidates: oneWinner,
+      }),
+    ).toBe(false);
+
+    // No benchmark metrics → never asserts underperformance.
+    expect(
+      computeAllCandidatesBelowBenchmark({
+        benchmark_metrics: null,
+        objective: "max_sharpe",
+        candidates: losers,
+      }),
+    ).toBe(false);
+
+    // Missing comparable metric on a trial → do not assert.
+    expect(
+      computeAllCandidatesBelowBenchmark({
+        benchmark_metrics,
+        objective: "max_sharpe",
+        candidates: [{ rank: 1, cagr: 0.05 }],
+      }),
+    ).toBe(false);
+  });
+
+  it("slim payload + prompt carry honest below-benchmark framing", () => {
+    const slim = slimComparePayload({
+      benchmark: "SPY",
+      objective: "max_sharpe",
+      objective_label: "Max Sharpe",
+      benchmark_metrics: { sharpe: 1.0, cagr: 0.12, max_drawdown: -0.2 },
+      candidates: [
+        { model_code: "M0001", rank: 1, sharpe: 0.7 },
+        { model_code: "M0002", rank: 2, sharpe: 0.5 },
+      ],
+    });
+    expect(slim.all_candidates_below_benchmark).toBe(true);
+    const system = buildCompareSystemPrompt();
+    expect(system).toContain("all_candidates_below_benchmark");
+    const user = buildCompareUserPrompt(slim);
+    expect(user).toContain("HONEST FRAMING");
+    expect(user).toContain("keep iterating");
+  });
+
+  it("buildCompareFallback prepends honest note when all trials lose", () => {
+    const text = buildCompareFallback({
+      benchmark: "SPY",
+      objective_label: "Max Sharpe",
+      objective: "max_sharpe",
+      benchmark_metrics: { sharpe: 1.0, cagr: 0.12, max_drawdown: -0.2 },
+      candidates: [
+        { model_code: "M0001", rank: 1, sharpe: 0.7, cagr: 0.05 },
+        { model_code: "M0002", rank: 2, sharpe: 0.5, cagr: 0.03 },
+      ],
+    });
+    expect(text).toMatch(/underperformed the benchmark/);
+    expect(text).toContain("keep iterating");
   });
 
   it("buildCompareFallback returns paragraphs not metric lines", () => {

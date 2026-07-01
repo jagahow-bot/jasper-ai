@@ -33,10 +33,21 @@ export type CompareCandidateLite = {
   };
 };
 
+export type CompareBenchmarkMetrics = {
+  sharpe?: number | null;
+  sortino?: number | null;
+  cagr?: number | null;
+  max_drawdown?: number | null;
+};
+
 export type CompareSummaryPayload = {
   benchmark: string;
   objective?: string;
   objective_label?: string;
+  /** Benchmark metrics (decimal fractions for rates) for honest vs-benchmark framing. */
+  benchmark_metrics?: CompareBenchmarkMetrics | null;
+  /** Pre-computed: every trial underperformed the benchmark on the objective metric. */
+  all_candidates_below_benchmark?: boolean;
   /** Single champion authority (AI round-champion chain → final ai_champion_model_code). */
   champion_model_code?: string | null;
   /** AI-selected champion code; the single source of truth for the ★. */
@@ -55,6 +66,65 @@ export type CompareSummaryResult = {
   summary: string;
   recommended_model_code: string | null;
 };
+
+export type BenchmarkComparisonMetric = "sharpe" | "cagr" | "max_drawdown";
+
+/** Which metric decides "beat the benchmark" for a given ranking objective. */
+export function benchmarkComparisonMetric(
+  objective?: string,
+): BenchmarkComparisonMetric {
+  const o = (objective ?? "").toLowerCase();
+  if (o.includes("drawdown") || o.includes("mdd")) return "max_drawdown";
+  if (o.includes("return") || o.includes("cagr")) return "cagr";
+  return "sharpe";
+}
+
+function candidateFullSampleMetric(
+  c: CompareCandidateLite,
+  metric: BenchmarkComparisonMetric,
+): number | undefined {
+  const full = c.horizons?.full_sample?.[metric];
+  const root = c[metric];
+  const v = typeof full === "number" ? full : root;
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+/** A trial beats the benchmark when its full-period objective metric is better. */
+export function candidateBeatsBenchmark(
+  c: CompareCandidateLite,
+  bm: CompareBenchmarkMetrics,
+  metric: BenchmarkComparisonMetric,
+): boolean {
+  const cv = candidateFullSampleMetric(c, metric);
+  const bv = bm[metric];
+  if (cv == null || bv == null || !Number.isFinite(bv)) return false;
+  // Smaller drawdown magnitude is better; higher is better for sharpe/cagr.
+  if (metric === "max_drawdown") return Math.abs(cv) < Math.abs(bv);
+  return cv > bv;
+}
+
+/**
+ * True only when benchmark metrics are present, every trial has a comparable
+ * full-period metric, and none of them beat the benchmark on the objective.
+ * Conservative by design so the honest "underperformed" framing is trustworthy.
+ */
+export function computeAllCandidatesBelowBenchmark(
+  payload: Pick<
+    CompareSummaryPayload,
+    "benchmark_metrics" | "objective" | "candidates"
+  >,
+): boolean {
+  const bm = payload.benchmark_metrics;
+  const candidates = payload.candidates ?? [];
+  if (!bm || candidates.length === 0) return false;
+  const metric = benchmarkComparisonMetric(payload.objective);
+  if (bm[metric] == null || !Number.isFinite(bm[metric] as number)) return false;
+  const allComparable = candidates.every(
+    (c) => candidateFullSampleMetric(c, metric) != null,
+  );
+  if (!allComparable) return false;
+  return candidates.every((c) => !candidateBeatsBenchmark(c, bm, metric));
+}
 
 export type CompareGenerationAttempt = {
   text: string;
@@ -303,6 +373,8 @@ ${AI_METRIC_FORMAT_RULES}
 - pro_in_sample_champion (if present) is the AI-selected champion (★), chosen by the AI across the Pro rounds. It is the single champion authority — reference it; do NOT override, re-pick, or introduce any other champion.
 - champion_rationale (if present) is the AI's own reason for choosing the champion (★). Explain that reasoning in plain language and say how the champion compares to the top-ranked alternatives; the champion may not top any single metric because the AI chose it for the composite score plus robustness.
 - Write narrative comparison prose only; do NOT select or recommend a different champion model.
+- benchmark_metrics (if present) are the benchmark's own Sharpe/CAGR/max drawdown (decimal fractions) — use them for an honest vs-benchmark read.
+- If all_candidates_below_benchmark is true, be objective and candid: state plainly in the opening that NONE of the trials beat the benchmark on the objective over this window and that the run underperformed the benchmark — do NOT spin it as a success. Then note the user can keep iterating on THIS run (adjust factors, constraints, universe, or objective and re-run) rather than starting over, and briefly suggest what to try.
 - Open with a balanced cross-trial overview; mention pro_in_sample_champion (the AI's ★) when relevant, and never contradict it.
 - Return ONLY valid JSON (no markdown): {"summary":"2-3 paragraphs of prose, no bullets or metric dumps"}
 No invented numbers.`;
@@ -320,11 +392,14 @@ export function buildCompareUserPrompt(
   const rationaleNote = slim.champion_rationale?.trim()
     ? `Champion rationale to explain (why the AI selected ${proRef ?? "the champion"}): ${slim.champion_rationale.trim()}`
     : "";
+  const benchmarkNote = slim.all_candidates_below_benchmark
+    ? `HONEST FRAMING: every trial underperformed ${slim.benchmark} on the objective this run — open by saying so plainly (do not overstate), then tell the user they can keep iterating from this run (tweak factors/constraints/universe/objective and re-run) instead of starting over.`
+    : "";
   return (
     `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
     `${slim.candidate_count_total ?? slim.candidates.length} trials by objective rank. ` +
     `Narrative comparison only — the champion (★) was already chosen by the AI; explain that choice, do not re-pick. ` +
-    `${proNote} ${rationaleNote} ` +
+    `${proNote} ${rationaleNote} ${benchmarkNote} ` +
     `${languageDirective(lang)} ` +
     `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`
   );
@@ -381,10 +456,15 @@ export function slimComparePayload(
     payload.champion_model_code?.trim().toUpperCase() ||
     null;
   const rationale = payload.champion_rationale?.trim();
+  const allBelowBenchmark =
+    payload.all_candidates_below_benchmark ??
+    computeAllCandidatesBelowBenchmark(payload);
   return {
     benchmark: payload.benchmark,
     objective: payload.objective,
     objective_label: payload.objective_label,
+    benchmark_metrics: payload.benchmark_metrics ?? null,
+    all_candidates_below_benchmark: allBelowBenchmark,
     champion_model_code: aiChampion,
     ai_champion_model_code: aiChampion,
     champion_rationale: rationale ? rationale.slice(0, 600) : null,
@@ -443,6 +523,13 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
   ) ?? sorted[0];
   const focusCode = focus.model_code ?? "M?";
 
+  const belowBenchmark =
+    payload.all_candidates_below_benchmark ??
+    computeAllCandidatesBelowBenchmark(payload);
+  const honestNote = belowBenchmark
+    ? `Objective read: none of the ${total} trials beat ${payload.benchmark} on the ${obj} objective over this window — the run underperformed the benchmark. You can keep iterating from this run (adjust factors, constraints, universe, or objective and re-run) rather than starting over.`
+    : "";
+
   const p1 = [
     `Across ${total} Optuna trials vs ${payload.benchmark} (${obj}), models are listed by catalog number (M0001, M0002, …).`,
     `${focusCode} — CAGR ${formatPctDecimal(focus.cagr)}, Sharpe ${focus.sharpe ?? "—"}, ` +
@@ -495,7 +582,7 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
           .join("; ")}.`
       : "";
 
-  return [p1, p2, p3, "For research and education only — not investment advice."]
+  return [honestNote, p1, p2, p3, "For research and education only — not investment advice."]
     .filter(Boolean)
     .join("\n\n");
 }

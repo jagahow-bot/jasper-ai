@@ -123,6 +123,10 @@ const en: Dict = {
     "Click to apply an adjustment · double-click to apply and rerun.",
   "results.editConfig": "Edit setup",
   "results.exportCsv": "Export CSV",
+  "results.belowBenchmarkTitle": "Honest read: this run underperformed the benchmark",
+  "results.belowBenchmarkBody":
+    "None of the trials beat {benchmark} on the selected objective over this window. That's a real result, not a failure of the tool — you can keep iterating from this run: adjust the factors, constraints, universe, or objective and re-run without starting over.",
+  "results.iterateFromHere": "Adjust & re-run",
 
   // Conversation log
   "chat.welcome":
@@ -833,6 +837,10 @@ const zh: Dict = {
   "results.fullPeriod": "完整期間",
   "results.refineHint": "點擊套用調整 · 雙擊套用並重新執行。",
   "results.editConfig": "編輯設定",
+  "results.belowBenchmarkTitle": "客觀結果：本次測試未能勝過基準",
+  "results.belowBenchmarkBody":
+    "在此區間內，沒有任何一組試驗在所選目標上勝過 {benchmark}。這是真實的結果，並非工具的問題——你可以從本次執行繼續迭代：調整因子、限制條件、標的池或目標後重新執行，無需從頭開始。",
+  "results.iterateFromHere": "調整並重新執行",
   "results.exportCsv": "匯出 CSV",
 
   // Conversation log
@@ -1528,6 +1536,10 @@ const ko: Dict = {
   "results.fullPeriod": "전체 기간",
   "results.refineHint": "클릭하면 조정 적용 · 더블클릭하면 적용 후 다시 실행.",
   "results.editConfig": "설정 편집",
+  "results.belowBenchmarkTitle": "솔직한 평가: 이번 실행은 벤치마크를 밑돌았습니다",
+  "results.belowBenchmarkBody":
+    "이 기간 동안 선택한 목표에서 {benchmark}를 이긴 시도가 하나도 없습니다. 이는 도구의 문제가 아니라 실제 결과입니다 — 처음부터 다시 시작할 필요 없이 이번 실행에서 계속 반복할 수 있습니다: 팩터, 제약, 유니버스 또는 목표를 조정한 뒤 다시 실행하세요.",
+  "results.iterateFromHere": "조정 후 다시 실행",
   "results.exportCsv": "CSV 내보내기",
 
   // Conversation log

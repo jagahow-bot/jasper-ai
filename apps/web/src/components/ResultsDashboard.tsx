@@ -58,7 +58,10 @@ import {
   resolveHorizonMetrics,
   resolveOutOfSampleMetrics,
 } from "@/lib/performance-compare-chart";
-import { buildCompareEffectKey } from "@/lib/compare-summary";
+import {
+  buildCompareEffectKey,
+  computeAllCandidatesBelowBenchmark,
+} from "@/lib/compare-summary";
 import { fetchCandidateCharts } from "@/lib/api";
 import {
   candidateHasDeepAnalytics,
@@ -90,6 +93,13 @@ const METRIC_FILLS = {
   sharpe: "#60a5fa",
   sortino: "#a78bfa",
 } as const;
+
+/**
+ * Guarantee the negative half of the performance-compare axes stays visible
+ * (≥12% of the span) whenever any Sharpe / CAGR / Sortino / drawdown value is
+ * negative, so below-zero bars are never squashed against the axis edge.
+ */
+const PERFORMANCE_MIN_NEGATIVE_RATIO = 0.12;
 
 type LeaderboardSort = "in_sample" | "out_of_sample" | "full_sample";
 
@@ -540,6 +550,7 @@ export function ResultsDashboard({
                 ? result.narrative_facts.ai_champion_model_code
                 : championModelKey,
             champion_rationale: championRationale?.text ?? null,
+            benchmark_metrics: benchmarkBarMetrics,
             lang,
             candidates: result.candidates.map((c) => {
               const sm = c.analytics?.sample_metrics;
@@ -603,6 +614,29 @@ export function ResultsDashboard({
       | undefined;
     return spec?.benchmark_metrics ?? null;
   }, [result.narrative_facts.backtest_spec]);
+
+  const allBelowBenchmark = useMemo(
+    () =>
+      computeAllCandidatesBelowBenchmark({
+        benchmark_metrics: benchmarkBarMetrics,
+        objective: String(result.narrative_facts.objective ?? request.objective),
+        candidates: result.candidates.map((c) => ({
+          rank: c.rank,
+          sharpe: c.sharpe,
+          cagr: c.cagr,
+          max_drawdown: c.max_drawdown,
+          horizons: c.analytics?.sample_metrics?.full_sample
+            ? { full_sample: c.analytics.sample_metrics.full_sample }
+            : undefined,
+        })),
+      }),
+    [
+      benchmarkBarMetrics,
+      result.candidates,
+      result.narrative_facts.objective,
+      request.objective,
+    ],
+  );
 
   const dynamicObjectiveChart = useMemo(() => {
     // Show the regime / allocator-objective overlay whenever regime-adaptive
@@ -709,8 +743,8 @@ export function ResultsDashboard({
     const leftVals = candidateCompare.flatMap((r) => [r.cagr_pct, r.mdd_pct]);
     const rightVals = candidateCompare.flatMap((r) => [r.sharpe, r.sortino]);
     const [left, right] = alignDualAxisZeroDomains(
-      extentWithZero(leftVals),
-      extentWithZero(rightVals),
+      extentWithZero(leftVals, PERFORMANCE_MIN_NEGATIVE_RATIO),
+      extentWithZero(rightVals, PERFORMANCE_MIN_NEGATIVE_RATIO),
     );
     return [left, capDomainMax(right, tightMaxFromValues(rightVals))];
   }, [candidateCompare]);
@@ -2026,6 +2060,26 @@ export function ResultsDashboard({
       </ChartCard>
       </ReportGroup>
 
+
+      {allBelowBenchmark ? (
+        <div className="pixel-panel border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)]">
+          <p className="ui-section-title mb-1 text-[var(--amber)]">
+            {t("results.belowBenchmarkTitle")}
+          </p>
+          <p className="ui-body text-[#cbd5e1]">
+            {t("results.belowBenchmarkBody", { benchmark: benchTicker })}
+          </p>
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={onRerun}
+              className="pixel-btn pixel-btn-amber"
+            >
+              {t("results.iterateFromHere")}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="pixel-panel">
         <QuickRefinements
