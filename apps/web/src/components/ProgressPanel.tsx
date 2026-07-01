@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
+import { translateProgress } from "@/lib/progress-i18n";
 import type { JobProgress, PortfolioVsBenchmark } from "@/lib/types";
 
 type Props = {
@@ -54,7 +55,7 @@ export function ProgressPanel({ progress }: Props) {
       </div>
 
       <p className="font-terminal text-lg text-[var(--foreground)]">
-        {progress.message}
+        {translateProgress(progress.message, t)}
       </p>
 
       {hasTrials && (

@@ -27,6 +27,7 @@ import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
 import { getUniverseMeta } from "@/lib/universe";
 import { useI18n } from "@/lib/i18n";
+import { translateProgress } from "@/lib/progress-i18n";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -106,6 +107,19 @@ export default function HomePage() {
   useEffect(() => {
     void checkApiHealth().then(setApiOnline);
   }, []);
+
+  // Keep the initial welcome line in the active language. The messages state is
+  // seeded once (before the stored locale loads), so re-localize it whenever the
+  // language changes while it's still the untouched welcome message.
+  useEffect(() => {
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === "welcome"
+          ? { ...msg, content: t("chat.welcome", { count: universeMeta.count }) }
+          : msg,
+      ),
+    );
+  }, [lang, t, universeMeta.count]);
 
   const presentResult = useCallback(
     async (id: string, res: BacktestResult, req: BacktestRequest) => {
@@ -195,7 +209,7 @@ export default function HomePage() {
         if (round > lastRoundRef.current) {
           lastRoundRef.current = round;
           if (round > 1) {
-            pushMessage(setMessages, "assistant", prog.message);
+            pushMessage(setMessages, "assistant", translateProgress(prog.message, t));
           }
         }
       }
@@ -217,7 +231,7 @@ export default function HomePage() {
       }
       return false;
     },
-    [presentResult, request],
+    [presentResult, request, t],
   );
 
   const loadHistoricalJob = useCallback(

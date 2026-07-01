@@ -215,6 +215,61 @@ const en: Dict = {
   "live.trial": "Strategy {n}/{total}",
   "live.recentActivity": "Recent activity",
 
+  // Live progress messages (localized on the client from backend templates)
+  "progress.msg.queued": "Backtest job queued…",
+  "progress.msg.queuedPro": "Pro optimization job queued…",
+  "progress.msg.fetching": "Fetching market data, starting optimization…",
+  "progress.msg.fetchingPro": "Pro: fetching data, starting iterative search…",
+  "progress.msg.complete": "Backtest complete",
+  "progress.msg.completePro": "Pro optimization complete",
+  "progress.msg.loaded":
+    "Loaded {tickers} tickers, {rows} trading days. Each rebalance shortlists the strongest holdings, then sizes positions.",
+  "progress.msg.loadedRegimeSuffix":
+    " Regime-adaptive: allocator preset is set per rebalance.",
+  "progress.msg.proHoldout":
+    "Pro: strategies are ranked on the optimization period; the holdout is used for final checks…",
+  "progress.msg.proLoop": "Pro: running challenger rounds (AI learns from history)…",
+  "progress.msg.startingAi": "Starting AI — planning strategy seeds for {trials} strategies…",
+  "progress.msg.aiDone": "AI done: {used} seed sets for {trials} strategies — starting backtests…",
+  "progress.msg.aiDoneCapped":
+    "AI done: {used} seed sets for {trials} strategies (AI capped at {cap}; extra strategies are search-only) — starting backtests…",
+  "progress.msg.aiOff": "AI off ({err}) — falling back to automatic search…",
+  "progress.msg.optuna": "Strategy {trial}/{total} ({scope})",
+  "progress.msg.optunaBest": "Strategy {trial}/{total} ({scope}), best {label} {value}",
+  "progress.msg.searchDone":
+    "Search done ({feasible} feasible) — packaging top {top} for the report…",
+  "progress.msg.packaging": "Packaging report: {inner}",
+  "progress.msg.roundReport": "Round {round} report: {inner}",
+  "progress.msg.proRound": "Round {round}/{max}: {carry}, preparing {n} challengers…",
+  "progress.msg.roundOptuna": "Round {round} · strategy {trial}/{total} ({scope})",
+  "progress.msg.roundOptunaBest":
+    "Round {round} · strategy {trial}/{total} ({scope}), round best {label} {value}",
+  "progress.msg.roundAiLearning":
+    "Round {round}: AI learning from {n} weaker challengers, target score {score}…",
+  "progress.msg.roundDone":
+    "Round {round} done: round best {best}, leader {champ} (no-gain streak {streak}/{patience})",
+  "progress.msg.roundDoneAlphaSuffix":
+    " · in-sample alpha vs {benchmark} {alpha} (below benchmark)",
+  "progress.msg.pkgFromCache": "Packaging {code} {label} from search cache ({rank}/{total})…",
+  "progress.msg.pkgMetricsOnly": "Packaging {code} metrics only ({rank}/{total})…",
+  "progress.msg.pkgNoCache":
+    "Packaging {code} ({rank}/{total}): no cache — running backtests for charts…",
+  "progress.msg.pkgIsOos":
+    "Packaging {code} ({rank}/{total}): one full-period backtest for weights…",
+  "progress.msg.pkgIncomplete":
+    "Packaging {code} ({rank}/{total}): cache incomplete ({missing}) — running backtests…",
+  "progress.msg.pkgTop": "top {top} of {feasible} pool strategies…",
+  "progress.msg.scope.inSample": "in-sample",
+  "progress.msg.scope.fullWindow": "full window",
+  "progress.label.sharpe": "Sharpe",
+  "progress.label.cagr": "CAGR",
+  "progress.label.maxdd": "max drawdown",
+  "progress.label.sortino": "Sortino",
+  "progress.label.cvar": "CVaR",
+  "progress.label.vol": "vol",
+  "progress.label.comprehensive": "composite",
+  "progress.label.metric": "metric",
+
   "customScenario.title": "Your market view",
   "customScenario.description":
     "Describe your macro, sector, or risk outlook, and Jasper turns it into a strategy you can backtest.",
@@ -843,6 +898,56 @@ const zh: Dict = {
   "live.trial": "策略 {n}/{total}",
   "live.recentActivity": "近期動態",
 
+  // Live progress messages (localized on the client from backend templates)
+  "progress.msg.queued": "回測作業已排入佇列…",
+  "progress.msg.queuedPro": "Pro 最佳化作業已排入佇列…",
+  "progress.msg.fetching": "正在擷取市場資料，開始最佳化…",
+  "progress.msg.fetchingPro": "Pro：正在擷取資料，開始迭代搜尋…",
+  "progress.msg.complete": "回測完成",
+  "progress.msg.completePro": "Pro 最佳化完成",
+  "progress.msg.loaded":
+    "已載入 {tickers} 檔標的、{rows} 個交易日。每次再平衡會挑出最強的持股，再分配部位權重。",
+  "progress.msg.loadedRegimeSuffix": " 隨市場狀態調整：每次再平衡設定配置器預設。",
+  "progress.msg.proHoldout": "Pro：策略以最佳化期間排名；保留資料用於最終驗證…",
+  "progress.msg.proLoop": "Pro：執行挑戰者輪次（AI 從歷史學習）…",
+  "progress.msg.startingAi": "正在啟動 AI — 為 {trials} 種策略規劃初始參數…",
+  "progress.msg.aiDone": "AI 完成：{trials} 種策略的 {used} 組初始參數 — 開始回測…",
+  "progress.msg.aiDoneCapped":
+    "AI 完成：{trials} 種策略的 {used} 組初始參數（AI 上限 {cap}；其餘策略僅用搜尋）— 開始回測…",
+  "progress.msg.aiOff": "AI 關閉（{err}）— 改用自動搜尋…",
+  "progress.msg.optuna": "策略 {trial}/{total}（{scope}）",
+  "progress.msg.optunaBest": "策略 {trial}/{total}（{scope}），目前最佳 {label} {value}",
+  "progress.msg.searchDone": "搜尋完成（{feasible} 個可行）— 正在為報告打包前 {top} 名…",
+  "progress.msg.packaging": "正在打包報告：{inner}",
+  "progress.msg.roundReport": "第 {round} 輪報告：{inner}",
+  "progress.msg.proRound": "第 {round}/{max} 輪：{carry}，準備 {n} 位挑戰者…",
+  "progress.msg.roundOptuna": "第 {round} 輪 · 策略 {trial}/{total}（{scope}）",
+  "progress.msg.roundOptunaBest":
+    "第 {round} 輪 · 策略 {trial}/{total}（{scope}），本輪最佳 {label} {value}",
+  "progress.msg.roundAiLearning":
+    "第 {round} 輪：AI 從 {n} 位較弱的挑戰者學習，目標分數 {score}…",
+  "progress.msg.roundDone":
+    "第 {round} 輪完成：本輪最佳 {best}，領先者 {champ}（無進步輪數 {streak}/{patience}）",
+  "progress.msg.roundDoneAlphaSuffix":
+    " · 樣本內 Alpha 相對 {benchmark} {alpha}（低於基準）",
+  "progress.msg.pkgFromCache": "正在打包 {code} {label}，取自搜尋快取（{rank}/{total}）…",
+  "progress.msg.pkgMetricsOnly": "正在打包 {code}（僅指標）（{rank}/{total}）…",
+  "progress.msg.pkgNoCache": "正在打包 {code}（{rank}/{total}）：無快取 — 為圖表執行回測…",
+  "progress.msg.pkgIsOos": "正在打包 {code}（{rank}/{total}）：以完整期間回測一次以取得權重…",
+  "progress.msg.pkgIncomplete":
+    "正在打包 {code}（{rank}/{total}）：快取不完整（{missing}）— 執行回測…",
+  "progress.msg.pkgTop": "資料池中前 {top}／{feasible} 個策略…",
+  "progress.msg.scope.inSample": "樣本內",
+  "progress.msg.scope.fullWindow": "完整期間",
+  "progress.label.sharpe": "夏普",
+  "progress.label.cagr": "年化報酬",
+  "progress.label.maxdd": "最大回撤",
+  "progress.label.sortino": "索提諾",
+  "progress.label.cvar": "CVaR",
+  "progress.label.vol": "波動度",
+  "progress.label.comprehensive": "綜合分數",
+  "progress.label.metric": "指標",
+
   "customScenario.title": "你的市場觀點",
   "customScenario.description":
     "描述你對總體經濟、產業或風險的看法，Jasper 會把它轉化為可回測的策略。",
@@ -1463,6 +1568,56 @@ const ko: Dict = {
   "live.working": "실행 중…",
   "live.trial": "전략 {n}/{total}",
   "live.recentActivity": "최근 활동",
+
+  // Live progress messages (localized on the client from backend templates)
+  "progress.msg.queued": "백테스트 작업이 대기열에 추가되었습니다…",
+  "progress.msg.queuedPro": "Pro 최적화 작업이 대기열에 추가되었습니다…",
+  "progress.msg.fetching": "시장 데이터를 가져오는 중, 최적화를 시작합니다…",
+  "progress.msg.fetchingPro": "Pro: 데이터를 가져오는 중, 반복 탐색을 시작합니다…",
+  "progress.msg.complete": "백테스트 완료",
+  "progress.msg.completePro": "Pro 최적화 완료",
+  "progress.msg.loaded":
+    "티커 {tickers}개, 거래일 {rows}일을 불러왔습니다. 리밸런싱마다 가장 강한 종목을 추린 뒤 비중을 배분합니다.",
+  "progress.msg.loadedRegimeSuffix": " 국면 적응형: 리밸런싱마다 배분기 프리셋을 설정합니다.",
+  "progress.msg.proHoldout": "Pro: 전략은 최적화 기간으로 순위가 매겨지며, 홀드아웃은 최종 검증에 사용됩니다…",
+  "progress.msg.proLoop": "Pro: 도전자 라운드 실행 중(AI가 기록에서 학습)…",
+  "progress.msg.startingAi": "AI 시작 — 전략 {trials}개의 초기 매개변수를 계획하는 중…",
+  "progress.msg.aiDone": "AI 완료: 전략 {trials}개를 위한 시드 세트 {used}개 — 백테스트 시작…",
+  "progress.msg.aiDoneCapped":
+    "AI 완료: 전략 {trials}개를 위한 시드 세트 {used}개(AI 상한 {cap}; 나머지 전략은 탐색만) — 백테스트 시작…",
+  "progress.msg.aiOff": "AI 꺼짐({err}) — 자동 탐색으로 대체…",
+  "progress.msg.optuna": "전략 {trial}/{total}({scope})",
+  "progress.msg.optunaBest": "전략 {trial}/{total}({scope}), 현재 최고 {label} {value}",
+  "progress.msg.searchDone": "탐색 완료(실현 가능 {feasible}개) — 보고서용 상위 {top}개 패키징 중…",
+  "progress.msg.packaging": "보고서 패키징 중: {inner}",
+  "progress.msg.roundReport": "{round}라운드 보고서: {inner}",
+  "progress.msg.proRound": "{round}/{max}라운드: {carry}, 도전자 {n}명 준비 중…",
+  "progress.msg.roundOptuna": "{round}라운드 · 전략 {trial}/{total}({scope})",
+  "progress.msg.roundOptunaBest":
+    "{round}라운드 · 전략 {trial}/{total}({scope}), 이번 라운드 최고 {label} {value}",
+  "progress.msg.roundAiLearning":
+    "{round}라운드: AI가 더 약한 도전자 {n}명에게서 학습, 목표 점수 {score}…",
+  "progress.msg.roundDone":
+    "{round}라운드 완료: 이번 라운드 최고 {best}, 선두 {champ}(무개선 라운드 {streak}/{patience})",
+  "progress.msg.roundDoneAlphaSuffix":
+    " · 인샘플 알파 vs {benchmark} {alpha}(벤치마크 미달)",
+  "progress.msg.pkgFromCache": "{code} {label} 패키징 중, 탐색 캐시에서({rank}/{total})…",
+  "progress.msg.pkgMetricsOnly": "{code} 지표만 패키징 중({rank}/{total})…",
+  "progress.msg.pkgNoCache": "{code} 패키징 중({rank}/{total}): 캐시 없음 — 차트용 백테스트 실행…",
+  "progress.msg.pkgIsOos": "{code} 패키징 중({rank}/{total}): 비중을 위해 전체 기간 백테스트 1회…",
+  "progress.msg.pkgIncomplete":
+    "{code} 패키징 중({rank}/{total}): 캐시 불완전({missing}) — 백테스트 실행…",
+  "progress.msg.pkgTop": "풀에서 상위 {top}/{feasible}개 전략…",
+  "progress.msg.scope.inSample": "인샘플",
+  "progress.msg.scope.fullWindow": "전체 구간",
+  "progress.label.sharpe": "샤프",
+  "progress.label.cagr": "CAGR",
+  "progress.label.maxdd": "최대 낙폭",
+  "progress.label.sortino": "소르티노",
+  "progress.label.cvar": "CVaR",
+  "progress.label.vol": "변동성",
+  "progress.label.comprehensive": "종합",
+  "progress.label.metric": "지표",
 
   "customScenario.title": "나의 시장 관점",
   "customScenario.description":

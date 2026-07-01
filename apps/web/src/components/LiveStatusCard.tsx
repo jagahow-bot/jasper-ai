@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
+import { translateProgress } from "@/lib/progress-i18n";
 import type { JobProgress } from "@/lib/types";
 
 type Props = {
@@ -48,7 +49,7 @@ export function LiveStatusCard({ progress, feed }: Props) {
       </div>
 
       <p className="mt-2 font-terminal text-base leading-snug text-[var(--foreground)]">
-        {progress.message || t("live.working")}
+        {progress.message ? translateProgress(progress.message, t) : t("live.working")}
       </p>
 
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-terminal text-xs text-dim">
@@ -79,16 +80,19 @@ export function LiveStatusCard({ progress, feed }: Props) {
             {t("live.recentActivity")}
           </p>
           <ul className="space-y-1">
-            {feed.slice(1, 5).map((line, i) => (
-              <li
-                key={`${i}-${line}`}
-                className="truncate font-terminal text-xs text-[var(--text-dim)]"
-                title={line}
-              >
-                <span className="text-[var(--neon-dim)]">· </span>
-                {line}
-              </li>
-            ))}
+            {feed.slice(1, 5).map((line, i) => {
+              const localized = translateProgress(line, t);
+              return (
+                <li
+                  key={`${i}-${line}`}
+                  className="truncate font-terminal text-xs text-[var(--text-dim)]"
+                  title={localized}
+                >
+                  <span className="text-[var(--neon-dim)]">· </span>
+                  {localized}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
