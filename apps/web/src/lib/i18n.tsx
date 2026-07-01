@@ -402,6 +402,12 @@ const en: Dict = {
   "results.comprehensiveScore": "composite score",
   "results.proChampionScoreFormula":
     "0.45×Sharpe + 0.25×Sortino + 0.20×(5×CAGR) − 0.35×|max drawdown| − 0.10×turnover.",
+  "results.dynamicScoreTitle": "Dynamic composite score — this is the ranking metric",
+  "results.dynamicScoreExplain":
+    "In dynamic mode, strategies aren't ranked by Sharpe or return alone. They are ranked by one composite score that blends risk-adjusted return, growth, drawdown and trading cost. That's why the champion (★) can win overall without topping any single column below.",
+  "results.championWhyTitle": "Why ★ {code} is the champion",
+  "results.leaderboardDynamicNote":
+    "Values are the dynamic composite score for each period (higher is better). The champion (★) is chosen by AI on the In-Sample composite plus out-of-sample robustness, so it may not lead any single column.",
   "results.selectTrialHint": "Select a strategy above to see its performance and holdings.",
   "results.efficientFrontierHint":
     "Blue dots are strategies Jasper tried; orange dots are the top picks shown in your report.",
@@ -972,6 +978,12 @@ const zh: Dict = {
   "results.comprehensiveScore": "綜合分數",
   "results.proChampionScoreFormula":
     "0.45×夏普 + 0.25×索提諾 + 0.20×(5×年化報酬) − 0.35×|最大回撤| − 0.10×換手率。",
+  "results.dynamicScoreTitle": "動態綜合分數 —— 這就是排名依據",
+  "results.dynamicScoreExplain":
+    "在動態模式下，策略不是只看夏普或報酬來排名，而是用一個綜合分數排名，該分數同時衡量風險調整後報酬、成長、回撤與交易成本。因此冠軍（★）可能整體勝出，卻不一定在下方任一欄位都最高。",
+  "results.championWhyTitle": "為什麼 ★ {code} 是冠軍",
+  "results.leaderboardDynamicNote":
+    "數值為各期間的動態綜合分數（越高越好）。冠軍（★）由 AI 依樣本內綜合分數與樣本外穩健度挑選，因此不一定在單一欄位領先。",
   "results.selectTrialHint": "選取上方的策略以查看其績效與持股。",
   "results.efficientFrontierHint":
     "藍點是 Jasper 嘗試過的策略；橘點是報告中列出的精選策略。",
@@ -1535,6 +1547,12 @@ const ko: Dict = {
   "results.comprehensiveScore": "종합 점수",
   "results.proChampionScoreFormula":
     "0.45×샤프 + 0.25×소르티노 + 0.20×(5×CAGR) − 0.35×|최대 낙폭| − 0.10×회전율.",
+  "results.dynamicScoreTitle": "동적 종합 점수 — 이것이 순위 기준입니다",
+  "results.dynamicScoreExplain":
+    "동적 모드에서는 샤프나 수익률만으로 순위를 매기지 않습니다. 위험조정수익, 성장, 낙폭, 거래비용을 결합한 하나의 종합 점수로 순위를 매깁니다. 그래서 챔피언(★)은 아래의 어떤 단일 열에서도 1위가 아니면서 전체적으로 이길 수 있습니다.",
+  "results.championWhyTitle": "★ {code}가 챔피언인 이유",
+  "results.leaderboardDynamicNote":
+    "값은 각 기간의 동적 종합 점수입니다(높을수록 좋음). 챔피언(★)은 인샘플 종합 점수와 아웃오브샘플 견고성을 바탕으로 AI가 선택하므로 단일 열에서 선두가 아닐 수 있습니다.",
   "results.selectTrialHint": "위에서 전략을 선택하면 성과와 보유 종목을 볼 수 있습니다.",
   "results.efficientFrontierHint":
     "파란 점은 Jasper가 시도한 전략이고, 주황 점은 보고서에 표시된 추천 전략입니다.",

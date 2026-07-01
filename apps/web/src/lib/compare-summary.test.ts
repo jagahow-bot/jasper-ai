@@ -153,6 +153,51 @@ M0010 Sharpe:
     expect(payload.candidates[0]?.model_code).toBe("M0007");
   });
 
+  it("carries champion_rationale into slim payload and prompt", () => {
+    const rationale =
+      "Chosen for the strongest in-sample composite with the smallest in/out gap, not the single highest Sharpe.";
+    const slim = slimComparePayload({
+      benchmark: "VT",
+      objective: "dynamic",
+      objective_label: "Dynamic",
+      champion_model_code: "M0014",
+      champion_rationale: rationale,
+      candidates: [
+        { model_code: "M0007", rank: 1, sharpe: 1.5 },
+        { model_code: "M0014", rank: 4, sharpe: 1.2, is_champion: true },
+      ],
+    });
+    expect(slim.champion_rationale).toBe(rationale);
+    const system = buildCompareSystemPrompt();
+    expect(system).toContain("champion_rationale");
+    const user = buildCompareUserPrompt(slim);
+    expect(user).toContain("Champion rationale to explain");
+    expect(user).toContain(rationale);
+  });
+
+  it("buildCompareFallback includes champion_rationale when provided", () => {
+    const rationale = "Selected for robustness across the holdout, not peak in-sample Sharpe.";
+    const text = buildCompareFallback({
+      benchmark: "VT",
+      objective_label: "Dynamic",
+      champion_model_code: "M0014",
+      champion_rationale: rationale,
+      candidates: [
+        {
+          model_code: "M0014",
+          rank: 4,
+          sharpe: 0.55,
+          cagr: 0.14,
+          max_drawdown: -0.3,
+          is_champion: true,
+          horizons: { full_sample: { sharpe: 0.55, cagr: 0.14, max_drawdown: -0.3 } },
+        },
+        { model_code: "M0007", rank: 1, sharpe: 0.6, cagr: 0.16 },
+      ],
+    });
+    expect(text).toContain(rationale);
+  });
+
   it("buildCompareFallback focuses AI pick when pro champion differs", () => {
     const text = buildCompareFallback({
       benchmark: "VT",

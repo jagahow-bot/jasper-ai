@@ -37,6 +37,8 @@ export type CompareSummaryPayload = {
   objective?: string;
   objective_label?: string;
   champion_model_code?: string | null;
+  /** Server-side reason the champion (★) was selected (AI round-champion rationale). */
+  champion_rationale?: string | null;
   /** Pro in-sample ★ in slim payload; same as champion_model_code when set. */
   pro_in_sample_champion?: string | null;
   /** When set (e.g. from Gemini compare), overrides Pro ★ for UI alignment. */
@@ -295,6 +297,7 @@ ${AI_METRIC_FORMAT_RULES}
 - Root sharpe/cagr are selection-view metrics; use horizons.full_sample for full-period performance.
 - candidates are sorted by objective rank (best first); rank is the score order, not catalog model number.
 - pro_in_sample_champion (if present) is the API-designated champion (★) — reference it; do NOT override or re-pick a champion.
+- champion_rationale (if present) is the server's reason for choosing the champion (★). Explain that reasoning in plain language and say how the champion compares to the top-ranked alternatives; the champion may not top any single metric because it is chosen for the composite score plus robustness.
 - Write narrative comparison prose only; do NOT select or recommend a different champion model.
 - Open with a balanced cross-trial overview; mention pro_in_sample_champion when relevant.
 - Return ONLY valid JSON (no markdown): {"summary":"2-3 paragraphs of prose, no bullets or metric dumps"}
@@ -307,11 +310,14 @@ export function buildCompareUserPrompt(slim: CompareSummaryPayload): string {
     proRef && proRef !== "none"
       ? `Pro in-sample ★ (reference only, do not open with this): ${proRef}.`
       : "";
+  const rationaleNote = slim.champion_rationale?.trim()
+    ? `Champion rationale to explain (why ${proRef ?? "the champion"} was selected): ${slim.champion_rationale.trim()}`
+    : "";
   return (
     `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
     `${slim.candidate_count_total ?? slim.candidates.length} trials by objective rank. ` +
     `Narrative comparison only — champion is already chosen server-side. ` +
-    `${proNote} ` +
+    `${proNote} ${rationaleNote} ` +
     `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`
   );
 }
@@ -361,10 +367,13 @@ export function slimComparePayload(
   const horizonMode = options?.horizonMode ?? "all";
   const sorted = sortCandidatesByRank(payload.candidates);
   const proChampion = payload.champion_model_code?.trim().toUpperCase() ?? null;
+  const rationale = payload.champion_rationale?.trim();
   return {
     benchmark: payload.benchmark,
     objective: payload.objective,
     objective_label: payload.objective_label,
+    champion_model_code: proChampion,
+    champion_rationale: rationale ? rationale.slice(0, 600) : null,
     pro_in_sample_champion: proChampion,
     candidate_count_total: sorted.length,
     candidates: sorted
@@ -443,6 +452,10 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
         `Pro in-sample selection (★) is ${proCode} (objective rank ${pro.rank ?? "—"}).`,
       );
     }
+  }
+  const rationale = payload.champion_rationale?.trim();
+  if (rationale) {
+    p2Parts.push(`Why ${focusCode} was selected: ${rationale}`);
   }
   const peers = sorted.filter(
     (c) => candidateModelKey(c) !== candidateModelKey(focus),

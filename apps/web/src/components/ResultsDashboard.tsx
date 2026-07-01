@@ -257,6 +257,32 @@ export function ResultsDashboard({
     return idx >= 0 ? result.candidates[idx] : result.candidates[0];
   }, [result.candidates, championNarrativeFacts]);
 
+  const isDynamicObjective =
+    request.objective === "dynamic" ||
+    result.narrative_facts.objective === "dynamic" ||
+    result.narrative_facts.dynamic_objective_enabled === true;
+
+  const championRationale = useMemo(() => {
+    const pr = result.narrative_facts.pro_refinement as
+      | {
+          per_round?: {
+            ai_champion_model_code?: string | null;
+            ai_champion_rationale?: string | null;
+          }[];
+        }
+      | null
+      | undefined;
+    const rounds = pr?.per_round ?? [];
+    for (let i = rounds.length - 1; i >= 0; i--) {
+      const row = rounds[i];
+      const text = (row?.ai_champion_rationale ?? "").trim();
+      if (row?.ai_champion_model_code && text) {
+        return { code: String(row.ai_champion_model_code), text };
+      }
+    }
+    return null;
+  }, [result.narrative_facts.pro_refinement]);
+
   const selectedModelCode = selected?.model_code ?? "";
   const selectedHasFullCharts = useMemo(
     () => candidateHasFullCharts(selected),
@@ -507,6 +533,7 @@ export function ResultsDashboard({
               typeof result.narrative_facts.champion_model_code === "string"
                 ? result.narrative_facts.champion_model_code
                 : championModelKey,
+            champion_rationale: championRationale?.text ?? null,
             candidates: result.candidates.map((c) => {
               const sm = c.analytics?.sample_metrics;
               return {
@@ -1080,6 +1107,29 @@ export function ResultsDashboard({
             </div>
           </div>
         )}
+        {isDynamicObjective && (
+          <div className="mt-3 border-2 border-[var(--border)] bg-[#050508] px-3 py-2 text-xs">
+            <p className="font-pixel text-[8px] text-[var(--amber)]">
+              {t("results.dynamicScoreTitle")}
+            </p>
+            <p className="mt-1 text-dim leading-relaxed">
+              {t("results.dynamicScoreExplain")}
+            </p>
+            <p className="mt-1 text-[10px] text-dim">
+              <code className="text-[10px]">{t("results.proChampionScoreFormula")}</code>
+            </p>
+          </div>
+        )}
+        {championRationale && (
+          <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2 text-xs">
+            <p className="font-pixel text-[8px] text-[var(--amber)]">
+              {t("results.championWhyTitle", { code: championRationale.code })}
+            </p>
+            <p className="mt-1 leading-relaxed text-[#cbd5e1]">
+              {championRationale.text}
+            </p>
+          </div>
+        )}
         <p className="mt-4 text-xs text-dim">{t("results.fullPeriod")}</p>
         <div className="mt-2 grid grid-cols-3 gap-3 text-center">
           <Metric label={t("common.sharpe")} value={displayMetrics.sharpe} />
@@ -1194,6 +1244,11 @@ export function ResultsDashboard({
                 </select>
               </label>
             </div>
+            {isDynamicObjective ? (
+              <p className="mb-2 text-[10px] text-dim leading-relaxed">
+                {t("results.leaderboardDynamicNote")}
+              </p>
+            ) : null}
             <table className="w-full text-left text-xs">
               <thead className="text-dim">
                 <tr>
