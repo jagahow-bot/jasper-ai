@@ -36,6 +36,26 @@ def test_enforce_class_weight_budget_respects_sleeve_targets() -> None:
     assert abs(totals["equity"] - 0.3) < 0.02
 
 
+def test_enforce_class_weight_budget_preserves_relative_weights_within_class() -> None:
+    """Sleeve targets are met without equalizing names inside each class."""
+    universe = _universe()
+    tickers = list(universe.keys())
+    # EQ1:EQ2 = 2:1; BD1:BD2:BD3 = 3:2:1 within each sleeve
+    w = np.array([0.40, 0.20, 0.30, 0.20, 0.10])
+    budget = {"bond": 0.6, "equity": 0.4}
+    out = enforce_class_weight_budget(w, tickers, universe, budget)
+    totals = class_sleeve_totals(out, tickers, universe)
+    assert abs(totals["bond"] - 0.6) < 0.02
+    assert abs(totals["equity"] - 0.4) < 0.02
+    eq_ratio = out[0] / out[1]
+    assert abs(eq_ratio - 2.0) < 0.05
+    bond_slice = out[2:5]
+    assert abs(bond_slice[0] / bond_slice[1] - 1.5) < 0.05
+    assert abs(bond_slice[0] / bond_slice[2] - 3.0) < 0.05
+    # Not equal weight across the whole book (would be 0.2 each for 5 names).
+    assert float(out.max() - out.min()) > 0.05
+
+
 def test_simulate_dynamic_enforces_class_budget_when_enabled() -> None:
     universe = _universe()
     tickers = list(universe.keys())

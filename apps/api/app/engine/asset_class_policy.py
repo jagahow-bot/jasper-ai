@@ -134,8 +134,12 @@ def enforce_class_weight_budget(
         for ac, target in active_targets.items():
             indices = class_indices[ac]
             sleeve_target = target * scale
-            # Equal split within the active class sleeve (hard target, not allocator tilt).
-            projected[indices] = sleeve_target / len(indices)
+            slice_w = np.maximum(weights[indices], 0.0)
+            slice_sum = float(slice_w.sum())
+            if slice_sum > 1e-12:
+                projected[indices] = slice_w * (sleeve_target / slice_sum)
+            else:
+                projected[indices] = sleeve_target / len(indices)
         total = float(projected.sum())
         if total > 1e-12:
             projected /= total
