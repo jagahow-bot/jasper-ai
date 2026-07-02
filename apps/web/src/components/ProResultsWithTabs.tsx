@@ -153,13 +153,13 @@ function RoundBenchmarkBanner({
       className="mb-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.12)] p-3"
       role="status"
     >
-      <p className="font-pixel text-[9px] text-[var(--amber)]">
+      <p className="ui-section-title text-[var(--amber)]">
         {t("pro.banner.title")}
       </p>
-      <p className="mt-1 font-pixel text-[8px] leading-relaxed text-[var(--fg)]">
+      <p className="ui-body mt-1 text-[var(--fg)]">
         {t("pro.banner.body", { benchmark: benchmarkTicker })}
       </p>
-      <p className="mt-2 font-pixel text-[8px] text-[var(--muted)]">
+      <p className="ui-body mt-2 text-[var(--muted)]">
         {t("pro.banner.stats", {
           portfolio: formatPct(portRet),
           benchmark: formatPct(benchRet),
@@ -209,14 +209,14 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
     <div className="mt-3 grid gap-3 border border-[var(--border)] bg-[rgba(0,0,0,0.15)] p-3 md:grid-cols-2">
       {round.regime_matrix_enabled && regimeEntries.length ? (
         <div className="md:col-span-2">
-          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
+          <p className="ui-section-title mb-1 text-[var(--amber)]">
             {t("pro.seed.regimeMatrix")}
           </p>
           <div className="grid gap-2 sm:grid-cols-3">
             {regimeEntries.map(([regime, slice]) => (
               <div key={regime} className="border border-[var(--border)] p-2">
-                <p className="mb-1 font-pixel text-[8px] text-[var(--fg)]">{regime}</p>
-                <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
+                <p className="ui-body mb-1 text-[var(--fg)]">{regime}</p>
+                <ul className="ui-body space-y-0.5 text-[var(--muted)]">
                   {Object.entries(slice as Record<string, unknown>).map(([k, v]) => (
                     <li key={k}>
                       <span className="text-[var(--fg)]">{formatParamLabel(k, t)}:</span>{" "}
@@ -232,14 +232,14 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       {round.regime_class_quota_matrix_enabled &&
       Object.keys(regimeQuotas).length > 0 ? (
         <div className="md:col-span-2">
-          <p className="mb-1 font-pixel text-[8px] text-[var(--cyan)]">
+          <p className="ui-section-title mb-1 text-[var(--cyan)]">
             {t("pro.seed.regimeQuotas")}
           </p>
           <div className="grid gap-2 sm:grid-cols-3">
             {Object.entries(regimeQuotas).map(([regime, slice]) => (
               <div key={regime} className="border border-[var(--border)] p-2">
-                <p className="mb-1 font-pixel text-[8px] text-[var(--fg)]">{regime}</p>
-                <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
+                <p className="ui-body mb-1 text-[var(--fg)]">{regime}</p>
+                <ul className="ui-body space-y-0.5 text-[var(--muted)]">
                   {Object.entries(slice as Record<string, number>).map(([k, v]) => (
                     <li key={k}>
                       <span className="text-[var(--fg)]">{formatParamLabel(k, t)}:</span>{" "}
@@ -255,27 +255,27 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       {assessment ? (
         <div className={`md:col-span-2 border p-2 ${assessmentTone}`}>
           <p
-            className={`mb-1 font-pixel text-[8px] ${
+            className={`ui-section-title mb-1 ${
               benchStatus === "below" ? "text-[var(--amber)]" : "text-[var(--fg)]"
             }`}
           >
             {t("pro.seed.assessment")}
           </p>
-          <p className="font-pixel text-[8px] leading-relaxed">{assessment}</p>
+          <p className="ui-body">{assessment}</p>
         </div>
       ) : null}
       {strategy ? (
         <div className="md:col-span-2">
-          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">{t("pro.seed.strategy")}</p>
-          <p className="font-pixel text-[8px] leading-relaxed text-[var(--muted)]">{strategy}</p>
+          <p className="ui-section-title mb-1 text-[var(--amber)]">{t("pro.seed.strategy")}</p>
+          <p className="ui-body text-[var(--muted)]">{strategy}</p>
         </div>
       ) : null}
       {setupEntries.length ? (
         <div>
-          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">
+          <p className="ui-section-title mb-1 text-[var(--amber)]">
             {t("pro.seed.roundSetup")}
           </p>
-          <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
+          <ul className="ui-body space-y-0.5 text-[var(--muted)]">
             {setupEntries.map(([k, v]) => (
               <li key={k}>
                 <span className="text-[var(--fg)]">{formatParamLabel(k, t)}:</span> {String(v)}
@@ -286,8 +286,8 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
       ) : null}
       {rangeEntries.length || choiceEntries.length ? (
         <div>
-          <p className="mb-1 font-pixel text-[8px] text-[var(--amber)]">{t("pro.seed.factorSearch")}</p>
-          <ul className="space-y-0.5 font-pixel text-[8px] text-[var(--muted)]">
+          <p className="ui-section-title mb-1 text-[var(--amber)]">{t("pro.seed.factorSearch")}</p>
+          <ul className="ui-body space-y-0.5 text-[var(--muted)]">
             {rangeEntries.map(([k, v]) => (
               <li key={k}>
                 <span className="text-[var(--fg)]">{formatParamLabel(k, t)}:</span> [{v[0]}, {v[1]}]
@@ -349,7 +349,7 @@ export function ProResultsWithTabs(props: Props) {
           (code) => code && code !== incomingCode && code !== winnerCode,
         );
     return (
-      <ul className="mt-2 space-y-1 font-pixel text-[8px] text-[var(--muted)]">
+      <ul className="ui-body mt-2 space-y-1 text-[var(--muted)]">
         {incomingCode ? (
           <li>
             <span className="text-[var(--amber)]">{roleLabel.incoming_champion}:</span>{" "}
@@ -398,7 +398,7 @@ export function ProResultsWithTabs(props: Props) {
   return (
     <div className="space-y-4">
       <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] p-3">
-        <p className="mb-2 font-pixel text-[8px] text-[var(--amber)]">
+        <p className="ui-body mb-2 text-[var(--amber)]">
           {t("pro.tabsHint")}
         </p>
         <div className="flex flex-wrap gap-2">

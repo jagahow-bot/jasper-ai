@@ -83,7 +83,7 @@ import {
   chartTooltipFontSize,
 } from "@/lib/benchmark-chart-scale";
 import { getUniverseItems } from "@/lib/universe";
-import { regimeLabel, useI18n } from "@/lib/i18n";
+import { rebalanceFreqLabel, regimeLabel, useI18n } from "@/lib/i18n";
 
 const CHAMPION_STROKE = "#ffb000";
 const BENCHMARK_FILL = "#ffb000";
@@ -1018,7 +1018,7 @@ export function ResultsDashboard({
             ? t("results.warning.sampleData")
             : t("results.warning.unrealistic")}
           {dq?.rows != null && (
-            <span className="mt-1 block text-xs opacity-80">
+            <span className="ui-body mt-1 block opacity-80">
               {t("results.dataRange", {
                 start: String(dq.start ?? "—"),
                 end: String(dq.end ?? "—"),
@@ -1043,7 +1043,7 @@ export function ResultsDashboard({
         </div>
       )}
       {dq?.warning && (
-        <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-4 py-2 text-xs text-[var(--amber)]">
+        <div className="ui-body border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-4 py-2 text-[var(--amber)]">
           {dq.warning}
         </div>
       )}
@@ -1058,19 +1058,30 @@ export function ResultsDashboard({
           <>
             <span className="text-[var(--amber)]">{t("results.proRefinement")}</span>
             {" · "}
-            {proRefinement?.rounds_completed ?? "—"} {t("results.rounds")} · {trialsRequested} {t("results.trials")} · {t("results.earlyStop")}{" "}
-            {proRefinement?.stopped_reason === "patience" ? t("common.yes") : t("common.no")}
+            {t("results.meta.rounds", {
+              rounds: proRefinement?.rounds_completed ?? "—",
+              trials: trialsRequested,
+            })}
+            {" · "}
+            {proRefinement?.stopped_reason === "patience"
+              ? t("results.meta.convergedEarly")
+              : t("results.meta.fullSearch")}
           </>
         ) : (
-          <>{t("results.parameterSearch")} · {trialsRequested} {t("results.trials")}</>
+          <>{t("results.meta.search", { trials: trialsRequested })}</>
         )}
-        {" · "}{t("results.feasible")} {trialsFeasible} · {t("results.reported")} {modelsReturned}
+        {" · "}
+        {t("results.meta.reported", { feasible: trialsFeasible, reported: modelsReturned })}
         {modelsTotalCatalog > modelsReturned && (
-          <span className="text-[var(--amber)]"> ({t("results.catalog")} {modelsTotalCatalog})</span>
+          <span className="text-[var(--amber)]"> {t("results.meta.catalog", { catalog: modelsTotalCatalog })}</span>
         )}
         <span>
-          {" "}
-          · {t("results.rebalance")} {rebalanceFreq} ({rebalanceApplied}/{rebalanceCount} {t("results.applied")})
+          {" · "}
+          {t("results.meta.rebalance", {
+            freq: rebalanceFreqLabel(t, rebalanceFreq),
+            applied: rebalanceApplied,
+            count: rebalanceCount,
+          })}
         </span>
       </div>
 
@@ -1081,16 +1092,16 @@ export function ResultsDashboard({
       >
       <div className="pixel-panel">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-pixel text-xs text-neon glow-title">{t("results.title")}</h3>
-          <span className="pixel-badge-cyan text-[10px]">
+          <h3 className="ui-panel-title text-neon glow-title">{t("results.title")}</h3>
+          <span className="pixel-badge-cyan">
             {sortByModelCode ? t("results.orderByModel") : `${t("results.sort")}: ${objectiveLabel}`}
           </span>
-          <label className="flex items-center gap-2 text-xs text-dim">
+          <label className="ui-body flex items-center gap-2 text-dim">
             {t("results.model")}
             <select
               value={selectedChartKey}
               onChange={(e) => setSelectedRowKey(e.target.value)}
-              className="pixel-input py-1 text-xs"
+              className="pixel-input ui-body py-1"
             >
               {modelSelectOptions.map(({ c, i }) => (
                 <option
@@ -1105,19 +1116,19 @@ export function ResultsDashboard({
           </label>
         </div>
         {narrative ? (
-          <div className="mt-3 border-2 border-[var(--cyan)] bg-[rgba(0,245,255,0.04)] px-4 py-3 text-sm text-dim">
-            <p className="mb-2 font-pixel text-[8px] text-[var(--cyan)]">
+          <div className="mt-3 border-2 border-[var(--cyan)] bg-[rgba(0,245,255,0.04)] px-4 py-3 text-dim">
+            <p className="ui-section-title mb-2 text-[var(--cyan)]">
               {t("results.fullNarrative")}
             </p>
-            <p className="whitespace-pre-wrap leading-relaxed text-[#cbd5e1]">
+            <p className="ui-body whitespace-pre-wrap text-[#cbd5e1]">
               {narrativePrefix ? `${narrativePrefix}\n\n` : ""}
               {narrative}
             </p>
           </div>
         ) : null}
         {sampleMetrics?.in_sample && (
-          <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2 text-xs">
-            <p className="font-pixel text-[8px] text-[var(--amber)]">
+          <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2">
+            <p className="ui-section-title text-[var(--amber)]">
               {t("results.rankedOnInSample")} ({Math.round((sampleMetrics.train_ratio ?? 0.7) * 100)}%)
               {sampleMetrics.train_start && sampleMetrics.train_end
                 ? ` · ${sampleMetrics.train_start} → ${sampleMetrics.train_end}`
@@ -1164,29 +1175,29 @@ export function ResultsDashboard({
           </div>
         )}
         {isDynamicObjective && (
-          <div className="mt-3 border-2 border-[var(--border)] bg-[#050508] px-3 py-2 text-xs">
-            <p className="font-pixel text-[8px] text-[var(--amber)]">
+          <div className="mt-3 border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
+            <p className="ui-section-title text-[var(--amber)]">
               {t("results.dynamicScoreTitle")}
             </p>
-            <p className="mt-1 text-dim leading-relaxed">
+            <p className="ui-body mt-1 text-dim">
               {t("results.dynamicScoreExplain")}
             </p>
-            <p className="mt-1 text-[10px] text-dim">
-              <code className="text-[10px]">{t("results.proChampionScoreFormula")}</code>
+            <p className="ui-hint mt-1">
+              <code className="ui-hint">{t("results.proChampionScoreFormula")}</code>
             </p>
           </div>
         )}
         {championRationale && (
-          <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2 text-xs">
-            <p className="font-pixel text-[8px] text-[var(--amber)]">
+          <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2">
+            <p className="ui-section-title text-[var(--amber)]">
               {t("results.championWhyTitle", { code: championRationale.code })}
             </p>
-            <p className="mt-1 leading-relaxed text-[#cbd5e1]">
+            <p className="ui-body mt-1 text-[#cbd5e1]">
               {championRationale.text}
             </p>
           </div>
         )}
-        <p className="mt-4 text-xs text-dim">{t("results.fullPeriod")}</p>
+        <p className="ui-hint mt-4">{t("results.fullPeriod")}</p>
         <div className="mt-2 grid grid-cols-3 gap-3 text-center">
           <Metric label={t("common.sharpe")} value={displayMetrics.sharpe} />
           <Metric
@@ -1221,14 +1232,14 @@ export function ResultsDashboard({
         )}
         {showHorizonCompare && inSampleMetrics && outOfSampleMetrics ? (
           <div className="mt-4 border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
-            <p className="font-pixel text-[8px] text-[var(--cyan)]">
+            <p className="ui-section-title text-[var(--cyan)]">
               {t("results.horizonCompareTitle")}
             </p>
-            <p className="mt-1 text-xs text-dim">
+            <p className="ui-hint mt-1">
               {t("results.horizonMetricsHint")}
             </p>
             <div className="mt-2 overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left ui-body">
                 <thead className="text-dim">
                   <tr>
                     <th className="pb-1">{t("results.metric")}</th>
@@ -1271,7 +1282,7 @@ export function ResultsDashboard({
             {sampleMetrics?.gap &&
             (sampleMetrics.gap.sharpe != null ||
               sampleMetrics.gap.objective != null) ? (
-              <p className="mt-2 text-xs text-dim">
+              <p className="ui-hint mt-2">
                 {t("results.gapObjectiveSharpe")}{" "}
                 {sampleMetrics.gap.objective?.toFixed(4) ?? "—"}, {t("common.sharpe")}{" "}
                 {sampleMetrics.gap.sharpe?.toFixed(4) ?? "—"} ({t("results.positiveInSampleStronger")}).
@@ -1282,17 +1293,17 @@ export function ResultsDashboard({
         {holdoutLeaderboard.length > 0 && (
           <div className="mt-3 overflow-x-auto">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-dim">
+              <p className="ui-section-title text-[var(--cyan)]">
                 {t("results.championLeaderboard")}
               </p>
-              <label className="flex items-center gap-2 text-xs text-dim">
+              <label className="ui-body flex items-center gap-2 text-dim">
                 {t("results.sortTableBy")}
                 <select
                   value={leaderboardSort}
                   onChange={(e) =>
                     setLeaderboardSort(e.target.value as LeaderboardSort)
                   }
-                  className="pixel-input py-0.5 text-xs"
+                  className="pixel-input ui-body py-0.5"
                 >
                   <option value="in_sample">{t("results.inSampleSelection")}</option>
                   <option value="out_of_sample">{t("common.outOfSample")}</option>
@@ -1301,11 +1312,11 @@ export function ResultsDashboard({
               </label>
             </div>
             {isDynamicObjective ? (
-              <p className="mb-2 text-[10px] text-dim leading-relaxed">
+              <p className="ui-hint mb-2">
                 {t("results.leaderboardDynamicNote")}
               </p>
             ) : null}
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left ui-body">
               <thead className="text-dim">
                 <tr>
                   <th className="pb-1">{t("results.model")}</th>
@@ -1367,7 +1378,7 @@ export function ResultsDashboard({
             </table>
           </div>
         )}
-        <p className="mt-3 text-xs text-dim">
+        <p className="ui-hint mt-3">
           {t("results.engine")} {String(result.narrative_facts.engine ?? "—")} · {t("results.holdings")}{" "}
           {String(result.narrative_facts.top_holdings_count ?? activeHoldingsCount)}
           ({t("results.cap")}{" "}
@@ -1389,7 +1400,7 @@ export function ResultsDashboard({
           {result.narrative_facts.oos_enabled ? ` · ${t("results.selectionHint")}` : ""}
         </p>
         {weightCapViolation ? (
-          <p className="mt-2 border-2 border-[#ff2bd6] bg-[rgba(255,43,214,0.08)] px-2 py-1 text-xs text-[#ff9ae8]">
+          <p className="ui-body mt-2 border-2 border-[#ff2bd6] bg-[rgba(255,43,214,0.08)] px-2 py-1 text-[#ff9ae8]">
             {t("results.weightCapBreach")}{" "}
             {(
               Number(
@@ -1440,7 +1451,7 @@ export function ResultsDashboard({
           ) : compareSummary ? (
             <div className="ui-body space-y-2">
               {compareRetryNote ? (
-                <p className="text-[10px] text-amber-400/90">{compareRetryNote}</p>
+                <p className="ui-hint text-amber-400/90">{compareRetryNote}</p>
               ) : null}
               {compareSummary
                 .split(/\n\s*\n+/)
@@ -1536,7 +1547,7 @@ export function ResultsDashboard({
                   ))}
                   {championModelKey ? (
                     <li className="flex items-center gap-1 text-[var(--amber)]">
-                      <span className="font-pixel text-[10px]">★ {t("results.champion")}</span>
+                      <span className="font-pixel text-[0.72rem]">★ {t("results.champion")}</span>
                     </li>
                   ) : null}
                 </ul>
@@ -1654,7 +1665,7 @@ export function ResultsDashboard({
         {dynamicObjectiveChart &&
         (result.narrative_facts.dynamic_objectives_used as string[] | undefined)
           ?.length ? (
-          <p className="mt-3 text-xs text-dim">
+          <p className="ui-hint mt-3">
             {t("results.dynamicObjectives")}:{" "}
             {(result.narrative_facts.dynamic_objectives_used as string[]).join(", ")}
             {" "}
@@ -1671,7 +1682,7 @@ export function ResultsDashboard({
       >
       <ChartCard title={t("results.chart.trajectoryHoldings")}>
         {chartsLoading ? (
-          <p className="mb-3 flex items-center gap-2 text-xs text-dim">
+          <p className="ui-hint mb-3 flex items-center gap-2">
             <span
               className="inline-block h-3 w-3 animate-spin rounded-full border border-[var(--amber)] border-t-transparent"
               aria-hidden
@@ -1680,17 +1691,17 @@ export function ResultsDashboard({
           </p>
         ) : null}
         {chartsLoadError && !chartsReady ? (
-          <p className="mb-3 text-xs text-red-400">{chartsLoadError}</p>
+          <p className="ui-hint mb-3 text-red-400">{chartsLoadError}</p>
         ) : null}
         {dynamicObjectiveChart ? (
-          <p className="mb-3 text-xs text-dim">
+          <p className="ui-hint mb-3">
             {t("results.walkForwardHint")}
             {isDynamicObjective ? (
               <>
                 {" "}
                 {t("results.proChampionScorePrefix")}{" "}
                 <span className="text-[var(--amber)]">{t("results.comprehensiveScore")}</span> (
-                <code className="text-[10px]">objective_value_is</code>
+                <code className="ui-hint">objective_value_is</code>
                 ) — {t("results.proChampionScoreFormula")}
               </>
             ) : null}
@@ -1707,7 +1718,7 @@ export function ResultsDashboard({
             regimeTimeline={dynamicObjectiveChart?.timeline}
           />
         ) : chartsLoading ? null : (
-          <p className="text-xs text-dim">
+          <p className="ui-hint">
             {t("results.selectTrialHint")}
           </p>
         )}
@@ -1773,7 +1784,7 @@ export function ResultsDashboard({
         subtitle={t("report.group.strategyHint")}
       >
       <ChartCard title={t("results.chart.efficientFrontier")}>
-        <p className="mb-2 text-xs text-dim">
+        <p className="ui-hint mb-2">
           {t("results.efficientFrontierHint")}
         </p>
         <ResponsiveContainer width="100%" height={260}>
@@ -1835,7 +1846,7 @@ export function ResultsDashboard({
                     className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2"
                     style={{ fontSize: chartTip }}
                   >
-                    <div className="mb-1 text-[10px] uppercase tracking-wide text-dim">
+                    <div className="ui-hint mb-1 uppercase tracking-wide">
                       {seriesLabel}
                     </div>
                     <div
@@ -1881,7 +1892,7 @@ export function ResultsDashboard({
 
       <ChartCard title={t("results.chart.aiClassQuotas")}>
         {assetClassFilter?.length ? (
-          <p className="mb-2 text-xs text-dim">
+          <p className="ui-hint mb-2">
             {t("results.universeFilter")}: {assetClassFilter.map(quotaLabel).join(", ")} — {t("results.universeFilterHint")}
           </p>
         ) : null}
@@ -1892,7 +1903,7 @@ export function ResultsDashboard({
                 key={regime}
                 type="button"
                 onClick={() => setQuotaRegimeTab(regime)}
-                className={`px-2 py-1 font-pixel text-[8px] border ${
+                className={`px-2 py-1 font-pixel text-[0.72rem] border ${
                   quotaRegimeTab === regime
                     ? "border-[var(--cyan)] text-[var(--cyan)]"
                     : "border-[var(--border)] text-dim"
@@ -1906,7 +1917,7 @@ export function ResultsDashboard({
         ) : null}
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
-            <p className="mb-2 text-xs text-dim">
+            <p className="ui-hint mb-2">
               {regimeQuotaMatrix
                 ? t("results.targetNamesRegime", { regime: regimeLabel(t, quotaRegimeTab) })
                 : t("results.targetNamesAi")}
@@ -1922,11 +1933,11 @@ export function ResultsDashboard({
             </ResponsiveContainer>
           </div>
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
-            <p className="mb-2 text-xs text-dim">{t("results.actualClassWeights")}</p>
+            <p className="ui-hint mb-2">{t("results.actualClassWeights")}</p>
             {usingChampionAnalyticsFallback &&
             (!top.analytics?.exposure?.by_asset_class ||
               Object.keys(top.analytics.exposure.by_asset_class).length === 0) ? (
-              <p className="mb-2 text-[10px] text-dim">
+              <p className="ui-hint mb-2">
                 {t("results.classBreakdownChampion")}
               </p>
             ) : null}
@@ -1949,7 +1960,7 @@ export function ResultsDashboard({
           top.analytics?.factor_summary?.factor_contribution &&
           Object.keys(top.analytics.factor_summary.factor_contribution).length > 0
         ) ? (
-          <p className="mb-2 text-xs text-dim">
+          <p className="ui-hint mb-2">
             {t("results.factorAttributionChampion")}
           </p>
         ) : null}
@@ -2020,14 +2031,14 @@ export function ResultsDashboard({
             open
             className="mb-3 border-2 border-[var(--border)] bg-[#050508] px-3 py-2"
           >
-            <summary className="cursor-pointer text-xs text-[var(--amber)] hover:text-neon">
+            <summary className="ui-body cursor-pointer text-[var(--amber)] hover:text-neon">
               {t("results.aiParameterRationale")}
             </summary>
-            <div className="mt-2 max-h-72 space-y-3 overflow-y-auto text-xs leading-relaxed text-slate-300">
+            <div className="ui-body mt-2 max-h-72 space-y-3 overflow-y-auto text-slate-300">
               {aiRationalesByRound?.length ? (
                 aiRationalesByRound.map((text, i) => (
                   <div key={i}>
-                    <p className="mb-1 font-pixel text-[8px] text-dim">
+                    <p className="ui-section-title mb-1 text-dim">
                       {aiRationalesByRound.length > 1 ? `${t("results.round")} ${i + 1}` : t("results.generation")}
                     </p>
                     <p className="whitespace-pre-wrap">{text}</p>
@@ -2039,13 +2050,13 @@ export function ResultsDashboard({
             </div>
           </details>
         ) : (
-          <p className="mb-3 text-xs text-dim">{t("results.noAiRationale")}</p>
+          <p className="ui-hint mb-3">{t("results.noAiRationale")}</p>
         )}
         <details className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
-          <summary className="cursor-pointer text-xs text-dim hover:text-[var(--cyan)]">
+          <summary className="ui-body cursor-pointer text-dim hover:text-[var(--cyan)]">
             {t("results.fullRunConfig")}
           </summary>
-          <pre className="mt-2 max-h-[28rem] overflow-auto whitespace-pre-wrap text-xs text-[var(--cyan)]">
+          <pre className="ui-body mt-2 max-h-[28rem] overflow-auto whitespace-pre-wrap text-[var(--cyan)]">
             {JSON.stringify(
               {
                 request,
@@ -2087,7 +2098,7 @@ export function ResultsDashboard({
           onApply={(next, label) => onQuickTweak(next, label ?? t("results.manualAdjustment"))}
           onApplyAndRun={onQuickTweakAndRun}
         />
-        <p className="mt-2 text-xs text-dim">{t("results.refineHint")}</p>
+        <p className="ui-hint mt-2">{t("results.refineHint")}</p>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -2099,7 +2110,7 @@ export function ResultsDashboard({
         </button>
       </div>
 
-      <p className="text-xs text-dim">
+      <p className="ui-hint">
         {t("results.disclaimer")}{" "}
         {String(result.narrative_facts.data_source ?? t("common.unknown"))}.
       </p>
@@ -2153,7 +2164,7 @@ function Metric({
         : value.toFixed(3);
   return (
     <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
-      <div className="text-xs text-dim">{label}</div>
+      <div className="ui-body text-dim">{label}</div>
       <div className="font-terminal text-xl text-neon">{text}</div>
     </div>
   );
@@ -2203,7 +2214,7 @@ function ReportGroup({
     <section className="space-y-5 border-l-4 border-[var(--border)] pl-3 sm:pl-4">
       <header className="border-b-2 border-[var(--border)] bg-[rgba(0,245,255,0.03)] px-3 py-2">
         <div className="flex items-baseline gap-3">
-          <span className="font-pixel text-[10px] text-[var(--amber)]">
+          <span className="font-pixel text-[0.72rem] text-[var(--amber)]">
             {String(index).padStart(2, "0")}
           </span>
           <h3 className="ui-panel-title text-neon glow-title">{title}</h3>

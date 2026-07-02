@@ -210,29 +210,29 @@ body::after {
    */
   .ui-panel-title {
     @apply font-pixel uppercase tracking-wider;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
   }
 
   .ui-section-title {
     @apply font-pixel uppercase tracking-wider;
-    font-size: 0.66rem;
+    font-size: 0.75rem;
     color: var(--cyan);
   }
 
   .ui-body {
     @apply font-terminal leading-relaxed;
-    font-size: 0.85rem;
+    font-size: 0.92rem;
   }
 
   .ui-hint {
     @apply font-terminal leading-relaxed;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     color: var(--text-dim);
   }
 
   .ui-chart-label {
     @apply font-terminal;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
   }
 
   .glow-title {

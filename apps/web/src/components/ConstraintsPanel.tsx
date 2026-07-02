@@ -5,6 +5,7 @@ import { AssetClassFilter } from "@/components/AssetClassFilter";
 import { ProOptimizationPanel } from "@/components/ProOptimizationPanel";
 import { QuickRefinements } from "@/components/QuickRefinements";
 import {
+  ALLOCATOR_LABELS,
   OBJECTIVE_LABELS,
   SUB_ASSET_CLASS_KEYS,
   SUB_ASSET_CLASS_LABELS,
@@ -15,8 +16,16 @@ import {
   FACTOR_INDICATOR_SPECS,
   formatIndicatorOption,
 } from "@/lib/factor-indicators";
-import { useI18n } from "@/lib/i18n";
+import { rebalanceFreqLabel, useI18n, type TFn } from "@/lib/i18n";
 import type { BacktestRequest, Objective, ParamControl } from "@/lib/types";
+
+/** Human-readable label for a categorical parameter option code. */
+function formatCategoricalOption(key: string, op: string, t: TFn): string {
+  if (key === "objective_mode") return OBJECTIVE_LABELS[op] ?? op;
+  if (key === "rebalance_freq") return rebalanceFreqLabel(t, op);
+  if (key === "allocator_mode") return ALLOCATOR_LABELS[op] ?? op;
+  return op;
+}
 
 type Props = {
   value: BacktestRequest;
@@ -127,7 +136,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
   return (
     <div className="pixel-panel space-y-5">
       <div>
-        <h3 className="font-pixel text-xs text-neon glow-title">{t("config.title")}</h3>
+        <h3 className="ui-panel-title text-neon glow-title">{t("config.title")}</h3>
         <p className="mt-2 text-sm text-dim">{t("config.subtitle")}</p>
       </div>
 
@@ -143,7 +152,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           })
         }
       />
-      <p className="text-xs text-dim">{t("config.assetClassSyncHint")}</p>
+      <p className="ui-hint">{t("config.assetClassSyncHint")}</p>
 
       <QuickRefinements
         request={value}
@@ -185,7 +194,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           }
           className="w-full"
         />
-        <p className="text-xs text-dim">{t("config.minWeightHint")}</p>
+        <p className="ui-hint">{t("config.minWeightHint")}</p>
       </label>
 
       <label className="block space-y-2">
@@ -203,10 +212,10 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           }
           className="w-full"
         />
-        <p className="text-xs text-dim">{t("config.maxTurnoverHint")}</p>
+        <p className="ui-hint">{t("config.maxTurnoverHint")}</p>
       </label>
 
-      <p className="text-xs text-dim">{t("config.limitsHint")}</p>
+      <p className="ui-hint">{t("config.limitsHint")}</p>
 
       <label className="block space-y-2">
         <span className="text-sm">
@@ -223,7 +232,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           }
           className="w-full"
         />
-        <p className="text-xs text-dim">{t("config.maxHoldingsHint")}</p>
+        <p className="ui-hint">{t("config.maxHoldingsHint")}</p>
       </label>
 
       <label className="block space-y-2">
@@ -237,7 +246,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           onChange={(e) => onChange({ ...value, top_n: Number(e.target.value) })}
           className="w-full"
         />
-        <p className="text-xs text-dim">{t("config.topNHint")}</p>
+        <p className="ui-hint">{t("config.topNHint")}</p>
       </label>
 
       <label className="block space-y-2">
@@ -277,7 +286,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
               </option>
             ))}
         </select>
-        <p className="text-xs text-dim">
+        <p className="ui-hint">
           {value.objective === "dynamic"
             ? t("config.objectiveHint.dynamic")
             : t("config.objectiveHint.default")}
@@ -292,7 +301,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
             placeholder={t("config.customObjectivePlaceholder")}
             className="pixel-input min-h-20"
           />
-          <p className="text-xs text-dim">{t("config.customObjectiveHint")}</p>
+          <p className="ui-hint">{t("config.customObjectiveHint")}</p>
         </label>
       )}
 
@@ -309,7 +318,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           />
           {t("config.regimeAdaptive")}
         </label>
-        <p className="text-xs text-dim">
+        <p className="ui-hint">
           {dynamicObjective
             ? t("config.regimeAdaptiveHint.dynamic")
             : Boolean(value.regime_adaptive)
@@ -327,7 +336,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
             onChange={(e) => onChange({ ...value, start_date: e.target.value })}
             className="pixel-input"
           />
-          <p className="text-xs text-dim">{t("config.startHint")}</p>
+          <p className="ui-hint">{t("config.startHint")}</p>
         </label>
         <label className="block space-y-2">
           <span className="text-sm">{t("config.end")}</span>
@@ -356,7 +365,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           }
           className="w-full"
         />
-        <p className="text-xs text-dim">
+        <p className="ui-hint">
           {isPro
             ? t("config.trialsHint.pro")
             : t("config.trialsHint.standard")}
@@ -452,18 +461,18 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
         </select>
       </label>
 
-      <div className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2 text-xs text-dim">
+      <div className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2 ui-hint">
         {t("config.benchmarkLine")}
       </div>
       <details className="border-2 border-[var(--border)] bg-[#050508] p-3">
-        <summary className="cursor-pointer font-pixel text-[8px] text-[var(--cyan)]">
+        <summary className="ui-section-title cursor-pointer text-[var(--cyan)]">
           {t("config.advanced.title")}
         </summary>
-        <p className="mt-2 text-xs text-dim">
+        <p className="mt-2 ui-hint">
           {t("config.advanced.maxWeightNote", { pct: Math.round(runMaxWeight * 100) })}
         </p>
         <div className="mt-3 space-y-2 border-b border-[var(--border)] pb-3">
-          <p className="text-xs text-dim">{t("config.advanced.categorical")}</p>
+          <p className="ui-hint">{t("config.advanced.categorical")}</p>
           {categoricalSpecs.map((s) => {
             const runLevelFixed =
               s.key === "objective_mode" || s.key === "rebalance_freq";
@@ -499,7 +508,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
                 >
                   {s.options.map((op) => (
                     <option key={op} value={op}>
-                      {op}
+                      {formatCategoricalOption(s.key, op, t)}
                     </option>
                   ))}
                 </select>
@@ -508,7 +517,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           })}
         </div>
         <div className="mt-3 space-y-2 border-b border-[var(--border)] pb-3">
-          <p className="text-xs text-dim">{t("config.advanced.factorIndicators")}</p>
+          <p className="ui-hint">{t("config.advanced.factorIndicators")}</p>
           {FACTOR_INDICATOR_SPECS.map((s) => {
             const c =
               controls[s.key] ??
@@ -527,7 +536,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
               >
                 <div>
                   <div>{s.label}</div>
-                  <div className="mt-0.5 text-[10px] text-dim">{s.hint}</div>
+                  <div className="ui-hint mt-0.5">{s.hint}</div>
                 </div>
                 <select
                   value={c.mode}
@@ -652,7 +661,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           placeholder={t("config.notifyEmailPlaceholder")}
           className="pixel-input"
         />
-        <p className="text-xs text-dim">{t("config.notifyEmailHint")}</p>
+        <p className="ui-hint">{t("config.notifyEmailHint")}</p>
       </label>
 
       <button
@@ -668,7 +677,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
         {isPro ? t("config.runPro") : t("config.runStandard")}
       </button>
       {offline ? (
-        <p className="text-xs text-[var(--amber)]">{t("config.runOfflineHint")}</p>
+        <p className="ui-hint text-[var(--amber)]">{t("config.runOfflineHint")}</p>
       ) : null}
     </div>
   );

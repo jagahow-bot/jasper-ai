@@ -34,7 +34,7 @@ export function ProgressPanel({ progress }: Props) {
   return (
     <div className="pixel-panel space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 font-pixel text-xs text-neon glow-title">
+        <h3 className="ui-panel-title flex items-center gap-2 text-neon glow-title">
           {isRunning && <span className="live-dot" aria-hidden />}
           {t("progress.running")}
         </h3>
@@ -69,13 +69,13 @@ export function ProgressPanel({ progress }: Props) {
           className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.12)] p-3"
           role="status"
         >
-          <p className="font-pixel text-[9px] text-[var(--amber)]">
+          <p className="ui-section-title text-[var(--amber)]">
             {t("progress.roundUnderperformed")}
           </p>
-          <p className="mt-1 font-pixel text-[8px] leading-relaxed text-[var(--fg)]">
+          <p className="ui-body mt-1 text-[var(--fg)]">
             {t("progress.roundUnderperformedHint")}
           </p>
-          <p className="mt-2 font-pixel text-[8px] text-[var(--muted)]">
+          <p className="ui-body mt-2 text-[var(--muted)]">
             {t("progress.portfolioReturn")} {formatPct(pvb?.portfolio_total_return_pct)} · {t("progress.benchmark")}{" "}
             {formatPct(pvb?.benchmark_total_return_pct)} · {t("common.alpha")}{" "}
             {formatAlpha(progress.round_benchmark_alpha ?? pvb?.alpha)}

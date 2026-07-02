@@ -28,7 +28,7 @@ export function LiveStatusCard({ progress, feed }: Props) {
   return (
     <div className="mb-3 shrink-0 border-2 border-[var(--cyan)] bg-[rgba(0,245,255,0.05)] p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 font-pixel text-[9px] text-[var(--cyan)]">
+        <span className="ui-section-title flex items-center gap-2 text-[var(--cyan)]">
           {isRunning && <span className="live-dot" aria-hidden />}
           {t("live.badge")}
         </span>
@@ -52,7 +52,7 @@ export function LiveStatusCard({ progress, feed }: Props) {
         {progress.message ? translateProgress(progress.message, t) : t("live.working")}
       </p>
 
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 font-terminal text-xs text-dim">
+      <div className="ui-body mt-2 flex flex-wrap gap-x-3 gap-y-1 text-dim">
         {progress.refinement_round != null && progress.refinement_round > 0 && (
           <span>
             {t("progress.round")} {progress.refinement_round}/
@@ -76,7 +76,7 @@ export function LiveStatusCard({ progress, feed }: Props) {
 
       {feed.length > 1 && (
         <div className="mt-3 border-t border-[var(--border)] pt-2">
-          <p className="mb-1 font-pixel text-[8px] text-[var(--text-dim)]">
+          <p className="ui-section-title mb-1 text-[var(--text-dim)]">
             {t("live.recentActivity")}
           </p>
           <ul className="space-y-1">
@@ -85,7 +85,7 @@ export function LiveStatusCard({ progress, feed }: Props) {
               return (
                 <li
                   key={`${i}-${line}`}
-                  className="truncate font-terminal text-xs text-[var(--text-dim)]"
+                  className="ui-body truncate text-[var(--text-dim)]"
                   title={localized}
                 >
                   <span className="text-[var(--neon-dim)]">· </span>
