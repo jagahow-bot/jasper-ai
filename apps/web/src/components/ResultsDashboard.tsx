@@ -1013,7 +1013,7 @@ export function ResultsDashboard({
   return (
     <div className="space-y-5">
       {!trustworthy && (
-        <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-4 py-3 text-sm text-[var(--amber)]">
+        <div className="ui-body border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-4 py-3 text-[var(--amber)]">
           {dataSource !== "yfinance"
             ? t("results.warning.sampleData")
             : t("results.warning.unrealistic")}
@@ -1048,12 +1048,12 @@ export function ResultsDashboard({
         </div>
       )}
       {result.narrative_facts.is_round_view === true && (
-        <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-4 py-2 text-sm text-[var(--amber)]">
+        <div className="ui-body border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-4 py-2 text-[var(--amber)]">
           {t("results.viewing")}: {String(result.narrative_facts.round_label ?? t("results.round"))}
           {result.narrative_facts.improved === true && ` · ${t("results.newRoundBest")}`}
         </div>
       )}
-      <div className="border-2 border-[var(--border)] bg-[#050508] px-4 py-2 font-terminal text-sm text-dim">
+      <div className="ui-hint border-2 border-[var(--border)] bg-[#050508] px-4 py-2">
         {optimizationMode === "pro_auto" && !result.narrative_facts.is_round_view ? (
           <>
             <span className="text-[var(--amber)]">{t("results.proRefinement")}</span>
@@ -1138,7 +1138,7 @@ export function ResultsDashboard({
                     ? ` · ${trainPeriod.start} → ${trainPeriod.end}`
                     : ""}
             </p>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-center font-terminal text-sm sm:grid-cols-4">
+            <div className="mt-2 grid grid-cols-2 gap-2 text-center ui-body sm:grid-cols-4">
               <div>
                 <div className="text-dim">
                   {t("common.inSample")} {sampleMetrics.objective_label ?? objectiveLabel}
@@ -1732,7 +1732,7 @@ export function ResultsDashboard({
       >
       <ChartCard title={t("results.chart.latestAllocation")}>
         {Object.keys(top.weights ?? {}).length === 0 ? (
-          <p className="text-sm text-dim">
+          <p className="ui-body text-dim">
             {t("results.summaryOnlyModel")}
           </p>
         ) : (
@@ -1750,7 +1750,7 @@ export function ResultsDashboard({
               </ResponsiveContainer>
             </div>
             <div className="max-h-60 overflow-y-auto border-2 border-[var(--border)] bg-[#050508] p-3">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left ui-body">
                 <thead className="text-dim">
                   <tr>
                     <th className="pb-2">{t("common.date")}</th>

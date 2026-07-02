@@ -5,25 +5,30 @@ import { AssetClassFilter } from "@/components/AssetClassFilter";
 import { ProOptimizationPanel } from "@/components/ProOptimizationPanel";
 import { QuickRefinements } from "@/components/QuickRefinements";
 import {
-  ALLOCATOR_LABELS,
-  OBJECTIVE_LABELS,
+  OBJECTIVE_KEYS,
   SUB_ASSET_CLASS_KEYS,
   SUB_ASSET_CLASS_LABELS,
   SUB_ASSET_PARAM_KEYS,
 } from "@/lib/constants";
 import { enforceAllocControlsForClasses } from "@/lib/asset-class-policy";
+import { FACTOR_INDICATOR_SPECS } from "@/lib/factor-indicators";
 import {
-  FACTOR_INDICATOR_SPECS,
-  formatIndicatorOption,
-} from "@/lib/factor-indicators";
-import { rebalanceFreqLabel, useI18n, type TFn } from "@/lib/i18n";
+  allocatorLabel,
+  factorIndicatorHint,
+  factorIndicatorLabel,
+  indicatorOptionLabel,
+  objectiveLabel,
+  rebalanceFreqLabel,
+  useI18n,
+  type TFn,
+} from "@/lib/i18n";
 import type { BacktestRequest, Objective, ParamControl } from "@/lib/types";
 
 /** Human-readable label for a categorical parameter option code. */
 function formatCategoricalOption(key: string, op: string, t: TFn): string {
-  if (key === "objective_mode") return OBJECTIVE_LABELS[op] ?? op;
+  if (key === "objective_mode") return objectiveLabel(t, op);
   if (key === "rebalance_freq") return rebalanceFreqLabel(t, op);
-  if (key === "allocator_mode") return ALLOCATOR_LABELS[op] ?? op;
+  if (key === "allocator_mode") return allocatorLabel(t, op);
   return op;
 }
 
@@ -137,7 +142,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
     <div className="pixel-panel space-y-5">
       <div>
         <h3 className="ui-panel-title text-neon glow-title">{t("config.title")}</h3>
-        <p className="mt-2 text-sm text-dim">{t("config.subtitle")}</p>
+        <p className="mt-2 ui-body text-dim">{t("config.subtitle")}</p>
       </div>
 
       <AssetClassFilter
@@ -162,7 +167,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       <ProOptimizationPanel value={value} onChange={onChange} />
 
       <label className="block space-y-2">
-        <span className="text-sm">
+        <span className="ui-label">
           {t("config.maxWeight", { pct: Math.round(value.max_weight * 100) })}
         </span>
         <input
@@ -178,7 +183,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">
+        <span className="ui-label">
           {t("config.minWeight", {
             pct: ((value.min_weight ?? 0.005) * 100).toFixed(1),
           })}
@@ -198,7 +203,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">
+        <span className="ui-label">
           {t("config.maxTurnover", { pct: Math.round(value.max_turnover * 100) })}
         </span>
         <input
@@ -218,7 +223,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       <p className="ui-hint">{t("config.limitsHint")}</p>
 
       <label className="block space-y-2">
-        <span className="text-sm">
+        <span className="ui-label">
           {t("config.maxHoldings", { n: value.max_holdings ?? 30 })}
         </span>
         <input
@@ -236,7 +241,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">{t("config.topN", { n: value.top_n })}</span>
+        <span className="ui-label">{t("config.topN", { n: value.top_n })}</span>
         <input
           type="range"
           min={10}
@@ -250,7 +255,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">{t("config.objective")}</span>
+        <span className="ui-label">{t("config.objective")}</span>
         <select
           value={value.objective}
           onChange={(e) => {
@@ -275,14 +280,14 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           }}
           className="pixel-input"
         >
-          {Object.entries(OBJECTIVE_LABELS)
+          {OBJECTIVE_KEYS
             // "dynamic" is retired from the selector — regime switching is now the
             // standalone Regime-adaptive toggle below. Kept only for legacy jobs
             // that were saved with objective=dynamic so the control still renders.
-            .filter(([k]) => k !== "dynamic" || value.objective === "dynamic")
-            .map(([k, label]) => (
+            .filter((k) => k !== "dynamic" || value.objective === "dynamic")
+            .map((k) => (
               <option key={k} value={k}>
-                {label}
+                {objectiveLabel(t, k)}
               </option>
             ))}
         </select>
@@ -294,7 +299,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       </label>
       {value.objective === "custom" && (
         <label className="block space-y-2">
-          <span className="text-sm">{t("config.customObjective")}</span>
+          <span className="ui-label">{t("config.customObjective")}</span>
           <textarea
             value={value.objective_custom_text ?? ""}
             onChange={(e) => onChange({ ...value, objective_custom_text: e.target.value })}
@@ -306,7 +311,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       )}
 
       <div className="space-y-2 border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="ui-label flex items-center gap-2">
           <input
             type="checkbox"
             checked={dynamicObjective || Boolean(value.regime_adaptive)}
@@ -329,7 +334,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-2">
-          <span className="text-sm">{t("config.start")}</span>
+          <span className="ui-label">{t("config.start")}</span>
           <input
             type="date"
             value={value.start_date}
@@ -339,7 +344,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           <p className="ui-hint">{t("config.startHint")}</p>
         </label>
         <label className="block space-y-2">
-          <span className="text-sm">{t("config.end")}</span>
+          <span className="ui-label">{t("config.end")}</span>
           <input
             type="date"
             value={value.end_date}
@@ -352,7 +357,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       <label
         className={`block space-y-2 ${isPro ? "pointer-events-none opacity-50" : ""}`}
       >
-        <span className="text-sm">{t("config.trials", { n: value.trials })}</span>
+        <span className="ui-label">{t("config.trials", { n: value.trials })}</span>
         <input
           type="range"
           min={5}
@@ -373,7 +378,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">{t("config.topModels", { n: value.top_models })}</span>
+        <span className="ui-label">{t("config.topModels", { n: value.top_models })}</span>
         <input
           type="range"
           min={1}
@@ -386,7 +391,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
         />
       </label>
 
-      <label className="flex items-center gap-2 text-sm">
+      <label className="ui-label flex items-center gap-2">
         <input
           type="checkbox"
           checked={value.enable_oos}
@@ -398,7 +403,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
 
       {value.enable_oos && (
         <label className="block space-y-2">
-          <span className="text-sm">
+          <span className="ui-label">
             {t("config.inSampleRatio", { pct: Math.round(value.train_ratio * 100) })}
           </span>
           <input
@@ -415,7 +420,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       )}
 
       <label className="block space-y-2">
-        <span className="text-sm">{t("config.fee", { bps: value.fee_bps })}</span>
+        <span className="ui-label">{t("config.fee", { bps: value.fee_bps })}</span>
         <input
           type="range"
           min={0}
@@ -429,7 +434,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       </label>
 
       <label className="block space-y-2">
-        <span className="text-sm">{t("config.rebalanceFreq")}</span>
+        <span className="ui-label">{t("config.rebalanceFreq")}</span>
         <select
           value={value.rebalance_freq}
           onChange={(e) => {
@@ -465,7 +470,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
         {t("config.benchmarkLine")}
       </div>
       <details className="border-2 border-[var(--border)] bg-[#050508] p-3">
-        <summary className="ui-section-title cursor-pointer text-[var(--cyan)]">
+        <summary className="ui-section-title cursor-pointer">
           {t("config.advanced.title")}
         </summary>
         <p className="mt-2 ui-hint">
@@ -482,8 +487,8 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
                 ? { mode: "fixed" as const, options: s.options, fixed: s.defaultFixed }
                 : { mode: "search" as const, options: s.options, fixed: s.defaultFixed });
             return (
-              <div key={s.key} className="grid grid-cols-[1fr_0.8fr_1fr] items-center gap-2 text-xs">
-                <div>{s.label}</div>
+              <div key={s.key} className="grid grid-cols-[1fr_0.8fr_1fr] items-center gap-2">
+                <div className="ui-label">{s.label}</div>
                 <select
                   value={c.mode}
                   onChange={(e) =>
@@ -493,7 +498,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
                       fixed: c.fixed ?? s.defaultFixed,
                     })
                   }
-                  className="pixel-input py-1 text-xs"
+                  className="pixel-input py-1 ui-dropdown"
                 >
                   <option value="search">{t("config.advanced.search")}</option>
                   <option value="fixed">{t("config.advanced.fixed")}</option>
@@ -504,7 +509,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
                   onChange={(e) =>
                     setControl(s.key, { fixed: e.target.value, options: [...s.options] })
                   }
-                  className="pixel-input py-1 text-xs"
+                  className="pixel-input py-1 ui-dropdown"
                 >
                   {s.options.map((op) => (
                     <option key={op} value={op}>
@@ -532,11 +537,11 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
             return (
               <div
                 key={s.key}
-                className="grid grid-cols-[1fr_0.8fr_1.2fr] items-start gap-2 text-xs"
+                className="grid grid-cols-[1fr_0.8fr_1.2fr] items-start gap-2"
               >
                 <div>
-                  <div>{s.label}</div>
-                  <div className="ui-hint mt-0.5">{s.hint}</div>
+                  <div className="ui-label">{factorIndicatorLabel(t, s.key)}</div>
+                  <div className="ui-hint mt-0.5">{factorIndicatorHint(t, s.key)}</div>
                 </div>
                 <select
                   value={c.mode}
@@ -547,7 +552,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
                       fixed: c.fixed ?? s.defaultFixed,
                     })
                   }
-                  className="pixel-input py-1 text-xs"
+                  className="pixel-input py-1 ui-dropdown"
                 >
                   <option value="search">{t("config.advanced.search")}</option>
                   <option value="fixed">{t("config.advanced.fixed")}</option>
@@ -562,7 +567,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
                         options: [...s.options],
                       })
                     }
-                    className="pixel-input py-1 text-xs"
+                    className="pixel-input py-1 ui-dropdown"
                     title={
                       c.mode === "search"
                         ? t("config.advanced.searchHint")
@@ -571,7 +576,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
                   >
                     {s.options.map((op) => (
                       <option key={op} value={op}>
-                        {formatIndicatorOption(op)}
+                        {indicatorOptionLabel(t, op)}
                       </option>
                     ))}
                   </select>
@@ -586,13 +591,13 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
             return (
               <div
                 key={s.key}
-                className={`grid items-center gap-2 text-xs ${
+                className={`grid items-center gap-2 ${
                   c.mode === "fixed"
                     ? "grid-cols-[1.3fr_0.8fr_1fr]"
                     : "grid-cols-[1.3fr_0.8fr_1fr_1fr_1fr]"
                 }`}
               >
-                <div>{s.label}</div>
+                <div className="ui-label">{s.label}</div>
                 <select
                   value={c.mode}
                   onChange={(e) => setControl(s.key, { mode: e.target.value as ParamControl["mode"] })}
@@ -649,7 +654,7 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       </details>
 
       <label className="block space-y-2">
-        <span className="text-sm">{t("config.notifyEmail")}</span>
+        <span className="ui-label">{t("config.notifyEmail")}</span>
         <input
           type="email"
           inputMode="email"

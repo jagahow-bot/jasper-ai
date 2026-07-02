@@ -16,6 +16,14 @@
   --amber: #ffb000;
   --text-dim: #5a7a5a;
   --pixel-shadow: 4px 4px 0 #000;
+
+  /* ── Typography color roles (semantic, theme-wide) ──────────────────── */
+  --ui-color-title: var(--neon); /* pixel titles / headings */
+  --ui-color-body: var(--foreground); /* default reading text */
+  --ui-color-hint: var(--text-dim); /* footnotes, help text, axis labels */
+  --ui-color-accent: var(--cyan); /* section titles, links, emphasis */
+  --ui-color-label: #a9d9a9; /* form + control field labels */
+  --ui-color-metric: var(--foreground); /* numeric metric values */
 }
 
 @layer base {
@@ -191,48 +199,102 @@ body::after {
   }
 
   /*
-   * ── Semantic typographic scale ────────────────────────────────────────
-   * All sizes are in rem so they scale with the FontSizeControl
-   * (--font-size-root, default 18px), unlike ad-hoc `text-[8px]` literals
-   * which stay fixed no matter the A− / A+ setting. Prefer these classes
-   * over hardcoded pixel sizes so every level grows/shrinks together.
-   *
-   * The hierarchy (px shown at the 18px default root):
-   *   Level 1  Page / big section titles ...... glow-title / h2..h3 (page.tsx)
-   *   Level 2  Panel & chart-card titles ....... .ui-panel-title   ~13px pixel caps
-   *            Minor caps sub-label ............ .ui-section-title ~12px pixel caps
-   *   Level 3  Body / table cells / prose ...... .ui-body          ~15px terminal
-   *   Level 4  Hints / footnotes / axis labels . .ui-hint          ~13px terminal (dim)
-   *            Dense chart / table labels ...... .ui-chart-label   ~13px terminal
-   *
-   * Level 4 is intentionally the floor: ~13px at default, never below ~11.5px
-   * even at the smallest A− step (16px root) so footnotes stay legible.
+   * ╔══════════════════════════════════════════════════════════════════════╗
+   * ║  JASPER TYPOGRAPHY SYSTEM — single source of truth                     ║
+   * ╠══════════════════════════════════════════════════════════════════════╣
+   * ║  Every size is in `rem`, so the whole hierarchy scales together with   ║
+   * ║  the FontSizeControl (--font-size-root, default 18px). NEVER use ad-hoc ║
+   * ║  `text-[8px]` / `text-xs` / bare `font-pixel` literals in components — ║
+   * ║  they freeze at one size and drift out of the system. Use these classes.║
+   * ║                                                                        ║
+   * ║  Two font families:                                                     ║
+   * ║    • pixel  → titles/headings only (uppercase, tracked). Roles below.  ║
+   * ║    • terminal → everything readable (body, labels, hints, metrics).    ║
+   * ║                                                                        ║
+   * ║  COLOR ROLES (tokens, see :root):                                       ║
+   * ║    --ui-color-title   neon    headings / pixel titles                   ║
+   * ║    --ui-color-accent  cyan    section titles, links, emphasis           ║
+   * ║    --ui-color-body    green   default reading text                      ║
+   * ║    --ui-color-label   soft    form + control field labels               ║
+   * ║    --ui-color-hint    dim     footnotes, help text, axis labels         ║
+   * ║    --ui-color-metric  green   numeric metric values                     ║
+   * ║                                                                        ║
+   * ║  SIZE + ROLE HIERARCHY (px shown at the 18px default root):             ║
+   * ║   TITLES (pixel, uppercase)                                            ║
+   * ║    .ui-page-title    1.15rem ~21px  neon   screen / hero title          ║
+   * ║    .ui-group-title   0.95rem ~17px  neon   major group heading          ║
+   * ║    .ui-panel-title   0.85rem ~15px  neon   panel / card title           ║
+   * ║    .ui-section-title 0.75rem ~14px  cyan   minor caps sub-heading        ║
+   * ║   TEXT (terminal)                                                      ║
+   * ║    .ui-metric-value  1.05rem ~19px  green  KPI / big numbers (tabular)  ║
+   * ║    .ui-body          0.92rem ~17px  green  prose, table cells           ║
+   * ║    .ui-label         0.88rem ~16px  soft   form / control field labels  ║
+   * ║    .ui-dropdown      0.85rem ~15px  green  select + option text         ║
+   * ║    .ui-hint          0.80rem ~14px  dim    footnotes, help, axis labels ║
+   * ║    .ui-chart-label   0.78rem ~14px  green  dense chart / table labels   ║
+   * ║                                                                        ║
+   * ║  .ui-hint / .ui-chart-label are the floor: ~14px at default, never      ║
+   * ║  below ~12px even at the smallest A− step so footnotes stay legible.    ║
+   * ╚══════════════════════════════════════════════════════════════════════╝
    */
+  .ui-page-title {
+    @apply font-pixel uppercase tracking-wider;
+    font-size: 1.15rem;
+    color: var(--ui-color-title);
+  }
+
+  .ui-group-title {
+    @apply font-pixel uppercase tracking-wider;
+    font-size: 0.95rem;
+    color: var(--ui-color-title);
+  }
+
   .ui-panel-title {
     @apply font-pixel uppercase tracking-wider;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
+    color: var(--ui-color-title);
   }
 
   .ui-section-title {
     @apply font-pixel uppercase tracking-wider;
     font-size: 0.75rem;
-    color: var(--cyan);
+    color: var(--ui-color-accent);
+  }
+
+  .ui-metric-value {
+    @apply font-terminal tabular-nums;
+    font-size: 1.05rem;
+    color: var(--ui-color-metric);
   }
 
   .ui-body {
     @apply font-terminal leading-relaxed;
     font-size: 0.92rem;
+    color: var(--ui-color-body);
+  }
+
+  .ui-label {
+    @apply font-terminal;
+    font-size: 0.88rem;
+    color: var(--ui-color-label);
+  }
+
+  .ui-dropdown {
+    @apply font-terminal;
+    font-size: 0.85rem;
+    color: var(--ui-color-body);
   }
 
   .ui-hint {
     @apply font-terminal leading-relaxed;
     font-size: 0.8rem;
-    color: var(--text-dim);
+    color: var(--ui-color-hint);
   }
 
   .ui-chart-label {
     @apply font-terminal;
     font-size: 0.78rem;
+    color: var(--ui-color-body);
   }
 
   .glow-title {

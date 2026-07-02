@@ -103,23 +103,32 @@ export const CATEGORY_LABELS: Record<string, string> = {
   alt_hedge: "Hedge / anti-beta",
 };
 
-export const OBJECTIVE_LABELS: Record<string, string> = {
-  dynamic: "Dynamic — regime-adaptive (composite score)",
-  max_sharpe: "Maximize Sharpe ratio",
-  max_return: "Maximize CAGR (annual return)",
-  min_max_drawdown: "Minimize maximum drawdown",
-  max_sortino: "Maximize Sortino ratio",
-  min_cvar: "Minimize CVaR (tail risk)",
-  risk_parity_erc: "Risk parity (equal risk contribution)",
-  max_diversification: "Maximize diversification",
-  mean_variance_utility: "Mean-variance utility",
-  custom: "Custom objective",
-};
+/**
+ * Optimization objective option keys, in dropdown order. Human-readable labels
+ * now live in i18n (see `objective.*` keys + `objectiveLabel()`), so all three
+ * locales stay translated. Keep this list as the single source of order/truth.
+ */
+export const OBJECTIVE_KEYS = [
+  "dynamic",
+  "max_sharpe",
+  "max_return",
+  "min_max_drawdown",
+  "max_sortino",
+  "min_cvar",
+  "risk_parity_erc",
+  "max_diversification",
+  "mean_variance_utility",
+  "custom",
+] as const;
 
-export const ALLOCATOR_LABELS: Record<string, string> = {
-  auto: "Auto (let Jasper choose)",
-  mean_variance: "Mean-variance",
-  min_var: "Minimum variance",
-  risk_parity: "Risk parity",
-  max_diversification: "Maximum diversification",
-};
+/**
+ * Allocator mode option keys, in dropdown order. Labels live in i18n
+ * (`allocator.*` + `allocatorLabel()`).
+ */
+export const ALLOCATOR_KEYS = [
+  "auto",
+  "mean_variance",
+  "min_var",
+  "risk_parity",
+  "max_diversification",
+] as const;

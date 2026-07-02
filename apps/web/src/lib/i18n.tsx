@@ -631,6 +631,65 @@ const en: Dict = {
     "The search considers all options; your selection is an AI starting hint",
   "config.advanced.fixedHint": "Fixed indicator for this factor",
 
+  // Optimization objectives (dropdown)
+  "objective.dynamic": "Dynamic — regime-adaptive (composite score)",
+  "objective.max_sharpe": "Maximize Sharpe ratio",
+  "objective.max_return": "Maximize CAGR (annual return)",
+  "objective.min_max_drawdown": "Minimize maximum drawdown",
+  "objective.max_sortino": "Maximize Sortino ratio",
+  "objective.min_cvar": "Minimize CVaR (tail risk)",
+  "objective.risk_parity_erc": "Risk parity (equal risk contribution)",
+  "objective.max_diversification": "Maximize diversification",
+  "objective.mean_variance_utility": "Mean-variance utility",
+  "objective.custom": "Custom objective",
+
+  // Allocator modes (dropdown)
+  "allocator.auto": "Auto (let Jasper choose)",
+  "allocator.mean_variance": "Mean-variance",
+  "allocator.min_var": "Minimum variance",
+  "allocator.risk_parity": "Risk parity",
+  "allocator.max_diversification": "Maximum diversification",
+
+  // Factor indicators — factor name + friendly description
+  "factorInd.mom_indicator.label": "Momentum",
+  "factorInd.mom_indicator.hint":
+    "Return level, vol-adjusted return, or 12-1 skip-month style",
+  "factorInd.reversal_indicator.label": "Reversal",
+  "factorInd.reversal_indicator.hint":
+    "Short return flip, distance from peak, or RSI oversold proxy",
+  "factorInd.value_indicator.label": "Value",
+  "factorInd.value_indicator.hint":
+    "Below MA, cheap in range, or contrarian long-window return",
+  "factorInd.lowvol_indicator.label": "Low vol",
+  "factorInd.lowvol_indicator.hint":
+    "Total vol, downside vol, or low beta vs equal-weight index",
+  "factorInd.trend_indicator.label": "Trend",
+  "factorInd.trend_indicator.hint":
+    "Price vs MA, MA slope, or fast/slow MA crossover",
+  "factorInd.drawdown_indicator.label": "Drawdown",
+  "factorInd.drawdown_indicator.hint":
+    "Drawdown depth, recency of peak, or ulcer-style pain index",
+
+  // Factor indicator options (dropdown values)
+  "factorOpt.cumulative_return": "cumulative return",
+  "factorOpt.risk_adjusted_return": "risk-adjusted return",
+  "factorOpt.skip_month_12_1": "12-1 skip month",
+  "factorOpt.negative_return": "negative return",
+  "factorOpt.off_peak": "off peak",
+  "factorOpt.rsi_mean_reversion": "RSI mean reversion",
+  "factorOpt.ma_price_ratio": "MA / price ratio",
+  "factorOpt.price_percentile": "price percentile",
+  "factorOpt.inverse_long_momentum": "inverse long momentum",
+  "factorOpt.negative_vol": "negative volatility",
+  "factorOpt.negative_downside_dev": "negative downside deviation",
+  "factorOpt.negative_beta_market": "negative market beta",
+  "factorOpt.price_ma_ratio": "price / MA ratio",
+  "factorOpt.ma_slope": "MA slope",
+  "factorOpt.dual_ma_crossover": "dual MA crossover",
+  "factorOpt.max_drawdown_depth": "max drawdown depth",
+  "factorOpt.time_since_peak": "time since peak",
+  "factorOpt.ulcer_index": "ulcer index",
+
   // Constraints — categorical labels
   "config.categorical.objective_mode": "Objective fn",
   "config.categorical.allocator_mode": "Allocator mode",
@@ -1334,6 +1393,59 @@ const zh: Dict = {
   "config.advanced.off": "關閉",
   "config.advanced.searchHint": "搜尋會考量所有選項；你的選擇僅作為 AI 起始提示",
   "config.advanced.fixedHint": "此因子的固定指標",
+
+  // Optimization objectives (dropdown)
+  "objective.dynamic": "動態 — 因應市場狀態（綜合評分）",
+  "objective.max_sharpe": "最大化夏普比率",
+  "objective.max_return": "最大化年化報酬（CAGR）",
+  "objective.min_max_drawdown": "最小化最大回撤",
+  "objective.max_sortino": "最大化索提諾比率",
+  "objective.min_cvar": "最小化 CVaR（尾端風險）",
+  "objective.risk_parity_erc": "風險平價（等風險貢獻）",
+  "objective.max_diversification": "最大化分散程度",
+  "objective.mean_variance_utility": "均值—變異數效用",
+  "objective.custom": "自訂目標",
+
+  // Allocator modes (dropdown)
+  "allocator.auto": "自動（交給 Jasper 決定）",
+  "allocator.mean_variance": "均值—變異數",
+  "allocator.min_var": "最小變異數",
+  "allocator.risk_parity": "風險平價",
+  "allocator.max_diversification": "最大分散",
+
+  // Factor indicators — factor name + friendly description
+  "factorInd.mom_indicator.label": "動能",
+  "factorInd.mom_indicator.hint": "報酬水準、風險調整後報酬，或 12-1 跳月動能",
+  "factorInd.reversal_indicator.label": "反轉",
+  "factorInd.reversal_indicator.hint": "短期反轉、距高點幅度，或 RSI 超賣",
+  "factorInd.value_indicator.label": "價值",
+  "factorInd.value_indicator.hint": "低於均線、區間相對便宜，或長期逆勢報酬",
+  "factorInd.lowvol_indicator.label": "低波動",
+  "factorInd.lowvol_indicator.hint": "總波動、下檔波動，或相對等權指數的低 Beta",
+  "factorInd.trend_indicator.label": "趨勢",
+  "factorInd.trend_indicator.hint": "價格對均線、均線斜率，或快慢均線交叉",
+  "factorInd.drawdown_indicator.label": "回撤",
+  "factorInd.drawdown_indicator.hint": "回撤深度、距前高時間，或潰瘍痛苦指數",
+
+  // Factor indicator options (dropdown values)
+  "factorOpt.cumulative_return": "累積報酬",
+  "factorOpt.risk_adjusted_return": "風險調整後報酬",
+  "factorOpt.skip_month_12_1": "12-1 跳月",
+  "factorOpt.negative_return": "負向報酬",
+  "factorOpt.off_peak": "距離高點",
+  "factorOpt.rsi_mean_reversion": "RSI 均值回歸",
+  "factorOpt.ma_price_ratio": "均線／價格比",
+  "factorOpt.price_percentile": "價格分位",
+  "factorOpt.inverse_long_momentum": "反向長期動能",
+  "factorOpt.negative_vol": "負向波動",
+  "factorOpt.negative_downside_dev": "負向下檔偏差",
+  "factorOpt.negative_beta_market": "負向市場 Beta",
+  "factorOpt.price_ma_ratio": "價格／均線比",
+  "factorOpt.ma_slope": "均線斜率",
+  "factorOpt.dual_ma_crossover": "雙均線交叉",
+  "factorOpt.max_drawdown_depth": "最大回撤深度",
+  "factorOpt.time_since_peak": "距前高時間",
+  "factorOpt.ulcer_index": "潰瘍指數",
 
   // Constraints — categorical labels
   "config.categorical.objective_mode": "目標函數",
@@ -2040,6 +2152,59 @@ const ko: Dict = {
     "탐색은 모든 옵션을 고려하며, 선택한 값은 AI 시작 힌트로만 사용됩니다",
   "config.advanced.fixedHint": "이 팩터의 고정 지표",
 
+  // Optimization objectives (dropdown)
+  "objective.dynamic": "동적 — 국면 적응(종합 점수)",
+  "objective.max_sharpe": "샤프 비율 최대화",
+  "objective.max_return": "연평균 수익률(CAGR) 최대화",
+  "objective.min_max_drawdown": "최대 낙폭 최소화",
+  "objective.max_sortino": "소르티노 비율 최대화",
+  "objective.min_cvar": "CVaR(꼬리 위험) 최소화",
+  "objective.risk_parity_erc": "리스크 패리티(균등 위험 기여)",
+  "objective.max_diversification": "분산 효과 최대화",
+  "objective.mean_variance_utility": "평균-분산 효용",
+  "objective.custom": "사용자 지정 목표",
+
+  // Allocator modes (dropdown)
+  "allocator.auto": "자동(Jasper가 선택)",
+  "allocator.mean_variance": "평균-분산",
+  "allocator.min_var": "최소 분산",
+  "allocator.risk_parity": "리스크 패리티",
+  "allocator.max_diversification": "최대 분산",
+
+  // Factor indicators — factor name + friendly description
+  "factorInd.mom_indicator.label": "모멘텀",
+  "factorInd.mom_indicator.hint": "수익 수준, 변동성 조정 수익, 또는 12-1 스킵 모멘텀",
+  "factorInd.reversal_indicator.label": "리버설",
+  "factorInd.reversal_indicator.hint": "단기 반전, 고점 대비 하락폭, 또는 RSI 과매도",
+  "factorInd.value_indicator.label": "가치",
+  "factorInd.value_indicator.hint": "이동평균 하회, 구간 내 저평가, 또는 장기 역발상 수익",
+  "factorInd.lowvol_indicator.label": "저변동성",
+  "factorInd.lowvol_indicator.hint": "총 변동성, 하방 변동성, 또는 동일가중 지수 대비 저베타",
+  "factorInd.trend_indicator.label": "추세",
+  "factorInd.trend_indicator.hint": "가격 대비 이동평균, 이동평균 기울기, 또는 단·장기 이동평균 교차",
+  "factorInd.drawdown_indicator.label": "낙폭",
+  "factorInd.drawdown_indicator.hint": "낙폭 깊이, 고점 이후 경과, 또는 얼서 지수",
+
+  // Factor indicator options (dropdown values)
+  "factorOpt.cumulative_return": "누적 수익",
+  "factorOpt.risk_adjusted_return": "위험 조정 수익",
+  "factorOpt.skip_month_12_1": "12-1 스킵",
+  "factorOpt.negative_return": "음의 수익",
+  "factorOpt.off_peak": "고점 이탈",
+  "factorOpt.rsi_mean_reversion": "RSI 평균회귀",
+  "factorOpt.ma_price_ratio": "이동평균/가격 비율",
+  "factorOpt.price_percentile": "가격 백분위",
+  "factorOpt.inverse_long_momentum": "역장기 모멘텀",
+  "factorOpt.negative_vol": "음의 변동성",
+  "factorOpt.negative_downside_dev": "음의 하방 편차",
+  "factorOpt.negative_beta_market": "음의 시장 베타",
+  "factorOpt.price_ma_ratio": "가격/이동평균 비율",
+  "factorOpt.ma_slope": "이동평균 기울기",
+  "factorOpt.dual_ma_crossover": "이중 이동평균 교차",
+  "factorOpt.max_drawdown_depth": "최대 낙폭 깊이",
+  "factorOpt.time_since_peak": "고점 이후 경과",
+  "factorOpt.ulcer_index": "얼서 지수",
+
   // Constraints — categorical labels
   "config.categorical.objective_mode": "목적 함수",
   "config.categorical.allocator_mode": "배분기 모드",
@@ -2204,6 +2369,43 @@ export function rebalanceFreqLabel(t: TFn, code?: string | null): string {
   if (c.startsWith("Y") || c.startsWith("A")) return t("results.freq.yearly");
   if (c === "D" || c.startsWith("DAY") || c === "B") return t("results.freq.daily");
   return String(code);
+}
+
+/** Localized optimization-objective label (max_return, max_sharpe, …). */
+export function objectiveLabel(t: TFn, key?: string | null): string {
+  if (!key) return "";
+  const tk = `objective.${key}`;
+  const val = t(tk);
+  return val === tk ? String(key).replace(/_/g, " ") : val;
+}
+
+/** Localized allocator-mode label (auto, mean_variance, …). */
+export function allocatorLabel(t: TFn, key?: string | null): string {
+  if (!key) return "";
+  const tk = `allocator.${key}`;
+  const val = t(tk);
+  return val === tk ? String(key).replace(/_/g, " ") : val;
+}
+
+/** Localized factor name for a factor-indicator control key (mom_indicator, …). */
+export function factorIndicatorLabel(t: TFn, key: string): string {
+  const tk = `factorInd.${key}.label`;
+  const val = t(tk);
+  return val === tk ? key.replace(/_indicator$/, "").replace(/_/g, " ") : val;
+}
+
+/** Localized friendly description for a factor-indicator control key. */
+export function factorIndicatorHint(t: TFn, key: string): string {
+  const tk = `factorInd.${key}.hint`;
+  const val = t(tk);
+  return val === tk ? "" : val;
+}
+
+/** Localized label for a factor-indicator option code (cumulative_return, …). */
+export function indicatorOptionLabel(t: TFn, option: string): string {
+  const tk = `factorOpt.${option}`;
+  const val = t(tk);
+  return val === tk ? option.replace(/_/g, " ") : val;
 }
 
 export function readStoredLang(): Lang {

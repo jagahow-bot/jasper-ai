@@ -87,7 +87,7 @@ export function InstitutionalReport({
         <Section title={t("institutional.horizonTitle")}>
           <p className="ui-hint mb-3">{t("institutional.horizonNote")}</p>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left ui-body">
               <thead className="text-dim">
                 <tr>
                   <th className="pb-2">{t("institutional.horizon")}</th>
@@ -124,7 +124,7 @@ export function InstitutionalReport({
 
       {execution.rebalance_freq != null ? (
         <Section title={t("institutional.rebalanceExecution")}>
-          <p className="text-sm">
+          <p className="ui-body">
             {t("institutional.freq")} <span className="text-neon">{rebalanceFreqLabel(t, String(execution.rebalance_freq))}</span>
             {" · "}
             {t("institutional.count")} <span className="text-neon">{String(execution.rebalance_count)}</span>
@@ -159,7 +159,7 @@ export function InstitutionalReport({
           <LoadingPlaceholder />
         ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="border-2 border-[var(--border)] bg-[#050508] p-3 text-sm">
+          <div className="ui-body border-2 border-[var(--border)] bg-[#050508] p-3">
             <div className="mb-2 text-dim">{t("institutional.assetClass")}</div>
             {Object.entries(exposure.by_asset_class ?? {}).map(([k, v]) => (
               <div key={k} className="flex justify-between border-t border-[var(--border)] py-1">
@@ -168,7 +168,7 @@ export function InstitutionalReport({
               </div>
             ))}
           </div>
-          <div className="border-2 border-[var(--border)] bg-[#050508] p-3 text-sm">
+          <div className="ui-body border-2 border-[var(--border)] bg-[#050508] p-3">
             <div className="mb-2 text-dim">{t("institutional.bucketsRegion")}</div>
             {Object.entries(exposure.by_asset_bucket ?? {}).slice(0, 10).map(([k, v]) => (
               <div key={k} className="flex justify-between border-t border-[var(--border)] py-1">
@@ -177,7 +177,7 @@ export function InstitutionalReport({
               </div>
             ))}
           </div>
-          <div className="space-y-2 border-2 border-[var(--border)] bg-[#050508] p-3 text-sm">
+          <div className="ui-body space-y-2 border-2 border-[var(--border)] bg-[#050508] p-3">
             <Row label={t("institutional.equity")} value={exposure.equity_pct} />
             <Row label={t("institutional.bond")} value={exposure.bond_pct} />
             <Row label={t("institutional.other")} value={exposure.other_pct} />
@@ -192,9 +192,9 @@ export function InstitutionalReport({
           <LoadingPlaceholder />
         ) : holdingStats.length > 0 ? (
           <>
-            <p className="mb-3 text-xs text-dim">{t("institutional.coreHoldingsNote")}</p>
+            <p className="mb-3 ui-hint">{t("institutional.coreHoldingsNote")}</p>
             <div className="max-h-56 overflow-y-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left ui-body">
                 <thead className="text-dim">
                   <tr>
                     <th className="pb-2">{t("common.ticker")}</th>
@@ -222,9 +222,9 @@ export function InstitutionalReport({
           </>
         ) : (
           <>
-            <p className="mb-3 text-xs text-dim">{t("institutional.coreHoldingsNote")}</p>
+            <p className="mb-3 ui-hint">{t("institutional.coreHoldingsNote")}</p>
             <div className="max-h-56 overflow-y-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full text-left ui-body">
                 <thead className="text-dim">
                   <tr>
                     <th className="pb-2">{t("common.ticker")}</th>
@@ -283,7 +283,7 @@ export function InstitutionalReport({
           <LoadingPlaceholder />
         ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left ui-body">
             <thead className="text-dim">
               <tr>
                 <th className="pb-2">{t("institutional.ddStart")}</th>
@@ -381,7 +381,7 @@ function mergePeriodicReturns(
 function LoadingPlaceholder({ label }: { label?: string }) {
   const { t } = useI18n();
   return (
-    <p className="flex items-center gap-2 text-xs text-dim">
+    <p className="ui-hint flex items-center gap-2">
       <span
         className="inline-block h-3 w-3 animate-spin rounded-full border border-[var(--amber)] border-t-transparent"
         aria-hidden
@@ -517,7 +517,7 @@ function ReturnTable({
     return <p className="ui-hint">{t("institutional.noData")}</p>;
   }
   return (
-    <div className="max-h-48 overflow-y-auto text-sm">
+    <div className="ui-body max-h-48 overflow-y-auto">
       <table className="w-full">
         <thead className="text-dim">
           <tr>

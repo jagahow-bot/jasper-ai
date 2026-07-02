@@ -10,8 +10,7 @@ import {
   readLocalBacktestHistory,
   type LocalHistoryEntry,
 } from "@/lib/backtest-history";
-import { OBJECTIVE_LABELS } from "@/lib/constants";
-import { useI18n } from "@/lib/i18n";
+import { objectiveLabel, useI18n } from "@/lib/i18n";
 import type { JobSummary } from "@/lib/types";
 
 type Props = {
@@ -19,10 +18,6 @@ type Props = {
   onLoad: (jobId: string) => void;
   loadingJobId?: string | null;
 };
-
-function objectiveLabel(objective: string): string {
-  return OBJECTIVE_LABELS[objective as keyof typeof OBJECTIVE_LABELS] ?? objective;
-}
 
 function statusBadgeClass(status: JobSummary["status"]): string {
   if (status === "completed") return "pixel-badge-cyan";
@@ -75,10 +70,10 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
   return (
     <div className="mt-3 flex min-h-0 flex-1 flex-col border-t border-[var(--border)] pt-3">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="font-pixel text-[9px] text-[var(--amber)]">{t("history.title")}</h2>
+        <h2 className="ui-section-title text-[var(--amber)]">{t("history.title")}</h2>
         <button
           type="button"
-          className="font-terminal text-sm text-[var(--cyan)] hover:underline disabled:opacity-50"
+          className="ui-body text-[var(--cyan)] hover:underline disabled:opacity-50"
           onClick={() => void refresh()}
           disabled={refreshing}
           title={t("history.refresh")}
@@ -87,10 +82,10 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
           ↻
         </button>
       </div>
-      <p className="mb-2 font-terminal text-xs text-[var(--muted)]">{subtitle}</p>
+      <p className="mb-2 ui-hint">{subtitle}</p>
 
       {empty ? (
-        <p className="font-terminal text-sm text-[var(--muted)]">
+        <p className="ui-body text-dim">
           {t("history.empty")}
         </p>
       ) : (
@@ -102,7 +97,7 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
             return (
               <li
                 key={row.job_id}
-                className={`rounded border px-2 py-2 font-terminal text-sm transition-colors ${
+                className={`rounded border px-2 py-2 ui-body transition-colors ${
                   isActive
                     ? "border-[var(--cyan)] bg-[rgba(0,255,255,0.06)]"
                     : "border-[var(--border)] bg-[rgba(0,0,0,0.25)] hover:border-[var(--cyan)]/40"
@@ -121,15 +116,15 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
                     <p className="mt-1 truncate text-[var(--foreground)]">
                       {row.start_date} → {row.end_date}
                     </p>
-                    <p className="truncate text-xs text-[var(--muted)]">
-                      {objectiveLabel(row.objective)}
+                    <p className="truncate ui-hint">
+                      {objectiveLabel(t, row.objective)}
                       {row.champion_model_code ? ` · ${row.champion_model_code}` : ""}
                     </p>
-                    <p className="text-xs text-[var(--cyan)]">
+                    <p className="ui-hint text-[var(--cyan)]">
                       CAGR {formatPct(row.champion_cagr)} · Sharpe{" "}
                       {formatSharpe(row.champion_sharpe)}
                     </p>
-                    <p className="truncate text-[10px] text-[var(--muted)]">
+                    <p className="truncate ui-hint">
                       {formatHistoryDate(row.created_at)} · {row.job_id.slice(0, 8)}…
                     </p>
                   </div>

@@ -31,13 +31,13 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
   return (
     <div className="space-y-5">
       <div className="pixel-panel border-[var(--amber)] bg-[rgba(255,176,0,0.06)] p-4">
-        <p className="font-pixel text-[9px] text-[var(--amber)]">{t("objectiveLab.reportCard")}</p>
+        <p className="ui-section-title text-[var(--amber)]">{t("objectiveLab.reportCard")}</p>
         <p className="mt-2 font-terminal text-lg text-[var(--foreground)]">{result.headline}</p>
-        <p className={`mt-2 font-pixel text-[8px] ${recClass}`}>
+        <p className={`mt-2 ui-section-title ${recClass}`}>
           {recLabels[result.recommendation] ?? result.recommendation}
         </p>
         {result.oos_sharpe_delta_switch_minus_fixed != null && (
-          <p className="mt-1 text-xs text-dim">
+          <p className="mt-1 ui-hint">
             {t("objectiveLab.oosSharpeDelta")}{" "}
             {result.oos_sharpe_delta_switch_minus_fixed >= 0 ? "+" : ""}
             {result.oos_sharpe_delta_switch_minus_fixed.toFixed(3)}
@@ -45,10 +45,10 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
         )}
       </div>
 
-      <p className="text-xs text-dim">{result.limitation}</p>
+      <p className="ui-hint">{result.limitation}</p>
 
       {result.detector_version && (
-        <p className="text-xs text-dim">
+        <p className="ui-hint">
           {t("objectiveLab.regimeDetector")}:{" "}
           <span className="pixel-badge-cyan inline-block px-2 py-0.5 font-pixel text-[8px]">
             {result.detector_version.toUpperCase()}
@@ -108,7 +108,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
             )}
           {result.benchmark_series?.length &&
             result.regime_score_timeline?.length && (
-              <p className="text-[10px] text-dim">
+              <p className="ui-hint">
                 {t("objectiveLab.hoverSyncHint")}
               </p>
             )}
@@ -117,7 +117,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
 
       <div className="pixel-panel p-4">
         <h3 className="ui-section-title">{t("objectiveLab.regimeTimeline")}</h3>
-        <div className="mt-3 max-h-48 overflow-auto font-terminal text-xs">
+        <div className="mt-3 max-h-48 overflow-auto ui-chart-label">
           <table className="w-full text-left">
             <thead>
               <tr className="text-dim">
@@ -171,7 +171,7 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
       <h3 className="ui-section-title">
         {t("objectiveLab.predictionQualityTitle")}
       </h3>
-      <p className="mt-1 text-[10px] text-dim">
+      <p className="mt-1 ui-hint">
         {t("objectiveLab.predictionQualityDesc")}
       </p>
       {score != null && (
@@ -180,12 +180,12 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
           {grade ? ` · ${t("objectiveLab.grade", { grade })}` : ""}
         </p>
       )}
-      <ul className="mt-2 space-y-1 text-xs text-dim">
+      <ul className="mt-2 space-y-1 ui-hint">
         {quality.explanations.map((line) => (
           <li key={line}>{line}</li>
         ))}
       </ul>
-      <table className="mt-4 w-full text-left font-terminal text-xs">
+      <table className="mt-4 w-full text-left ui-chart-label">
         <thead>
           <tr className="text-dim">
             <th className="pb-1">{t("common.regime")}</th>
@@ -236,7 +236,7 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
                 episodes={notable.failed}
                 highlightMiss
               />
-              <p className="mt-2 text-[10px] text-dim">
+              <p className="mt-2 ui-hint">
                 {t("objectiveLab.missesLegend")}
               </p>
             </div>
@@ -245,11 +245,11 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
       )}
       {fwd && fwd.forward_horizon_days > 0 && (
         <div className="mt-4 rounded border border-[var(--border)] p-3">
-          <p className="font-pixel text-[8px] text-dim">
+          <p className="ui-section-title text-dim">
             {t("objectiveLab.secondaryForward", { days: fwd.forward_horizon_days })}
           </p>
           {fwd.overall_alignment_score != null && (
-            <p className="mt-1 text-xs text-dim">
+            <p className="mt-1 ui-hint">
               {t("objectiveLab.stepLevelAlignment", {
                 score: fwd.overall_alignment_score.toFixed(0),
                 days: fwd.forward_horizon_days,
@@ -257,7 +257,7 @@ function PredictionQualitySection({ quality }: { quality: RegimePredictionQualit
             </p>
           )}
           {fwd.switch_timing.length > 0 && (
-            <ul className="mt-2 max-h-32 space-y-1 overflow-auto text-xs text-dim">
+            <ul className="mt-2 max-h-32 space-y-1 overflow-auto ui-hint">
               {fwd.switch_timing.map((s) => (
                 <li
                   key={s.date}
@@ -286,8 +286,8 @@ function SegmentList({
   const { t } = useI18n();
   return (
     <div>
-      <p className="font-pixel text-[8px] text-[var(--amber)]">{title}</p>
-      <ul className="mt-2 space-y-1 text-xs text-dim">
+      <p className="ui-section-title text-[var(--amber)]">{title}</p>
+      <ul className="mt-2 space-y-1 ui-hint">
         {episodes.map((ep) => (
           <li
             key={`${ep.start_date}-${ep.regime}`}
@@ -319,13 +319,13 @@ function ArmCard({
   return (
     <div className="rounded border border-[var(--border)] bg-[var(--panel)] p-4">
       <p className="ui-section-title">{title}</p>
-      <p className="mt-1 text-sm">{arm.objective}</p>
+      <p className="mt-1 ui-body">{arm.objective}</p>
       {showSwitches && (
-        <p className="text-xs text-dim">
+        <p className="ui-hint">
           {t("objectiveLab.regimeSwitches", { count: arm.switch_count })}
         </p>
       )}
-      <ul className="mt-3 space-y-1 text-xs text-dim">
+      <ul className="mt-3 space-y-1 ui-hint">
         <li>{t("objectiveLab.isSharpe")} {fmt(arm.in_sample?.sharpe)}</li>
         <li>{t("objectiveLab.oosSharpe")} {fmt(arm.out_of_sample?.sharpe)}</li>
         <li>{t("objectiveLab.isReturn")} {fmt(arm.in_sample?.return_pct, 1)}%</li>

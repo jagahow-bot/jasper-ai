@@ -59,7 +59,7 @@ export function ProgressPanel({ progress }: Props) {
       </p>
 
       {hasTrials && (
-        <p className="font-terminal text-sm text-dim">
+        <p className="ui-hint">
           {t("live.trial", { n: progress.trial, total: progress.trials_total })}
         </p>
       )}
@@ -83,7 +83,7 @@ export function ProgressPanel({ progress }: Props) {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap gap-4 font-terminal text-sm text-dim">
+      <div className="ui-hint flex flex-wrap gap-4">
         {progress.refinement_round != null && (
           <span>
             {t("progress.round")} {progress.refinement_round}/{progress.refinement_rounds_total}
