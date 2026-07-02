@@ -67,6 +67,24 @@ def _ticker_asset_class(
     return str((universe_by_ticker.get(ticker, {}) or {}).get("asset_class", "other"))
 
 
+def _class_weight_slice(weights: np.ndarray, indices: list[int]) -> np.ndarray:
+    """Fancy-index class holdings as a 1-D vector (never a 0-d numpy scalar)."""
+    if not indices:
+        return np.zeros(0, dtype=float)
+    idx = np.asarray(indices, dtype=int)
+    return np.atleast_1d(np.asarray(weights, dtype=float)[idx])
+
+
+def _assign_class_weight_slice(
+    target: np.ndarray, indices: list[int], values: np.ndarray
+) -> None:
+    """Write sleeve weights back; values are normalized to 1-D first."""
+    if not indices:
+        return
+    idx = np.asarray(indices, dtype=int)
+    target[idx] = np.atleast_1d(np.asarray(values, dtype=float))
+
+
 def class_sleeve_totals(
     w: np.ndarray,
     tickers: list[str],
@@ -134,12 +152,20 @@ def enforce_class_weight_budget(
         for ac, target in active_targets.items():
             indices = class_indices[ac]
             sleeve_target = target * scale
-            slice_w = np.maximum(weights[indices], 0.0)
+            slice_w = np.maximum(_class_weight_slice(weights, indices), 0.0)
             slice_sum = float(slice_w.sum())
             if slice_sum > 1e-12:
-                projected[indices] = slice_w * (sleeve_target / slice_sum)
+                _assign_class_weight_slice(
+                    projected,
+                    indices,
+                    slice_w * (sleeve_target / slice_sum),
+                )
             else:
-                projected[indices] = sleeve_target / len(indices)
+                _assign_class_weight_slice(
+                    projected,
+                    indices,
+                    np.full(len(indices), sleeve_target / len(indices)),
+                )
         total = float(projected.sum())
         if total > 1e-12:
             projected /= total
@@ -153,22 +179,23 @@ def enforce_class_weight_budget(
             indices = class_indices.get(ac, [])
             if not indices:
                 continue
-            sleeve = float(weights[indices].sum())
+            sleeve = float(_class_weight_slice(weights, indices).sum())
             if sleeve <= 1e-12:
                 continue
-            slice_w = weights[indices].copy()
+            slice_w = _class_weight_slice(weights, indices).copy()
             over = slice_w > cap + 1e-12
             if not over.any():
-                capped[indices] = slice_w
+                _assign_class_weight_slice(capped, indices, slice_w)
                 continue
             slice_w[over] = cap
             surplus = sleeve - float(slice_w.sum())
             under = ~over
             if under.any() and float(slice_w[under].sum()) > 1e-12:
-                slice_w[under] += surplus * (slice_w[under] / float(slice_w[under].sum()))
+                under_w = np.atleast_1d(slice_w[under])
+                slice_w[under] += surplus * (under_w / float(under_w.sum()))
             elif under.any():
                 slice_w[under] = surplus / float(under.sum())
-            capped[indices] = slice_w
+            _assign_class_weight_slice(capped, indices, slice_w)
         total = float(capped.sum())
         if total > 1e-12:
             capped /= total

@@ -56,6 +56,29 @@ def test_enforce_class_weight_budget_preserves_relative_weights_within_class() -
     assert float(out.max() - out.min()) > 0.05
 
 
+def test_enforce_class_weight_budget_single_name_sleeve_with_cap() -> None:
+    """Regression: one active name per class + max_weight cap must not 0-d index."""
+    universe = {
+        "EQ1": {"asset_class": "equity"},
+        "BD1": {"asset_class": "bond"},
+        "CM1": {"asset_class": "commodity"},
+    }
+    tickers = list(universe.keys())
+    w = np.array([0.50, 0.30, 0.20])
+    budget = {"equity": 0.50, "bond": 0.30, "commodity": 0.20}
+    out = enforce_class_weight_budget(
+        w,
+        tickers,
+        universe,
+        budget,
+        active_tickers=tickers,
+        max_weight=0.45,
+    )
+    totals = class_sleeve_totals(out, tickers, universe)
+    assert abs(sum(totals.values()) - 1.0) < 1e-6
+    assert len(out) == 3
+
+
 def test_simulate_dynamic_enforces_class_budget_when_enabled() -> None:
     universe = _universe()
     tickers = list(universe.keys())

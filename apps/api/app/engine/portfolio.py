@@ -367,7 +367,7 @@ def _trading_day_rebalance_dates(index: pd.DatetimeIndex, rule: str) -> list[pd.
     anchors = index.to_series().resample(rule).last().index
     dates: list[pd.Timestamp] = []
     for dt in anchors:
-        loc = int(index.get_indexer([dt], method="ffill")[0])
+        loc = int(np.atleast_1d(index.get_indexer([dt], method="ffill"))[0])
         if loc < 0:
             continue
         dates.append(index[loc])
@@ -711,7 +711,9 @@ def _rebalance_schedule_dynamic(
             mu, cov = _estimate_mu_sigma(
                 rets[chosen], lookback_days=alloc_step.lookback_days, end_loc=end_loc
             )
-            w_sub_prev = w[[col_index[t] for t in chosen]]
+            w_sub_prev = np.atleast_1d(
+                w[np.asarray([col_index[t] for t in chosen], dtype=int)]
+            )
             w_sub = solve_weights(
                 mu_annual=mu,
                 cov_annual=cov,
@@ -719,9 +721,10 @@ def _rebalance_schedule_dynamic(
                 params=alloc_step,
                 w0=w_sub_prev,
             )
+            w_sub_flat = np.asarray(w_sub, dtype=float).ravel()
             w = np.zeros(n, dtype=float)
             for i, t in enumerate(chosen):
-                w[col_index[t]] = float(w_sub[i])
+                w[col_index[t]] = float(w_sub_flat[i])
             w = project_max_weight(w, max_weight)
             w = _finalize_rebalance_weights(
                 w,
