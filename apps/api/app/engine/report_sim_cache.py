@@ -103,7 +103,14 @@ class TrialReportCache:
         code = params.get("model_code")
         if not code:
             return
-        self._sig_to_code[model_signature(params)] = str(code)
+        sig = model_signature(params)
+        code_s = str(code)
+        self._sig_to_code[sig] = code_s
+        # If the same signature was already stashed under sig:..., alias it to
+        # code:... so callers that request by model_code can hit immediately.
+        bundle = self._by_key.get(f"sig:{sig}")
+        if bundle is not None:
+            self._by_key[f"code:{code_s}"] = bundle
 
     def stash_from_trial(
         self,
