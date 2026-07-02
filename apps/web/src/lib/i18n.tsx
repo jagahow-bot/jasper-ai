@@ -541,6 +541,7 @@ const en: Dict = {
   "results.targetNamesAi": "Target names (from AI)",
   "results.targetCount": "Target count",
   "results.actualClassWeights": "Actual asset-class mix (holdings)",
+  "results.actualClassWeightsRegime": "Actual mix during {regime} rebalances",
   "results.classBreakdownChampion":
     "Showing the champion’s asset-class mix — this strategy stored a condensed version.",
   "results.weightPct": "Weight %",
@@ -1311,6 +1312,7 @@ const zh: Dict = {
   "results.targetNamesAi": "目標標的（來自 AI）",
   "results.targetCount": "目標檔數",
   "results.actualClassWeights": "實際資產類別配置（持股）",
+  "results.actualClassWeightsRegime": "實際配置（{regime} 再平衡期間平均）",
   "results.classBreakdownChampion":
     "顯示冠軍的資產類別配置 — 此策略只儲存了精簡版本。",
   "results.weightPct": "權重 %",
@@ -2069,6 +2071,7 @@ const ko: Dict = {
   "results.targetNamesAi": "목표 종목(AI 제공)",
   "results.targetCount": "목표 종목 수",
   "results.actualClassWeights": "실제 자산군 구성(보유 종목)",
+  "results.actualClassWeightsRegime": "실제 구성({regime} 리밸런싱 기간 평균)",
   "results.classBreakdownChampion":
     "챔피언의 자산군 구성을 표시합니다 — 이 전략은 압축 버전만 저장했습니다.",
   "results.weightPct": "비중 %",

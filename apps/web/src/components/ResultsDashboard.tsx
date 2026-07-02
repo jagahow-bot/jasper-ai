@@ -961,11 +961,18 @@ export function ResultsDashboard({
         }))
     : staticQuotaRows;
   const quotaRows = regimeQuotaMatrix ? regimeQuotaRows : staticQuotaRows;
+  const exposureByRegime =
+    top.analytics?.exposure_by_regime ?? chartCandidate?.analytics?.exposure_by_regime;
+  const regimeConditionalExposure =
+    regimeQuotaMatrix && exposureByRegime?.[quotaRegimeTab]
+      ? exposureByRegime[quotaRegimeTab]
+      : null;
   const exposureByClass =
-    top.analytics?.exposure?.by_asset_class &&
+    regimeConditionalExposure ??
+    (top.analytics?.exposure?.by_asset_class &&
     Object.keys(top.analytics.exposure.by_asset_class).length > 0
       ? top.analytics.exposure.by_asset_class
-      : chartCandidate?.analytics?.exposure?.by_asset_class;
+      : chartCandidate?.analytics?.exposure?.by_asset_class);
   const actualClassRows = Object.entries(exposureByClass ?? {})
     .filter(([cls]) => !allowedClassSet || allowedClassSet.has(cls))
     .map(([cls, v]) => ({
@@ -1933,7 +1940,13 @@ export function ResultsDashboard({
             </ResponsiveContainer>
           </div>
           <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
-            <p className="ui-hint mb-2">{t("results.actualClassWeights")}</p>
+            <p className="ui-hint mb-2">
+              {regimeQuotaMatrix && regimeConditionalExposure
+                ? t("results.actualClassWeightsRegime", {
+                    regime: regimeLabel(t, quotaRegimeTab),
+                  })
+                : t("results.actualClassWeights")}
+            </p>
             {usingChampionAnalyticsFallback &&
             (!top.analytics?.exposure?.by_asset_class ||
               Object.keys(top.analytics.exposure.by_asset_class).length === 0) ? (

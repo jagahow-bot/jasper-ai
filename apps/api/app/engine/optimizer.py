@@ -164,8 +164,8 @@ def run_optuna_search(
     )
     regime_quota_active = bool(
         pro_round_mode
-        and has_regime_matrix(regime_setups)
         and has_regime_class_quotas(regime_class_quotas)
+        and active_regime_resolver is not None
     )
 
     def _ctl(key: str) -> dict | None:

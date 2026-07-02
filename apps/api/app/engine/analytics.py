@@ -200,6 +200,64 @@ def exposure_breakdown(
     }
 
 
+_REGIME_EXPOSURE_KEYS: tuple[str, ...] = ("risk_off", "neutral", "risk_on")
+
+
+def _active_regime_on_date(date_str: str, timeline: list[dict[str, Any]]) -> str | None:
+    active: str | None = None
+    for row in timeline:
+        row_date = str(row.get("date") or "")
+        if row_date and row_date > date_str:
+            break
+        regime = row.get("active_regime") or row.get("regime")
+        if regime:
+            active = str(regime)
+    return active
+
+
+def exposure_by_regime_from_weight_history(
+    weight_history: list[dict[str, Any]] | None,
+    universe_by_ticker: dict[str, dict[str, Any]],
+    regime_timeline: list[dict[str, Any]] | None,
+) -> dict[str, dict[str, float]]:
+    """Average asset-class mix on rebalance snapshots grouped by active regime."""
+    if not weight_history or not regime_timeline:
+        return {}
+    buckets: dict[str, list[dict[str, float]]] = {r: [] for r in _REGIME_EXPOSURE_KEYS}
+    for row in weight_history:
+        date_str = str(row.get("date") or "")
+        if not date_str:
+            continue
+        regime = _active_regime_on_date(date_str, regime_timeline)
+        if regime not in buckets:
+            continue
+        weights = {
+            str(k): float(v)
+            for k, v in row.items()
+            if k not in ("date", "OTHER") and float(v) > 1e-6
+        }
+        if not weights:
+            continue
+        by_class = exposure_breakdown(weights, universe_by_ticker).get(
+            "by_asset_class", {}
+        )
+        if by_class:
+            buckets[regime].append(by_class)
+    out: dict[str, dict[str, float]] = {}
+    for regime, snapshots in buckets.items():
+        if not snapshots:
+            continue
+        classes = {cls for snap in snapshots for cls in snap}
+        avg = {
+            cls: float(sum(snap.get(cls, 0.0) for snap in snapshots) / len(snapshots))
+            for cls in classes
+        }
+        out[regime] = {
+            k: _round(v, 4) for k, v in sorted(avg.items(), key=lambda x: -x[1])
+        }
+    return out
+
+
 def risk_contribution(
     weights: np.ndarray,
     tickers: list[str],

@@ -322,7 +322,7 @@ def build_pro_round_param_controls(
     regime_factor_active = matrix_active and has_regime_factor_ranges(
         regime_factor_ranges
     )
-    regime_quota_active = matrix_active and has_regime_class_quotas(regime_class_quotas)
+    regime_quota_active = has_regime_class_quotas(regime_class_quotas)
     if not regime_factor_active:
         factor_ranges = complete_factor_ranges(
             factor_ranges,

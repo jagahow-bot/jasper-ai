@@ -46,7 +46,11 @@ from app.models import (
 )
 from app.profiles import get_universe, get_universe_meta, pin_guaranteed_supplements
 from app.engine.allocator import AllocatorParams
-from app.engine.analytics import build_full_analytics, build_slim_analytics
+from app.engine.analytics import (
+    build_full_analytics,
+    build_slim_analytics,
+    exposure_by_regime_from_weight_history,
+)
 from app.engine.ai_params import (
     generate_ai_param_sets,
     generate_ai_round_champion,
@@ -1790,6 +1794,13 @@ def _assemble_candidates_from_records(
             sm["dynamic_objective_timeline"] = serialize_dynamic_timeline(
                 dynamic_ctx.get("regime_timeline") or []
             )
+            exp_by_regime = exposure_by_regime_from_weight_history(
+                analytics.get("weight_history"),
+                universe_by_ticker,
+                dynamic_ctx.get("regime_timeline") or [],
+            )
+            if exp_by_regime:
+                analytics["exposure_by_regime"] = exp_by_regime
             analytics["sample_metrics"] = sm
             candidates[-1] = cand.model_copy(update={"analytics": analytics})
     return candidates

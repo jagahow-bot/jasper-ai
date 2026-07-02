@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from app.engine.ai_universe import refine_universe_with_ai
-from app.engine.analytics import build_full_analytics
+from app.engine.analytics import build_full_analytics, exposure_by_regime_from_weight_history
 from app.engine.backtest import (
     _resolve_objective,
     _sim_inputs_from_params,
@@ -19,9 +19,12 @@ from app.engine.backtest import (
 from app.engine.data import fetch_prices
 from app.engine.dynamic_objective import (
     apply_allocator_resolver,
+    apply_class_budget_resolver,
     build_dynamic_objective_context,
+    class_budget_resolver_from_trial_params,
     factor_params_resolver_from_trial_params,
     is_dynamic_objective,
+    refresh_dynamic_class_budget_resolver,
     resolve_regime_mode,
     trial_scoring_objective,
 )
@@ -333,6 +336,24 @@ def _load_price_panel(
     return tickers, prices, prices_sim_panel, spec, dynamic_ctx, universe_by_ticker
 
 
+def _hydrate_regime_class_budget_ctx(
+    dynamic_ctx: dict[str, Any] | None,
+    narrative_facts: dict[str, Any],
+    *,
+    asset_classes: list[str] | None,
+) -> dict[str, Any] | None:
+    if dynamic_ctx is None:
+        return None
+    quotas = narrative_facts.get("regime_class_quotas")
+    if not quotas:
+        return dynamic_ctx
+    return refresh_dynamic_class_budget_resolver(
+        dynamic_ctx,
+        regime_class_quotas=quotas,
+        asset_classes=asset_classes,
+    )
+
+
 def rebuild_candidate_charts(
     req: BacktestRequest,
     params: dict[str, Any],
@@ -354,6 +375,11 @@ def rebuild_candidate_charts(
     )
     tickers, prices, prices_sim_panel, spec, dynamic_ctx, universe_by_ticker = (
         _load_price_panel(req, benchmark=benchmark)
+    )
+    dynamic_ctx = _hydrate_regime_class_budget_ctx(
+        dynamic_ctx,
+        narrative_facts,
+        asset_classes=req.asset_classes,
     )
     resolver = dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
 
@@ -380,6 +406,24 @@ def rebuild_candidate_charts(
     active_regime_resolver = (
         dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
     )
+    class_resolver = (
+        class_budget_resolver_from_trial_params(
+            params,
+            active_regime_resolver,
+            asset_classes=req.asset_classes,
+        )
+        if dynamic_ctx
+        else None
+    )
+    if class_resolver is None and dynamic_ctx:
+        class_resolver = dynamic_ctx.get("class_budget_resolver")
+    sim_kw = apply_class_budget_resolver(
+        sim_kw,
+        prices,
+        class_resolver,
+        asset_classes=req.asset_classes,
+    )
+    sim_kw["enforce_class_weights"] = req.enforce_class_weights
     factor_resolver = factor_params_resolver_from_trial_params(
         params,
         active_regime_resolver,
@@ -432,6 +476,14 @@ def rebuild_candidate_charts(
         sim_kw=sim_kw,
         resolver=resolver,
     )
+    if dynamic_ctx:
+        exp_by_regime = exposure_by_regime_from_weight_history(
+            wh,
+            universe_by_ticker,
+            dynamic_ctx.get("regime_timeline") or [],
+        )
+        if exp_by_regime:
+            institutional["exposure_by_regime"] = exp_by_regime
 
     model_code = str(params.get("model_code") or "")
     return CandidateChartsPayload(

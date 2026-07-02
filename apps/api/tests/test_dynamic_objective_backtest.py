@@ -42,4 +42,5 @@ def test_dynamic_context_uses_multiple_objectives() -> None:
     objectives = {str(row["objective"]) for row in timeline}
     assert len(objectives) >= 2, objectives
     assert ctx.get("allocator_resolver") is not None
+    assert ctx.get("active_regime_resolver") is not None
     assert Objective.dynamic.value == "dynamic"

@@ -135,6 +135,86 @@ def test_regime_switch_changes_top_n_class_budget_at_rebalance() -> None:
     assert risk_off_eq < risk_on_eq
 
 
+def test_simulate_enforces_per_regime_class_budget() -> None:
+    """class_budget_resolver must switch sleeve targets when regime changes."""
+    from app.engine.allocator import AllocatorParams
+    from app.engine.asset_class_policy import class_sleeve_totals
+    from app.engine.factors import FactorParams
+    from app.engine.portfolio import simulate_dynamic_portfolio
+    from app.engine.spec import BacktestSpec
+
+    dates = pd.bdate_range("2020-01-01", periods=320)
+    rng = np.random.default_rng(11)
+    tickers = ["EQ1", "EQ2", "BD1", "BD2", "BD3"]
+    universe = {
+        "EQ1": {"asset_class": "equity"},
+        "EQ2": {"asset_class": "equity"},
+        "BD1": {"asset_class": "bond"},
+        "BD2": {"asset_class": "bond"},
+        "BD3": {"asset_class": "bond"},
+    }
+    prices = pd.DataFrame(
+        {
+            t: 100
+            * np.cumprod(
+                1
+                + rng.normal(
+                    0.0005 if universe[t]["asset_class"] == "equity" else 0.0001,
+                    0.01,
+                    len(dates),
+                )
+            )
+            for t in tickers
+        },
+        index=dates,
+    )
+    switch_date = pd.Timestamp("2020-09-01")
+
+    def regime_resolver(dt: pd.Timestamp) -> str:
+        return "risk_off" if dt < switch_date else "risk_on"
+
+    budget_by_regime = {
+        "risk_off": {"bond": 0.8, "equity": 0.2},
+        "risk_on": {"equity": 0.85, "bond": 0.15},
+    }
+    class_resolver = build_class_budget_resolver(regime_resolver, budget_by_regime)
+    metrics = simulate_dynamic_portfolio(
+        prices,
+        report_start="2020-07-01",
+        spec=BacktestSpec(rebalance_rule="QE", fee_bps=0.0, max_holdings=5),
+        max_weight=0.35,
+        min_weight=0.0,
+        allocator=AllocatorParams(mode="mean_variance", lookback_days=126),
+        factor_params=FactorParams(lookback_days=126, w_mom=1.0, w_lowvol=0.5),
+        top_n=5,
+        universe_by_ticker=universe,
+        class_budget_resolver=class_resolver,
+        enforce_class_weights=True,
+    )
+    wh = metrics.get("weight_history") or []
+    risk_off_rows = [
+        row
+        for row in wh
+        if pd.Timestamp(str(row["date"])) < switch_date
+    ]
+    risk_on_rows = [
+        row
+        for row in wh
+        if pd.Timestamp(str(row["date"])) >= switch_date
+    ]
+    assert risk_off_rows and risk_on_rows
+
+    def avg_equity(rows: list[dict]) -> float:
+        totals = []
+        for row in rows:
+            w = np.array([float(row.get(t, 0.0)) for t in tickers])
+            totals.append(class_sleeve_totals(w, tickers, universe).get("equity", 0.0))
+        return float(sum(totals) / len(totals))
+
+    assert avg_equity(risk_off_rows) < avg_equity(risk_on_rows)
+    assert avg_equity(risk_off_rows) < 0.35
+
+
 def test_pro_controls_fix_regime_quota_keys() -> None:
     blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10)
     round_setup = {

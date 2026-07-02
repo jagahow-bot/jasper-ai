@@ -313,9 +313,10 @@ def build_dynamic_objective_context(
     )
     timeline = list(regime_bundle.timeline)
     switch_count = int(regime_bundle.switch_count)
-    active_regime_resolver = None
+    # Always expose walk-forward regime labels so per-regime class quotas can switch
+    # at each rebalance (not only when a custom AI regime_setups matrix is present).
+    active_regime_resolver = bundle_active_regime_resolver(regime_bundle)
     if has_regime_matrix(regime_setups):
-        active_regime_resolver = bundle_active_regime_resolver(regime_bundle)
         resolver, _, _ = build_regime_matrix_allocator_resolver(
             bench_ret,
             normalize_regime_setups(regime_setups, shared_setup=shared_round_setup),
@@ -413,7 +414,22 @@ def refresh_dynamic_allocator_resolver(
         out["regime_setups"] = matrix
         out["regime_bundle"] = regime_bundle
         return out
-    return dynamic_ctx
+    regime_bundle = get_or_compute_regime_bundle(
+        dynamic_ctx,
+        bench_ret,
+        benchmark_ticker=str(dynamic_ctx.get("benchmark_ticker") or ""),
+        regime_mode=regime_mode,
+        detector_version=str(
+            dynamic_ctx.get("detector_version") or DEFAULT_DETECTOR_VERSION
+        ),
+        fast_risk_off_exit=fast_exit,
+    )
+    out = dict(dynamic_ctx)
+    out["active_regime_resolver"] = bundle_active_regime_resolver(regime_bundle)
+    out["regime_timeline"] = list(regime_bundle.timeline)
+    out["regime_switch_count"] = int(regime_bundle.switch_count)
+    out["regime_bundle"] = regime_bundle
+    return out
 
 
 def build_dynamic_backtest_chart_payload(

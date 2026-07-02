@@ -229,6 +229,8 @@ export interface CandidateAnalytics {
     other_pct?: number;
     duration_proxy_years?: number;
   };
+  /** Average rebalance-snapshot mix grouped by active market regime. */
+  exposure_by_regime?: Record<string, Record<string, number>>;
   risk_contribution?: {
     ticker: string;
     weight: number;
