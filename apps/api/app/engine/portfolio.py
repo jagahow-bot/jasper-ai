@@ -8,7 +8,7 @@ from typing import Any, Callable
 import numpy as np
 import pandas as pd
 
-from app.engine.spec import BacktestSpec, DEFAULT_SPEC, effective_top_n
+from app.engine.spec import BacktestSpec, DEFAULT_SPEC, effective_top_n, resolve_candidate_top_n
 from app.engine.allocator import AllocatorParams, solve_weights
 from app.engine.asset_class_policy import (
     enforce_class_weight_budget,
@@ -593,7 +593,7 @@ def _rebalance_schedule_dynamic(
     max_weight: float,
     min_weight: float = 0.0,
     allocator: AllocatorParams,
-    top_n: int,
+    top_n: int | None,
     factor_params: FactorParams,
     no_trade_tol: float,
     max_turnover: float | None = None,
@@ -683,9 +683,7 @@ def _rebalance_schedule_dynamic(
             rt_w = rets.iloc[f_start:end_loc]
             scores, factor_detail = score_assets_with_details(px_w, rt_w, factor_step)
             factor_logic = factor_detail.get("indicator_logic", {}) or factor_logic
-            sleeve_n = min(int(top_n), len(scores))
-            if max_holdings is not None:
-                sleeve_n = min(sleeve_n, int(max_holdings))
+            sleeve_n = resolve_candidate_top_n(top_n, len(scores))
             chosen = _pick_top_n_with_budget(
                 scores,
                 top_n=sleeve_n,
@@ -922,7 +920,7 @@ def _simulate_pandas(
     min_weight: float = 0.0,
     allocator: AllocatorParams | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
-    top_n: int = 30,
+    top_n: int | None = 30,
     factor_params: FactorParams | None = None,
     factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
     no_trade_tol: float = 0.0,
@@ -934,7 +932,7 @@ def _simulate_pandas(
     enforce_class_weights: bool = True,
     report_start: str | None = None,
 ) -> dict[str, Any]:
-    holdings_top_n = effective_top_n(top_n, spec)
+    holdings_top_n = effective_top_n(top_n, spec, n_assets=len(prices.columns))
     if dynamic:
         alloc = allocator or AllocatorParams(mode="min_var")
         f_params = factor_params or FactorParams(lookback_days=alloc.lookback_days)
@@ -1060,7 +1058,7 @@ def simulate_dynamic_portfolio(
     max_weight: float,
     min_weight: float = 0.0,
     allocator: AllocatorParams,
-    top_n: int,
+    top_n: int | None,
     factor_params: FactorParams | None = None,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,

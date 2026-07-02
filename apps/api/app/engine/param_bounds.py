@@ -24,14 +24,15 @@ _NUMERIC_FLOOR: dict[str, float] = {
 class RunBlueprint:
     max_weight: float
     max_turnover: float
-    top_n: int
+    top_n: int | None
 
     @classmethod
     def from_request(cls, req: Any) -> RunBlueprint:
+        top_n = None if req.top_n is None else int(req.top_n)
         return cls(
             max_weight=float(req.max_weight),
             max_turnover=float(req.max_turnover),
-            top_n=int(req.top_n),
+            top_n=top_n,
         )
 
     def ceiling(self, param_key: str) -> float | int | None:
@@ -43,7 +44,7 @@ class RunBlueprint:
         if run_field == "max_turnover":
             return float(self.max_turnover)
         if run_field == "top_n":
-            return int(self.top_n)
+            return int(self.top_n) if self.top_n is not None else None
         return None
 
     def off_default(self, param_key: str) -> float | int | None:
@@ -208,9 +209,14 @@ def clamp_param_dict(
 
 
 def blueprint_prompt_lines(blueprint: RunBlueprint) -> str:
+    top_n_line = (
+        f"top_n_actual<={blueprint.top_n}"
+        if blueprint.top_n is not None
+        else "top_n_actual unconstrained (all eligible assets)"
+    )
     return (
         f"HARD CEILINGS (never exceed): max_weight_actual<={blueprint.max_weight:.4f}; "
         f"max_turnover_actual<={blueprint.max_turnover:.4f}; "
-        f"top_n_actual<={blueprint.top_n}. "
+        f"{top_n_line}. "
         "Run sliders are authoritative; search only within [floor, ceiling]."
     )

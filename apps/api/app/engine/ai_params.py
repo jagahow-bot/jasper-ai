@@ -55,6 +55,7 @@ from app.engine.param_bounds import (
     resolve_control_mode,
     resolve_off_value,
 )
+from app.engine.spec import top_n_ai_range_hi
 from app.engine.refinement import summarize_params_for_ai
 
 _dir_lock = threading.Lock()
@@ -247,7 +248,7 @@ def _direction_cache_key(
     rebalance_freq: str,
     max_weight_cap: float,
     max_turnover_cap: float,
-    top_n_cap: int,
+    top_n_cap: int | None,
     tradable_count: int,
     learning_context: dict[str, Any],
 ) -> str:
@@ -257,7 +258,7 @@ def _direction_cache_key(
         "rebalance_freq": rebalance_freq,
         "max_weight_cap": round_ai_float(float(max_weight_cap), key="max_weight_actual"),
         "max_turnover_cap": round_ai_float(float(max_turnover_cap), key="max_turnover_actual"),
-        "top_n_cap": int(top_n_cap),
+        "top_n_cap": int(top_n_cap) if top_n_cap is not None else None,
         "tradable_count": int(tradable_count),
         "target": _format_ai_number(
             learning_context.get("target_adjusted_score"),
@@ -317,7 +318,7 @@ def _get_direction_plan(
     rebalance_freq: str,
     max_weight_cap: float,
     max_turnover_cap: float,
-    top_n_cap: int,
+    top_n_cap: int | None,
     tradable_count: int,
     learning_context: dict[str, Any],
 ) -> dict[str, Any]:
@@ -752,7 +753,7 @@ def generate_ai_param_sets(
     rebalance_freq: str,
     max_weight_cap: float,
     max_turnover_cap: float,
-    top_n_cap: int,
+    top_n_cap: int | None,
     tradable_count: int,
     param_controls: dict[str, dict] | None = None,
     progress_cb: Callable[[int, int, str], None] | None = None,
@@ -785,7 +786,7 @@ def generate_ai_param_sets(
     blueprint = RunBlueprint(
         max_weight=float(max_weight_cap),
         max_turnover=float(max_turnover_cap),
-        top_n=int(top_n_cap),
+        top_n=int(top_n_cap) if top_n_cap is not None else None,
     )
     param_controls = normalize_param_controls(param_controls, blueprint)
     learning_context = learning_context or {}
@@ -813,7 +814,7 @@ def generate_ai_param_sets(
         f"{blueprint_prompt_lines(blueprint)} "
         f"cap[max_weight]=0.05..{max_weight_cap:.4f}; "
         f"cap[max_turnover]=0.05..{max_turnover_cap:.4f}; "
-        f"top_n=5..{min(top_n_cap, tradable_count)}; "
+        f"top_n=5..{top_n_ai_range_hi(top_n_cap, tradable_count)}; "
         "lookback=126..504; factor_lb=126..504; rev_lb=63..252; val_lb=63..252; "
         "shrinkage=0..0.5; risk_aversion=0.5..12; no_trade_tol=0..0.02; turnover_penalty=0.5..3; "
         "factor_weights=0..2(trend/drawdown<=1.5); class_weights=0..1; "
@@ -2201,7 +2202,7 @@ def generate_ai_round_seed(
     rebalance_freq: str,
     max_weight_cap: float,
     max_turnover_cap: float,
-    top_n_cap: int,
+    top_n_cap: int | None,
     tradable_count: int,
     param_controls: dict[str, dict] | None = None,
     progress_cb: Callable[[int, int, str], None] | None = None,
@@ -2231,7 +2232,7 @@ def generate_ai_round_seed(
     blueprint = RunBlueprint(
         max_weight=float(max_weight_cap),
         max_turnover=float(max_turnover_cap),
-        top_n=int(top_n_cap),
+        top_n=int(top_n_cap) if top_n_cap is not None else None,
     )
     param_controls = normalize_param_controls(param_controls, blueprint)
     learning_context = learning_context or {}
@@ -2281,7 +2282,7 @@ def generate_ai_round_seed(
         f"{blueprint_prompt_lines(blueprint)} "
         f"cap[max_weight]=0.05..{max_weight_cap:.4f}; "
         f"cap[max_turnover]=0.05..{max_turnover_cap:.4f}; "
-        f"top_n=5..{min(top_n_cap, tradable_count)}; "
+        f"top_n=5..{top_n_ai_range_hi(top_n_cap, tradable_count)}; "
         "lookback=126..504; factor_lb=126..504; rev_lb=63..252; val_lb=63..252; "
         "shrinkage=0..0.5; risk_aversion=0.5..12; no_trade_tol=0..0.02; turnover_penalty=0.5..3; "
         "factor_weights=0..2(trend/drawdown<=1.5); class_weights=0..1"

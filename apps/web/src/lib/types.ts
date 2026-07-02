@@ -83,7 +83,7 @@ export interface BacktestRequest {
   train_ratio: number;
   fee_bps: number;
   rebalance_freq: string;
-  top_n: number;
+  top_n?: number | null;
   /** Maximum portfolio holdings (non-zero positions) per rebalance; slider range 1–50 */
   max_holdings?: number;
   max_turnover: number;
@@ -94,7 +94,7 @@ export interface BacktestRequest {
   refinement_batch_size?: number;
   refinement_challengers_per_round?: number;
   refinement_max_rounds?: number;
-  refinement_patience?: number;
+  refinement_patience?: number | null;
   refinement_min_improvement?: number;
   experiment?: ExperimentRequest;
   /** UI locale (en/zh/ko) forwarded so AI-generated prose matches the user's language. */

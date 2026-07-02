@@ -137,7 +137,12 @@ class BacktestRequest(BaseModel):
     train_ratio: float = Field(default=0.7, ge=0.5, le=0.85)
     fee_bps: float = Field(default=10.0, ge=0.0, le=50.0)
     rebalance_freq: str = Field(default="QE", description="Pandas offset alias, e.g. QE, ME")
-    top_n: int = Field(default=50, ge=5, le=120, description="Factor selection: pick top N assets each rebalance")
+    top_n: int | None = Field(
+        default=None,
+        ge=5,
+        le=120,
+        description="Factor selection cap per rebalance; omit for unlimited (all eligible tickers)",
+    )
     max_holdings: int = Field(
         default=30,
         ge=1,
@@ -184,11 +189,11 @@ class BacktestRequest(BaseModel):
         le=30,
         description="Maximum refinement rounds (including first batch)",
     )
-    refinement_patience: int = Field(
-        default=2,
+    refinement_patience: int | None = Field(
+        default=None,
         ge=1,
         le=10,
-        description="Stop after this many rounds without meaningful improvement",
+        description="Stop after this many rounds without improvement; omit to disable early stop",
     )
     refinement_min_improvement: float = Field(
         default=0.01,

@@ -69,7 +69,7 @@ from app.engine.memory_budget import (
     slim_search_metrics,
 )
 from app.engine.report_sim_cache import TrialReportCache
-from app.engine.spec import BacktestSpec, DEFAULT_SPEC
+from app.engine.spec import BacktestSpec, DEFAULT_SPEC, resolve_top_n_cap
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -99,7 +99,7 @@ def run_optuna_search(
     max_weight: float,
     min_weight: float = 0.0,
     max_turnover: float,
-    top_n: int,
+    top_n: int | None,
     objective: str,
     trials: int,
     ai_seed_param_sets: list[dict] | None = None,
@@ -132,7 +132,7 @@ def run_optuna_search(
     trial_records: dict[int, tuple[float, dict, dict]] = {}
     best_value: float | None = None
     n_assets = int(prices_train.shape[1])
-    top_n_cap = int(max(1, min(int(top_n), n_assets, int(spec.max_holdings))))
+    top_n_cap = resolve_top_n_cap(top_n, n_assets, spec)
     min_top = int(max(2, min(int(spec.min_holdings), n_assets)))
     if top_n_cap < min_top:
         top_n_cap = min_top
@@ -141,7 +141,7 @@ def run_optuna_search(
     blueprint = RunBlueprint(
         max_weight=float(max_weight),
         max_turnover=float(max_turnover),
-        top_n=int(top_n),
+        top_n=int(top_n) if top_n is not None else None,
     )
     if pro_round_mode:
         param_controls = build_pro_round_param_controls(

@@ -63,7 +63,6 @@ function buildDefaultRequest(): BacktestRequest {
     train_ratio: 0.7,
     fee_bps: 10,
     rebalance_freq: "QE",
-    top_n: 50,
     max_holdings: 30,
     max_turnover: 1.0,
     objective_custom_text: "",
@@ -73,7 +72,6 @@ function buildDefaultRequest(): BacktestRequest {
     refinement_batch_size: 5,
     refinement_challengers_per_round: 4,
     refinement_max_rounds: 8,
-    refinement_patience: 2,
     refinement_min_improvement: 0.01,
   };
 }

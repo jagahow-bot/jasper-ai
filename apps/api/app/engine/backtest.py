@@ -449,7 +449,7 @@ def _run_iterative_search(
     batch0 = int(req.refinement_batch_size)
     challengers = int(req.refinement_challengers_per_round)
     max_rounds = int(req.refinement_max_rounds)
-    patience = int(req.refinement_patience)
+    patience = req.refinement_patience
     min_gain = float(req.refinement_min_improvement)
     # Round 2+ enqueue champion re-sim as an extra Optuna trial on top of challengers.
     est_trials = batch0 + (challengers + 1) * max(0, max_rounds - 1)
@@ -1163,7 +1163,12 @@ def _run_iterative_search(
 
         round_done_msg = (
             f"Round {round_idx + 1} done: round best {round_best_score:.4f}, "
-            f"champion {champion_score:.4f} (flat streak {rounds_without_gain}/{patience})"
+            f"champion {champion_score:.4f}"
+            + (
+                f" (flat streak {rounds_without_gain}/{patience})"
+                if patience is not None
+                else ""
+            )
         )
         if round_bench.get("benchmark_status") == "below":
             alpha_disp = round_bench.get("benchmark_alpha")
@@ -1184,7 +1189,7 @@ def _run_iterative_search(
             round_portfolio_vs_benchmark=round_bench.get("portfolio_vs_benchmark"),
         )
 
-        if round_idx > 0 and rounds_without_gain >= patience:
+        if round_idx > 0 and patience is not None and rounds_without_gain >= patience:
             break
 
     # all_records already in chronological Optuna trial order across rounds.
@@ -1205,7 +1210,9 @@ def _run_iterative_search(
         "champion_adjusted_score": champion_score if champion_record else None,
         "stopped_reason": (
             "patience"
-            if rounds_without_gain >= patience
+            if patience is not None
+            and rounds_without_gain >= patience
+            and rounds_done < max_rounds
             else "max_rounds"
         ),
         "ai_rationales": ai_rationales[:8],
@@ -1523,8 +1530,12 @@ def _sim_inputs_from_params(
         risk_aversion=float(params["risk_aversion"]),
     )
     cap = effective_max_weight_cap(params.get("max_weight_actual"), req.max_weight)
-    top_n_actual = int(params.get("top_n_actual", req.top_n))
-    top_n_actual = min(top_n_actual, int(spec.max_holdings))
+    if "top_n_actual" in params:
+        top_n_actual = int(params["top_n_actual"])
+    elif req.top_n is not None:
+        top_n_actual = min(int(req.top_n), int(spec.max_holdings))
+    else:
+        top_n_actual = int(spec.max_holdings)
     no_trade_tol = float(params.get("no_trade_tol", 0.0))
     turnover_penalty_mult = float(params.get("turnover_penalty_mult", 1.0))
     max_turnover_actual = float(params.get("max_turnover_actual", req.max_turnover))
@@ -2650,7 +2661,12 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     best_cap = effective_max_weight_cap(
         best_params.get("max_weight_actual"), req.max_weight
     )
-    best_top_n_actual = int(best_params.get("top_n_actual", req.top_n))
+    if "top_n_actual" in best_params:
+        best_top_n_actual = int(best_params["top_n_actual"])
+    elif req.top_n is not None:
+        best_top_n_actual = min(int(req.top_n), int(spec.max_holdings))
+    else:
+        best_top_n_actual = int(spec.max_holdings)
     best_no_trade_tol = float(best_params.get("no_trade_tol", 0.0))
     best_turnover_penalty_mult = float(best_params.get("turnover_penalty_mult", 1.0))
     best_max_turnover = float(best_params.get("max_turnover_actual", req.max_turnover))

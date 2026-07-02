@@ -44,6 +44,14 @@ def test_clamp_param_dict_records_violation():
     assert len(violations) >= 2
 
 
+def test_clamp_param_dict_unlimited_top_n_skips_ceiling():
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=None)
+    params = {"top_n_actual": 80}
+    clipped, violations = clamp_param_dict(params, bp)
+    assert clipped["top_n_actual"] == 80
+    assert not violations
+
+
 def test_ai_apply_controls_clamps_above_ceiling():
     bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=50)
     controls = normalize_param_controls({}, bp)
