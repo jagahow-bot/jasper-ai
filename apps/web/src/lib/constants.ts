@@ -105,13 +105,21 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 export const OBJECTIVE_LABELS: Record<string, string> = {
   dynamic: "Dynamic — regime-adaptive (composite score)",
-  max_sharpe: "Max Sharpe",
-  max_return: "Max CAGR",
-  min_max_drawdown: "Min Max DD",
-  max_sortino: "Max Sortino",
-  min_cvar: "Min CVaR",
-  risk_parity_erc: "Risk Parity (ERC)",
-  max_diversification: "Max Diversification",
-  mean_variance_utility: "Mean-Variance Utility",
+  max_sharpe: "Maximize Sharpe ratio",
+  max_return: "Maximize CAGR (annual return)",
+  min_max_drawdown: "Minimize maximum drawdown",
+  max_sortino: "Maximize Sortino ratio",
+  min_cvar: "Minimize CVaR (tail risk)",
+  risk_parity_erc: "Risk parity (equal risk contribution)",
+  max_diversification: "Maximize diversification",
+  mean_variance_utility: "Mean-variance utility",
   custom: "Custom objective",
+};
+
+export const ALLOCATOR_LABELS: Record<string, string> = {
+  auto: "Auto (let Jasper choose)",
+  mean_variance: "Mean-variance",
+  min_var: "Minimum variance",
+  risk_parity: "Risk parity",
+  max_diversification: "Maximum diversification",
 };

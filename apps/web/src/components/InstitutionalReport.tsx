@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useI18n } from "@/lib/i18n";
+import { rebalanceFreqLabel, useI18n } from "@/lib/i18n";
 import { chartTickFontSize } from "@/lib/benchmark-chart-scale";
 import type { PortfolioCandidate } from "@/lib/types";
 
@@ -125,7 +125,7 @@ export function InstitutionalReport({
       {execution.rebalance_freq != null ? (
         <Section title={t("institutional.rebalanceExecution")}>
           <p className="text-sm">
-            {t("institutional.freq")} <span className="text-neon">{String(execution.rebalance_freq)}</span>
+            {t("institutional.freq")} <span className="text-neon">{rebalanceFreqLabel(t, String(execution.rebalance_freq))}</span>
             {" · "}
             {t("institutional.count")} <span className="text-neon">{String(execution.rebalance_count)}</span>
           </p>

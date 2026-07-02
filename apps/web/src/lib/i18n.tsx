@@ -171,7 +171,7 @@ const en: Dict = {
   "common.active": "Active",
   "common.vol": "Vol",
   "common.cagr": "CAGR",
-  "common.maxDd": "Max DD",
+  "common.maxDd": "Max drawdown",
   "common.sharpe": "Sharpe",
   "common.sortino": "Sortino",
   "common.calmar": "Calmar",
@@ -274,7 +274,7 @@ const en: Dict = {
   "progress.label.maxdd": "max drawdown",
   "progress.label.sortino": "Sortino",
   "progress.label.cvar": "CVaR",
-  "progress.label.vol": "vol",
+  "progress.label.vol": "volatility",
   "progress.label.comprehensive": "composite",
   "progress.label.metric": "metric",
 
@@ -332,9 +332,9 @@ const en: Dict = {
   "regime.risk_off": "Risk-off",
   "regime.neutral": "Neutral",
   "regime.risk_on": "Risk-on",
-  "objectiveBand.max_sharpe": "Max Sharpe",
-  "objectiveBand.max_return": "Max CAGR",
-  "objectiveBand.min_max_drawdown": "Min Max DD",
+  "objectiveBand.max_sharpe": "Maximize Sharpe",
+  "objectiveBand.max_return": "Maximize CAGR",
+  "objectiveBand.min_max_drawdown": "Minimize max drawdown",
 
   "objectiveLab.rec.apply": "Recommendation: apply",
   "objectiveLab.rec.notYet": "Recommendation: not yet",
@@ -370,10 +370,10 @@ const en: Dict = {
   "objectiveLab.stepLevelAlignment":
     "Step-level alignment {score}/100 — same return-based rules on {days}d forward windows; the headline score above uses full episodes.",
   "objectiveLab.regimeSwitches": "Regime switches: {count}",
-  "objectiveLab.isSharpe": "IS Sharpe",
-  "objectiveLab.oosSharpe": "OOS Sharpe",
-  "objectiveLab.isReturn": "IS return",
-  "objectiveLab.isMaxDd": "IS max DD",
+  "objectiveLab.isSharpe": "In-sample Sharpe",
+  "objectiveLab.oosSharpe": "Out-of-sample Sharpe",
+  "objectiveLab.isReturn": "In-sample return",
+  "objectiveLab.isMaxDd": "In-sample max drawdown",
   "objectiveLab.hit": "hit",
   "objectiveLab.miss": "miss",
 
@@ -412,7 +412,7 @@ const en: Dict = {
   "institutional.annualOos": "Annual returns (Out-of-Sample)",
   "institutional.horizonTitle": "Performance by horizon (In-Sample / Out-of-Sample / Full)",
   "institutional.horizon": "Horizon",
-  "institutional.maxDd": "Max DD",
+  "institutional.maxDd": "Max drawdown",
   "institutional.rebalanceExecution": "Rebalance execution",
   "institutional.freq": "Freq",
   "institutional.count": "Count",
@@ -453,16 +453,19 @@ const en: Dict = {
   "results.viewing": "Viewing",
   "results.round": "round",
   "results.newRoundBest": "new round best",
-  "results.proRefinement": "Pro refinement",
-  "results.rounds": "rounds",
-  "results.trials": "strategies",
-  "results.earlyStop": "stopped early",
-  "results.parameterSearch": "Search",
-  "results.feasible": "feasible",
-  "results.reported": "reported",
-  "results.catalog": "catalog",
-  "results.rebalance": "rebalance",
-  "results.applied": "applied",
+  "results.proRefinement": "Pro optimization",
+  "results.meta.rounds": "{rounds} refinement rounds across {trials} candidate strategies",
+  "results.meta.convergedEarly": "converged early (no further gains)",
+  "results.meta.fullSearch": "ran the full search",
+  "results.meta.search": "Parameter search across {trials} candidate strategies",
+  "results.meta.reported": "{feasible} valid strategies found, {reported} included in this report",
+  "results.meta.catalog": "(of {catalog} explored in total)",
+  "results.meta.rebalance": "{freq} rebalancing — applied {applied} of {count} scheduled dates",
+  "results.freq.weekly": "Weekly",
+  "results.freq.monthly": "Monthly",
+  "results.freq.quarterly": "Quarterly",
+  "results.freq.yearly": "Yearly",
+  "results.freq.daily": "Daily",
   "results.orderByModel": "order: by number",
   "results.sort": "sort",
   "results.rankedOnInSample": "Ranked on In-Sample",
@@ -470,7 +473,7 @@ const en: Dict = {
   "results.winRate": "Win rate",
   "results.avgTurnover": "Avg turnover",
   "results.totalTurnover": "Total turnover",
-  "results.maxDdDays": "Max DD days",
+  "results.maxDdDays": "Max drawdown (days)",
   "results.var95": "VaR 95% (d)",
   "results.cvar95": "CVaR 95% (d)",
   "results.te": "TE",
@@ -525,7 +528,7 @@ const en: Dict = {
   "results.selectTrialHint": "Select a strategy above to see its performance and holdings.",
   "results.efficientFrontierHint":
     "Blue dots are strategies Jasper tried; orange dots are the top picks shown in your report.",
-  "results.annVol": "Ann. vol (%)",
+  "results.annVol": "Annualized volatility (%)",
   "results.annReturn": "Ann. return (%)",
   "results.outputModel": "Top pick",
   "results.searchTrial": "Tested strategy",
@@ -631,7 +634,7 @@ const en: Dict = {
   // Constraints — categorical labels
   "config.categorical.objective_mode": "Objective fn",
   "config.categorical.allocator_mode": "Allocator mode",
-  "config.categorical.rebalance_freq": "Rebalance freq",
+  "config.categorical.rebalance_freq": "Rebalance frequency",
 
   // Constraints — advanced numeric control labels
   "config.control.subPrefix": "Sub {label}",
@@ -649,7 +652,7 @@ const en: Dict = {
   "config.control.w_mom": "Wt momentum",
   "config.control.w_reversal": "Wt reversal",
   "config.control.w_value": "Wt value",
-  "config.control.w_lowvol": "Wt low-vol",
+  "config.control.w_lowvol": "Low-vol weight",
   "config.control.w_trend": "Wt trend",
   "config.control.w_drawdown": "Wt drawdown qual",
   "config.control.w_equity": "Alloc equity",
@@ -690,7 +693,7 @@ const en: Dict = {
   "pro.prefix.improved": "Round winner — replaced the incoming champion",
   "pro.prefix.held": "Incoming champion held (improvement below threshold)",
   "pro.prefix.body":
-    "[{label}] {status} · adj score {score} · {trials} trials · {models} strategies.",
+    "{label} — {status}. Adjusted score {score}, from {trials} trials across {models} strategies.",
 
   // Pro rounds — parameter labels
   "pro.param.mode": "Allocator mode",
@@ -736,8 +739,8 @@ const en: Dict = {
   "institutional.upCapture": "Up capture",
   "institutional.downCapture": "Down capture",
   "institutional.riskPct": "Risk %",
-  "institutional.rollingSharpe": "Rolling Sharpe (252D)",
-  "institutional.rollingVol": "Rolling vol (252D)",
+  "institutional.rollingSharpe": "Rolling Sharpe (252-day)",
+  "institutional.rollingVol": "Rolling volatility (252-day)",
   "institutional.inSampleNote":
     "Selection and ranking use In-Sample only; periods below exclude the Out-of-Sample tail.",
   "institutional.ddStart": "Start",
@@ -1160,15 +1163,18 @@ const zh: Dict = {
   "results.round": "輪次",
   "results.newRoundBest": "本輪新最佳",
   "results.proRefinement": "Pro 優化",
-  "results.rounds": "輪",
-  "results.trials": "種策略",
-  "results.earlyStop": "提前結束",
-  "results.parameterSearch": "搜尋",
-  "results.feasible": "可行",
-  "results.reported": "已列報",
-  "results.catalog": "總覽",
-  "results.rebalance": "再平衡",
-  "results.applied": "已套用",
+  "results.meta.rounds": "共 {rounds} 輪優化，測試了 {trials} 種候選策略",
+  "results.meta.convergedEarly": "已提前收斂（不再有明顯進步）",
+  "results.meta.fullSearch": "已完成完整搜尋",
+  "results.meta.search": "參數搜尋，測試了 {trials} 種候選策略",
+  "results.meta.reported": "找到 {feasible} 個有效策略，已納入報告 {reported} 個",
+  "results.meta.catalog": "（累計嘗試 {catalog} 個）",
+  "results.meta.rebalance": "{freq}再平衡（預定的 {count} 次中實際套用 {applied} 次）",
+  "results.freq.weekly": "每週",
+  "results.freq.monthly": "每月",
+  "results.freq.quarterly": "每季",
+  "results.freq.yearly": "每年",
+  "results.freq.daily": "每日",
   "results.orderByModel": "排序：依編號",
   "results.sort": "排序",
   "results.rankedOnInSample": "依樣本內排名",
@@ -1389,7 +1395,7 @@ const zh: Dict = {
   "pro.prefix.improved": "本輪優勝者 — 取代了原本的領先者",
   "pro.prefix.held": "原領先者保留（進步幅度低於門檻）",
   "pro.prefix.body":
-    "[{label}] {status} · 調整後分數 {score} · {trials} 次試驗 · {models} 種策略。",
+    "{label} — {status}。調整後分數 {score}，來自 {trials} 次試驗、共 {models} 種策略。",
 
   // Pro rounds — parameter labels
   "pro.param.mode": "配置器模式",
@@ -1775,10 +1781,10 @@ const ko: Dict = {
   "objectiveLab.stepLevelAlignment":
     "스텝 단위 정합도 {score}/100 — {days}일 전방 창에 동일한 수익률 규칙 적용; 위의 주요 점수는 전체 구간을 사용합니다.",
   "objectiveLab.regimeSwitches": "국면 전환 횟수: {count}",
-  "objectiveLab.isSharpe": "IS 샤프",
-  "objectiveLab.oosSharpe": "OOS 샤프",
-  "objectiveLab.isReturn": "IS 수익률",
-  "objectiveLab.isMaxDd": "IS 최대 낙폭",
+  "objectiveLab.isSharpe": "인샘플 샤프",
+  "objectiveLab.oosSharpe": "아웃오브샘플 샤프",
+  "objectiveLab.isReturn": "인샘플 수익률",
+  "objectiveLab.isMaxDd": "인샘플 최대 낙폭",
   "objectiveLab.hit": "적중",
   "objectiveLab.miss": "오차",
 
@@ -1858,16 +1864,19 @@ const ko: Dict = {
   "results.viewing": "보기",
   "results.round": "라운드",
   "results.newRoundBest": "이번 라운드 최고",
-  "results.proRefinement": "Pro 개선",
-  "results.rounds": "라운드",
-  "results.trials": "개 전략",
-  "results.earlyStop": "조기 종료",
-  "results.parameterSearch": "검색",
-  "results.feasible": "실현 가능",
-  "results.reported": "보고됨",
-  "results.catalog": "카탈로그",
-  "results.rebalance": "리밸런싱",
-  "results.applied": "적용됨",
+  "results.proRefinement": "Pro 최적화",
+  "results.meta.rounds": "총 {rounds}회 개선 라운드, 후보 전략 {trials}개 테스트",
+  "results.meta.convergedEarly": "조기에 수렴함 (추가 개선 없음)",
+  "results.meta.fullSearch": "전체 탐색 완료",
+  "results.meta.search": "파라미터 검색, 후보 전략 {trials}개 테스트",
+  "results.meta.reported": "유효 전략 {feasible}개 발견, 보고서에 {reported}개 포함",
+  "results.meta.catalog": "(총 {catalog}개 탐색)",
+  "results.meta.rebalance": "{freq} 리밸런싱 (예정된 {count}회 중 {applied}회 적용)",
+  "results.freq.weekly": "매주",
+  "results.freq.monthly": "매월",
+  "results.freq.quarterly": "분기별",
+  "results.freq.yearly": "매년",
+  "results.freq.daily": "매일",
   "results.orderByModel": "정렬: 번호순",
   "results.sort": "정렬",
   "results.rankedOnInSample": "인샘플 기준 순위",
@@ -2092,7 +2101,7 @@ const ko: Dict = {
   "pro.prefix.improved": "라운드 우승자 — 기존 선두를 교체함",
   "pro.prefix.held": "기존 선두 유지(개선폭이 기준 미만)",
   "pro.prefix.body":
-    "[{label}] {status} · 조정 점수 {score} · 시행 {trials}회 · 전략 {models}개.",
+    "{label} — {status}. 조정 점수 {score}, 시행 {trials}회 · 전략 {models}개.",
 
   // Pro rounds — parameter labels
   "pro.param.mode": "배분기 모드",
@@ -2179,6 +2188,22 @@ export function objectiveBandLabel(t: TFn, objective?: string | null): string {
   const key = `objectiveBand.${objective}`;
   const val = t(key);
   return val === key ? objective.replace(/_/g, " ") : val;
+}
+
+/**
+ * Turn a pandas-style rebalance frequency code (ME, QE, YE, W-FRI, WE, D, …)
+ * into a plain, localized word ("Monthly", "每月", "매월"). Falls back to the
+ * raw code only if it is completely unrecognized.
+ */
+export function rebalanceFreqLabel(t: TFn, code?: string | null): string {
+  if (!code) return "";
+  const c = String(code).trim().toUpperCase();
+  if (c.startsWith("W")) return t("results.freq.weekly");
+  if (c === "ME" || c === "M" || c === "MS" || c.startsWith("MON")) return t("results.freq.monthly");
+  if (c.startsWith("Q")) return t("results.freq.quarterly");
+  if (c.startsWith("Y") || c.startsWith("A")) return t("results.freq.yearly");
+  if (c === "D" || c.startsWith("DAY") || c === "B") return t("results.freq.daily");
+  return String(code);
 }
 
 export function readStoredLang(): Lang {
