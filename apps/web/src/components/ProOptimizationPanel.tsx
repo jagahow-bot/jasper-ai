@@ -156,27 +156,6 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
                 className="w-full"
               />
             </label>
-            <label className="block space-y-1">
-              <span className="flex justify-between text-xs text-[var(--foreground)]">
-                <span>{t("proPanel.patienceRounds")}</span>
-                <span className="font-terminal text-base text-[var(--amber)]">
-                  {value.refinement_patience ?? 2}
-                </span>
-              </span>
-              <input
-                type="range"
-                min={1}
-                max={5}
-                value={value.refinement_patience ?? 2}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    refinement_patience: Number(e.target.value),
-                  })
-                }
-                className="w-full"
-              />
-            </label>
           </div>
           {!value.enable_oos && (
             <p className="border border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-2 py-1 text-xs text-[var(--amber)]">

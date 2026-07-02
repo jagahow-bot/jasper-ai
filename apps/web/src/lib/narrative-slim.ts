@@ -62,7 +62,6 @@ export function buildJobNarrativeFacts(
         champion_model_code:
           proFull.champion_model_code ?? baseFacts.champion_model_code,
         refinement_max_rounds: proFull.refinement_max_rounds,
-        refinement_patience: proFull.refinement_patience,
       }
     : null;
 

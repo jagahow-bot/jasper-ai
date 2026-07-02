@@ -45,7 +45,9 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
   const dynamicObjective = value.objective === "dynamic";
   const offline = apiOnline === false;
   const runMaxWeight = Math.max(0.05, value.max_weight);
-  const runTopN = value.top_n;
+  // `top_n` is no longer user-configurable from the UI; keep the UI limits in
+  // sync with the server's default value.
+  const runTopN = 50;
   const runMaxTurnover = value.max_turnover;
   const controlSpecs: Array<{ key: string; label: string; min: number; max: number; step: number }> = useMemo(
     () => {
@@ -251,20 +253,6 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           className="w-full"
         />
         <p className="ui-hint">{t("config.maxHoldingsHint")}</p>
-      </label>
-
-      <label className="block space-y-2">
-        <span className="ui-label">{t("config.topN", { n: value.top_n })}</span>
-        <input
-          type="range"
-          min={10}
-          max={80}
-          step={5}
-          value={value.top_n}
-          onChange={(e) => onChange({ ...value, top_n: Number(e.target.value) })}
-          className="w-full"
-        />
-        <p className="ui-hint">{t("config.topNHint")}</p>
       </label>
 
       <label className="block space-y-2">

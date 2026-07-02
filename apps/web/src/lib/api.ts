@@ -101,9 +101,14 @@ export async function getJobRequest(jobId: string): Promise<BacktestRequest> {
 }
 
 export async function createJob(req: BacktestRequest): Promise<{ job_id: string }> {
+  // These knobs are kept for backward compatibility in the request type, but
+  // they are intentionally not sent from the UI anymore.
+  const payload = { ...req } as Partial<BacktestRequest>;
+  delete payload.top_n;
+  delete payload.refinement_patience;
   return fetchJson<{ job_id: string }>("/jobs", {
     method: "POST",
-    body: JSON.stringify(req),
+    body: JSON.stringify(payload),
   });
 }
 
