@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import { objectiveBandLabel, regimeLabel, useI18n } from "@/lib/i18n";
+import {
+  aggregateWeightHistoryByAssetClass,
+  ASSET_CLASS_CHART_COLORS,
+  buildTickerAssetClassMap,
+} from "@/lib/asset-class-weight-history";
+import { assetClassLabel, objectiveBandLabel, regimeLabel, useI18n } from "@/lib/i18n";
+import { getUniverseItems } from "@/lib/universe";
 import {
   activeObjectiveAtTs,
   activeRegimeAtTs,
@@ -215,8 +221,24 @@ export function LinkedEquityWeightChart({
     return maxOther > 0.005;
   }, [weightChartData]);
 
+  const tickerAssetClassMap = useMemo(
+    () => buildTickerAssetClassMap(getUniverseItems()),
+    [],
+  );
+
+  const { data: classWeightChartData, classKeys: assetClassKeys } = useMemo(
+    () =>
+      aggregateWeightHistoryByAssetClass(
+        weightChartData,
+        weightTickers,
+        tickerAssetClassMap,
+      ),
+    [weightChartData, weightTickers, tickerAssetClassMap],
+  );
+
   const hasEquity = equityChartData.length > 0;
   const hasWeights = weightChartData.length > 0 && weightTickers.length > 0;
+  const hasClassWeights = classWeightChartData.length > 0 && assetClassKeys.length > 0;
   const hasBenchmark = equityChartData.some(
     (r) => r.benchmark != null && Number.isFinite(r.benchmark),
   );
@@ -484,6 +506,71 @@ export function LinkedEquityWeightChart({
                   fill="#64748b"
                 />
               )}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {hasClassWeights && (
+        <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
+          <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
+            {t("linkedChart.assetClassTitle")}
+            <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
+              · {t("linkedChart.hoverHint")}
+            </span>
+          </p>
+          <ResponsiveContainer width="100%" height={WEIGHT_HEIGHT}>
+            <AreaChart
+              {...JASPER_PERFORMANCE_CHART_SYNC}
+              data={classWeightChartData}
+              margin={LAB_CHART_MARGIN}
+            >
+              <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
+              {xAxisProps ? (
+                <XAxis {...xAxisProps} />
+              ) : (
+                <XAxis
+                  dataKey="date"
+                  stroke="#94a3b8"
+                  fontSize={tickFont}
+                  minTickGap={28}
+                  tickFormatter={(v) => String(v).slice(2)}
+                />
+              )}
+              <YAxis
+                domain={[0, 1]}
+                stroke="#94a3b8"
+                fontSize={tickFont}
+                width={LAB_Y_AXIS_WIDTH}
+                tickFormatter={(v) => `${(Number(v) * 100).toFixed(0)}%`}
+              />
+              <Tooltip
+                allowEscapeViewBox={{ x: true, y: true }}
+                wrapperStyle={{ zIndex: 10050, pointerEvents: "none" }}
+                content={
+                  <ChartTooltip
+                    valueIsPct
+                    valueDecimals={2}
+                    sortByValue
+                  />
+                }
+                labelFormatter={formatChartTooltipLabel}
+              />
+              <Legend
+                wrapperStyle={{ fontSize: legendFont }}
+                formatter={(value) => assetClassLabel(t, String(value))}
+              />
+              {assetClassKeys.map((cls) => (
+                <Area
+                  key={cls}
+                  type="monotone"
+                  dataKey={cls}
+                  name={assetClassLabel(t, cls)}
+                  stackId="assetClasses"
+                  stroke={ASSET_CLASS_CHART_COLORS[cls]}
+                  fill={ASSET_CLASS_CHART_COLORS[cls]}
+                />
+              ))}
             </AreaChart>
           </ResponsiveContainer>
         </div>

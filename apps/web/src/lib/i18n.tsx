@@ -323,6 +323,7 @@ const en: Dict = {
   "linkedChart.cumulativeTitle": "Cumulative return % — Portfolio vs {benchmark}",
   "linkedChart.amberSwitch": "Amber = switch",
   "linkedChart.holdingsTitle": "Holdings over time",
+  "linkedChart.assetClassTitle": "Asset class mix over time",
   "linkedChart.otherCapHint": "Smaller holdings grouped as “Other”",
   "linkedChart.hoverHint": "Hover the chart to see holdings",
   "linkedChart.other": "Other",
@@ -422,6 +423,9 @@ const en: Dict = {
   "institutional.bucketsRegion": "By region",
   "institutional.equity": "Equity",
   "institutional.bond": "Bond",
+  "institutional.commodity": "Commodity",
+  "institutional.real_estate": "REIT",
+  "institutional.alternative": "Alt",
   "institutional.other": "Other",
   "institutional.durationProxy": "Avg. duration (yrs)",
   "institutional.riskContributionTop": "Top risk contributors",
@@ -1095,6 +1099,7 @@ const zh: Dict = {
   "linkedChart.cumulativeTitle": "累積報酬 % — 投資組合 vs {benchmark}",
   "linkedChart.amberSwitch": "琥珀色 = 切換",
   "linkedChart.holdingsTitle": "持股隨時間變化",
+  "linkedChart.assetClassTitle": "資產類別配置隨時間變化",
   "linkedChart.otherCapHint": "較小的持股歸為「其他」",
   "linkedChart.hoverHint": "將游標移到圖表上查看持股",
   "linkedChart.other": "其他",
@@ -1194,6 +1199,9 @@ const zh: Dict = {
   "institutional.bucketsRegion": "依地區",
   "institutional.equity": "股票",
   "institutional.bond": "債券",
+  "institutional.commodity": "商品",
+  "institutional.real_estate": "REIT",
+  "institutional.alternative": "另類",
   "institutional.other": "其他",
   "institutional.durationProxy": "平均存續期間（年）",
   "institutional.riskContributionTop": "主要風險貢獻者",
@@ -1854,6 +1862,7 @@ const ko: Dict = {
   "linkedChart.cumulativeTitle": "누적 수익률 % — 포트폴리오 vs {benchmark}",
   "linkedChart.amberSwitch": "황색 = 전환",
   "linkedChart.holdingsTitle": "기간별 보유 종목",
+  "linkedChart.assetClassTitle": "기간별 자산군 비중",
   "linkedChart.otherCapHint": "비중이 작은 종목은 ‘기타’로 묶음",
   "linkedChart.hoverHint": "차트에 마우스를 올리면 보유 종목 표시",
   "linkedChart.other": "기타",
@@ -1953,6 +1962,9 @@ const ko: Dict = {
   "institutional.bucketsRegion": "지역별",
   "institutional.equity": "주식",
   "institutional.bond": "채권",
+  "institutional.commodity": "원자재",
+  "institutional.real_estate": "REIT",
+  "institutional.alternative": "대체",
   "institutional.other": "기타",
   "institutional.durationProxy": "평균 듀레이션(년)",
   "institutional.riskContributionTop": "주요 위험 기여 종목",
@@ -2352,6 +2364,14 @@ export function translate(lang: Lang, key: string, params?: Record<string, strin
 }
 
 /** Localized market-regime label (risk_off/neutral/risk_on) with safe fallback. */
+/** Localized top-level asset-class label (equity, bond, commodity, …). */
+export function assetClassLabel(t: TFn, key?: string | null): string {
+  if (!key) return "";
+  const tk = `institutional.${key}`;
+  const val = t(tk);
+  return val === tk ? String(key).replace(/_/g, " ") : val;
+}
+
 export function regimeLabel(t: TFn, regime?: string | null): string {
   if (!regime) return "";
   const key = `regime.${regime}`;
