@@ -596,6 +596,9 @@ const en: Dict = {
     "The analytics service is offline right now, so backtests can’t run. Please try again in a moment.",
   "config.assetClassSyncHint":
     "Your selected asset classes and their target weights stay in sync — anything you leave out is held at zero.",
+  "config.enforceClassWeights": "Enforce class allocation targets",
+  "config.enforceClassWeightsHint":
+    "When on, bond/equity targets (and per-regime quotas) set final sleeve weights — not just which names enter Top-N screening.",
   "config.limitsHint":
     "The sliders above set the upper limits Jasper works within. It tries a range of values up to each limit to find the best fit for your goal.",
   "config.objectiveHint.dynamic":
@@ -1362,6 +1365,9 @@ const zh: Dict = {
   "config.runOfflineHint": "分析服務目前離線，無法執行回測。請稍後再試。",
   "config.assetClassSyncHint":
     "你選取的資產類別與目標權重會保持同步 — 未納入的部分一律維持為零。",
+  "config.enforceClassWeights": "強制落實資產類別目標配置",
+  "config.enforceClassWeightsHint":
+    "開啟後，債券／股票等目標權重（含各市場狀態配額）會直接約束最終持倉比重，而不只影響 Top-N 篩選名單。",
   "config.limitsHint":
     "上方的滑桿設定 Jasper 運作的上限。它會在每個上限內嘗試一系列數值，找出最符合你目標的設定。",
   "config.objectiveHint.dynamic":
@@ -2118,6 +2124,9 @@ const ko: Dict = {
     "지금은 분석 서비스가 오프라인이라 백테스트를 실행할 수 없습니다. 잠시 후 다시 시도해 주세요.",
   "config.assetClassSyncHint":
     "선택한 자산군과 목표 비중은 서로 동기화됩니다 — 포함하지 않은 항목은 0으로 유지됩니다.",
+  "config.enforceClassWeights": "자산군 목표 비중 강제 적용",
+  "config.enforceClassWeightsHint":
+    "켜면 채권/주식 목표(국면별 할당 포함)가 Top-N 선정뿐 아니라 최종 비중까지 직접 반영됩니다.",
   "config.limitsHint":
     "위 슬라이더는 Jasper가 작동하는 상한을 설정합니다. 각 상한까지 다양한 값을 시도해 목표에 가장 잘 맞는 설정을 찾습니다.",
   "config.objectiveHint.dynamic":

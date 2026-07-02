@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 _REGIME_KEYS: tuple[str, ...] = ("risk_off", "neutral", "risk_on")
@@ -40,6 +41,151 @@ ALL_ALLOC_WEIGHT_KEYS: tuple[str, ...] = tuple(
 TOP_LEVEL_QUOTA_KEYS: tuple[str, ...] = tuple(
     k for keys in CLASS_BUDGET_KEYS.values() for k in keys
 )
+
+
+def normalize_class_budget(class_budget: dict[str, float] | None) -> dict[str, float]:
+    """Normalized top-level sleeve targets (equity, bond, …) summing to 1."""
+    if not class_budget:
+        return {}
+    clean: dict[str, float] = {}
+    for k, v in class_budget.items():
+        vv = float(max(v, 0.0))
+        if vv > 0:
+            clean[str(k)] = vv
+    s = float(sum(clean.values()))
+    if s < 1e-12:
+        return {}
+    return {k: v / s for k, v in clean.items()}
+
+
+def _ticker_asset_class(
+    ticker: str,
+    universe_by_ticker: dict[str, dict[str, Any]] | None,
+) -> str:
+    if not universe_by_ticker:
+        return "other"
+    return str((universe_by_ticker.get(ticker, {}) or {}).get("asset_class", "other"))
+
+
+def class_sleeve_totals(
+    w: np.ndarray,
+    tickers: list[str],
+    universe_by_ticker: dict[str, dict[str, Any]] | None,
+) -> dict[str, float]:
+    """Aggregate portfolio weight by top-level asset class."""
+    totals: dict[str, float] = {}
+    w = np.asarray(w, dtype=float)
+    for i, ticker in enumerate(tickers):
+        if i >= len(w):
+            break
+        weight = float(max(w[i], 0.0))
+        if weight <= 0:
+            continue
+        ac = _ticker_asset_class(ticker, universe_by_ticker)
+        totals[ac] = totals.get(ac, 0.0) + weight
+    return totals
+
+
+def enforce_class_weight_budget(
+    w: np.ndarray,
+    tickers: list[str],
+    universe_by_ticker: dict[str, dict[str, Any]] | None,
+    class_budget: dict[str, float] | None,
+    *,
+    active_tickers: list[str] | None = None,
+    max_weight: float | None = None,
+    max_iter: int = 8,
+) -> np.ndarray:
+    """Rescale holdings so sleeve totals match class_budget (hard enforcement)."""
+    budget = normalize_class_budget(class_budget)
+    if not budget or not universe_by_ticker:
+        return np.asarray(w, dtype=float).copy()
+
+    out = np.asarray(w, dtype=float).copy()
+    out = np.maximum(out, 0.0)
+    n = len(tickers)
+    if out.shape[0] != n:
+        out = np.resize(out, n)
+
+    active_set = set(active_tickers) if active_tickers else set(tickers)
+    out = np.where([t in active_set for t in tickers], out, 0.0)
+
+    class_indices: dict[str, list[int]] = {}
+    for i, ticker in enumerate(tickers):
+        if ticker not in active_set:
+            continue
+        ac = _ticker_asset_class(ticker, universe_by_ticker)
+        if ac in budget:
+            class_indices.setdefault(ac, []).append(i)
+
+    if not class_indices:
+        return out
+
+    def _project_to_budget(weights: np.ndarray) -> np.ndarray:
+        projected = np.zeros_like(weights)
+        active_targets: dict[str, float] = {}
+        for ac, target in budget.items():
+            if class_indices.get(ac):
+                active_targets[ac] = target
+        target_sum = float(sum(active_targets.values()))
+        if target_sum < 1e-12:
+            return weights
+        scale = 1.0 / target_sum
+        for ac, target in active_targets.items():
+            indices = class_indices[ac]
+            sleeve_target = target * scale
+            # Equal split within the active class sleeve (hard target, not allocator tilt).
+            projected[indices] = sleeve_target / len(indices)
+        total = float(projected.sum())
+        if total > 1e-12:
+            projected /= total
+        return projected
+
+    def _cap_within_classes(weights: np.ndarray) -> np.ndarray:
+        if cap is None or cap >= 1.0 - 1e-12:
+            return weights
+        capped = np.zeros_like(weights)
+        for ac in active_targets.keys():
+            indices = class_indices.get(ac, [])
+            if not indices:
+                continue
+            sleeve = float(weights[indices].sum())
+            if sleeve <= 1e-12:
+                continue
+            slice_w = weights[indices].copy()
+            over = slice_w > cap + 1e-12
+            if not over.any():
+                capped[indices] = slice_w
+                continue
+            slice_w[over] = cap
+            surplus = sleeve - float(slice_w.sum())
+            under = ~over
+            if under.any() and float(slice_w[under].sum()) > 1e-12:
+                slice_w[under] += surplus * (slice_w[under] / float(slice_w[under].sum()))
+            elif under.any():
+                slice_w[under] = surplus / float(under.sum())
+            capped[indices] = slice_w
+        total = float(capped.sum())
+        if total > 1e-12:
+            capped /= total
+        return capped
+
+    out = _project_to_budget(out)
+    cap = float(max_weight) if max_weight is not None else None
+    active_targets = {
+        ac: target
+        for ac, target in budget.items()
+        if class_indices.get(ac)
+    }
+    if cap is not None and cap < 1.0 - 1e-12:
+        out = _cap_within_classes(out)
+        for _ in range(max_iter):
+            next_out = _project_to_budget(_cap_within_classes(out))
+            if float(np.max(np.abs(next_out - out))) < 1e-5:
+                return _cap_within_classes(next_out)
+            out = next_out
+        return _cap_within_classes(out)
+    return out
 
 
 def normalized_allowed_classes(asset_classes: list[str] | None) -> set[str] | None:

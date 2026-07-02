@@ -126,6 +126,7 @@ def run_optuna_search(
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
     prices_sim_panel: pd.DataFrame | None = None,
+    enforce_class_weights: bool = True,
 ) -> list[tuple[float, dict, dict]]:
     records: list[tuple[float, dict, dict]] = []
     trial_records: dict[int, tuple[float, dict, dict]] = {}
@@ -630,6 +631,7 @@ def run_optuna_search(
             universe_by_ticker=universe_by_ticker,
             class_budget=class_budget,
             class_budget_resolver=trial_class_resolver,
+            enforce_class_weights=enforce_class_weights,
             allocator_resolver=allocator_resolver,
             factor_params_resolver=factor_params_resolver,
         )

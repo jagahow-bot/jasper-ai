@@ -10,6 +10,10 @@ import pandas as pd
 
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC, effective_top_n
 from app.engine.allocator import AllocatorParams, solve_weights
+from app.engine.asset_class_policy import (
+    enforce_class_weight_budget,
+    normalize_class_budget,
+)
 from app.engine.weights import (
     apply_max_holdings,
     apply_min_holding_weight,
@@ -454,17 +458,7 @@ def _apply_max_turnover(w_new: np.ndarray, w_prev: np.ndarray, max_turnover: flo
 
 
 def _normalize_class_budget(class_budget: dict[str, float] | None) -> dict[str, float]:
-    if not class_budget:
-        return {}
-    clean: dict[str, float] = {}
-    for k, v in class_budget.items():
-        vv = float(max(v, 0.0))
-        if vv > 0:
-            clean[str(k)] = vv
-    s = float(sum(clean.values()))
-    if s < 1e-12:
-        return {}
-    return {k: v / s for k, v in clean.items()}
+    return normalize_class_budget(class_budget)
 
 
 def _pick_top_n_with_budget(
@@ -606,6 +600,7 @@ def _rebalance_schedule_dynamic(
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
     class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
+    enforce_class_weights: bool = True,
     allocator_resolver: Callable[[pd.Timestamp], AllocatorParams] | None = None,
     factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
     max_holdings: int | None = None,
@@ -743,6 +738,19 @@ def _rebalance_schedule_dynamic(
                 max_holdings,
                 max_weight=max_weight,
             )
+            if (
+                enforce_class_weights
+                and budget_step
+                and normalize_class_budget(budget_step)
+            ):
+                w = enforce_class_weight_budget(
+                    w,
+                    list(prices.columns),
+                    universe_by_ticker,
+                    budget_step,
+                    active_tickers=chosen,
+                    max_weight=max_weight,
+                )
             row_audit = audit_weight_cap(
                 w,
                 max_weight,
@@ -923,6 +931,7 @@ def _simulate_pandas(
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
     class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
+    enforce_class_weights: bool = True,
     report_start: str | None = None,
 ) -> dict[str, Any]:
     holdings_top_n = effective_top_n(top_n, spec)
@@ -953,6 +962,7 @@ def _simulate_pandas(
             universe_by_ticker=universe_by_ticker,
             class_budget=class_budget,
             class_budget_resolver=class_budget_resolver,
+            enforce_class_weights=enforce_class_weights,
             report_start=report_start,
         )
     else:
@@ -1060,6 +1070,7 @@ def simulate_dynamic_portfolio(
     universe_by_ticker: dict[str, dict[str, Any]] | None = None,
     class_budget: dict[str, float] | None = None,
     class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
+    enforce_class_weights: bool = True,
     report_start: str | None = None,
 ) -> dict[str, Any]:
     w0 = np.ones(len(prices.columns), dtype=float) / max(len(prices.columns), 1)
@@ -1081,6 +1092,7 @@ def simulate_dynamic_portfolio(
         universe_by_ticker=universe_by_ticker,
         class_budget=class_budget,
         class_budget_resolver=class_budget_resolver,
+        enforce_class_weights=enforce_class_weights,
         report_start=report_start,
     )
 

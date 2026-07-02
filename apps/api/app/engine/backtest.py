@@ -795,6 +795,7 @@ def _run_iterative_search(
                 dynamic_ctx.get("class_budget_resolver") if dynamic_ctx else None
             ),
             active_regime_resolver=active_regime_resolver,
+            enforce_class_weights=req.enforce_class_weights,
         )
 
         tagged_round_records: list[tuple[float, dict, dict]] = []
@@ -1646,6 +1647,7 @@ def _assemble_candidates_from_records(
             class_resolver,
             asset_classes=req.asset_classes,
         )
+        sim_kw["enforce_class_weights"] = req.enforce_class_weights
         factor_resolver = factor_params_resolver_from_trial_params(
             params,
             active_regime_resolver,
@@ -2267,6 +2269,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             active_regime_resolver=(
                 dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
             ),
+            enforce_class_weights=req.enforce_class_weights,
         )
         assign_search_model_codes(records, next_model_no=[1])
         for _, params, _ in records:
@@ -2696,6 +2699,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             champ_class_resolver,
             asset_classes=req.asset_classes,
         )
+        champion_sim_kw["enforce_class_weights"] = req.enforce_class_weights
         champ_factor_resolver = factor_params_resolver_from_trial_params(
             best_params,
             dynamic_ctx.get("active_regime_resolver"),

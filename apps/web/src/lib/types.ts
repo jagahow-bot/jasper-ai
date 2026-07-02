@@ -70,6 +70,8 @@ export interface BacktestRequest {
   trials: number;
   top_models: number;
   asset_classes: AssetClass[];
+  /** Hard-enforce sleeve weights when w_equity/w_bond/regime quotas are set */
+  enforce_class_weights?: boolean;
   universe_categories?: string[] | null;
   universe_tickers?: string[] | null;
   /** AI supplement tickers unioned onto base pool; pinned/guaranteed in backtest after refine */

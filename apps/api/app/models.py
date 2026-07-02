@@ -100,6 +100,13 @@ class BacktestRequest(BaseModel):
         default=None,
         description="Filter universe: equity, bond, commodity, real_estate, alternative",
     )
+    enforce_class_weights: bool = Field(
+        default=True,
+        description=(
+            "When class allocation targets (w_equity, w_bond, regime_class_quotas) are set, "
+            "hard-enforce sleeve weights after optimization instead of only biasing Top-N picks"
+        ),
+    )
     universe_categories: list[str] | None = Field(
         default=None,
         description="Optional universe category tags (e.g. us_sector, treasury)",

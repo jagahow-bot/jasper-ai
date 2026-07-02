@@ -159,6 +159,19 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
       />
       <p className="ui-hint">{t("config.assetClassSyncHint")}</p>
 
+      <label className="ui-label flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={value.enforce_class_weights !== false}
+          onChange={(e) =>
+            onChange({ ...value, enforce_class_weights: e.target.checked })
+          }
+          className="accent-[var(--neon)]"
+        />
+        {t("config.enforceClassWeights")}
+      </label>
+      <p className="ui-hint">{t("config.enforceClassWeightsHint")}</p>
+
       <QuickRefinements
         request={value}
         onApply={(next) => onChange(next)}
