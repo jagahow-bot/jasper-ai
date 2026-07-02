@@ -71,7 +71,7 @@ def _class_weight_slice(weights: np.ndarray, indices: list[int]) -> np.ndarray:
     """Fancy-index class holdings as a 1-D vector (never a 0-d numpy scalar)."""
     if not indices:
         return np.zeros(0, dtype=float)
-    idx = np.asarray(indices, dtype=int)
+    idx = np.atleast_1d(np.asarray(indices, dtype=int))
     return np.atleast_1d(np.asarray(weights, dtype=float)[idx])
 
 
@@ -81,7 +81,7 @@ def _assign_class_weight_slice(
     """Write sleeve weights back; values are normalized to 1-D first."""
     if not indices:
         return
-    idx = np.asarray(indices, dtype=int)
+    idx = np.atleast_1d(np.asarray(indices, dtype=int))
     target[idx] = np.atleast_1d(np.asarray(values, dtype=float))
 
 
@@ -182,7 +182,7 @@ def enforce_class_weight_budget(
             sleeve = float(_class_weight_slice(weights, indices).sum())
             if sleeve <= 1e-12:
                 continue
-            slice_w = _class_weight_slice(weights, indices).copy()
+            slice_w = np.atleast_1d(_class_weight_slice(weights, indices).copy())
             over = slice_w > cap + 1e-12
             if not over.any():
                 _assign_class_weight_slice(capped, indices, slice_w)
@@ -191,7 +191,7 @@ def enforce_class_weight_budget(
             surplus = sleeve - float(slice_w.sum())
             under = ~over
             if under.any() and float(slice_w[under].sum()) > 1e-12:
-                under_w = np.atleast_1d(slice_w[under])
+                under_w = slice_w[under]
                 slice_w[under] += surplus * (under_w / float(under_w.sum()))
             elif under.any():
                 slice_w[under] = surplus / float(under.sum())

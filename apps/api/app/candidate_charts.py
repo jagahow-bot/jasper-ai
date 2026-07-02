@@ -217,7 +217,7 @@ def _build_institutional_analytics(
 
     weights = _weights_dict(
         tickers,
-        np.asarray(full_m.get("last_weights"), dtype=float),
+        np.atleast_1d(np.asarray(full_m.get("last_weights"), dtype=float)).ravel(),
         min_weight=float(req.min_weight),
     )
     port_ret: pd.Series = full_m["port_ret"]

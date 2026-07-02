@@ -177,10 +177,11 @@ def _weights_dict(
     tickers: list[str], w: np.ndarray, *, min_weight: float = WEIGHT_EPS
 ) -> dict[str, float]:
     floor = float(max(min_weight, WEIGHT_EPS))
+    w_vec = np.atleast_1d(np.asarray(w, dtype=float)).ravel()
     return {
-        tickers[i]: round(float(w[i]), 4)
+        tickers[i]: round(float(w_vec[i]), 4)
         for i in range(len(tickers))
-        if w[i] >= floor - 1e-12
+        if i < len(w_vec) and w_vec[i] >= floor - 1e-12
     }
 
 
@@ -1336,7 +1337,7 @@ def _build_candidate(
     primary = train_m if oos_enabled else full_m
     weights = _weights_dict(
         tickers,
-        np.asarray(full_m.get("last_weights"), dtype=float),
+        np.atleast_1d(np.asarray(full_m.get("last_weights"), dtype=float)).ravel(),
         min_weight=min_weight,
     )
     sample_metrics = _build_sample_metrics_block(

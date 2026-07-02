@@ -1,5 +1,9 @@
+import logging
 import threading
+import traceback
 import uuid
+
+logger = logging.getLogger(__name__)
 
 from app.candidate_charts import (
     ResolvedCandidate,
@@ -152,14 +156,18 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
             pass
         _notify_async(job_id, req, status="completed", result=result)
     except Exception as exc:  # noqa: BLE001
+        err_text = str(exc)
+        tb = traceback.format_exc()
+        logger.error("Backtest job %s failed: %s\n%s", job_id, err_text, tb)
         with _lock:
             _jobs[job_id]["progress"] = JobProgress(
                 status=JobStatus.failed,
-                message=_public_log_message(str(exc)),
+                message=_public_log_message(err_text),
                 trials_total=_estimated_trials_total(req),
             )
-            _jobs[job_id]["error"] = str(exc)
-        _notify_async(job_id, req, status="failed", error=_public_log_message(str(exc)))
+            _jobs[job_id]["error"] = err_text
+            _jobs[job_id]["error_traceback"] = tb
+        _notify_async(job_id, req, status="failed", error=_public_log_message(err_text))
 
 
 def _hydrate_from_disk(job_id: str) -> bool:

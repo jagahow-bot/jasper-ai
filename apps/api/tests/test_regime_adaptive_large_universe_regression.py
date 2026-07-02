@@ -96,7 +96,7 @@ def _fake_ai_round_seed(**_kwargs):
 
 @pytest.fixture
 def large_panel() -> tuple[pd.DataFrame, dict[str, dict[str, str]]]:
-    n_assets = 60
+    n_assets = 313
     classes = ["equity", "bond", "commodity"]
     dates = pd.bdate_range("2015-01-01", periods=900)
     rng = np.random.default_rng(99)
@@ -113,7 +113,7 @@ def large_panel() -> tuple[pd.DataFrame, dict[str, dict[str, str]]]:
 
 
 def test_pro_regime_adaptive_large_universe_optuna(large_panel) -> None:
-    """Real Optuna + simulate with regime class quotas on a large multi-class book."""
+    """Real Optuna + simulate with regime class quotas on a 313-name multi-class book."""
     prices, universe = large_panel
     prices_train = prices[[c for c in prices.columns if c != "SPY"]].iloc[:700]
     prices_sim = prices_train

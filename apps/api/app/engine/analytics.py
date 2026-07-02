@@ -264,7 +264,7 @@ def risk_contribution(
     cov_annual: np.ndarray,
 ) -> list[dict[str, Any]]:
     """Marginal risk contribution by holding."""
-    w = np.asarray(weights, dtype=float)
+    w = np.atleast_1d(np.asarray(weights, dtype=float)).ravel()
     if w.sum() < 1e-12 or cov_annual.shape[0] != len(w):
         return []
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from app.engine.backtest import _weights_dict
 from app.engine.allocator import AllocatorParams
 from app.engine.asset_class_policy import (
     class_sleeve_totals,
@@ -77,6 +78,30 @@ def test_enforce_class_weight_budget_single_name_sleeve_with_cap() -> None:
     totals = class_sleeve_totals(out, tickers, universe)
     assert abs(sum(totals.values()) - 1.0) < 1e-6
     assert len(out) == 3
+
+
+def test_class_weight_slice_scalar_index_is_one_dimensional() -> None:
+    """Single-element sleeve slices must stay 1-D so boolean masks never 0-d index."""
+    from app.engine.asset_class_policy import _class_weight_slice
+
+    w = np.array([0.10, 0.55, 0.35])
+    slice_w = np.atleast_1d(_class_weight_slice(w, [1]).copy())
+    assert slice_w.ndim == 1
+    cap = 0.45
+    over = slice_w > cap + 1e-12
+    slice_w[over] = cap
+    under = ~over
+    surplus = 0.05
+    # Would raise IndexError on 0-d: slice_w[under] += surplus
+    if under.any():
+        slice_w[under] += surplus
+    assert slice_w.shape == (1,)
+
+
+def test_weights_dict_accepts_zero_d_scalar() -> None:
+    """Regression: last_weights as 0-d numpy scalar must not IndexError in assembly."""
+    out = _weights_dict(["SPY"], np.float64(1.0))
+    assert out == {"SPY": 1.0}
 
 
 def test_simulate_dynamic_enforces_class_budget_when_enabled() -> None:

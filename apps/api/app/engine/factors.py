@@ -264,7 +264,8 @@ def _lowvol_neg_beta(rt: pd.DataFrame) -> np.ndarray:
         r = rt[col].to_numpy(dtype=float)
         if r.size < 2:
             continue
-        cov = float(np.cov(r, mkt, ddof=1)[0, 1])
+        cov_m = np.cov(r, mkt, ddof=1)
+        cov = float(cov_m[0, 1]) if getattr(cov_m, "ndim", 0) == 2 else 0.0
         out[j] = -cov / mkt_var
     return out
 

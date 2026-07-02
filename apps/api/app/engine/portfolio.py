@@ -770,8 +770,13 @@ def _rebalance_schedule_dynamic(
                     n,
                 )
             updated = True
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(
+                "Dynamic rebalance skipped on %s: %s",
+                dt.date() if hasattr(dt, "date") else dt,
+                exc,
+                exc_info=True,
+            )
         schedule.loc[dt] = w
         w_prev = w.copy()
         if updated:
