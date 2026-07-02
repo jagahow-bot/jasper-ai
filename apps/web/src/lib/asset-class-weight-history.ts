@@ -35,6 +35,7 @@ export function aggregateWeightHistoryByAssetClass(
   classKeys: AssetClassChartKey[];
 } {
   const presentClasses = new Set<AssetClassChartKey>();
+  const tickerSet = new Set(weightTickers.map((t) => t.toUpperCase()));
 
   const data = weightHistory.map((row) => {
     const out = {
@@ -46,18 +47,21 @@ export function aggregateWeightHistoryByAssetClass(
       out[cls] = 0;
     }
 
-    for (const ticker of weightTickers) {
-      const w = Number((row as Record<string, unknown>)[ticker] ?? 0);
+    const rowRecord = row as Record<string, unknown>;
+    for (const [key, raw] of Object.entries(rowRecord)) {
+      if (key === "date" || key === "ts" || key === "OTHER") continue;
+      const w = Number(raw ?? 0);
       if (!Number.isFinite(w) || w <= 0) continue;
-      const raw = tickerToClass.get(ticker.toUpperCase()) ?? "other";
-      const ac = (ASSET_CLASS_CHART_ORDER as readonly string[]).includes(raw)
-        ? (raw as AssetClassChartKey)
+      if (tickerSet.size > 0 && !tickerSet.has(key.toUpperCase())) continue;
+      const rawClass = tickerToClass.get(key.toUpperCase()) ?? "other";
+      const ac = (ASSET_CLASS_CHART_ORDER as readonly string[]).includes(rawClass)
+        ? (rawClass as AssetClassChartKey)
         : "other";
       out[ac] += w;
       presentClasses.add(ac);
     }
 
-    const otherFromCap = Number((row as Record<string, unknown>).OTHER ?? 0);
+    const otherFromCap = Number(rowRecord.OTHER ?? 0);
     if (Number.isFinite(otherFromCap) && otherFromCap > 0) {
       out.other += otherFromCap;
       presentClasses.add("other");

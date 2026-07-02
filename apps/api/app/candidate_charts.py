@@ -24,7 +24,7 @@ from app.engine.dynamic_objective import (
     class_budget_resolver_from_trial_params,
     factor_params_resolver_from_trial_params,
     is_dynamic_objective,
-    refresh_dynamic_class_budget_resolver,
+    ensure_regime_class_budget_resolver,
     resolve_regime_mode,
     trial_scoring_objective,
 )
@@ -347,7 +347,7 @@ def _hydrate_regime_class_budget_ctx(
     quotas = narrative_facts.get("regime_class_quotas")
     if not quotas:
         return dynamic_ctx
-    return refresh_dynamic_class_budget_resolver(
+    return ensure_regime_class_budget_resolver(
         dynamic_ctx,
         regime_class_quotas=quotas,
         asset_classes=asset_classes,

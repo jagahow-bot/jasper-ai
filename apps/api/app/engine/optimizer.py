@@ -592,8 +592,12 @@ def run_optuna_search(
             },
             asset_classes,
         )
-        class_budget = class_budget_from_params(
-            trial_params_pre, asset_classes=asset_classes
+        class_budget = (
+            {}
+            if regime_quota_active
+            else class_budget_from_params(
+                trial_params_pre, asset_classes=asset_classes
+            )
         )
         trial_class_resolver = class_budget_resolver
         if regime_quota_active and active_regime_resolver is not None:

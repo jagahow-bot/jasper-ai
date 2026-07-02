@@ -103,6 +103,7 @@ from app.engine.dynamic_objective import (
     factor_params_resolver_from_trial_params,
     has_regime_matrix,
     is_dynamic_objective,
+    ensure_regime_class_budget_resolver,
     refresh_dynamic_allocator_resolver,
     refresh_dynamic_class_budget_resolver,
     resolve_regime_mode,
@@ -1544,7 +1545,11 @@ def _sim_inputs_from_params(
     no_trade_tol = float(params.get("no_trade_tol", 0.0))
     turnover_penalty_mult = float(params.get("turnover_penalty_mult", 1.0))
     max_turnover_actual = float(params.get("max_turnover_actual", req.max_turnover))
-    class_budget = class_budget_from_params(params, asset_classes=req.asset_classes)
+    class_budget = (
+        {}
+        if params.get("regime_class_quota_matrix")
+        else class_budget_from_params(params, asset_classes=req.asset_classes)
+    )
     f_params = factor_params_from_dict(params, default_lookback=alloc.lookback_days)
     return (
         trial_spec,
@@ -1648,6 +1653,11 @@ def _assemble_candidates_from_records(
         active_regime_resolver = (
             dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
         )
+        if dynamic_ctx:
+            dynamic_ctx = ensure_regime_class_budget_resolver(
+                dynamic_ctx,
+                asset_classes=req.asset_classes,
+            )
         class_resolver = (
             class_budget_resolver_from_trial_params(
                 params, active_regime_resolver, asset_classes=req.asset_classes
@@ -2714,6 +2724,11 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None,
     )
     if dynamic_ctx:
+        dynamic_ctx = ensure_regime_class_budget_resolver(
+            dynamic_ctx,
+            regime_class_quotas=dynamic_ctx.get("regime_class_quotas"),
+            asset_classes=req.asset_classes,
+        )
         champ_class_resolver = class_budget_resolver_from_trial_params(
             best_params,
             dynamic_ctx.get("active_regime_resolver"),

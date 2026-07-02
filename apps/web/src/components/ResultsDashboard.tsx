@@ -949,6 +949,7 @@ export function ResultsDashboard({
     : null;
   const staticQuotaRows = Object.entries(classQuota).map(([k, v]) => ({
     cls: quotaLabel(k),
+    target_pct: quotaSum > 0 ? (v / quotaSum) * 100 : 0,
     target_count: Math.round((quotaSum > 0 ? v / quotaSum : 0) * targetTopN),
   }));
   const regimeBudget = regimeQuotaMatrix?.[quotaRegimeTab];
@@ -957,6 +958,7 @@ export function ResultsDashboard({
         .filter(([cls]) => !allowedClassSet || allowedClassSet.has(cls))
         .map(([cls, w]) => ({
           cls: quotaLabel(cls),
+          target_pct: Number(w) * 100,
           target_count: Math.round(Number(w) * targetTopN),
         }))
     : staticQuotaRows;
@@ -1933,9 +1935,9 @@ export function ResultsDashboard({
               <BarChart data={quotaRows}>
                 <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
                 <XAxis dataKey="cls" stroke="#94a3b8" fontSize={chartTick} />
-                <YAxis stroke="#94a3b8" fontSize={chartTick} />
-                <Tooltip content={<ChartTooltip valueDecimals={0} />} />
-                <Bar dataKey="target_count" name={t("results.targetCount")} fill="#00f5ff" />
+                <YAxis stroke="#94a3b8" fontSize={chartTick} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+                <Tooltip content={<ChartTooltip valueIsPct={false} valueDecimals={1} />} />
+                <Bar dataKey="target_pct" name={t("results.targetWeightPct")} fill="#00f5ff" />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -546,6 +546,29 @@ def refresh_dynamic_class_budget_resolver(
     return out
 
 
+def ensure_regime_class_budget_resolver(
+    dynamic_ctx: dict[str, Any] | None,
+    *,
+    regime_class_quotas: dict[str, Any] | None = None,
+    shared_round_setup: dict[str, Any] | None = None,
+    asset_classes: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Attach per-regime class budget resolver whenever quota matrix is available."""
+    if dynamic_ctx is None:
+        return None
+    quotas = regime_class_quotas if has_regime_class_quotas(regime_class_quotas) else None
+    if quotas is None:
+        quotas = dynamic_ctx.get("regime_class_quotas")
+    if not has_regime_class_quotas(quotas):
+        return dynamic_ctx
+    return refresh_dynamic_class_budget_resolver(
+        dynamic_ctx,
+        regime_class_quotas=quotas,
+        shared_round_setup=shared_round_setup,
+        asset_classes=asset_classes,
+    )
+
+
 def apply_class_budget_resolver(
     sim_kw: dict[str, Any],
     prices: pd.DataFrame,

@@ -104,6 +104,28 @@ def test_weights_dict_accepts_zero_d_scalar() -> None:
     assert out == {"SPY": 1.0}
 
 
+def test_enforce_class_weight_budget_final_pass_respects_max_weight() -> None:
+    """Alternating sleeve targets + cap must not leave post-normalize cap breaches."""
+    universe = _universe()
+    tickers = list(universe.keys())
+    rng = np.random.default_rng(99)
+    w = rng.dirichlet(np.ones(len(tickers)))
+    budget = {"bond": 0.7, "equity": 0.3}
+    out = enforce_class_weight_budget(
+        w,
+        tickers,
+        universe,
+        budget,
+        active_tickers=tickers,
+        max_weight=0.30,
+        max_iter=12,
+    )
+    assert float(out.max()) <= 0.30 + 1e-4
+    totals = class_sleeve_totals(out, tickers, universe)
+    assert abs(totals["bond"] - 0.7) < 0.04
+    assert abs(totals["equity"] - 0.3) < 0.04
+
+
 def test_simulate_dynamic_enforces_class_budget_when_enabled() -> None:
     universe = _universe()
     tickers = list(universe.keys())

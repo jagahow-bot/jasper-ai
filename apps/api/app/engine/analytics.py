@@ -174,6 +174,14 @@ def exposure_breakdown(
     other_w = 0.0
 
     for t, w in weights.items():
+        if t == "__OTHER__":
+            ac = "other"
+            region = "other"
+            bucket = "other:other"
+            by_class[ac] = by_class.get(ac, 0.0) + float(w)
+            by_bucket[bucket] = by_bucket.get(bucket, 0.0) + float(w)
+            other_w += float(w)
+            continue
         meta = universe_by_ticker.get(t, {})
         ac = str(meta.get("asset_class", "other"))
         region = str(meta.get("region", "other"))
@@ -236,6 +244,9 @@ def exposure_by_regime_from_weight_history(
             for k, v in row.items()
             if k not in ("date", "OTHER") and float(v) > 1e-6
         }
+        other_w = float(row.get("OTHER", 0) or 0)
+        if other_w > 1e-6:
+            weights["__OTHER__"] = other_w
         if not weights:
             continue
         by_class = exposure_breakdown(weights, universe_by_ticker).get(

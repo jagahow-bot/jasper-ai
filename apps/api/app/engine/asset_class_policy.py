@@ -209,12 +209,20 @@ def enforce_class_weight_budget(
         if class_indices.get(ac)
     }
     if cap is not None and cap < 1.0 - 1e-12:
+        from app.engine.weights import project_max_weight
+
         out = _cap_within_classes(out)
         for _ in range(max_iter):
             next_out = _project_to_budget(_cap_within_classes(out))
             if float(np.max(np.abs(next_out - out))) < 1e-5:
-                return _cap_within_classes(next_out)
+                out = next_out
+                break
             out = next_out
+        for _ in range(max_iter):
+            if float(np.max(out)) <= cap + 1e-5:
+                break
+            out = project_max_weight(out, cap)
+            out = _project_to_budget(_cap_within_classes(out))
         return _cap_within_classes(out)
     return out
 
