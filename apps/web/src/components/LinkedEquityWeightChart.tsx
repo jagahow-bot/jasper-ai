@@ -12,6 +12,7 @@ import {
   activeObjectiveAtTs,
   activeRegimeAtTs,
   alignWeightHistoryToEquityStart,
+  extendWeightHistoryToEquityEnd,
   computeSharedDateDomain,
   chartLegendFontSize,
   chartTickFontSize,
@@ -154,7 +155,13 @@ export function LinkedEquityWeightChart({
   const weightChartData = useMemo(() => {
     if (!weightHistory.length) return [];
     const equityStart = equityCurve[0]?.date ? String(equityCurve[0].date) : "";
-    const aligned = alignWeightHistoryToEquityStart(weightHistory, equityStart);
+    const equityEnd = equityCurve[equityCurve.length - 1]?.date
+      ? String(equityCurve[equityCurve.length - 1].date)
+      : "";
+    const aligned = extendWeightHistoryToEquityEnd(
+      alignWeightHistoryToEquityStart(weightHistory, equityStart),
+      equityEnd,
+    );
     const enrich = (row: { date: string } & Record<string, number | string>) => {
       const sumShown = weightTickers.reduce(
         (acc, t) => acc + Number((row as Record<string, unknown>)[t] ?? 0),
@@ -445,6 +452,9 @@ export function LinkedEquityWeightChart({
               · {t("linkedChart.otherCapHint")}
             </span>
             <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
+              · {t("linkedChart.rebalanceSnapshotHint")}
+            </span>
+            <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
               · {t("linkedChart.hoverHint")}
             </span>
           </p>
@@ -488,7 +498,7 @@ export function LinkedEquityWeightChart({
               {weightTickers.map((t, i) => (
                 <Area
                   key={t}
-                  type="monotone"
+                  type="stepAfter"
                   dataKey={t}
                   stackId="weights"
                   stroke={colors[i % colors.length]}
@@ -498,7 +508,7 @@ export function LinkedEquityWeightChart({
               {showOtherBand && (
                 <Area
                   key="OTHER"
-                  type="monotone"
+                  type="stepAfter"
                   dataKey="OTHER"
                   name={t("linkedChart.other")}
                   stackId="weights"
@@ -515,6 +525,9 @@ export function LinkedEquityWeightChart({
         <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
             {t("linkedChart.assetClassTitle")}
+            <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
+              · {t("linkedChart.rebalanceSnapshotHint")}
+            </span>
             <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
               · {t("linkedChart.hoverHint")}
             </span>
@@ -563,7 +576,7 @@ export function LinkedEquityWeightChart({
               {assetClassKeys.map((cls) => (
                 <Area
                   key={cls}
-                  type="monotone"
+                  type="stepAfter"
                   dataKey={cls}
                   name={assetClassLabel(t, cls)}
                   stackId="assetClasses"

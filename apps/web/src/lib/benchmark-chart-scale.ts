@@ -241,3 +241,16 @@ export function alignWeightHistoryToEquityStart<
   if (String(weightHistory[0].date) <= start) return weightHistory;
   return [{ ...weightHistory[0], date: start }, ...weightHistory];
 }
+
+/** Hold the last rebalance snapshot through the equity curve end (step charts). */
+export function extendWeightHistoryToEquityEnd<
+  T extends { date: string } & Record<string, number | string>,
+>(weightHistory: T[], equityEndDate: string): T[] {
+  if (!weightHistory.length || !equityEndDate) return weightHistory;
+  const end = String(equityEndDate);
+  if (String(weightHistory[weightHistory.length - 1].date) >= end) {
+    return weightHistory;
+  }
+  const last = weightHistory[weightHistory.length - 1];
+  return [...weightHistory, { ...last, date: end }];
+}

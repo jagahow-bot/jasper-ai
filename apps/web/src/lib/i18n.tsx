@@ -334,6 +334,8 @@ const en: Dict = {
   "linkedChart.holdingsTitle": "Holdings over time",
   "linkedChart.assetClassTitle": "Asset class mix over time",
   "linkedChart.otherCapHint": "Smaller holdings grouped as “Other”",
+  "linkedChart.rebalanceSnapshotHint":
+    "Weights held constant between rebalance dates (step changes at each rebalance)",
   "linkedChart.hoverHint": "Hover the chart to see holdings",
   "linkedChart.other": "Other",
   "linkedChart.portfolio": "Portfolio",
@@ -1119,6 +1121,8 @@ const zh: Dict = {
   "linkedChart.holdingsTitle": "持股隨時間變化",
   "linkedChart.assetClassTitle": "資產類別配置隨時間變化",
   "linkedChart.otherCapHint": "較小的持股歸為「其他」",
+  "linkedChart.rebalanceSnapshotHint":
+    "再平衡之間權重維持不變（僅在再平衡日跳變）",
   "linkedChart.hoverHint": "將游標移到圖表上查看持股",
   "linkedChart.other": "其他",
   "linkedChart.portfolio": "投資組合",
@@ -1891,6 +1895,8 @@ const ko: Dict = {
   "linkedChart.holdingsTitle": "기간별 보유 종목",
   "linkedChart.assetClassTitle": "기간별 자산군 비중",
   "linkedChart.otherCapHint": "비중이 작은 종목은 ‘기타’로 묶음",
+  "linkedChart.rebalanceSnapshotHint":
+    "리밸런싱 사이에는 비중이 고정됩니다(리밸런싱일에만 계단식 변화)",
   "linkedChart.hoverHint": "차트에 마우스를 올리면 보유 종목 표시",
   "linkedChart.other": "기타",
   "linkedChart.portfolio": "포트폴리오",

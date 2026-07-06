@@ -3,6 +3,7 @@ import {
   activeObjectiveAtTs,
   activeRegimeAtTs,
   alignWeightHistoryToEquityStart,
+  extendWeightHistoryToEquityEnd,
   computeSharedDateDomain,
   dateRatio,
   formatChartTooltipLabel,
@@ -23,6 +24,19 @@ describe("benchmark-chart-scale", () => {
     expect(out[0].date).toBe("2020-01-02");
     expect(out[0].SPY).toBe(0.6);
     expect(out).toHaveLength(3);
+  });
+
+  it("extendWeightHistoryToEquityEnd appends terminal snapshot", () => {
+    const out = extendWeightHistoryToEquityEnd(
+      [
+        { date: "2020-01-02", SPY: 0.6 },
+        { date: "2020-03-01", SPY: 0.7 },
+      ],
+      "2020-06-30",
+    );
+    expect(out).toHaveLength(3);
+    expect(out[2].date).toBe("2020-06-30");
+    expect(out[2].SPY).toBe(0.7);
   });
 
   it("formats millisecond tooltip labels as ISO dates", () => {
