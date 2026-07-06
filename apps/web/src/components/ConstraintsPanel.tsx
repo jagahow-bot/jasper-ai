@@ -37,9 +37,16 @@ type Props = {
   onChange: (next: BacktestRequest) => void;
   onRun: () => void;
   apiOnline?: boolean | null;
+  emailNotificationsEnabled?: boolean | null;
 };
 
-export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
+export function ConstraintsPanel({
+  value,
+  onChange,
+  onRun,
+  apiOnline,
+  emailNotificationsEnabled,
+}: Props) {
   const { t } = useI18n();
   const isPro = value.optimization_mode === "pro_auto";
   const dynamicObjective = value.objective === "dynamic";
@@ -668,6 +675,11 @@ export function ConstraintsPanel({ value, onChange, onRun, apiOnline }: Props) {
           className="pixel-input"
         />
         <p className="ui-hint">{t("config.notifyEmailHint")}</p>
+        {value.notify_email?.trim() && emailNotificationsEnabled === false ? (
+          <p className="ui-hint text-[var(--amber)]">
+            {t("config.notifyEmailSmtpDisabled")}
+          </p>
+        ) : null}
       </label>
 
       <button

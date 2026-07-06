@@ -48,6 +48,11 @@ def _notify_async(
         from app.notifications import notifications_configured, send_job_notification
 
         if not notifications_configured():
+            logger.warning(
+                "email notification skipped: SMTP not set (job %s, recipient %s)",
+                job_id,
+                (req.notify_email or "").strip(),
+            )
             return
 
         threading.Thread(
@@ -57,7 +62,7 @@ def _notify_async(
             daemon=True,
         ).start()
     except Exception:  # noqa: BLE001 — notification must never break a job
-        pass
+        logger.exception("email notification setup failed for job %s", job_id)
 
 
 def _public_log_message(message: str) -> str:

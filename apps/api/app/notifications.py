@@ -141,7 +141,19 @@ def send_job_notification(
     never raise.
     """
     to_email = (req.notify_email or "").strip()
-    if not notifications_configured() or not is_valid_email(to_email):
+    if not notifications_configured():
+        logger.warning(
+            "email notification skipped: SMTP not set (job %s, recipient %s)",
+            job_id,
+            to_email,
+        )
+        return False
+    if not is_valid_email(to_email):
+        logger.warning(
+            "email notification skipped: invalid recipient %r (job %s)",
+            to_email,
+            job_id,
+        )
         return False
 
     if status == "completed" and result is not None:

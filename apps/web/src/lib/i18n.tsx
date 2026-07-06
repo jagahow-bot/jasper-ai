@@ -105,6 +105,8 @@ const en: Dict = {
   "config.notifyEmailPlaceholder": "you@example.com",
   "config.notifyEmailHint":
     "Backtests run on the server, so you can close this tab. If you enter an email, we'll notify you when the run finishes or fails.",
+  "config.notifyEmailSmtpDisabled":
+    "Email alerts are not enabled on this server (SMTP not configured). You won't receive a message even if you enter an address.",
 
   // Pro rounds tabs
   "pro.tabsHint":
@@ -289,6 +291,9 @@ const en: Dict = {
   "customScenario.analysisFailedRetry": "We couldn’t build that scenario. Please try again.",
 
   "assetFilter.assetClasses": "ASSET CLASSES",
+  "assetFilter.selectedBase": "{base} of {total} ETFs selected",
+  "assetFilter.selectedCombined": "{combined} of {total} ETFs selected",
+  "assetFilter.layer1Intro": "Pick the asset classes to invest across ({base} ETFs).",
   "assetFilter.aiFilter": "AI INVESTMENT SEARCH",
   "assetFilter.clearAiFilter": "CLEAR",
   "assetFilter.layer1Hint":
@@ -302,6 +307,10 @@ const en: Dict = {
   "assetFilter.applying": "SEARCHING…",
   "assetFilter.applyAiFilter": "RUN SEARCH",
   "assetFilter.results": "RESULTS",
+  "assetFilter.resultsPoolWithSupplement":
+    "{base} ETFs from your asset classes · {supplement} added from your search (always included) · {combined} ETFs in total.",
+  "assetFilter.resultsPoolNoSupplement":
+    "{base} ETFs from your asset classes. Run the search to add more ETFs on top of your selection.",
   "assetFilter.analysisFailed": "Search failed",
   "assetFilter.analysisFailedRetry": "Search failed. Please try again.",
   "assetFilter.supplementTicker": "added ticker",
@@ -892,6 +901,8 @@ const zh: Dict = {
   "config.notifyEmailPlaceholder": "you@example.com",
   "config.notifyEmailHint":
     "回測在伺服器端執行，你可以關閉此分頁。若填入電子郵件，回測完成或失敗時我們會通知你。",
+  "config.notifyEmailSmtpDisabled":
+    "此伺服器尚未設定郵件（SMTP），即使填了信箱也不會收到通知。",
 
   // Pro rounds tabs
   "pro.tabsHint":
@@ -1066,6 +1077,9 @@ const zh: Dict = {
   "customScenario.analysisFailedRetry": "無法建構該情境，請再試一次。",
 
   "assetFilter.assetClasses": "資產類別",
+  "assetFilter.selectedBase": "已選 {base} / {total} 檔 ETF",
+  "assetFilter.selectedCombined": "已選 {combined} / {total} 檔 ETF",
+  "assetFilter.layer1Intro": "選擇要投資的資產類別（{base} 檔 ETF）。",
   "assetFilter.aiFilter": "AI 投資搜尋",
   "assetFilter.clearAiFilter": "清除",
   "assetFilter.layer1Hint":
@@ -1079,6 +1093,10 @@ const zh: Dict = {
   "assetFilter.applying": "搜尋中…",
   "assetFilter.applyAiFilter": "執行搜尋",
   "assetFilter.results": "結果",
+  "assetFilter.resultsPoolWithSupplement":
+    "資產類別內 {base} 檔 ETF · 搜尋新增 {supplement} 檔（一律納入）· 共 {combined} 檔 ETF。",
+  "assetFilter.resultsPoolNoSupplement":
+    "資產類別內 {base} 檔 ETF。執行搜尋可在選取範圍外新增更多 ETF。",
   "assetFilter.analysisFailed": "搜尋失敗",
   "assetFilter.analysisFailedRetry": "搜尋失敗，請再試一次。",
   "assetFilter.supplementTicker": "個新增標的",
@@ -1656,6 +1674,8 @@ const ko: Dict = {
   "config.notifyEmailPlaceholder": "you@example.com",
   "config.notifyEmailHint":
     "백테스트는 서버에서 실행되므로 이 탭을 닫아도 됩니다. 이메일을 입력하면 실행이 완료되거나 실패할 때 알려드립니다.",
+  "config.notifyEmailSmtpDisabled":
+    "이 서버에는 이메일(SMTP)이 설정되어 있지 않아 주소를 입력해도 알림을 받을 수 없습니다.",
 
   // Pro rounds tabs
   "pro.tabsHint":
@@ -1830,6 +1850,9 @@ const ko: Dict = {
   "customScenario.analysisFailedRetry": "시나리오를 구성하지 못했습니다. 다시 시도해 주세요.",
 
   "assetFilter.assetClasses": "자산군",
+  "assetFilter.selectedBase": "{total}개 ETF 중 {base}개 선택됨",
+  "assetFilter.selectedCombined": "{total}개 ETF 중 {combined}개 선택됨",
+  "assetFilter.layer1Intro": "투자할 자산군을 선택하세요({base}개 ETF).",
   "assetFilter.aiFilter": "AI 투자 검색",
   "assetFilter.clearAiFilter": "지우기",
   "assetFilter.layer1Hint":
@@ -1843,6 +1866,10 @@ const ko: Dict = {
   "assetFilter.applying": "검색 중…",
   "assetFilter.applyAiFilter": "검색 실행",
   "assetFilter.results": "결과",
+  "assetFilter.resultsPoolWithSupplement":
+    "자산군 내 {base}개 ETF · 검색으로 {supplement}개 추가(항상 포함) · 총 {combined}개 ETF.",
+  "assetFilter.resultsPoolNoSupplement":
+    "자산군 내 {base}개 ETF. 검색을 실행하면 선택 범위 밖 ETF를 더 추가할 수 있습니다.",
   "assetFilter.analysisFailed": "검색 실패",
   "assetFilter.analysisFailedRetry": "검색에 실패했습니다. 다시 시도해 주세요.",
   "assetFilter.supplementTicker": "개 추가 종목",

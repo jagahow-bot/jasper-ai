@@ -11,9 +11,9 @@ import { ProgressPanel } from "@/components/ProgressPanel";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 import {
-  checkApiHealth,
   createJob,
   downloadCsv,
+  fetchApiHealth,
   getJobProgress,
   getJobRequest,
   getJobResult,
@@ -90,6 +90,9 @@ export default function HomePage() {
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [narrative, setNarrative] = useState("");
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState<
+    boolean | null
+  >(null);
   const universeMeta = useMemo(() => getUniverseMeta(), []);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -103,7 +106,12 @@ export default function HomePage() {
   const lastRoundRef = useRef(0);
 
   useEffect(() => {
-    void checkApiHealth().then(setApiOnline);
+    void fetchApiHealth().then((health) => {
+      setApiOnline(health?.status === "ok");
+      setEmailNotificationsEnabled(
+        health?.email_notifications === "configured" ? true : health ? false : null,
+      );
+    });
   }, []);
 
   // Keep the initial welcome line in the active language. The messages state is
@@ -441,6 +449,7 @@ export default function HomePage() {
                 onChange={setRequest}
                 onRun={onRun}
                 apiOnline={apiOnline}
+                emailNotificationsEnabled={emailNotificationsEnabled}
               />
             </>
           )}

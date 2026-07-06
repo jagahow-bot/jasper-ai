@@ -69,17 +69,28 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function checkApiHealth(): Promise<boolean> {
+export type ApiHealth = {
+  status: string;
+  version?: string;
+  email_notifications?: "configured" | "disabled";
+};
+
+export async function fetchApiHealth(): Promise<ApiHealth | null> {
   for (let i = 0; i < 5; i++) {
     try {
       const res = await fetch(`${getApiBase()}/health`, { cache: "no-store" });
-      if (res.ok) return true;
+      if (res.ok) return (await res.json()) as ApiHealth;
     } catch {
       /* retry — API may still be starting (uvicorn reload on Windows) */
     }
     if (i < 4) await new Promise((r) => setTimeout(r, 600));
   }
-  return false;
+  return null;
+}
+
+export async function checkApiHealth(): Promise<boolean> {
+  const health = await fetchApiHealth();
+  return health?.status === "ok";
 }
 
 export async function listScenarios(): Promise<ScenarioCard[]> {

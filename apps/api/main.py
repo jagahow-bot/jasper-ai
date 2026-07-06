@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.job_history import warmup_history_index
+from app.notifications import notifications_configured
 from app.routers import jobs, lab_objective_switch, scenarios, universe
 
 
@@ -38,4 +39,10 @@ app.include_router(lab_objective_switch.router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.1.0"}
+    return {
+        "status": "ok",
+        "version": "0.1.0",
+        "email_notifications": (
+            "configured" if notifications_configured() else "disabled"
+        ),
+    }
