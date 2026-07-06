@@ -1102,9 +1102,11 @@ export function ResultsDashboard({
       <div className="pixel-panel">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="ui-panel-title text-neon glow-title">{t("results.title")}</h3>
-          <span className="pixel-badge-cyan">
-            {sortByModelCode ? t("results.orderByModel") : `${t("results.sort")}: ${objectiveLabel}`}
-          </span>
+          {!sortByModelCode && (
+            <span className="pixel-badge-cyan">
+              {`${t("results.sort")}: ${objectiveLabel}`}
+            </span>
+          )}
           <label className="ui-body flex items-center gap-2 text-dim">
             {t("results.model")}
             <select
