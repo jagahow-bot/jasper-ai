@@ -11,12 +11,18 @@ import {
   mergeSupplementTickers,
 } from "@/lib/universe-filter-merge";
 import { universeFilterSchema } from "@/lib/universe-filter-schema";
+import {
+  parseReportLanguage,
+  rationaleLanguageDirective,
+  type Lang,
+} from "@/lib/universe-filter-locale";
 
 type FilterBody = {
   text?: string;
   texts?: string[];
   asset_classes?: AssetClass[];
   search_full_universe?: boolean;
+  report_language?: string;
 };
 
 function parsePrompts(body: FilterBody): string[] {
@@ -37,7 +43,11 @@ function parseUserAssetClasses(body: FilterBody): AssetClass[] {
   return picked.length ? picked : [...ASSET_CLASSES];
 }
 
-const supplementSystem = (meta: ReturnType<typeof getUniverseMeta>, userClasses: AssetClass[]) =>
+const supplementSystem = (
+  meta: ReturnType<typeof getUniverseMeta>,
+  userClasses: AssetClass[],
+  lang: Lang,
+) =>
   `Quant ETF universe supplement assistant. For each rule, find ETFs in the FULL universe that match the user's description.
 
 Universe metadata:
@@ -54,18 +64,19 @@ Rules:
 - asset_classes in output are optional context only — they do NOT constrain which tickers you may include.
 - For bear/short equity themes, prefer inverse, hedged, managed-futures, or low-beta alts (e.g. BTAL, PUTW, CTA, DBMF) — not the entire equity sleeve.
 - For sector/thematic rules, list specific sector ETFs (XLK, SMH, etc.), not every equity fund.
-- rationale: one concise English sentence for this rule's supplement intent`;
+- rationale: one concise sentence for this rule's supplement intent (${rationaleLanguageDirective(lang)})`;
 
 async function analyzeRuleWithGemini(
   ruleText: string,
   userClasses: AssetClass[],
   meta: ReturnType<typeof getUniverseMeta>,
+  lang: Lang,
 ) {
   const { object } = await generateObject({
     model: google(GEMINI_MODEL),
     maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
     schema: universeFilterSchema,
-    system: supplementSystem(meta, userClasses),
+    system: supplementSystem(meta, userClasses, lang),
     prompt: buildSingleRulePrompt(ruleText, userClasses),
   });
   return object;
@@ -81,10 +92,11 @@ export async function POST(req: Request) {
   }
 
   const meta = getUniverseMeta();
+  const lang = parseReportLanguage(body.report_language);
 
   const runFallback = () => {
-    const outputs = prompts.map((p) => analyzeUniverseFilterFallback(p));
-    const { supplement_tickers, rationale } = mergeSupplementTickers(outputs);
+    const outputs = prompts.map((p) => analyzeUniverseFilterFallback(p, lang));
+    const { supplement_tickers, rationale } = mergeSupplementTickers(outputs, lang);
     const per_rule = buildPerRuleSupplementResults(prompts, outputs, userClasses);
     return {
       asset_classes: userClasses,
@@ -101,9 +113,9 @@ export async function POST(req: Request) {
 
   try {
     const outputs = await Promise.all(
-      prompts.map((p) => analyzeRuleWithGemini(p, userClasses, meta)),
+      prompts.map((p) => analyzeRuleWithGemini(p, userClasses, meta, lang)),
     );
-    const { supplement_tickers, rationale } = mergeSupplementTickers(outputs);
+    const { supplement_tickers, rationale } = mergeSupplementTickers(outputs, lang);
     const per_rule = buildPerRuleSupplementResults(prompts, outputs, userClasses);
     return NextResponse.json({
       asset_classes: userClasses,

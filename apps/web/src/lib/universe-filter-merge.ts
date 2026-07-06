@@ -1,6 +1,11 @@
 import type { AssetClass } from "./constants";
 import { getTickers, getUniverseItems } from "./universe";
 import type { UniverseFilterOutput } from "./universe-filter-schema";
+import {
+  localizedMergeRationale,
+  localizedNoRulesRationale,
+  type Lang,
+} from "./universe-filter-locale";
 
 export type UniverseFilterRuleResult = {
   rule_index: number;
@@ -85,9 +90,10 @@ export function pinGuaranteedSupplementTickers(
 
 export function mergeSupplementTickers(
   outputs: UniverseFilterOutput[],
+  lang: Lang = "en",
 ): UniverseSupplementMerge {
   if (!outputs.length) {
-    return { supplement_tickers: [], rationale: "No AI supplement rules applied." };
+    return { supplement_tickers: [], rationale: localizedNoRulesRationale(lang) };
   }
 
   const perRule = outputs.map((o) => resolveRuleTickersFullUniverse(o));
@@ -96,7 +102,7 @@ export function mergeSupplementTickers(
   const rationale =
     outputs.length === 1
       ? outputs[0].rationale
-      : `Supplement: ${outputs.length} rules matched ${supplement_tickers.length} ETF(s) in the full universe (union).`;
+      : localizedMergeRationale(lang, outputs.length, supplement_tickers.length);
 
   return { supplement_tickers, rationale };
 }

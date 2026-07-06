@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import {
   ASSET_CLASSES,
-  ASSET_CLASS_LABELS,
   type AssetClass,
 } from "@/lib/constants";
+import { categoryLabel } from "@/lib/etf-category-i18n";
 import {
   baseUniverseFromRequest,
   combinedUniverseFromRequest,
@@ -16,7 +16,7 @@ import {
   resolveUniverseFilterPrompts,
   type UniverseFilterRuleResult,
 } from "@/lib/universe-filter-merge";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, assetClassLabel } from "@/lib/i18n";
 import type { BacktestRequest } from "@/lib/types";
 
 type Props = {
@@ -29,7 +29,7 @@ function ruleKey(index: number, rule: string) {
 }
 
 export function AssetClassFilter({ value, onChange }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [draftText, setDraftText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +128,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
           texts: prompts,
           asset_classes: value.asset_classes,
           search_full_universe: true,
+          report_language: lang,
         }),
       });
       const data = (await res.json()) as {
@@ -193,13 +194,9 @@ export function AssetClassFilter({ value, onChange }: Props) {
           </span>
           <span className="text-xs text-dim">
             {hasAiApplied ? (
-              <>
-                {combinedCount} of {total} ETFs selected
-              </>
+              t("assetFilter.selectedCombined", { combined: combinedCount, total })
             ) : (
-              <>
-                {baseCount} of {total} ETFs selected
-              </>
+              t("assetFilter.selectedBase", { base: baseCount, total })
             )}
           </span>
         </div>
@@ -213,13 +210,13 @@ export function AssetClassFilter({ value, onChange }: Props) {
                 onClick={() => toggle(ac)}
                 className={`pixel-chip ${active ? "pixel-chip-active" : ""}`}
               >
-                {ASSET_CLASS_LABELS[ac]}
+                {assetClassLabel(t, ac)}
               </button>
             );
           })}
         </div>
         <p className="text-xs text-dim">
-          Pick the asset classes to invest across ({baseCount} ETFs).{" "}
+          {t("assetFilter.layer1Intro", { base: baseCount })}{" "}
           {t("assetFilter.layer1Hint")}
         </p>
       </div>
@@ -308,19 +305,14 @@ export function AssetClassFilter({ value, onChange }: Props) {
               <p className="text-xs text-[var(--cyan)]">{rationale}</p>
             )}
             <p className="text-xs text-dim">
-              {baseCount} ETF{baseCount === 1 ? "" : "s"} from your asset classes.{" "}
               {supplementCount > 0 ? (
-                <>
-                  <span className="text-[var(--foreground)]">
-                    {supplementCount} {t("assetFilter.supplementTicker")}
-                    {supplementCount === 1 ? "" : "s"} from your search — always included
-                  </span>
-                  {" · "}
-                  {combinedCount} ETF
-                  {combinedCount === 1 ? "" : "s"} in total.
-                </>
+                t("assetFilter.resultsPoolWithSupplement", {
+                  base: baseCount,
+                  supplement: supplementCount,
+                  combined: combinedCount,
+                })
               ) : (
-                <>Run the search to add more ETFs on top of your selection.</>
+                t("assetFilter.resultsPoolNoSupplement", { base: baseCount })
               )}
             </p>
             {perRuleResults && perRuleResults.length > 0 && (
@@ -357,7 +349,10 @@ export function AssetClassFilter({ value, onChange }: Props) {
                     {expandedRules[row.rule_index] && (
                       <div className="mt-1 space-y-1 pl-5 text-dim">
                         {row.categories?.length ? (
-                          <p>{t("assetFilter.categories")}: {row.categories.join(", ")}</p>
+                          <p>
+                            {t("assetFilter.categories")}:{" "}
+                            {row.categories.map((c) => categoryLabel(lang, c)).join(", ")}
+                          </p>
                         ) : null}
                         <p className="break-words">
                           {t("assetFilter.matched")}:{" "}

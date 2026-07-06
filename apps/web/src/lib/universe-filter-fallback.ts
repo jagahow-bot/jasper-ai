@@ -1,5 +1,10 @@
 import { getUniverseItems } from "./universe";
 import type { UniverseFilterOutput } from "./universe-filter-schema";
+import { categoryLabel } from "./etf-category-i18n";
+import {
+  localizedFallbackRationale,
+  type Lang,
+} from "./universe-filter-locale";
 
 const SHORT_MARKET_TICKERS = [
   "BTAL",
@@ -100,7 +105,10 @@ function categoriesForText(text: string): string[] | undefined {
   return cats.size ? [...cats] : undefined;
 }
 
-export function analyzeUniverseFilterFallback(text: string): UniverseFilterOutput {
+export function analyzeUniverseFilterFallback(
+  text: string,
+  lang: Lang = "en",
+): UniverseFilterOutput {
   const lower = text.toLowerCase();
   const universe = new Set(getUniverseItems().map((u) => u.ticker));
   const pick = (list: string[]) => list.filter((t) => universe.has(t));
@@ -118,16 +126,15 @@ export function analyzeUniverseFilterFallback(text: string): UniverseFilterOutpu
     tickers = tickersForKeywords(text);
   }
 
-  const parts: string[] = [];
-  if (tickers?.length) parts.push(`${tickers.length} matching ETF(s)`);
-  if (categories?.length) {
-    parts.push(`Categories: ${categories.slice(0, 4).join(", ")}${categories.length > 4 ? "…" : ""}`);
-  }
+  const localizedCategories = categories?.map((c) => categoryLabel(lang, c));
 
   return {
     asset_classes: undefined,
     categories,
     tickers,
-    rationale: parts.join(" · ") || "Supplement tickers from rule-based match in full universe.",
+    rationale: localizedFallbackRationale(lang, {
+      matchingCount: tickers?.length,
+      categories: localizedCategories,
+    }),
   };
 }
