@@ -8,6 +8,10 @@ from app.engine.regime_policy_v2 import (
     RISK_OFF_WEIGHTS,
     SCORE_ARBITRATION_MARGIN,
     _allows_fast_exit_to_risk_on,
+    _cooldown_for_transition,
+    _detect_recovery_signals,
+    _drawdown_recovery_ratio,
+    _hysteresis_for_active_regime,
     arbitrate_regime,
     compute_regime_scores,
     resolve_regime_signal_v2,
@@ -148,7 +152,7 @@ def test_v_rebound_exits_risk_off_faster_with_fast_exit() -> None:
 
 def test_allows_fast_exit_to_risk_on_when_63d_eased() -> None:
     assert _allows_fast_exit_to_risk_on({"risk_off_score": 0.8, "risk_on_score": 0.25}) is False
-    assert _allows_fast_exit_to_risk_on({"risk_off_score": 0.5, "risk_on_score": 0.3}) is True
+    assert _allows_fast_exit_to_risk_on({"risk_off_score": 0.48, "risk_on_score": 0.3}) is True
     assert _allows_fast_exit_to_risk_on({"risk_off_score": 0.6, "risk_on_score": 0.65}) is True
 
 
@@ -229,3 +233,61 @@ def test_vol_peak_decay_lowers_risk_off_score_on_easing_vol() -> None:
     base = compute_regime_scores(window, apply_vol_peak_decay=False)
     decayed = compute_regime_scores(window, apply_vol_peak_decay=True)
     assert decayed["risk_off_score"] <= base["risk_off_score"]
+
+
+def test_drawdown_recovery_ratio_rises_after_rebound() -> None:
+    idx = pd.bdate_range("2020-02-01", periods=200)
+    crash = np.concatenate([np.linspace(0.0, -0.04, 40), np.full(20, -0.015)])
+    rebound = np.linspace(0.025, 0.003, 140)
+    ret = np.concatenate([crash, rebound])[: len(idx)]
+    series = pd.Series(ret, index=idx)
+    at_trough = _drawdown_recovery_ratio(series.iloc[:60])
+    after_rebound = _drawdown_recovery_ratio(series)
+    assert after_rebound > at_trough
+
+
+def test_recovery_exit_uses_zero_cooldown_and_confirm() -> None:
+    assert _cooldown_for_transition("risk_off", "risk_on", 2, recovery=True) == 0
+    assert _cooldown_for_transition("risk_off", "neutral", 2, recovery=True) == 0
+    raw, cd, cf = _hysteresis_for_active_regime(
+        "risk_off",
+        "risk_on",
+        {"risk_off_score": 0.52, "risk_on_score": 0.48},
+        cooldown_steps=2,
+        confirm_steps=2,
+        recovery=True,
+    )
+    assert raw == "risk_on"
+    assert cd == 0
+    assert cf == 0
+
+
+def test_covid_style_crash_recovers_faster_than_without_recovery() -> None:
+    """V-crash + sustained rebound: recovery path exits risk_off sooner."""
+    idx = pd.bdate_range("2019-01-01", periods=500)
+    crash = np.concatenate(
+        [np.full(120, 0.001), np.linspace(0.0, -0.04, 25), np.full(15, -0.02)]
+    )
+    rebound = np.concatenate(
+        [np.linspace(0.03, 0.005, 30), np.full(200, 0.0025), np.full(110, 0.0015)]
+    )
+    ret = np.concatenate([crash, rebound])[: len(idx)]
+    bench_ret = pd.Series(ret, index=idx)
+
+    def _first_non_risk_off(timeline: list[dict]) -> int | None:
+        for i, row in enumerate(timeline):
+            if row["regime"] != "risk_off":
+                return i
+        return None
+
+    _, legacy = walk_forward_regime_timeline_v2(
+        bench_ret, "auto", fast_risk_off_exit=False, cooldown_steps=2, confirm_steps=2
+    )
+    _, optimized = walk_forward_regime_timeline_v2(
+        bench_ret, "auto", fast_risk_off_exit=True, cooldown_steps=2, confirm_steps=2
+    )
+    assert _risk_off_steps(optimized) <= _risk_off_steps(legacy)
+    legacy_exit = _first_non_risk_off(legacy)
+    opt_exit = _first_non_risk_off(optimized)
+    if legacy_exit is not None and opt_exit is not None:
+        assert opt_exit <= legacy_exit

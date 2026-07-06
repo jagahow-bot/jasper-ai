@@ -23,15 +23,32 @@ REBOUND_RETURN_THRESHOLD = 0.02
 VOL_PEAK_DECAY_PCT = 0.15
 VOL_PEAK_DECAY_MAX_SCORE_REDUCTION = 0.35
 # Fast exit to risk_on requires 63d risk-off to have eased (not just short-window rebound).
-RISK_OFF_FAST_RELEASE_CEILING = 0.55
+RISK_OFF_FAST_RELEASE_CEILING = 0.50
 # Score-dominant arbitration: winner must lead by margin (replaces off>=on ties).
 SCORE_ARBITRATION_MARGIN = 0.05
 # Strong off dominance: fast hysteresis into risk_off from risk_on.
 SCORE_STRONG_DOMINANCE_MARGIN = 0.12
+# Recovery from drawdown: allow faster exit when price recovers from trough.
+DEFAULT_DRAWDOWN_RECOVERY_PCT = 0.35
+RECOVERY_MOMENTUM_MIN_RETURN = 0.012
+RECOVERY_LOOKBACK_DAYS = 126
+# Hysteresis: block risk_off exit only when off still leads by this margin during recovery.
+RECOVERY_EXIT_BLOCK_MARGIN = 0.10
 
 
 def default_detector_version() -> str:
     return os.environ.get("REGIME_DETECTOR_VERSION", "v2").strip().lower() or "v2"
+
+
+def recovery_drawdown_pct() -> float:
+    """Fraction of max drawdown recovered from trough to treat as recovery (env override)."""
+    raw = os.environ.get("REGIME_RECOVERY_DRAWDOWN_PCT", "").strip()
+    if raw:
+        try:
+            return _clamp01(float(raw))
+        except ValueError:
+            pass
+    return DEFAULT_DRAWDOWN_RECOVERY_PCT
 
 
 def _clamp01(x: float) -> float:
@@ -60,6 +77,29 @@ def _trailing_max_drawdown(returns: pd.Series) -> float:
     peak = cum.cummax()
     dd = float((cum / peak - 1.0).min())
     return dd
+
+
+def _drawdown_recovery_ratio(
+    vol_history: pd.Series,
+    *,
+    lookback_days: int = RECOVERY_LOOKBACK_DAYS,
+) -> float:
+    """0 at drawdown trough, 1 when price fully recovers to prior peak."""
+    if len(vol_history) < 10:
+        return 0.0
+    window = (
+        vol_history.tail(lookback_days)
+        if len(vol_history) > lookback_days
+        else vol_history
+    )
+    cum = (1.0 + window).cumprod()
+    peak = cum.cummax()
+    dd = cum / peak - 1.0
+    max_dd = float(dd.min())
+    current_dd = float(dd.iloc[-1])
+    if max_dd >= -0.008:
+        return 1.0
+    return _clamp01((current_dd - max_dd) / (-max_dd))
 
 
 def _trend_slope_score(returns: pd.Series) -> float:
@@ -235,6 +275,47 @@ def _enforce_raw_no_risk_on_when_off_dominates(
     return raw
 
 
+def _detect_recovery_signals(
+    window: pd.Series,
+    vol_history: pd.Series,
+    short_window: pd.Series,
+    short_scores: dict[str, float],
+    *,
+    recovery_drawdown_pct_threshold: float,
+    prior_annualized_vol: float | None,
+) -> dict[str, bool]:
+    """Short-window rebound + drawdown recovery + momentum flip from stress."""
+    short_return = float(short_window.sum()) if len(short_window) else 0.0
+    trailing_return = float(window.sum()) if len(window) else 0.0
+    short_on = float(short_scores.get("risk_on_score", 0.0))
+    short_off = float(short_scores.get("risk_off_score", 0.0))
+    short_vol = _annualized_vol(short_window) if len(short_window) > 1 else 0.0
+    vol_falling = (
+        prior_annualized_vol is not None
+        and prior_annualized_vol > 0.0
+        and short_vol < prior_annualized_vol * 0.98
+    )
+    dd_recovery = _drawdown_recovery_ratio(vol_history)
+    drawdown_recovered = dd_recovery >= recovery_drawdown_pct_threshold
+    momentum_flip = (
+        short_return >= RECOVERY_MOMENTUM_MIN_RETURN and trailing_return < 0.0
+    )
+    strong_rebound = (
+        short_return > REBOUND_RETURN_THRESHOLD
+        and short_on > short_off
+        and short_on >= DEFAULT_MIN_CONFIDENCE * 0.8
+    )
+    return {
+        "drawdown_recovered": drawdown_recovered,
+        "momentum_flip": momentum_flip,
+        "strong_rebound": strong_rebound,
+        "vol_falling": vol_falling,
+        "any": drawdown_recovered
+        or momentum_flip
+        or (strong_rebound and vol_falling),
+    }
+
+
 def _hysteresis_for_active_regime(
     active: RegimeSignal | None,
     raw: RegimeSignal,
@@ -242,19 +323,28 @@ def _hysteresis_for_active_regime(
     *,
     cooldown_steps: int,
     confirm_steps: int,
+    recovery: bool = False,
 ) -> tuple[RegimeSignal, int, int]:
     """
-    Score-dominant hysteresis: block leaving risk_off while off leads; fast-enter
-    risk_off from risk_on when off leads by STRONG margin.
+    Score-dominant hysteresis: block leaving risk_off while off leads strongly;
+    recovery signals relax exit toward neutral/risk_on with shorter confirm/cooldown.
     """
     off = float(scores.get("risk_off_score", 0.0))
     on = float(scores.get("risk_on_score", 0.0))
     effective_raw = raw
     required_confirm = confirm_steps
-    required_cooldown = _cooldown_for_transition(active, raw, cooldown_steps)
+    required_cooldown = _cooldown_for_transition(
+        active, raw, cooldown_steps, recovery=recovery
+    )
 
     if active == "risk_off" and raw != "risk_off" and off > on:
-        effective_raw = "risk_off"
+        block_margin = (
+            RECOVERY_EXIT_BLOCK_MARGIN if recovery else SCORE_ARBITRATION_MARGIN
+        )
+        if recovery and off <= on + block_margin:
+            required_confirm = 0 if raw == "risk_on" else min(confirm_steps, 1)
+        else:
+            effective_raw = "risk_off"
 
     elif (
         active == "risk_on"
@@ -266,6 +356,13 @@ def _hysteresis_for_active_regime(
     elif active == "risk_on" and raw == "risk_off" and off > on + SCORE_ARBITRATION_MARGIN:
         required_confirm = min(confirm_steps, 1)
         required_cooldown = min(required_cooldown, 1)
+
+    if active == "risk_off" and raw == "risk_on" and recovery:
+        required_confirm = 0
+        required_cooldown = 0
+    elif active == "risk_off" and raw == "neutral" and recovery:
+        required_confirm = 0
+        required_cooldown = max(0, required_cooldown - 1)
 
     return effective_raw, required_cooldown, required_confirm
 
@@ -291,10 +388,14 @@ def _cooldown_for_transition(
     active: RegimeSignal | None,
     candidate: RegimeSignal,
     cooldown_steps: int,
+    *,
+    recovery: bool = False,
 ) -> int:
     """Exiting risk_off uses shorter cooldown than entering (asymmetric hysteresis)."""
     if active == "risk_off" and candidate in ("risk_on", "neutral"):
-        return max(1, cooldown_steps - 1)
+        if recovery:
+            return 0
+        return max(0, cooldown_steps - 1)
     return cooldown_steps
 
 
@@ -310,31 +411,57 @@ def _apply_fast_risk_off_exit_raw(
     scores: dict[str, float],
     *,
     active: RegimeSignal | None,
+    window: pd.Series,
     short_window: pd.Series,
     short_scores: dict[str, float],
+    vol_history: pd.Series,
     prior_annualized_vol: float | None,
     requested_mode: str,
     min_confidence: float,
     rebound_return_threshold: float = REBOUND_RETURN_THRESHOLD,
+    recovery_drawdown_pct_threshold: float = DEFAULT_DRAWDOWN_RECOVERY_PCT,
 ) -> RegimeSignal:
     """
-    When active is risk_off, 63d scores lag V-rebounds. Short 21d window + fast release
-    can pull raw toward neutral/risk_on without weakening risk_on entry detection.
+    When active is risk_off, 63d scores lag V-rebounds. Short 21d window + recovery
+    signals can pull raw toward neutral/risk_on without weakening risk_on entry detection.
     """
     if requested_mode != "auto" or active != "risk_off":
         return raw
     if len(short_window) < SHORT_LOOKBACK_DAYS // 2:
         return raw
 
+    recovery = _detect_recovery_signals(
+        window,
+        vol_history,
+        short_window,
+        short_scores,
+        recovery_drawdown_pct_threshold=recovery_drawdown_pct_threshold,
+        prior_annualized_vol=prior_annualized_vol,
+    )
     short_return = float(short_window.sum())
     short_vol = _annualized_vol(short_window)
-    vol_falling = (
-        prior_annualized_vol is not None
-        and prior_annualized_vol > 0.0
-        and short_vol < prior_annualized_vol * 0.98
-    )
+    vol_falling = recovery["vol_falling"]
     short_on = float(short_scores.get("risk_on_score", 0.0))
     short_off = float(short_scores.get("risk_off_score", 0.0))
+
+    # Drawdown recovery: market has retraced meaningfully from trough.
+    if recovery["drawdown_recovered"]:
+        if short_on >= min_confidence and _allows_fast_exit_to_risk_on(scores):
+            candidate = arbitrate_regime(
+                short_scores, requested_mode, min_confidence=min_confidence
+            )
+            if candidate == "risk_on":
+                return "risk_on"
+        if short_on > short_off or vol_falling:
+            return "neutral"
+
+    # Momentum flip: short window positive while 63d trailing still negative.
+    if recovery["momentum_flip"] and short_on >= min_confidence * 0.85:
+        if _allows_fast_exit_to_risk_on(scores):
+            return arbitrate_regime(
+                short_scores, requested_mode, min_confidence=min_confidence
+            )
+        return "neutral"
 
     # Dual window: strong short-term rebound favors exit from risk_off.
     if (
@@ -370,8 +497,11 @@ def walk_forward_regime_timeline_v2(
     fast_risk_off_exit: bool = True,
     short_lookback_days: int = SHORT_LOOKBACK_DAYS,
     rebound_return_threshold: float = REBOUND_RETURN_THRESHOLD,
+    recovery_drawdown_pct_threshold: float | None = None,
 ) -> tuple[int, list[dict[str, Any]]]:
     """Walk-forward V2 labels with score timeline and hysteresis on active regime."""
+    if recovery_drawdown_pct_threshold is None:
+        recovery_drawdown_pct_threshold = recovery_drawdown_pct()
     if len(bench_ret) < lookback_days + step_days:
         return 0, []
 
@@ -401,17 +531,30 @@ def walk_forward_regime_timeline_v2(
                 vol_history=vol_history,
                 apply_vol_peak_decay=True,
             )
+            recovery = _detect_recovery_signals(
+                window,
+                vol_history,
+                short_window,
+                short_scores,
+                recovery_drawdown_pct_threshold=recovery_drawdown_pct_threshold,
+                prior_annualized_vol=prior_step_vol,
+            )
             raw = _apply_fast_risk_off_exit_raw(
                 raw,
                 scores,
                 active=active,
+                window=window,
                 short_window=short_window,
                 short_scores=short_scores,
+                vol_history=vol_history,
                 prior_annualized_vol=prior_step_vol,
                 requested_mode=requested_mode,
                 min_confidence=min_confidence,
                 rebound_return_threshold=rebound_return_threshold,
+                recovery_drawdown_pct_threshold=recovery_drawdown_pct_threshold,
             )
+        else:
+            recovery = {"any": False}
         raw = _enforce_raw_no_risk_on_when_off_dominates(raw, scores)
         effective_raw, required_cooldown, required_confirm = _hysteresis_for_active_regime(
             active,
@@ -419,6 +562,7 @@ def walk_forward_regime_timeline_v2(
             scores,
             cooldown_steps=cooldown_steps,
             confirm_steps=confirm_steps,
+            recovery=bool(recovery.get("any")),
         )
         end_date = bench_ret.index[end]
         switched = False
