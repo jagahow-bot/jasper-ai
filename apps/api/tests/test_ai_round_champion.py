@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from app.engine.ai_params import (
     _MAX_ROUND_CHAMPION_ATTEMPTS,
-    _round_champion_composite_score,
     _round_champion_fallback_code,
     _round_champion_max_output_tokens,
+    _round_champion_primary_score,
     _thinking_config_for_round_champion,
     generate_ai_round_champion,
 )
@@ -453,7 +453,7 @@ def test_build_round_champion_ai_payload_includes_oos_horizons():
     assert row["overfitting_risk"] == "high"
     assert row["horizons"]["out_of_sample"]["objective_value"] == 0.9
     assert row["horizons"]["gap"]["objective"] == 0.6
-    assert "full_sample matches" in payload["selection_note"]
+    assert "user objective on the selection horizon" in payload["selection_note"]
 
 
 def test_record_for_model_code_finds_pool_trial():
@@ -466,8 +466,10 @@ def test_record_for_model_code_finds_pool_trial():
     assert rec[1]["model_code"] == "M0001"
 
 
-def test_round_champion_composite_prefers_balanced_oos_over_high_is():
+def test_round_champion_objective_primary_wins_despite_overfitting_gap():
+    """max_return: highest IS CAGR wins even with large IS-OOS gap."""
     payload = {
+        "objective": "max_return",
         "oos_enabled": True,
         "candidates": [
             {
@@ -477,8 +479,8 @@ def test_round_champion_composite_prefers_balanced_oos_over_high_is():
                 "holdout_objective": 0.4,
                 "overfitting_risk": "high",
                 "horizons": {
-                    "in_sample": {"objective_value": 1.5},
-                    "out_of_sample": {"objective_value": 0.4},
+                    "in_sample": {"objective_value": 1.5, "cagr": 1.5, "sharpe": 0.8},
+                    "out_of_sample": {"objective_value": 0.4, "cagr": 0.4},
                     "full_sample": None,
                     "gap": {"objective": 1.1},
                 },
@@ -490,22 +492,91 @@ def test_round_champion_composite_prefers_balanced_oos_over_high_is():
                 "holdout_objective": 0.85,
                 "overfitting_risk": "low",
                 "horizons": {
-                    "in_sample": {"objective_value": 0.9},
-                    "out_of_sample": {"objective_value": 0.85},
+                    "in_sample": {"objective_value": 0.9, "cagr": 0.9, "sharpe": 1.2},
+                    "out_of_sample": {"objective_value": 0.85, "cagr": 0.85},
                     "full_sample": None,
                     "gap": {"objective": 0.05},
                 },
             },
         ],
     }
-    assert _round_champion_fallback_code(payload) == "M0002"
-    assert _round_champion_composite_score(
-        payload["candidates"][1], oos_enabled=True
-    ) > _round_champion_composite_score(payload["candidates"][0], oos_enabled=True)
+    assert _round_champion_fallback_code(payload) == "M0001"
+    assert _round_champion_primary_score(
+        payload["candidates"][0],
+        objective_mode="max_return",
+        oos_enabled=True,
+    ) > _round_champion_primary_score(
+        payload["candidates"][1],
+        objective_mode="max_return",
+        oos_enabled=True,
+    )
 
 
-def test_round_champion_fallback_uses_composite_without_oos():
+def test_round_champion_min_max_drawdown_picks_lowest_dd():
     payload = {
+        "objective": "min_max_drawdown",
+        "oos_enabled": True,
+        "candidates": [
+            {
+                "model_code": "M0001",
+                "horizons": {
+                    "in_sample": {
+                        "objective_value": -0.45,
+                        "max_drawdown": -0.45,
+                        "sharpe": 1.1,
+                    },
+                },
+            },
+            {
+                "model_code": "M0002",
+                "horizons": {
+                    "in_sample": {
+                        "objective_value": -0.22,
+                        "max_drawdown": -0.22,
+                        "sharpe": 0.9,
+                    },
+                },
+            },
+        ],
+    }
+    assert _round_champion_fallback_code(payload) == "M0002"
+
+
+def test_round_champion_tie_breaks_on_sharpe_within_cagr_band():
+    payload = {
+        "objective": "max_return",
+        "oos_enabled": True,
+        "candidates": [
+            {
+                "model_code": "M0001",
+                "horizons": {
+                    "in_sample": {
+                        "objective_value": 0.150,
+                        "cagr": 0.150,
+                        "sharpe": 1.0,
+                        "max_drawdown": -0.20,
+                    },
+                },
+            },
+            {
+                "model_code": "M0002",
+                "horizons": {
+                    "in_sample": {
+                        "objective_value": 0.148,
+                        "cagr": 0.148,
+                        "sharpe": 1.4,
+                        "max_drawdown": -0.18,
+                    },
+                },
+            },
+        ],
+    }
+    assert _round_champion_fallback_code(payload) == "M0002"
+
+
+def test_round_champion_fallback_uses_objective_without_oos():
+    payload = {
+        "objective": "max_return",
         "oos_enabled": False,
         "candidates": [
             {

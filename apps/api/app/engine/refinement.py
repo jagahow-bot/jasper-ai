@@ -1398,11 +1398,12 @@ def build_round_champion_ai_payload(
         "oos_enabled": bool(oos_enabled),
         "incoming_champion_model_code": incoming,
         "selection_note": (
-            "Champion is chosen deterministically from horizons (IS/OOS/Full composite). "
-            "horizons.in_sample and horizons.out_of_sample use full-path slices from the "
-            "same continuous backtest as the report grid — NOT independent trial simulates. "
-            "horizons.full_sample matches the user's full-period report grid — cite Full metrics "
-            "first in rationale; label IS/OOS explicitly when used for robustness."
+            "Champion is chosen deterministically by user objective on the selection horizon "
+            "(in-sample when OOS holdout is active, else full-sample). "
+            "IS/OOS gap and overfitting_risk are informational only — they do not demote the "
+            "objective winner. horizons.in_sample and horizons.out_of_sample use full-path "
+            "slices from the same continuous backtest as the report grid — NOT independent "
+            "trial simulates. horizons.full_sample matches the user's full-period report grid."
         ),
         "candidates": candidates,
     }

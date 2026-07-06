@@ -56,6 +56,7 @@ from app.engine.param_bounds import (
     resolve_off_value,
 )
 from app.engine.spec import top_n_ai_range_hi
+from app.engine.objectives import compute_objective_score, objective_label
 from app.engine.refinement import summarize_params_for_ai
 
 _dir_lock = threading.Lock()
@@ -2577,61 +2578,123 @@ def _thinking_config_for_round_champion(*, model: str) -> dict[str, Any] | None:
     return None
 
 
-def _round_champion_composite_score(
+_ROUND_CHAMPION_TIE_THRESHOLDS: dict[str, float] = {
+    "max_return": 0.005,
+    "min_max_drawdown": 0.005,
+    "min_cvar": 0.005,
+    "max_sharpe": 0.05,
+    "max_sortino": 0.05,
+    "mean_variance_utility": 0.05,
+    "risk_parity_erc": 0.05,
+    "max_diversification": 0.005,
+    "custom": 0.05,
+    "dynamic": 0.05,
+    "dynamic_comprehensive": 0.05,
+}
+
+
+def _round_champion_tie_threshold(objective_mode: str) -> float:
+    return _ROUND_CHAMPION_TIE_THRESHOLDS.get(objective_mode, 0.005)
+
+
+def _round_champion_selection_horizon(
     candidate: dict[str, Any],
     *,
     oos_enabled: bool,
-) -> float:
-    """Holistic IS/OOS/Full score for deterministic champion fallback."""
+) -> dict[str, Any]:
+    """Horizon used for champion ranking (IS when OOS holdout is active, else full)."""
     horizons = candidate.get("horizons") or {}
-    is_h = horizons.get("in_sample") or {}
-    oos_h = horizons.get("out_of_sample") or {}
-    full_h = horizons.get("full_sample") or {}
+    if oos_enabled:
+        row = horizons.get("in_sample")
+        if isinstance(row, dict) and row:
+            return row
+    row = horizons.get("full_sample") or horizons.get("in_sample")
+    return row if isinstance(row, dict) else {}
 
-    is_obj = (
-        is_h.get("objective_value")
-        or candidate.get("objective_value_is")
-        or candidate.get("objective_value")
+
+def _round_champion_primary_score(
+    candidate: dict[str, Any],
+    *,
+    objective_mode: str,
+    oos_enabled: bool,
+) -> float:
+    """User objective on the selection horizon — higher is better."""
+    horizon = _round_champion_selection_horizon(candidate, oos_enabled=oos_enabled)
+    obj = horizon.get("objective_value")
+    if obj is not None:
+        return float(obj)
+    if oos_enabled:
+        fallback = candidate.get("objective_value_is")
+        if fallback is not None:
+            return float(fallback)
+    fallback = candidate.get("objective_value")
+    if fallback is not None:
+        return float(fallback)
+    if horizon:
+        return compute_objective_score(objective_mode, horizon)
+    return -1e9
+
+
+def _round_champion_horizon_metric(
+    candidate: dict[str, Any],
+    metric_key: str,
+    *,
+    oos_enabled: bool,
+) -> float:
+    horizon = _round_champion_selection_horizon(candidate, oos_enabled=oos_enabled)
+    raw = horizon.get(metric_key)
+    if raw is not None:
+        return float(raw)
+    raw = candidate.get(metric_key)
+    return float(raw) if raw is not None else -1e9
+
+
+def _round_champion_sort_key(
+    candidate: dict[str, Any],
+    *,
+    objective_mode: str,
+    oos_enabled: bool,
+    best_primary: float,
+    tie_threshold: float,
+) -> tuple[float, float, float, float]:
+    """Lexicographic key: primary objective, then Sharpe / max DD when within tie band."""
+    primary = _round_champion_primary_score(
+        candidate, objective_mode=objective_mode, oos_enabled=oos_enabled
     )
-    oos_obj = oos_h.get("objective_value") or candidate.get("holdout_objective")
-    full_obj = full_h.get("objective_value")
-
-    parts: list[float] = []
-    weights: list[float] = []
-    if is_obj is not None:
-        parts.append(float(is_obj))
-        weights.append(0.35)
-    if oos_enabled and oos_obj is not None:
-        parts.append(float(oos_obj))
-        weights.append(0.40)
-    if full_obj is not None:
-        parts.append(float(full_obj))
-        weights.append(0.35 if oos_enabled else 0.65)
-
-    if not parts:
-        base = float(candidate.get("objective_value", -1e9))
-    else:
-        wsum = sum(weights)
-        base = sum(p * w for p, w in zip(parts, weights)) / wsum
-
-    gap = horizons.get("gap") or {}
-    gap_obj = gap.get("objective", candidate.get("gap_objective"))
-    gap_penalty = max(0.0, float(gap_obj)) * 0.5 if gap_obj is not None else 0.0
-
-    risk = str(candidate.get("overfitting_risk", "unknown"))
-    risk_penalty = {"high": 0.3, "moderate": 0.1}.get(risk, 0.0)
-
-    return base - gap_penalty - risk_penalty
+    sharpe = _round_champion_horizon_metric(
+        candidate, "sharpe", oos_enabled=oos_enabled
+    )
+    mdd = _round_champion_horizon_metric(
+        candidate, "max_drawdown", oos_enabled=oos_enabled
+    )
+    if abs(primary - best_primary) <= tie_threshold:
+        return (best_primary, sharpe, mdd, primary)
+    return (primary, -1e9, -1e9, primary)
 
 
 def _round_champion_fallback_code(payload: dict[str, Any]) -> str | None:
     candidates = payload.get("candidates") or []
     if not candidates:
         return None
+    objective_mode = str(payload.get("objective") or "max_sharpe")
     oos_enabled = bool(payload.get("oos_enabled"))
+    tie_threshold = _round_champion_tie_threshold(objective_mode)
+    primaries = [
+        _round_champion_primary_score(
+            c, objective_mode=objective_mode, oos_enabled=oos_enabled
+        )
+        for c in candidates
+    ]
+    best_primary = max(primaries)
     best = max(
         candidates,
-        key=lambda c: _round_champion_composite_score(c, oos_enabled=oos_enabled),
+        key=lambda c: _round_champion_sort_key(
+            c,
+            objective_mode=objective_mode,
+            oos_enabled=oos_enabled,
+            best_primary=best_primary,
+            tie_threshold=tie_threshold,
+        ),
     )
     code = str(best.get("model_code", "")).strip().upper()
     return code or None
@@ -2697,12 +2760,36 @@ def generate_ai_round_champion(
     )
     if preselected and preselected not in allowed:
         preselected = None
-    champion_line = (
-        f"The round champion is already selected: {preselected}. "
-        "Write rationale ONLY for that model; round_champion_model_code MUST equal it."
-        if preselected
-        else "Pick the best deployable champion from the trial pool."
+    obj_mode = str(payload.get("objective") or "max_sharpe")
+    obj_label = objective_label(obj_mode)
+    horizon_note = (
+        "in-sample (horizons.in_sample) because OOS holdout is active"
+        if payload.get("oos_enabled")
+        else "full-sample (horizons.full_sample or in_sample)"
     )
+    selection_rules = (
+        f"1) Champion = highest {obj_label} on {horizon_note} (matches Optuna trial ranking).\n"
+        "2) Do NOT override the champion for overfitting concerns — cite horizons.gap or "
+        "overfitting_risk=high only as a deployment risk note when material.\n"
+        f"3) Name at least one runner-up and why they trailed on {obj_label}; mention OOS/robustness "
+        "only as context, not as a reason to prefer the runner-up.\n"
+        "4) When benchmark_relative exists, note whether the champion beats or trails benchmark."
+    )
+    if preselected:
+        champion_line = (
+            f"The round champion is already selected: {preselected}. "
+            "Write rationale ONLY for that model; round_champion_model_code MUST equal it."
+        )
+    else:
+        champion_line = (
+            f"Pick the champion with the highest {obj_label} on {horizon_note}. "
+            "Do not demote the objective winner for IS/OOS gap or overfitting_risk."
+        )
+        selection_rules = selection_rules.replace(
+            "Champion = highest", "Pick the trial with the highest"
+        ).replace(
+            "Do NOT override the champion", "Do NOT pick a runner-up over the objective winner"
+        )
 
     prompt = f"""Institutional quant analyst. {_round_champion_language_directive(language)}
 After this Pro Optuna round, {champion_line}
@@ -2715,14 +2802,10 @@ METRIC FORMAT (payload JSON uses decimal fractions for rates):
 - Unitless (no %): sharpe, sortino, objective_value.
 - ALWAYS prefix every cited number with its horizon: "IS", "OOS", or "Full" (horizons.full_sample).
 - Lead with Full-period Sharpe/CAGR/max DD from horizons.full_sample when present — that matches the user's report grid.
-- Use IS and OOS only for robustness / overfitting trade-offs vs runner-ups; never imply IS/OOS numbers are full-period.
 - horizons.in_sample / out_of_sample are full-path slices (same continuous backtest as Full), not independent trial simulates.
 
-Selection logic (apply holistically — do NOT pick highest in-sample objective alone):
-1) Prefer strong IS + OOS + full-sample risk-adjusted metrics together.
-2) Penalize large horizons.gap.objective / horizons.gap.sharpe and overfitting_risk=high.
-3) When benchmark_relative or VS_BENCHMARK data exists, favor trials that beat or approach benchmark.
-4) Name at least one runner-up in rationale and explain the trade-off (cite model_code and horizon).
+Selection logic:
+{selection_rules}
 
 Return STRICT JSON only:
 {{"round_champion_model_code":"Mxxxx","rationale":"2-4 sentences"}}
