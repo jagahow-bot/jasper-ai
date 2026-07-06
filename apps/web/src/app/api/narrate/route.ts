@@ -3,12 +3,13 @@ import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { type AiLang, languageDirective, normalizeAiLang } from "@/lib/ai-language";
 import { AI_METRIC_FORMAT_RULES, formatPctDecimal } from "@/lib/ai-metric-format";
-import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import { GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
 import { slimNarrativeFacts } from "@/lib/narrative-slim";
 import { validateNarrative } from "@/lib/narrative-validate";
 
 function buildSystem(lang: AiLang): string {
-  return `You are a quant strategy analyst. ${languageDirective(lang)} Use only JSON facts.
+  return `You are a quant strategy analyst writing for a retail investor audience. ${languageDirective(lang)}
+Use plain, accessible language — explain jargon (Sharpe, drawdown, regime) briefly when first used.
 ${AI_METRIC_FORMAT_RULES}
 - Trial selection / champion pick uses in-sample only when report_horizons.oos_enabled is true (see report_analysis_note).
 - For interpretation, always use report_horizons when present: compare in_sample, out_of_sample, and full_sample (ttl) Sharpe/CAGR/max drawdown/objective_value.
@@ -22,6 +23,7 @@ ${AI_METRIC_FORMAT_RULES}
 - Mention: each rebalance runs factor Top-N screen then allocator (dynamic), if narrative_facts mentions it.
 - Mention max_weight_constraint vs max_weight_trial_param vs max_weight_observed when discussing concentration risk.
 - Mention assumptions: fee_bps, rebalance_freq, benchmark (backtest_spec).
+- Structure: (1) what the strategy did and how it performed vs benchmark, (2) horizon/overfitting read when holdout enabled, (3) key risks and constraints, (4) honest next-step iteration ideas when underperforming.
 - Benchmark honesty: when backtest_spec.benchmark_metrics is present, compare the champion's full-sample Sharpe/CAGR/max drawdown to it. If the strategy underperformed the benchmark on the objective (e.g. lower Sharpe/CAGR, or a worse/deeper max drawdown), say so plainly and objectively — do NOT overstate the result. Then note the user can keep iterating from this run (adjust factors, constraints, universe, or objective and re-run) instead of starting over.
 - If a field is null, say "not provided"
 - End with: For research and education only — not investment advice.`;
@@ -64,7 +66,8 @@ async function generateWithValidation(facts: Record<string, unknown>, lang: AiLa
         : "\nPrior draft had unauthorized numbers or wrong % scaling. Use only facts values; rates are decimals → multiply by 100 for %.";
     const result = await generateText({
       model: google(GEMINI_MODEL),
-      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      maxOutputTokens:
+        GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS + attempt * 2048,
       providerOptions: {
         google: {
           thinkingConfig: {
@@ -73,7 +76,7 @@ async function generateWithValidation(facts: Record<string, unknown>, lang: AiLa
         },
       },
       system: buildSystem(lang),
-      prompt: `Write 2-4 paragraphs interpreting this backtest:\n${JSON.stringify(slim, null, 2)}${extra}`,
+      prompt: `Write 3-5 paragraphs interpreting this backtest for a retail investor:\n${JSON.stringify(slim, null, 2)}${extra}`,
     });
     text = result.text;
     const check = validateNarrative(text, facts);

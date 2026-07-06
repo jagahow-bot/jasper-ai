@@ -160,7 +160,9 @@ def refine_universe_with_ai(
             "task": (
                 "The grouped_categories pool is already limited to asset_classes_filter. "
                 "Organize ETFs by category for context only. Do NOT remove or narrow tickers. "
-                "Pick the single best benchmark_ticker for this backtest pool."
+                "Pick the single best benchmark_ticker for this backtest pool and objective. "
+                "In rationale (2-3 sentences), explain why this benchmark matches the sleeve mix "
+                "and objective (e.g. global equity vs bond-heavy)."
             ),
         }
         schema = {

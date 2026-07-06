@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
     schema: ResponseSchema,
     system:
-      "你是機構量化研究助理。輸出嚴格 JSON。數值最多 4 位小數；只輸出必要與有實質變化的欄位。每次請求產生的參數必須與既有組合在 lookback、因子權重、top_n、風險厭惡度上明顯不同。",
+      "你是機構量化研究助理。輸出嚴格 JSON。數值最多 4 位小數；只輸出必要與有實質變化的欄位。每次請求產生的參數必須與既有組合在 lookback、因子權重、top_n、風險厭惡度上明顯不同。在 rationale 中簡述每組參數的因子選擇與配置邏輯，並對照既有組合說明差異原因。",
     prompt: `請產生 ${n} 組參數（param_sets 長度必須為 ${n}）：
 - objective=${body.objective}
 - rebalance_freq=${body.rebalance_freq}

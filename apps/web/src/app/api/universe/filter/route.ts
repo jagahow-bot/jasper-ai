@@ -64,7 +64,7 @@ Rules:
 - asset_classes in output are optional context only — they do NOT constrain which tickers you may include.
 - For bear/short equity themes, prefer inverse, hedged, managed-futures, or low-beta alts (e.g. BTAL, PUTW, CTA, DBMF) — not the entire equity sleeve.
 - For sector/thematic rules, list specific sector ETFs (XLK, SMH, etc.), not every equity fund.
-- rationale: one concise sentence for this rule's supplement intent (${rationaleLanguageDirective(lang)})`;
+- rationale: 1-2 sentences explaining which tickers you picked and why they match the rule intent (${rationaleLanguageDirective(lang)}); mention trade-offs if the rule is ambiguous.`;
 
 async function analyzeRuleWithGemini(
   ruleText: string,

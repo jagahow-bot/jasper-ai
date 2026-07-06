@@ -853,6 +853,9 @@ Priorities (in order):
 (1) Beat the benchmark on in-sample risk-adjusted terms (alpha / IR / total return vs benchmark).
 (2) Beat the champion in-sample objective (above TARGET).
 (3) Do NOT reuse parameter patterns listed under params_to_avoid or failed challengers.
+When prior param_sets, FAILED_TRIALS, or params_to_avoid are listed, explicitly contrast each new set
+against them — which factors, indicators, allocator mode, or caps you change and why (linked to
+VS_BENCHMARK / TARGET gaps). In rationale, briefly justify factor indicator picks and allocator mode.
 Be concise and output the final JSON immediately without additional thinking text.
 Treat GLOBAL settings as immutable and only vary fields listed in MUTABLE_ONLY/MUT.
 Do not output objective_mode or rebalance_freq (run-level fixed).
@@ -1019,7 +1022,7 @@ Return STRICT JSON only:
                     "no markdown, no commentary."
                 )
                 attempt_tokens = min(
-                    8192,
+                    12288,
                     max_output_tokens
                     + (attempt * 1024)
                     + max(0, seed_count - 1) * 512,
@@ -1386,8 +1389,9 @@ def _round_seed_response_schema(
 _ROUND_SEED_OUTPUT_TOKEN_CEILING = 16384
 
 _ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES = """
-performance_assessment (required): 2–3 sentences, objective outcome quality only (not search plan).
-Use CHAMPION / VS_BENCHMARK / PRIOR_ROUND_* / TARGET / REFINEMENT_BUDGET from learning — same metrics.
+performance_assessment (required): 2–4 sentences, objective outcome quality only (not search plan).
+Use CHAMPION / VS_BENCHMARK / PRIOR_ROUND_* / FAILED_TRIALS / TARGET / REFINEMENT_BUDGET from learning.
+Cross-reference at least one prior-round or failed-trial signal when present (e.g. which gap persists).
 - If in-sample objective or primary metric is below benchmark (VS_BENCHMARK alpha < 0 or clearly worse
   than benchmark return/Sharpe), state plainly e.g. "本輪樣本內表現未達基準" or "results are below benchmark".
 - If at or above benchmark, acknowledge modestly without hype.
@@ -2115,6 +2119,9 @@ Context (already fixed for this round — do not repeat round_setup/regime_setup
 
 Task: emit regime_factor_ranges only — per-regime Optuna bounds for numerics ({factor_num_keys}),
 keyed risk_off / neutral / risk_on. {regime_factor_guidance}
+Tighten or widen bounds per regime based on regime_setups intent (defensive regimes may favor
+low-vol/value; risk-on may allow higher momentum/trend). Keep bounds materially different across
+regimes when exploration_phase is explore.
 {compact_rule}
 Omit top-level factor_ranges. No markdown.
 
@@ -2300,6 +2307,7 @@ def generate_ai_round_seed(
 4) regime_setups (REQUIRED for dynamic objective) — per-regime allocator matrix keyed by
    risk_off, neutral, risk_on. Each slice uses ONLY: {regime_alloc_keys}.
    Align allocator mode/lookback with regime intent ({regime_objective_hint}).
+   In rationale or optimization_strategy, briefly justify each regime's allocator choice vs market intent.
    Simulation applies the active regime's slice at each rebalance (V2 detector).
    round_setup still holds shared caps (top_n, max_weight); do NOT duplicate factor keys
    inside regime_setups.
@@ -2307,7 +2315,9 @@ def generate_ai_round_seed(
 5) regime_class_quotas (REQUIRED for dynamic objective) — per-regime Top-N class sleeve quotas
    keyed risk_off / neutral / risk_on. Each slice uses ONLY: {", ".join(TOP_LEVEL_QUOTA_KEYS)}.
    Values in [0,1]; normalize so allowed sleeves sum to 1 per regime. Risk-off may tilt defensive
-   (higher w_bond / w_commodity); risk-on may tilt w_equity. Simulation applies the active
+   (higher w_bond / w_commodity); risk-on may tilt w_equity. Justify each regime's sleeve tilt in
+   optimization_strategy (why defensive vs growth sleeves differ across regimes).
+   Simulation applies the active
    regime's quotas at each rebalance (with regime_setups allocator).
 6) regime_factor_ranges (REQUIRED for dynamic objective) — per-regime Optuna bounds for factor
    numerics ({factor_num_keys}), keyed risk_off / neutral / risk_on. Optuna samples
@@ -2343,9 +2353,11 @@ Architecture (critical):
 3) factor_choices — ONLY categorical indicators you fix this round; omit unchanged keys.
    Allowed keys: {factor_cat_keys}.
 {regime_block}
-optimization_strategy (required): 2–4 sentences (match the required rationale language) explaining
+optimization_strategy (required): 3–5 sentences (match the required rationale language) explaining
 why you chose wide vs narrow factor_ranges given REFINEMENT_BUDGET, EXPLORATION_PHASE, champion vs
-benchmark (if any), and TARGET.
+benchmark (if any), and TARGET. When PRIOR_ROUND_* or FAILED_TRIALS exist, cite what you are changing
+from the prior round and which trial patterns you are avoiding. For dynamic objectives, justify
+regime_setups and regime_class_quotas per regime (risk_off / neutral / risk_on).
 {_ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES}
 
 Do NOT output objective_mode or rebalance_freq (run-level fixed).
@@ -2356,7 +2368,8 @@ Example regime_factor_ranges (all numeric keys per regime; compact numbers only)
 {{"risk_off":{{"w_mom":[0,0.8],"w_lowvol":[0.5,1.5],"factor_lookback_days":[126,504],...}},
 "neutral":{{...all keys...}},"risk_on":{{...all keys...}}}}.
 Round 2+: evolve round_setup from PRIOR_ROUND_* + CHAMPION; adjust factor_ranges using evidence
-(FAILED_TRIALS, VS_BENCHMARK) — start wide early, narrow gradually in late rounds near TARGET.
+(FAILED_TRIALS, VS_BENCHMARK, PRIOR_FACTOR_RANGES) — start wide early, narrow gradually in late rounds
+near TARGET. Cross-reference specific failed model_code / param patterns when narrowing.
 Round 1: wide exploration only — do NOT copy a single narrow band from defaults.
 
 Refinement learning ({learning_mode}):
@@ -2548,13 +2561,13 @@ Return STRICT JSON only (omit empty factor_choices if none):
 
 
 _MAX_ROUND_CHAMPION_ATTEMPTS = 2
-_ROUND_CHAMPION_OUTPUT_TOKEN_FLOOR = 1024
-_ROUND_CHAMPION_OUTPUT_TOKEN_CEILING = 4096
+_ROUND_CHAMPION_OUTPUT_TOKEN_FLOOR = 1536
+_ROUND_CHAMPION_OUTPUT_TOKEN_CEILING = 6144
 
 
 def _round_champion_max_output_tokens(*, attempt: int = 0) -> int:
-    base = max(_ROUND_CHAMPION_OUTPUT_TOKEN_FLOOR, 1024)
-    bump = attempt * 1024
+    base = max(_ROUND_CHAMPION_OUTPUT_TOKEN_FLOOR, 1536)
+    bump = attempt * 2048
     return min(_ROUND_CHAMPION_OUTPUT_TOKEN_CEILING, base + bump)
 
 
@@ -2680,12 +2693,16 @@ def generate_ai_round_champion(
 After this Pro Optuna round, pick the best deployable champion from the trial pool.
 Each candidate includes horizons.in_sample (IS), horizons.out_of_sample (OOS holdout), and
 horizons.full_sample (full period / ttl) when available, plus objective_value_is,
-holdout_objective, horizons.gap, and overfitting_risk.
-Weigh ALL available horizons holistically — do NOT pick the highest in-sample objective alone.
-Prefer strong IS + OOS + full-sample risk-adjusted metrics together; penalize large
-horizons.gap.objective / horizons.gap.sharpe and overfitting_risk=high.
+holdout_objective, horizons.gap, overfitting_risk, and benchmark_relative when present.
+
+Selection logic (apply holistically — do NOT pick highest in-sample objective alone):
+1) Prefer strong IS + OOS + full-sample risk-adjusted metrics together.
+2) Penalize large horizons.gap.objective / horizons.gap.sharpe and overfitting_risk=high.
+3) When benchmark_relative or VS_BENCHMARK data exists, favor trials that beat or approach benchmark.
+4) Name at least one runner-up in rationale and explain the trade-off (cite model_code and horizon).
+
 Return STRICT JSON only:
-{{"round_champion_model_code":"Mxxxx","rationale":"1-2 sentences"}}
+{{"round_champion_model_code":"Mxxxx","rationale":"2-4 sentences"}}
 round_champion_model_code MUST be one of: {sorted(allowed)}
 Payload:
 {dumps_for_ai(payload)}"""

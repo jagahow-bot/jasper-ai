@@ -34,14 +34,14 @@ class Settings(BaseSettings):
         ),
     )
     gemini_max_output_tokens: int = Field(
-        default=4096,
+        default=6144,
         validation_alias=AliasChoices(
             "gemini_max_output_tokens",
             "GEMINI_MAX_OUTPUT_TOKENS",
         ),
     )
     gemini_round_seed_max_output_tokens: int = Field(
-        default=12288,
+        default=14336,
         ge=512,
         le=16384,
         validation_alias=AliasChoices(

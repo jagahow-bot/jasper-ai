@@ -14,7 +14,7 @@ import {
   slimComparePayload,
   type CompareSummaryPayload,
 } from "@/lib/compare-summary";
-import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import { GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
 
 export async function POST(req: Request) {
   const body = (await req.json()) as CompareSummaryPayload & { lang?: string };
@@ -65,9 +65,10 @@ async function generateCompareSummary(
   const slim = slimComparePayload(payload);
   const prompt = buildCompareUserPrompt(slim, lang);
 
-  const generateRequest = {
+  const generateRequest = (attempt: number) => ({
     model: google(GEMINI_MODEL),
-    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+    maxOutputTokens:
+      GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS + attempt * 2048,
     providerOptions: {
       google: {
         thinkingConfig: {
@@ -77,11 +78,11 @@ async function generateCompareSummary(
     },
     system: buildCompareSystemPrompt(lang),
     prompt,
-  };
+  });
 
   for (let attempt = 0; attempt < MAX_COMPARE_ATTEMPTS; attempt++) {
     const { text: draft, finishReason, rawFinishReason } =
-      await generateText(generateRequest);
+      await generateText(generateRequest(attempt));
 
     const text = draft.trim();
     const parsed = parseCompareSummaryResponse(text, slim.candidates);

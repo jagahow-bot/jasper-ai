@@ -372,11 +372,12 @@ ${AI_METRIC_FORMAT_RULES}
 - candidates are sorted by objective rank (best first); rank is the score order, not catalog model number.
 - pro_in_sample_champion (if present) is the AI-selected champion (★), chosen by the AI across the Pro rounds. It is the single champion authority — reference it; do NOT override, re-pick, or introduce any other champion.
 - champion_rationale (if present) is the AI's own reason for choosing the champion (★). Explain that reasoning in plain language and say how the champion compares to the top-ranked alternatives; the champion may not top any single metric because the AI chose it for the composite score plus robustness.
+- Structure: (1) cross-trial overview naming specific model_code values, (2) champion (★) trade-offs vs rank-1 and at least one runner-up, (3) IS/OOS/full-sample and overfitting read, (4) benchmark honesty or iteration guidance when relevant.
 - Write narrative comparison prose only; do NOT select or recommend a different champion model.
 - benchmark_metrics (if present) are the benchmark's own Sharpe/CAGR/max drawdown (decimal fractions) — use them for an honest vs-benchmark read.
 - If all_candidates_below_benchmark is true, be objective and candid: state plainly in the opening that NONE of the trials beat the benchmark on the objective over this window and that the run underperformed the benchmark — do NOT spin it as a success. Then note the user can keep iterating on THIS run (adjust factors, constraints, universe, or objective and re-run) rather than starting over, and briefly suggest what to try.
 - Open with a balanced cross-trial overview; mention pro_in_sample_champion (the AI's ★) when relevant, and never contradict it.
-- Return ONLY valid JSON (no markdown): {"summary":"2-3 paragraphs of prose, no bullets or metric dumps"}
+- Return ONLY valid JSON (no markdown): {"summary":"3-4 paragraphs of prose, no bullets or metric dumps"}
 No invented numbers.`;
 }
 
@@ -398,7 +399,7 @@ export function buildCompareUserPrompt(
   return (
     `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
     `${slim.candidate_count_total ?? slim.candidates.length} trials by objective rank. ` +
-    `Narrative comparison only — the champion (★) was already chosen by the AI; explain that choice, do not re-pick. ` +
+    `Narrative comparison only — the champion (★) was already chosen by the AI; explain that choice with trade-offs vs rank-1 and at least one runner-up (cite model_code), do not re-pick. ` +
     `${proNote} ${rationaleNote} ${benchmarkNote} ` +
     `${languageDirective(lang)} ` +
     `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`

@@ -531,8 +531,8 @@ def test_round_champion_fallback_uses_composite_without_oos():
 
 
 def test_round_champion_max_output_tokens_bumps_on_retry():
-    assert _round_champion_max_output_tokens(attempt=0) == 1024
-    assert _round_champion_max_output_tokens(attempt=1) == 2048
+    assert _round_champion_max_output_tokens(attempt=0) == 1536
+    assert _round_champion_max_output_tokens(attempt=1) == 3584
 
 
 def test_round_champion_thinking_disabled_for_gemini_3():
@@ -580,8 +580,8 @@ def test_generate_ai_round_champion_retries_on_max_tokens(monkeypatch):
     out = generate_ai_round_champion(payload=payload)
     assert len(calls) == 2
     assert all(c["thinking_config"] is None for c in calls)
-    assert calls[0]["generation_config"]["maxOutputTokens"] == 1024
-    assert calls[1]["generation_config"]["maxOutputTokens"] == 2048
+    assert calls[0]["generation_config"]["maxOutputTokens"] == 1536
+    assert calls[1]["generation_config"]["maxOutputTokens"] == 3584
     assert out["enabled"] is True
     assert out["round_champion_model_code"] == "M0002"
 

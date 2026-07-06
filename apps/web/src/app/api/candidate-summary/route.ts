@@ -3,15 +3,17 @@ import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { type AiLang, languageDirective, normalizeAiLang } from "@/lib/ai-language";
 import { AI_METRIC_FORMAT_RULES, formatAlpha, formatPctDecimal } from "@/lib/ai-metric-format";
-import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import { GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
 
 function buildSystem(lang: AiLang): string {
-  return `Institutional quant analyst. ${languageDirective(lang)} 2-3 short paragraphs.
+  return `Institutional quant analyst writing for a retail investor. ${languageDirective(lang)}
+3-4 short paragraphs in plain language; briefly explain jargon when used.
 ${AI_METRIC_FORMAT_RULES}
 - Compare to benchmark using fields under candidate and benchmark_metrics / benchmark_relative.
 - When report_horizons is present, summarize in_sample, out_of_sample, and full_sample (ttl) together; note IS−OOS gaps if holdout enabled.
 - Prefer "alpha" (field alpha or benchmark_relative.alpha) over "annual alpha".
 - Describe style from params only; do not invent performance.
+- Explain why this trial's rank and metrics matter vs benchmark and vs typical trade-offs (risk vs return).
 - End: For research and education only — not investment advice.`;
 }
 
@@ -83,9 +85,9 @@ export async function POST(req: Request) {
   try {
     const { text } = await generateText({
       model: google(GEMINI_MODEL),
-      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      maxOutputTokens: GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS,
       system: buildSystem(lang),
-      prompt: `Summarize model ${payload.model_code ?? `M?`} vs ${payload.benchmark}. Objective: "${payload.objective_label ?? payload.objective ?? "n/a"}". Use model_code in prose.\n${JSON.stringify(payload, null, 2)}`,
+      prompt: `Summarize model ${payload.model_code ?? `M?`} vs ${payload.benchmark}. Objective: "${payload.objective_label ?? payload.objective ?? "n/a"}". Use model_code in prose. Compare horizons and benchmark honestly.\n${JSON.stringify(payload, null, 2)}`,
     });
     return NextResponse.json({ summary: text.trim(), source: "gemini" });
   } catch {
