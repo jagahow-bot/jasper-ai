@@ -12,10 +12,12 @@ from app.engine.ai_params import (
 )
 from app.engine.refinement import (
     build_round_champion_ai_payload,
+    horizon_snapshots_from_full_path,
     record_for_model_code,
     resolve_trial_metrics_for_reporting,
 )
 from app.engine.report_sim_cache import TrialReportCache
+from app.engine.spec import DEFAULT_SPEC
 
 
 def _sim_metrics(*, sharpe: float, cagr: float = 0.1) -> dict:
@@ -613,4 +615,156 @@ def test_generate_ai_round_champion_without_api_key_uses_fallback(monkeypatch):
     }
     out = generate_ai_round_champion(payload=payload)
     assert out["enabled"] is False
+    assert out["round_champion_model_code"] == "M0002"
+
+
+def _full_path_sim(*, is_mean: float, oos_mean: float, is_days: int = 252, oos_days: int = 126):
+    import numpy as np
+    import pandas as pd
+
+    rng = np.random.default_rng(42)
+    idx = pd.bdate_range("2016-01-01", periods=is_days + oos_days, freq="B")
+    is_r = rng.normal(is_mean, 0.008, is_days)
+    oos_r = rng.normal(oos_mean, 0.008, oos_days)
+    port_ret = pd.Series(np.concatenate([is_r, oos_r]), index=idx, dtype=float)
+    equity = (1.0 + port_ret).cumprod()
+    return {"port_ret": port_ret, "equity": equity}
+
+
+def test_resolve_prefers_full_path_slices_over_inflated_trial_snapshots():
+    """Regression: trial IS simulates can inflate vs report full-path IS slices."""
+    spec = DEFAULT_SPEC
+    is_split = 252
+    full_m = _full_path_sim(is_mean=0.0002, oos_mean=0.0012)
+    inflated_train = _sim_metrics(sharpe=0.6911, cagr=0.1211)
+    inflated_val = _sim_metrics(sharpe=1.6646, cagr=0.2377)
+    is_snap, oos_snap, full_snap = horizon_snapshots_from_full_path(
+        full_m,
+        spec=spec,
+        objective_effective="max_return",
+        oos_enabled=True,
+        is_split_idx=is_split,
+        train_m=inflated_train,
+        val_m=inflated_val,
+    )
+    assert is_snap["cagr"] < inflated_train["cagr"] - 0.02
+
+    cache = TrialReportCache()
+    params = {"mode": "min_var", "lookback_days": 60, "model_code": "M0088"}
+    cache.stash_from_trial(
+        params,
+        train_m=inflated_train,
+        val_m=inflated_val,
+        full_m=full_m,
+    )
+    stale_record = {
+        "train_metrics": inflated_train,
+        "validation_metrics": inflated_val,
+        "objective_value_is": 0.1211,
+        "objective_value_oos": 0.2377,
+    }
+    resolved = resolve_trial_metrics_for_reporting(
+        params,
+        stale_record,
+        trial_report_cache=cache,
+        objective_effective="max_return",
+        oos_enabled=True,
+        spec=spec,
+        is_split_idx=is_split,
+    )
+    assert resolved["train_metrics"]["cagr"] == is_snap["cagr"]
+    assert resolved["validation_metrics"]["cagr"] == oos_snap["cagr"]
+    assert resolved["full_metrics"]["cagr"] == full_snap["cagr"]
+
+
+def test_champion_payload_horizons_match_report_grid():
+    """Champion AI payload IS/OOS must match horizon_snapshots_from_full_path."""
+    spec = DEFAULT_SPEC
+    is_split = 252
+    full_m = _full_path_sim(is_mean=0.0002, oos_mean=0.0012)
+    inflated_train = _sim_metrics(sharpe=0.6911, cagr=0.1211)
+    inflated_val = _sim_metrics(sharpe=1.6646, cagr=0.2377)
+    is_snap, oos_snap, full_snap = horizon_snapshots_from_full_path(
+        full_m,
+        spec=spec,
+        objective_effective="max_return",
+        oos_enabled=True,
+        is_split_idx=is_split,
+        train_m=inflated_train,
+        val_m=inflated_val,
+    )
+    cache = TrialReportCache()
+    params = {"mode": "min_var", "lookback_days": 60, "model_code": "M0088"}
+    cache.stash_from_trial(
+        params,
+        train_m=inflated_train,
+        val_m=inflated_val,
+        full_m=full_m,
+    )
+    pool = [
+        (
+            0.12,
+            params,
+            {
+                "train_metrics": inflated_train,
+                "validation_metrics": inflated_val,
+                "objective_value_is": 0.1211,
+                "objective_value_oos": 0.2377,
+            },
+        ),
+    ]
+    payload = build_round_champion_ai_payload(
+        pool,
+        objective_effective="max_return",
+        round_index=3,
+        incoming_champion_model_code=None,
+        benchmark_ticker="ACWI",
+        oos_enabled=True,
+        trial_report_cache=cache,
+        spec=spec,
+        is_split_idx=is_split,
+    )
+    row = payload["candidates"][0]
+    assert row["horizons"]["in_sample"]["cagr"] == is_snap["cagr"]
+    assert row["horizons"]["out_of_sample"]["cagr"] == oos_snap["cagr"]
+    assert row["horizons"]["full_sample"]["cagr"] == full_snap["cagr"]
+    assert row["horizons"]["in_sample"]["cagr"] != inflated_train["cagr"]
+
+
+def test_generate_ai_round_champion_honors_preselected_code(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+
+    def fake_post(**_kwargs):
+        return "STOP", '{"round_champion_model_code":"M0001","rationale":"Wrong pick."}'
+
+    monkeypatch.setattr("app.engine.ai_params._gemini_round_seed_post", fake_post)
+    payload = {
+        "oos_enabled": True,
+        "round": 1,
+        "candidates": [
+            {
+                "model_code": "M0001",
+                "objective_value": 1.5,
+                "horizons": {
+                    "in_sample": {"objective_value": 1.5},
+                    "out_of_sample": {"objective_value": 0.4},
+                    "full_sample": {"objective_value": 0.3},
+                },
+            },
+            {
+                "model_code": "M0002",
+                "objective_value": 0.9,
+                "horizons": {
+                    "in_sample": {"objective_value": 0.9},
+                    "out_of_sample": {"objective_value": 0.85},
+                    "full_sample": {"objective_value": 0.8},
+                },
+            },
+        ],
+    }
+    out = generate_ai_round_champion(
+        payload=payload,
+        selected_model_code="M0002",
+    )
     assert out["round_champion_model_code"] == "M0002"

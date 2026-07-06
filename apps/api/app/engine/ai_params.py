@@ -2658,10 +2658,11 @@ def generate_ai_round_champion(
     payload: dict[str, Any],
     progress_cb: Callable[[str], None] | None = None,
     language: str | None = None,
+    selected_model_code: str | None = None,
 ) -> dict[str, Any]:
-    """One Gemini call after each Pro Optuna round: pick deployable round champion."""
+    """One Gemini call after each Pro Optuna round: narrate deterministic round champion."""
     model = settings.gemini_model
-    fallback = _round_champion_fallback_code(payload)
+    fallback = selected_model_code or _round_champion_fallback_code(payload)
     empty: dict[str, Any] = {
         "enabled": False,
         "model": model,
@@ -2687,10 +2688,24 @@ def generate_ai_round_champion(
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
     round_no = payload.get("round", "?")
     if progress_cb:
-        progress_cb(f"Round {round_no}: AI selecting round champion…")
+        progress_cb(f"Round {round_no}: AI narrating round champion…")
+
+    preselected = (
+        str(selected_model_code).strip().upper()
+        if selected_model_code
+        else None
+    )
+    if preselected and preselected not in allowed:
+        preselected = None
+    champion_line = (
+        f"The round champion is already selected: {preselected}. "
+        "Write rationale ONLY for that model; round_champion_model_code MUST equal it."
+        if preselected
+        else "Pick the best deployable champion from the trial pool."
+    )
 
     prompt = f"""Institutional quant analyst. {_round_champion_language_directive(language)}
-After this Pro Optuna round, pick the best deployable champion from the trial pool.
+After this Pro Optuna round, {champion_line}
 Each candidate includes horizons.in_sample (IS), horizons.out_of_sample (OOS holdout), and
 horizons.full_sample (full period / ttl) when available, plus objective_value_is,
 holdout_objective, horizons.gap, overfitting_risk, and benchmark_relative when present.
@@ -2701,6 +2716,7 @@ METRIC FORMAT (payload JSON uses decimal fractions for rates):
 - ALWAYS prefix every cited number with its horizon: "IS", "OOS", or "Full" (horizons.full_sample).
 - Lead with Full-period Sharpe/CAGR/max DD from horizons.full_sample when present — that matches the user's report grid.
 - Use IS and OOS only for robustness / overfitting trade-offs vs runner-ups; never imply IS/OOS numbers are full-period.
+- horizons.in_sample / out_of_sample are full-path slices (same continuous backtest as Full), not independent trial simulates.
 
 Selection logic (apply holistically — do NOT pick highest in-sample objective alone):
 1) Prefer strong IS + OOS + full-sample risk-adjusted metrics together.
@@ -2743,6 +2759,8 @@ Payload:
             parsed = _extract_json(text) or {}
             code = str(parsed.get("round_champion_model_code", "")).strip().upper()
             rationale = str(parsed.get("rationale", "")).strip()
+            if preselected:
+                code = preselected
             if code in allowed:
                 return {
                     "enabled": True,

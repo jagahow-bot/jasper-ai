@@ -55,6 +55,7 @@ from app.engine.ai_params import (
     generate_ai_param_sets,
     generate_ai_round_champion,
     generate_ai_round_seed,
+    _round_champion_fallback_code,
 )
 from app.engine.factors import FactorParams, factor_params_from_dict
 from app.engine.ai_universe import refine_universe_with_ai
@@ -68,6 +69,7 @@ from app.engine.refinement import (
     merge_round_seed_budget_fields,
     build_round_champion_ai_payload,
     build_round_competition_pool,
+    horizon_snapshots_from_full_path,
     record_for_model_code,
     record_objective_sort_value,
     model_signature as refinement_model_signature,
@@ -434,6 +436,7 @@ def _record_objective_sort_value(
 def _run_iterative_search(
     req: BacktestRequest,
     *,
+    prices: pd.DataFrame,
     prices_sim_panel: pd.DataFrame,
     prices_train: pd.DataFrame,
     prices_val: pd.DataFrame,
@@ -928,15 +931,31 @@ def _run_iterative_search(
         ai_round_champion_code = round_winner_model_code
         ai_champion_rationale = ""
         if pool_records:
+            oos_active = bool(oos and len(prices_val) > 60)
+            is_split_idx = len(prices_train) if oos_active else None
+            _ensure_pool_full_sims_for_champion(
+                pool_records,
+                req=req,
+                prices=prices,
+                prices_sim_panel=prices_sim_panel,
+                rebalance_rule=rebalance_rule,
+                spec=spec,
+                universe_by_ticker=universe_by_ticker,
+                trial_report_cache=trial_report_cache,
+                dynamic_ctx=dynamic_ctx,
+            )
             champ_payload = build_round_champion_ai_payload(
                 pool_records,
                 objective_effective=objective_effective,
                 round_index=round_idx + 1,
                 incoming_champion_model_code=round_incoming_model_code,
                 benchmark_ticker=spec.benchmark_ticker,
-                oos_enabled=bool(oos and len(prices_val) > 60),
+                oos_enabled=oos_active,
                 trial_report_cache=trial_report_cache,
+                spec=spec,
+                is_split_idx=is_split_idx,
             )
+            deterministic_champion = _round_champion_fallback_code(champ_payload)
 
             def ai_champion_progress(message: str) -> None:
                 report_progress(
@@ -953,10 +972,12 @@ def _run_iterative_search(
                 payload=champ_payload,
                 progress_cb=ai_champion_progress,
                 language=req.report_language,
+                selected_model_code=deterministic_champion,
             )
-            picked = ai_champ.get("round_champion_model_code")
-            if picked:
-                ai_round_champion_code = str(picked)
+            if deterministic_champion:
+                ai_round_champion_code = str(deterministic_champion)
+            elif ai_champ.get("round_champion_model_code"):
+                ai_round_champion_code = str(ai_champ.get("round_champion_model_code"))
             if ai_champ.get("rationale"):
                 ai_champion_rationale = str(ai_champ.get("rationale")).strip()
 
@@ -1228,6 +1249,95 @@ def _run_iterative_search(
     return all_records, convergence_history, meta
 
 
+def _ensure_pool_full_sims_for_champion(
+    pool_records: list[tuple[float, dict, dict]],
+    *,
+    req: BacktestRequest,
+    prices: pd.DataFrame,
+    prices_sim_panel: pd.DataFrame,
+    rebalance_rule: str,
+    spec: BacktestSpec,
+    universe_by_ticker: dict[str, dict[str, Any]],
+    trial_report_cache: TrialReportCache | None,
+    dynamic_ctx: dict[str, Any] | None,
+) -> None:
+    """Run full-period backtests for champion pool when cache lacks port_ret."""
+    if trial_report_cache is None or not pool_records:
+        return
+    resolver = dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
+    active_regime_resolver = (
+        dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
+    )
+    if dynamic_ctx:
+        dynamic_ctx = ensure_regime_class_budget_resolver(
+            dynamic_ctx,
+            asset_classes=req.asset_classes,
+        )
+    report_full = str(req.start_date)
+    for _, params, _ in pool_records:
+        params = dict(params)
+        trial_report_cache.register_model_code(params)
+        bundle = trial_report_cache.get_bundle(params)
+        if bundle is not None and bundle.full_m is not None and bundle.full_m.get("port_ret") is not None:
+            continue
+        trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
+            _sim_inputs_from_params(params, req, rebalance_rule, spec)
+        )
+        sim_kw = apply_allocator_resolver(
+            dict(
+                spec=trial_spec,
+                max_weight=cap,
+                min_weight=req.min_weight,
+                allocator=alloc,
+                top_n=top_n_actual,
+                factor_params=f_params,
+                no_trade_tol=no_trade_tol,
+                turnover_penalty_mult=turnover_penalty_mult,
+                max_turnover=max_turnover_actual,
+                universe_by_ticker=universe_by_ticker,
+                class_budget=class_budget,
+            ),
+            prices,
+            resolver,
+        )
+        class_resolver = (
+            class_budget_resolver_from_trial_params(
+                params, active_regime_resolver, asset_classes=req.asset_classes
+            )
+            if dynamic_ctx
+            else None
+        )
+        if class_resolver is None and dynamic_ctx:
+            class_resolver = dynamic_ctx.get("class_budget_resolver")
+        sim_kw = apply_class_budget_resolver(
+            sim_kw,
+            prices,
+            class_resolver,
+            asset_classes=req.asset_classes,
+        )
+        sim_kw["enforce_class_weights"] = req.enforce_class_weights
+        factor_resolver = factor_params_resolver_from_trial_params(
+            params,
+            active_regime_resolver,
+            default_lookback=alloc.lookback_days,
+        )
+        if factor_resolver is not None:
+            sim_kw["factor_params_resolver"] = factor_resolver
+        full_m = simulate_dynamic_portfolio(
+            prices_sim_panel,
+            report_start=report_full,
+            **sim_kw,
+        )
+        train_m = bundle.train_m if bundle else None
+        val_m = bundle.val_m if bundle else None
+        trial_report_cache.stash_from_trial(
+            params,
+            train_m=train_m,
+            val_m=val_m,
+            full_m=full_m,
+        )
+
+
 def _build_sample_metrics_block(
     *,
     train_m: dict[str, Any],
@@ -1242,48 +1352,20 @@ def _build_sample_metrics_block(
     is_split_idx: int | None,
     spec: BacktestSpec,
 ) -> dict[str, Any]:
-    full_snap = metrics_snapshot(full_m, objective_mode=objective_effective)
-    if oos_enabled and is_split_idx is not None and is_split_idx > 0:
-        port_ret_full = full_m.get("port_ret")
-        n_full = len(port_ret_full) if port_ret_full is not None else 0
-        if 0 < is_split_idx < n_full:
-            try:
-                is_window = metrics_for_horizon_window(
-                    full_m, spec, 0, is_split_idx
-                )
-                oos_window = metrics_for_horizon_window(
-                    full_m, spec, is_split_idx, n_full
-                )
-                is_snap = metrics_snapshot(is_window, objective_mode=objective_effective)
-                oos_snap = metrics_snapshot(
-                    oos_window, objective_mode=objective_effective
-                )
-            except ValueError:
-                is_snap = metrics_snapshot(train_m, objective_mode=objective_effective)
-                oos_snap = (
-                    metrics_snapshot(val_m, objective_mode=objective_effective)
-                    if val_m is not None
-                    else None
-                )
-        else:
-            is_snap = metrics_snapshot(train_m, objective_mode=objective_effective)
-            oos_snap = (
-                metrics_snapshot(val_m, objective_mode=objective_effective)
-                if val_m is not None
-                else None
-            )
-    else:
-        is_snap = metrics_snapshot(train_m, objective_mode=objective_effective)
-        oos_snap = (
-            metrics_snapshot(val_m, objective_mode=objective_effective)
-            if val_m is not None
-            else None
-        )
+    is_snap, oos_snap, full_snap = horizon_snapshots_from_full_path(
+        full_m,
+        spec=spec,
+        objective_effective=objective_effective,
+        oos_enabled=oos_enabled,
+        is_split_idx=is_split_idx,
+        train_m=train_m,
+        val_m=val_m,
+    )
     return {
         "selection": "in_sample" if oos_enabled else "full_sample",
         "horizon_method": (
             "full_path_slices"
-            if oos_enabled and is_split_idx is not None
+            if oos_enabled and is_split_idx is not None and full_m.get("port_ret") is not None
             else "single_simulate"
         ),
         "train_ratio": train_ratio,
@@ -2196,6 +2278,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         )
         records, convergence_history, refinement_meta = _run_iterative_search(
             req,
+            prices=prices,
             prices_sim_panel=prices_sim_panel,
             prices_train=prices_train,
             prices_val=prices_val,

@@ -18,6 +18,7 @@ from app.engine.objectives import (
     metrics_snapshot,
     objective_label,
 )
+from app.engine.portfolio import metrics_for_horizon_window
 from app.engine.ai_json import dumps_for_ai, round_ai_float, sanitize_for_ai
 from app.engine.param_taxonomy import summarize_prior_round_seed
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
@@ -1113,6 +1114,79 @@ def _trial_sim_slices_from_record(
     return train_m, val_m
 
 
+def horizon_snapshots_from_full_path(
+    full_m: dict[str, Any],
+    *,
+    spec: BacktestSpec,
+    objective_effective: str,
+    oos_enabled: bool,
+    is_split_idx: int | None,
+    train_m: dict[str, Any] | None = None,
+    val_m: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any]]:
+    """IS/OOS/full snapshots from one continuous full-period backtest (report grid source)."""
+    scoring_obj = trial_scoring_objective(objective_effective)
+    full_snap = metrics_snapshot(full_m, objective_mode=scoring_obj)
+    if oos_enabled and is_split_idx is not None and is_split_idx > 0:
+        port_ret_full = full_m.get("port_ret")
+        n_full = len(port_ret_full) if port_ret_full is not None else 0
+        if 0 < is_split_idx < n_full:
+            try:
+                is_window = metrics_for_horizon_window(
+                    full_m, spec, 0, is_split_idx
+                )
+                oos_window = metrics_for_horizon_window(
+                    full_m, spec, is_split_idx, n_full
+                )
+                is_snap = metrics_snapshot(is_window, objective_mode=scoring_obj)
+                oos_snap = metrics_snapshot(
+                    oos_window, objective_mode=scoring_obj
+                )
+                return is_snap, oos_snap, full_snap
+            except ValueError:
+                pass
+    is_snap = metrics_snapshot(
+        train_m or full_m, objective_mode=scoring_obj
+    )
+    oos_snap = (
+        metrics_snapshot(val_m, objective_mode=scoring_obj)
+        if val_m is not None
+        else None
+    )
+    return is_snap, oos_snap, full_snap
+
+
+def _full_path_slices_from_cache(
+    params: dict[str, Any],
+    *,
+    trial_report_cache: Any | None,
+    spec: BacktestSpec | None,
+    objective_effective: str,
+    oos_enabled: bool,
+    is_split_idx: int | None,
+    train_m: dict[str, Any] | None,
+    val_m: dict[str, Any] | None,
+) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any]] | None:
+    """Report-aligned IS/OOS/full when full-period port_ret is cached."""
+    if trial_report_cache is None or spec is None:
+        return None
+    bundle = trial_report_cache.get_bundle(params)
+    if bundle is None or bundle.full_m is None:
+        return None
+    full_m = bundle.full_m
+    if full_m.get("port_ret") is None:
+        return None
+    return horizon_snapshots_from_full_path(
+        full_m,
+        spec=spec,
+        objective_effective=objective_effective,
+        oos_enabled=oos_enabled,
+        is_split_idx=is_split_idx,
+        train_m=train_m,
+        val_m=val_m,
+    )
+
+
 def resolve_trial_metrics_for_reporting(
     params: dict[str, Any],
     metrics: dict[str, Any],
@@ -1121,8 +1195,10 @@ def resolve_trial_metrics_for_reporting(
     objective_effective: str,
     oos_enabled: bool,
     score: float | None = None,
+    spec: BacktestSpec | None = None,
+    is_split_idx: int | None = None,
 ) -> dict[str, Any]:
-    """Per-trial IS/OOS metrics; prefer record snapshots, then cache, then search blob."""
+    """Per-trial IS/OOS metrics; prefer full-path slices, then snapshots, then cache."""
     scoring_obj = trial_scoring_objective(objective_effective)
     train_m, val_m = _trial_sim_slices_from_record(metrics)
     if train_m is None and trial_report_cache is not None:
@@ -1130,6 +1206,41 @@ def resolve_trial_metrics_for_reporting(
         if bundle is not None:
             train_m = bundle.train_m
             val_m = bundle.val_m if val_m is None else val_m
+    full_path = _full_path_slices_from_cache(
+        params,
+        trial_report_cache=trial_report_cache,
+        spec=spec,
+        objective_effective=objective_effective,
+        oos_enabled=oos_enabled,
+        is_split_idx=is_split_idx,
+        train_m=train_m,
+        val_m=val_m,
+    )
+    if full_path is not None:
+        is_snap, oos_snap, full_snap = full_path
+        assess = assess_overfitting(
+            is_snap,
+            oos_snap,
+            oos_enabled=bool(oos_enabled and oos_snap is not None),
+            objective_mode=scoring_obj,
+        )
+        merged = copy.deepcopy(metrics) if metrics else {}
+        fallback_score = float(score if score is not None else merged.get("raw_score", 0.0))
+        merged["objective_value_is"] = float(
+            assess.get("in_sample_objective", fallback_score)
+        )
+        merged["objective_value_oos"] = assess.get("out_of_sample_objective")
+        merged["gap_objective"] = float(assess.get("gap_objective", 0.0))
+        merged["overfitting_assessment"] = assess
+        merged["overfitting_penalty_applied"] = float(assess.get("penalty", 0.0))
+        merged["train_metrics"] = is_snap
+        if oos_snap is not None:
+            merged["validation_metrics"] = oos_snap
+        merged["full_metrics"] = full_snap
+        for key in ("sharpe", "cagr", "max_drawdown", "sortino", "volatility"):
+            if key in full_snap:
+                merged[key] = full_snap[key]
+        return merged
     if train_m is not None:
         assess = assess_overfitting(
             train_m,
@@ -1167,6 +1278,8 @@ def build_round_champion_ai_payload(
     benchmark_ticker: str,
     oos_enabled: bool,
     trial_report_cache: Any | None = None,
+    spec: BacktestSpec | None = None,
+    is_split_idx: int | None = None,
 ) -> dict[str, Any]:
     """Slim per-round trial metrics for post-Optuna AI champion selection."""
     candidates: list[dict[str, Any]] = []
@@ -1186,6 +1299,8 @@ def build_round_champion_ai_payload(
             objective_effective=objective_effective,
             oos_enabled=oos_enabled,
             score=score,
+            spec=spec,
+            is_split_idx=is_split_idx,
         )
         assess = metrics.get("overfitting_assessment") or {}
         role = "incoming_champion" if incoming and code == incoming else "challenger"
@@ -1217,7 +1332,10 @@ def build_round_champion_ai_payload(
             )
 
         full_horizon: dict[str, Any] | None = None
-        if trial_report_cache is not None:
+        full_snap = metrics.get("full_metrics")
+        if isinstance(full_snap, dict) and full_snap:
+            full_horizon = _horizon_row_from_snapshot(full_snap)
+        elif trial_report_cache is not None:
             bundle = trial_report_cache.get_bundle(params)
             if bundle is not None and bundle.full_m is not None:
                 full_horizon = _horizon_row_from_snapshot(
@@ -1259,8 +1377,13 @@ def build_round_champion_ai_payload(
                 "gap": gap or None,
             },
         }
+        display_metrics = (
+            metrics.get("full_metrics")
+            if isinstance(metrics.get("full_metrics"), dict)
+            else train_snap
+        )
         for metric_key in ("sharpe", "cagr", "max_drawdown"):
-            raw = metrics.get(metric_key)
+            raw = (display_metrics or metrics).get(metric_key)
             if raw is not None:
                 row[metric_key] = round_ai_float(raw)
         if oos_enabled:
@@ -1275,8 +1398,9 @@ def build_round_champion_ai_payload(
         "oos_enabled": bool(oos_enabled),
         "incoming_champion_model_code": incoming,
         "selection_note": (
-            "Weigh horizons.in_sample, horizons.out_of_sample, and horizons.full_sample "
-            "(ttl) together; penalize large horizons.gap and overfitting_risk=high. "
+            "Champion is chosen deterministically from horizons (IS/OOS/Full composite). "
+            "horizons.in_sample and horizons.out_of_sample use full-path slices from the "
+            "same continuous backtest as the report grid — NOT independent trial simulates. "
             "horizons.full_sample matches the user's full-period report grid — cite Full metrics "
             "first in rationale; label IS/OOS explicitly when used for robustness."
         ),
