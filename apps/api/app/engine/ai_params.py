@@ -2695,6 +2695,13 @@ Each candidate includes horizons.in_sample (IS), horizons.out_of_sample (OOS hol
 horizons.full_sample (full period / ttl) when available, plus objective_value_is,
 holdout_objective, horizons.gap, overfitting_risk, and benchmark_relative when present.
 
+METRIC FORMAT (payload JSON uses decimal fractions for rates):
+- Multiply by 100 for % in prose: cagr, max_drawdown (e.g. max_drawdown -0.42 → "42% drawdown").
+- Unitless (no %): sharpe, sortino, objective_value.
+- ALWAYS prefix every cited number with its horizon: "IS", "OOS", or "Full" (horizons.full_sample).
+- Lead with Full-period Sharpe/CAGR/max DD from horizons.full_sample when present — that matches the user's report grid.
+- Use IS and OOS only for robustness / overfitting trade-offs vs runner-ups; never imply IS/OOS numbers are full-period.
+
 Selection logic (apply holistically — do NOT pick highest in-sample objective alone):
 1) Prefer strong IS + OOS + full-sample risk-adjusted metrics together.
 2) Penalize large horizons.gap.objective / horizons.gap.sharpe and overfitting_risk=high.

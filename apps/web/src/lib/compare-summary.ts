@@ -371,7 +371,7 @@ ${AI_METRIC_FORMAT_RULES}
 - Root sharpe/cagr are selection-view metrics; use horizons.full_sample for full-period performance.
 - candidates are sorted by objective rank (best first); rank is the score order, not catalog model number.
 - pro_in_sample_champion (if present) is the AI-selected champion (★), chosen by the AI across the Pro rounds. It is the single champion authority — reference it; do NOT override, re-pick, or introduce any other champion.
-- champion_rationale (if present) is the AI's own reason for choosing the champion (★). Explain that reasoning in plain language and say how the champion compares to the top-ranked alternatives; the champion may not top any single metric because the AI chose it for the composite score plus robustness.
+- champion_rationale (if present) is the AI's own reason for choosing the champion (★). Explain that reasoning in plain language and say how the champion compares to the top-ranked alternatives; the champion may not top any single metric because the AI chose it for the composite score plus robustness. Numbers in champion_rationale may cite IS/OOS horizons from optimization — reconcile them with horizons.full_sample (the full-period grid the user sees).
 - Structure: (1) cross-trial overview naming specific model_code values, (2) champion (★) trade-offs vs rank-1 and at least one runner-up, (3) IS/OOS/full-sample and overfitting read, (4) benchmark honesty or iteration guidance when relevant.
 - Write narrative comparison prose only; do NOT select or recommend a different champion model.
 - benchmark_metrics (if present) are the benchmark's own Sharpe/CAGR/max drawdown (decimal fractions) — use them for an honest vs-benchmark read.

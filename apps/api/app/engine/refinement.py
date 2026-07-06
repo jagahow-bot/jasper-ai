@@ -1276,7 +1276,9 @@ def build_round_champion_ai_payload(
         "incoming_champion_model_code": incoming,
         "selection_note": (
             "Weigh horizons.in_sample, horizons.out_of_sample, and horizons.full_sample "
-            "(ttl) together; penalize large horizons.gap and overfitting_risk=high."
+            "(ttl) together; penalize large horizons.gap and overfitting_risk=high. "
+            "horizons.full_sample matches the user's full-period report grid — cite Full metrics "
+            "first in rationale; label IS/OOS explicitly when used for robustness."
         ),
         "candidates": candidates,
     }

@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from app.champion_metrics import champion_display_metrics
 from app.models import BacktestRequest, BacktestResult, JobStatus, JobSummary
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -70,7 +71,8 @@ def _champion_from_result(result: BacktestResult) -> tuple[str | None, float | N
 
     if champion is None:
         return None, None, None
-    return _code(champion) or None, champion.cagr, champion.sharpe
+    metrics = champion_display_metrics(champion)
+    return _code(champion) or None, metrics.cagr, metrics.sharpe
 
 
 def build_summary(

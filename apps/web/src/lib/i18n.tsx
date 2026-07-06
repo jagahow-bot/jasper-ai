@@ -540,6 +540,11 @@ const en: Dict = {
   "results.dynamicScoreExplain":
     "In dynamic mode, strategies aren't ranked by Sharpe or return alone. They are ranked by one composite score that blends risk-adjusted return, growth, drawdown and trading cost. That's why the champion (★) can win overall without topping any single column below.",
   "results.championWhyTitle": "Why ★ {code} is the champion",
+  "results.championWhyHorizonNote":
+    "Full-period metrics below match the report grid. The AI rationale may cite in-sample (IS) or out-of-sample (OOS) horizons from optimization rounds.",
+  "results.championFullSharpe": "Full Sharpe",
+  "results.championFullMaxDd": "Full max DD",
+  "results.championFullCagr": "Full CAGR",
   "results.leaderboardDynamicNote":
     "Values are the dynamic composite score for each period (higher is better). The champion (★) is chosen by AI on the In-Sample composite plus out-of-sample robustness, so it may not lead any single column.",
   "results.selectTrialHint": "Select a strategy above to see its performance and holdings.",
@@ -1330,6 +1335,11 @@ const zh: Dict = {
   "results.dynamicScoreExplain":
     "在動態模式下，策略不是只看夏普或報酬來排名，而是用一個綜合分數排名，該分數同時衡量風險調整後報酬、成長、回撤與交易成本。因此冠軍（★）可能整體勝出，卻不一定在下方任一欄位都最高。",
   "results.championWhyTitle": "為什麼 ★ {code} 是冠軍",
+  "results.championWhyHorizonNote":
+    "下方完整期間指標與報告格一致。AI 說明可能引用優化回合的樣本內（IS）或樣本外（OOS）指標。",
+  "results.championFullSharpe": "完整期間夏普",
+  "results.championFullMaxDd": "完整期間最大回撤",
+  "results.championFullCagr": "完整期間年化報酬",
   "results.leaderboardDynamicNote":
     "數值為各期間的動態綜合分數（越高越好）。冠軍（★）由 AI 依樣本內綜合分數與樣本外穩健度挑選，因此不一定在單一欄位領先。",
   "results.selectTrialHint": "選取上方的策略以查看其績效與持股。",
@@ -2107,6 +2117,11 @@ const ko: Dict = {
   "results.dynamicScoreExplain":
     "동적 모드에서는 샤프나 수익률만으로 순위를 매기지 않습니다. 위험조정수익, 성장, 낙폭, 거래비용을 결합한 하나의 종합 점수로 순위를 매깁니다. 그래서 챔피언(★)은 아래의 어떤 단일 열에서도 1위가 아니면서 전체적으로 이길 수 있습니다.",
   "results.championWhyTitle": "★ {code}가 챔피언인 이유",
+  "results.championWhyHorizonNote":
+    "아래 전체 기간 지표는 보고서 표와 일치합니다. AI 설명은 최적화 라운드의 인샘플(IS) 또는 아웃오브샘플(OOS) 지표를 인용할 수 있습니다.",
+  "results.championFullSharpe": "전체 기간 샤프",
+  "results.championFullMaxDd": "전체 기간 최대 낙폭",
+  "results.championFullCagr": "전체 기간 CAGR",
   "results.leaderboardDynamicNote":
     "값은 각 기간의 동적 종합 점수입니다(높을수록 좋음). 챔피언(★)은 인샘플 종합 점수와 아웃오브샘플 견고성을 바탕으로 AI가 선택하므로 단일 열에서 선두가 아닐 수 있습니다.",
   "results.selectTrialHint": "위에서 전략을 선택하면 성과와 보유 종목을 볼 수 있습니다.",

@@ -138,6 +138,56 @@ def test_send_skips_when_no_or_invalid_email(reset_smtp, monkeypatch) -> None:
     assert _FakeSMTP.last_message is None
 
 
+def test_send_completed_email_uses_full_sample_metrics(reset_smtp, monkeypatch) -> None:
+    settings.smtp_host = "smtp.example.com"
+    settings.smtp_port = 587
+    settings.smtp_ssl = False
+    settings.smtp_starttls = True
+    settings.public_web_url = None
+    monkeypatch.setattr(notifications.smtplib, "SMTP", _FakeSMTP)
+
+    result = BacktestResult(
+        job_id="job-full",
+        scenario_id="custom",
+        benchmark="SPY",
+        period={"start": "2018-01-01", "end": "2026-06-30"},
+        candidates=[
+            PortfolioCandidate(
+                rank=1,
+                model_code="M0035",
+                is_champion=True,
+                weights={"SPY": 1.0},
+                sharpe=0.63,
+                max_drawdown=-0.23,
+                cagr=0.12,
+                volatility=0.15,
+                analytics={
+                    "sample_metrics": {
+                        "full_sample": {
+                            "sharpe": 0.359,
+                            "cagr": 0.0925,
+                            "max_drawdown": -0.417,
+                        },
+                    },
+                },
+            )
+        ],
+        equity_curve=[],
+        efficient_frontier=[],
+        narrative_facts={"champion_model_code": "M0035"},
+    )
+    sent = notifications.send_job_notification(
+        "job-full", _request("user@example.com"), status="completed", result=result
+    )
+    assert sent is True
+    body = _FakeSMTP.last_message.get_content()
+    assert "full period" in body.lower()
+    assert "0.36" in body
+    assert "9.25%" in body
+    assert "-41.70%" in body
+    assert "0.63" not in body
+
+
 def test_send_completed_email(reset_smtp, monkeypatch) -> None:
     settings.smtp_host = "smtp.example.com"
     settings.smtp_port = 587

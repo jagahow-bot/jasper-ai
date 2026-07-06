@@ -294,6 +294,11 @@ export function ResultsDashboard({
     return null;
   }, [result.narrative_facts.pro_refinement]);
 
+  const championFullMetrics = useMemo(
+    () => resolveHorizonMetrics(championCandidate, "full_sample"),
+    [championCandidate],
+  );
+
   const selectedModelCode = selected?.model_code ?? "";
   const selectedHasFullCharts = useMemo(
     () => candidateHasFullCharts(selected),
@@ -1233,9 +1238,26 @@ export function ResultsDashboard({
             <p className="ui-section-title text-[var(--amber)]">
               {t("results.championWhyTitle", { code: championRationale.code })}
             </p>
-            <p className="ui-body mt-1 text-[#cbd5e1]">
-              {championRationale.text}
-            </p>
+            <p className="ui-hint mt-1 text-dim">{t("results.championWhyHorizonNote")}</p>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center ui-body">
+              <div>
+                <div className="text-dim">{t("results.championFullSharpe")}</div>
+                <div className="text-neon">{championFullMetrics.sharpe.toFixed(3)}</div>
+              </div>
+              <div>
+                <div className="text-dim">{t("results.championFullMaxDd")}</div>
+                <div className="text-[var(--pink)]">
+                  {(championFullMetrics.max_drawdown * 100).toFixed(2)}%
+                </div>
+              </div>
+              <div>
+                <div className="text-dim">{t("results.championFullCagr")}</div>
+                <div className="text-slate-200">
+                  {(championFullMetrics.cagr * 100).toFixed(2)}%
+                </div>
+              </div>
+            </div>
+            <p className="ui-body mt-2 text-[#cbd5e1]">{championRationale.text}</p>
           </div>
         )}
         <p className="ui-hint mt-4">{t("results.fullPeriod")}</p>

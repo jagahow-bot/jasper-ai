@@ -16,6 +16,7 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 
+from app.champion_metrics import champion_display_metrics
 from app.config import settings
 from app.models import BacktestRequest, BacktestResult
 
@@ -59,13 +60,14 @@ def _completed_body(job_id: str, req: BacktestRequest, result: BacktestResult) -
         f"Period: {req.start_date} → {req.end_date}",
     ]
     if champ is not None:
+        metrics = champion_display_metrics(champ)
         lines += [
             "",
-            "Champion model:",
+            "Champion model (full period):",
             f"  Code:    {champ.model_code or 'M?'}",
-            f"  Sharpe:  {champ.sharpe:.2f}",
-            f"  CAGR:    {champ.cagr * 100:.2f}%",
-            f"  Max DD:  {champ.max_drawdown * 100:.2f}%",
+            f"  Sharpe:  {metrics.sharpe:.2f}",
+            f"  CAGR:    {metrics.cagr * 100:.2f}%",
+            f"  Max DD:  {metrics.max_drawdown * 100:.2f}%",
         ]
     link = _results_link(job_id)
     if link:

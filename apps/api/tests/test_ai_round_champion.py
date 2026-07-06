@@ -451,6 +451,7 @@ def test_build_round_champion_ai_payload_includes_oos_horizons():
     assert row["overfitting_risk"] == "high"
     assert row["horizons"]["out_of_sample"]["objective_value"] == 0.9
     assert row["horizons"]["gap"]["objective"] == 0.6
+    assert "full_sample matches" in payload["selection_note"]
 
 
 def test_record_for_model_code_finds_pool_trial():
