@@ -476,6 +476,9 @@ const en: Dict = {
   "results.meta.reported": "{feasible} valid strategies found, {reported} included in this report",
   "results.meta.catalog": "(of {catalog} explored in total)",
   "results.meta.rebalance": "{freq} rebalancing — applied {applied} of {count} scheduled dates",
+  "results.meta.rebalanceSkipped": "({skipped} skipped — need more price history before first rebalance)",
+  "results.meta.rebalanceChartDownsampled":
+    "holdings chart shows {shown} of {total} rebalance snapshots",
   "results.freq.weekly": "Weekly",
   "results.freq.monthly": "Monthly",
   "results.freq.quarterly": "Quarterly",
@@ -1263,6 +1266,9 @@ const zh: Dict = {
   "results.meta.reported": "找到 {feasible} 個有效策略，已納入報告 {reported} 個",
   "results.meta.catalog": "（累計嘗試 {catalog} 個）",
   "results.meta.rebalance": "{freq}再平衡（預定的 {count} 次中實際套用 {applied} 次）",
+  "results.meta.rebalanceSkipped": "（{skipped} 次略過 — 首次再平衡前需要更長的價格歷史）",
+  "results.meta.rebalanceChartDownsampled":
+    "持股圖表顯示 {total} 次再平衡快照中的 {shown} 次",
   "results.freq.weekly": "每週",
   "results.freq.monthly": "每月",
   "results.freq.quarterly": "每季",
@@ -2037,6 +2043,9 @@ const ko: Dict = {
   "results.meta.reported": "유효 전략 {feasible}개 발견, 보고서에 {reported}개 포함",
   "results.meta.catalog": "(총 {catalog}개 탐색)",
   "results.meta.rebalance": "{freq} 리밸런싱 (예정된 {count}회 중 {applied}회 적용)",
+  "results.meta.rebalanceSkipped": "({skipped}회 건너뜀 — 첫 리밸런싱 전 더 긴 가격 이력 필요)",
+  "results.meta.rebalanceChartDownsampled":
+    "보유 차트에 {total}회 리밸런싱 스냅샷 중 {shown}회 표시",
   "results.freq.weekly": "매주",
   "results.freq.monthly": "매월",
   "results.freq.quarterly": "분기별",

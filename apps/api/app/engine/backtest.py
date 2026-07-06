@@ -2879,6 +2879,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "rebalance_count": full_m.get("rebalance_count"),
         "rebalance_applied": full_m.get("rebalance_applied"),
         "rebalance_skipped": full_m.get("rebalance_skipped"),
+        "rebalance_snapshots_total": full_m.get("rebalance_snapshots_total"),
+        "rebalance_snapshots_shown": full_m.get("rebalance_snapshots_shown"),
         "universe_size": universe_pool_count,
         "universe_catalog_size": universe_meta["count"],
         "tradable_count": len(tickers),

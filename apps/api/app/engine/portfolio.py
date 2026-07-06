@@ -50,6 +50,8 @@ WEIGHT_CHART_MIN_PCT = 0.001
 WEIGHT_CHART_DEFAULT_TOP_N = 15
 # Soft legend budget for UI perf; selection is not truncated below Other cap.
 WEIGHT_CHART_TICKER_CAP = 40
+# Rebalance snapshot rows sent to the holdings chart (ME ≈ 1 row/month).
+WEIGHT_HISTORY_SNAPSHOT_CAP = 72
 
 
 def _max_other_weight_for_tickers(
@@ -346,6 +348,24 @@ def _normalize_rebalance_rule(rule: str) -> str:
     return aliases.get(r, r)
 
 
+def _rebalance_counts_for_scope(
+    rebalance_dates: list[pd.Timestamp],
+    applied_rebalance_dates: list[pd.Timestamp],
+    *,
+    report_start: str | None,
+    prices: pd.DataFrame,
+) -> tuple[int, int, int]:
+    """Scheduled/applied/skipped within the user's report window when report_start is set."""
+    if not report_start:
+        n_sched = len(rebalance_dates)
+        n_applied = len(applied_rebalance_dates)
+        return n_sched, n_applied, max(n_sched - n_applied, 0)
+    anchor = first_trading_day_on_or_after(prices.index, report_start)
+    sched = [d for d in rebalance_dates if d >= anchor]
+    applied = [d for d in applied_rebalance_dates if d >= anchor]
+    return len(sched), len(applied), max(len(sched) - len(applied), 0)
+
+
 def _inject_report_start_rebalance_dates(
     rebalance_dates: list[pd.Timestamp],
     index: pd.DatetimeIndex,
@@ -623,6 +643,13 @@ def _rebalance_schedule_dynamic(
         )
         min_ready_loc = max(60, f_lb, int(alloc_step.lookback_days))
         if end_loc < min_ready_loc:
+            logger.info(
+                "Dynamic rebalance skipped on %s: insufficient lookback "
+                "(%s trading days before rebalance, need %s)",
+                dt.date() if hasattr(dt, "date") else dt,
+                end_loc,
+                min_ready_loc,
+            )
             schedule.loc[dt] = w_prev
             continue
         updated = False
@@ -953,11 +980,22 @@ def _simulate_pandas(
     metrics["turnover_total"] = float(turnover.sum())
     metrics["turnover_max"] = float(turnover.max())
     metrics["port_ret"] = port_ret
-    metrics["rebalance_count"] = int(len(rebalance_dates))
-    metrics["rebalance_applied"] = int(applied_rebalances)
-    metrics["rebalance_skipped"] = int(max(len(rebalance_dates) - applied_rebalances, 0))
+    reb_count, reb_applied, reb_skipped = _rebalance_counts_for_scope(
+        rebalance_dates,
+        applied_rebalance_dates,
+        report_start=report_start,
+        prices=prices,
+    )
+    metrics["rebalance_count"] = int(reb_count)
+    metrics["rebalance_applied"] = int(reb_applied)
+    metrics["rebalance_skipped"] = int(reb_skipped)
     metrics["rebalance_freq"] = _normalize_rebalance_rule(spec.rebalance_rule)
-    metrics["rebalance_dates"] = [d.strftime("%Y-%m-%d") for d in rebalance_dates]
+    if report_start:
+        anchor = first_trading_day_on_or_after(prices.index, report_start)
+        scoped_dates = [d for d in rebalance_dates if d >= anchor]
+    else:
+        scoped_dates = rebalance_dates
+    metrics["rebalance_dates"] = [d.strftime("%Y-%m-%d") for d in scoped_dates]
     metrics["factor_summary"] = factor_summary
     # Historical weights for UI: rebalance snapshots; dynamic sleeves (Other capped at 10%).
     sch = schedule.fillna(0.0)
@@ -969,8 +1007,11 @@ def _simulate_pandas(
     # UI snapshots: only applied rebalances on/after report start (skip lookback placeholders).
     hist_dates = [d for d in applied_rebalance_dates if d >= hist_anchor]
     hist_unique = sorted(list(dict.fromkeys(hist_dates)))
-    if len(hist_unique) > 36:
-        hist_unique = _downsample_keep_endpoints(hist_unique, 36)
+    hist_total = len(hist_unique)
+    if hist_total > WEIGHT_HISTORY_SNAPSHOT_CAP:
+        hist_unique = _downsample_keep_endpoints(hist_unique, WEIGHT_HISTORY_SNAPSHOT_CAP)
+    metrics["rebalance_snapshots_total"] = int(hist_total)
+    metrics["rebalance_snapshots_shown"] = int(len(hist_unique))
     ticker_dates = sorted(list(dict.fromkeys([hist_anchor, *hist_unique])))
     keep_tickers = select_weight_chart_tickers(
         sch, ticker_dates, top_n=min(holdings_top_n, len(prices.columns))

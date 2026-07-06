@@ -868,6 +868,15 @@ export function ResultsDashboard({
         ?.execution?.rebalance_applied ??
       rebalanceCount,
   );
+  const rebalanceSkipped = Number(result.narrative_facts.rebalance_skipped ?? 0);
+  const rebalanceSnapshotsShown = Number(
+    result.narrative_facts.rebalance_snapshots_shown ?? rebalanceApplied,
+  );
+  const rebalanceSnapshotsTotal = Number(
+    result.narrative_facts.rebalance_snapshots_total ?? rebalanceSnapshotsShown,
+  );
+  const rebalanceChartDownsampled =
+    rebalanceSnapshotsTotal > rebalanceSnapshotsShown && rebalanceSnapshotsShown > 0;
   const optimizationMode = String(result.narrative_facts.optimization_mode ?? "standard");
   const objectiveLabel = String(
     result.narrative_facts.objective_label ??
@@ -1097,6 +1106,21 @@ export function ResultsDashboard({
             applied: rebalanceApplied,
             count: rebalanceCount,
           })}
+          {rebalanceSkipped > 0 && (
+            <>
+              {" "}
+              {t("results.meta.rebalanceSkipped", { skipped: rebalanceSkipped })}
+            </>
+          )}
+          {rebalanceChartDownsampled && (
+            <>
+              {" · "}
+              {t("results.meta.rebalanceChartDownsampled", {
+                shown: rebalanceSnapshotsShown,
+                total: rebalanceSnapshotsTotal,
+              })}
+            </>
+          )}
         </span>
       </div>
 
