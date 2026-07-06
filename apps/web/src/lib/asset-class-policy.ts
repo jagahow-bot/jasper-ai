@@ -101,3 +101,58 @@ export function quotaKeysForClasses(assetClasses: string[] | null | undefined): 
   }
   return keys;
 }
+
+/** Integer slot counts per class from weights (largest-remainder), matching API plan_class_slots. */
+export function planClassSlots(
+  maxHoldings: number,
+  classWeights: Record<string, number>,
+): Record<string, number> {
+  const n = Math.max(1, Math.floor(maxHoldings));
+  const entries = Object.entries(classWeights).filter(([, w]) => Number(w) > 0);
+  const sum = entries.reduce((a, [, w]) => a + Number(w), 0);
+  if (sum <= 1e-12) return {};
+
+  const ordered = entries
+    .map(([ac, w]) => [ac, Number(w) / sum] as const)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+  const floors: Record<string, number> = {};
+  const remainders: { frac: number; ac: string }[] = [];
+  let assigned = 0;
+  for (const [ac, w] of ordered) {
+    const exact = n * w;
+    const floor = Math.floor(exact);
+    floors[ac] = floor;
+    assigned += floor;
+    remainders.push({ frac: exact - floor, ac });
+  }
+
+  const slots = { ...floors };
+  remainders.sort((a, b) => b.frac - a.frac || a.ac.localeCompare(b.ac));
+  let idx = 0;
+  while (assigned < n && remainders.length > 0) {
+    const { ac } = remainders[idx % remainders.length];
+    slots[ac] = (slots[ac] ?? 0) + 1;
+    assigned += 1;
+    idx += 1;
+  }
+
+  return Object.fromEntries(Object.entries(slots).filter(([, k]) => k > 0));
+}
+
+/** Top-level sleeve weights from trial params (w_equity, …), active classes only. */
+export function classBudgetFromParams(
+  params: Record<string, number | undefined>,
+  assetClasses: string[] | null | undefined,
+): Record<string, number> {
+  const allowed = assetClasses?.length ? new Set(assetClasses) : null;
+  const raw: Record<string, number> = {};
+  for (const [ac, key] of Object.entries(CLASS_ALLOC_KEYS) as [AssetClass, string][]) {
+    if (allowed && !allowed.has(ac)) continue;
+    const v = Math.max(0, Number(params[key] ?? 0));
+    if (v > 0) raw[ac] = v;
+  }
+  const sum = Object.values(raw).reduce((a, b) => a + b, 0);
+  if (sum <= 1e-12) return {};
+  return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, v / sum]));
+}

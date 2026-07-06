@@ -11,8 +11,11 @@ import pandas as pd
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC, effective_top_n, resolve_candidate_top_n
 from app.engine.allocator import AllocatorParams, solve_weights
 from app.engine.asset_class_policy import (
+    CLASS_BUDGET_KEYS,
     enforce_class_weight_budget,
     normalize_class_budget,
+    pick_top_n_by_class_slots,
+    plan_class_slots,
 )
 from app.engine.weights import (
     apply_max_holdings,
@@ -473,74 +476,21 @@ def _pick_top_n_with_budget(
     if not universe_by_ticker or not class_budget:
         return pick_top_n(scores, n)
 
-    # Only top-level sleeves (equity, bond, …) — not regional sub-keys.
-    top_level = ("equity", "bond", "commodity", "real_estate", "alternative")
+    top_level = set(CLASS_BUDGET_KEYS.keys())
     budget = _normalize_class_budget(
         {k: v for k, v in (class_budget or {}).items() if k in top_level and float(v) > 0}
     )
     if not budget:
         return pick_top_n(scores, n)
 
-    allowed_classes = set(budget.keys())
-
-    per_class: dict[str, list[str]] = {}
-    for t in tickers:
-        meta = universe_by_ticker.get(t, {}) or {}
-        ac = str(meta.get("asset_class", "other"))
-        if ac not in allowed_classes:
-            continue
-        per_class.setdefault(ac, []).append(t)
-
-    ordered = scores.sort_values(ascending=False)
-    # Restrict candidate pool to allowed asset classes only.
-    eligible = [t for t in ordered.index if t in tickers and str(
-        (universe_by_ticker.get(t, {}) or {}).get("asset_class", "other")
-    ) in allowed_classes]
-    if not eligible:
-        return pick_top_n(scores, n)
-
-    chosen: list[str] = []
-    chosen_set: set[str] = set()
-
-    targets: dict[str, int] = {}
-    for ac, w in budget.items():
-        cap = len(per_class.get(ac, []))
-        if cap <= 0:
-            continue
-        targets[ac] = min(cap, int(np.floor(n * w)))
-    assigned = sum(targets.values())
-
-    while assigned < n:
-        candidates = sorted(
-            ((ac, w) for ac, w in budget.items() if len(per_class.get(ac, [])) > targets.get(ac, 0)),
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        if not candidates:
-            break
-        ac = candidates[0][0]
-        targets[ac] = targets.get(ac, 0) + 1
-        assigned += 1
-
-    for ac, k in targets.items():
-        if k <= 0:
-            continue
-        members = [t for t in eligible if t in set(per_class.get(ac, []))]
-        for t in members:
-            if len(chosen) >= n:
-                break
-            if t not in chosen_set:
-                chosen.append(t)
-                chosen_set.add(t)
-
-    # Fill remainder only within allowed classes (never spill to filtered-out sleeves).
-    for t in eligible:
-        if len(chosen) >= n:
-            break
-        if t not in chosen_set:
-            chosen.append(t)
-            chosen_set.add(t)
-    return chosen[:n]
+    return pick_top_n_by_class_slots(
+        scores,
+        max_holdings=n,
+        tickers=tickers,
+        universe_by_ticker=universe_by_ticker,
+        class_budget=budget,
+        class_slots=plan_class_slots(n, budget),
+    )
 
 
 def _ensure_chosen_respects_cap(

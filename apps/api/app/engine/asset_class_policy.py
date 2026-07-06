@@ -404,6 +404,135 @@ def build_class_budget_resolver(
     return resolver
 
 
+def plan_class_slots(
+    max_holdings: int,
+    class_budget: dict[str, float] | None,
+    *,
+    per_class_available: dict[str, int] | None = None,
+) -> dict[str, int]:
+    """Integer slot counts per active class from weights (largest-remainder), sum <= max_holdings."""
+    n = int(max(1, max_holdings))
+    budget = normalize_class_budget(class_budget)
+    if not budget:
+        return {}
+
+    ordered = sorted(budget.items(), key=lambda x: (-x[1], x[0]))
+    floors: dict[str, int] = {}
+    remainders: list[tuple[float, str]] = []
+    for ac, w in ordered:
+        exact = n * w
+        floor = int(np.floor(exact))
+        if per_class_available is not None:
+            floor = min(floor, max(0, int(per_class_available.get(ac, 0))))
+        floors[ac] = floor
+        remainders.append((exact - np.floor(exact), ac))
+
+    assigned = sum(floors.values())
+    slots = dict(floors)
+    if assigned < n:
+        remainders.sort(key=lambda x: (-x[0], x[1]))
+        for frac, ac in remainders:
+            if assigned >= n:
+                break
+            cap = None
+            if per_class_available is not None:
+                cap = int(per_class_available.get(ac, 0))
+                if slots.get(ac, 0) >= cap:
+                    continue
+            slots[ac] = slots.get(ac, 0) + 1
+            assigned += 1
+
+    return {ac: k for ac, k in slots.items() if k > 0}
+
+
+def pick_top_n_by_class_slots(
+    scores: pd.Series,
+    *,
+    max_holdings: int,
+    tickers: list[str],
+    universe_by_ticker: dict[str, dict[str, Any]] | None,
+    class_budget: dict[str, float] | None,
+    class_slots: dict[str, int] | None = None,
+) -> list[str]:
+    """Strict per-class top-k selection; classes processed by weight descending."""
+    from app.engine.factors import pick_top_n
+
+    n = int(max(1, max_holdings))
+    if not universe_by_ticker or not class_budget:
+        return pick_top_n(scores, n)
+
+    budget = normalize_class_budget(class_budget)
+    if not budget:
+        return pick_top_n(scores, n)
+
+    allowed_classes = set(budget.keys())
+    per_class: dict[str, list[str]] = {}
+    for t in tickers:
+        ac = _ticker_asset_class(t, universe_by_ticker)
+        if ac not in allowed_classes:
+            continue
+        per_class.setdefault(ac, []).append(t)
+
+    available = {ac: len(members) for ac, members in per_class.items()}
+    targets = class_slots or plan_class_slots(n, budget, per_class_available=available)
+    if not targets:
+        return pick_top_n(scores, n)
+
+    ordered_classes = sorted(
+        targets.keys(),
+        key=lambda ac: (-budget.get(ac, 0.0), ac),
+    )
+    chosen: list[str] = []
+    chosen_set: set[str] = set()
+    shortfall = 0
+
+    for ac in ordered_classes:
+        k = int(targets.get(ac, 0))
+        members = sorted(
+            per_class.get(ac, []),
+            key=lambda t: float(scores.get(t, -np.inf)),
+            reverse=True,
+        )
+        take = min(k, len(members))
+        for t in members[:take]:
+            if t not in chosen_set:
+                chosen.append(t)
+                chosen_set.add(t)
+        shortfall += k - take
+
+    if shortfall > 0 and len(chosen) < n:
+        pool: list[str] = []
+        for ac in sorted(budget.keys(), key=lambda c: (-budget.get(c, 0.0), c)):
+            for t in sorted(
+                per_class.get(ac, []),
+                key=lambda tk: float(scores.get(tk, -np.inf)),
+                reverse=True,
+            ):
+                if t not in chosen_set:
+                    pool.append(t)
+        for t in pool:
+            if shortfall <= 0 or len(chosen) >= n:
+                break
+            chosen.append(t)
+            chosen_set.add(t)
+            shortfall -= 1
+
+    if len(chosen) < n:
+        ordered = scores.sort_values(ascending=False)
+        for t in ordered.index:
+            if len(chosen) >= n:
+                break
+            if t not in tickers:
+                continue
+            ac = _ticker_asset_class(str(t), universe_by_ticker)
+            if ac not in allowed_classes or t in chosen_set:
+                continue
+            chosen.append(str(t))
+            chosen_set.add(str(t))
+
+    return chosen[:n]
+
+
 def zero_disallowed_class_params(
     params: dict[str, Any],
     asset_classes: list[str] | None,

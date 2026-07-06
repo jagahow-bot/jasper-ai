@@ -32,8 +32,9 @@ import {
 import {
   REGIME_QUOTA_KEYS,
   type RegimeQuotaKey,
+  classBudgetFromParams,
   normalizeRegimeClassQuotas,
-  quotaKeysForClasses,
+  planClassSlots,
 } from "@/lib/asset-class-policy";
 import {
   alignDualAxisZeroDomains,
@@ -922,9 +923,6 @@ export function ResultsDashboard({
     (result.narrative_facts.asset_classes_filter as string[] | undefined) ??
     request.asset_classes
   )?.filter(Boolean);
-  const quotaKeyList = quotaKeysForClasses(
-    assetClassFilter?.length ? assetClassFilter : null,
-  );
   const paramToSubLabel = Object.fromEntries(
     (Object.entries(SUB_ASSET_PARAM_KEYS) as [SubAssetClassKey, string][]).map(
       ([sub, param]) => [param, SUB_ASSET_CLASS_LABELS[sub]],
@@ -936,31 +934,39 @@ export function ResultsDashboard({
     key;
   const activeRegime = activeRegimeForQuotas;
 
-  const classQuota = Object.fromEntries(
-    quotaKeyList.map((k) => [k, Number(params[k] ?? 0)]),
-  );
-  const quotaSum = Object.values(classQuota).reduce(
-    (a, b) => a + (Number.isFinite(b) ? b : 0),
-    0,
-  );
-  const targetTopN = Number(params["top_n_actual"] ?? request.top_n);
   const allowedClassSet = assetClassFilter?.length
     ? new Set(assetClassFilter)
     : null;
-  const staticQuotaRows = Object.entries(classQuota).map(([k, v]) => ({
-    cls: quotaLabel(k),
-    target_pct: quotaSum > 0 ? (v / quotaSum) * 100 : 0,
-    target_count: Math.round((quotaSum > 0 ? v / quotaSum : 0) * targetTopN),
+  const maxHoldings = Number(
+    result.narrative_facts.max_holdings_constraint ?? request.max_holdings ?? 30,
+  );
+  const staticSleeveBudget = classBudgetFromParams(
+    params as Record<string, number | undefined>,
+    assetClassFilter?.length ? assetClassFilter : null,
+  );
+  const staticSlots = planClassSlots(maxHoldings, staticSleeveBudget);
+  const staticQuotaRows = Object.entries(staticSleeveBudget).map(([cls, w]) => ({
+    cls: quotaLabel(cls),
+    target_pct: Number(w) * 100,
+    target_count: staticSlots[cls] ?? 0,
   }));
   const regimeBudget = regimeQuotaMatrix?.[quotaRegimeTab];
-  const regimeQuotaRows = regimeBudget
-    ? Object.entries(regimeBudget)
-        .filter(([cls]) => !allowedClassSet || allowedClassSet.has(cls))
-        .map(([cls, w]) => ({
-          cls: quotaLabel(cls),
-          target_pct: Number(w) * 100,
-          target_count: Math.round(Number(w) * targetTopN),
-        }))
+  const filteredRegimeBudget = regimeBudget
+    ? Object.fromEntries(
+        Object.entries(regimeBudget).filter(
+          ([cls]) => !allowedClassSet || allowedClassSet.has(cls),
+        ),
+      )
+    : null;
+  const regimeSlots = filteredRegimeBudget
+    ? planClassSlots(maxHoldings, filteredRegimeBudget)
+    : null;
+  const regimeQuotaRows = filteredRegimeBudget
+    ? Object.entries(filteredRegimeBudget).map(([cls, w]) => ({
+        cls: quotaLabel(cls),
+        target_pct: Number(w) * 100,
+        target_count: regimeSlots?.[cls] ?? 0,
+      }))
     : staticQuotaRows;
   const quotaRows = regimeQuotaMatrix ? regimeQuotaRows : staticQuotaRows;
   const exposureByRegime =
@@ -1940,6 +1946,15 @@ export function ResultsDashboard({
                 <YAxis stroke="#94a3b8" fontSize={chartTick} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
                 <Tooltip content={<ChartTooltip valueIsPct={false} valueDecimals={1} />} />
                 <Bar dataKey="target_pct" name={t("results.targetWeightPct")} fill="#00f5ff" />
+              </BarChart>
+            </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={quotaRows}>
+                <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
+                <XAxis dataKey="cls" stroke="#94a3b8" fontSize={chartTick} />
+                <YAxis stroke="#94a3b8" fontSize={chartTick} allowDecimals={false} />
+                <Tooltip content={<ChartTooltip valueIsPct={false} valueDecimals={0} />} />
+                <Bar dataKey="target_count" name={t("results.targetCount")} fill="#a78bfa" />
               </BarChart>
             </ResponsiveContainer>
           </div>
