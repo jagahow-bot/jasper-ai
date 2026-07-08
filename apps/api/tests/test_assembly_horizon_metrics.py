@@ -35,10 +35,24 @@ def _slice_sim(mean: float, n: int, *, seed: int) -> dict:
 
 def test_stitch_full_path_from_slices_chains_port_ret():
     train_m = _slice_sim(0.0002, 200, seed=1)
-    val_m = _slice_sim(0.0010, 100, seed=2)
+    val_start = train_m["port_ret"].index[-1] + pd.offsets.BDay(1)
+    val_idx = pd.bdate_range(val_start, periods=100, freq="B")
+    rng = np.random.default_rng(2)
+    val_ret = pd.Series(rng.normal(0.0010, 0.008, len(val_idx)), index=val_idx, dtype=float)
+    val_m = {
+        "sharpe": 0.6,
+        "max_drawdown": -0.1,
+        "cagr": 0.1,
+        "volatility": 0.14,
+        "sortino": 0.8,
+        "equity": (1.0 + val_ret).cumprod(),
+        "port_ret": val_ret,
+        "last_weights": np.array([0.5, 0.5], dtype=float),
+    }
     full = stitch_full_path_from_slices(train_m, val_m)
     assert full is not None
     assert len(full["port_ret"]) == 300
+    assert not full["port_ret"].index.duplicated().any()
 
 
 def test_cached_full_path_needs_stitch_when_oos_only():
@@ -49,6 +63,99 @@ def test_cached_full_path_needs_stitch_when_oos_only():
     stitched = stitch_full_path_from_slices(train_m, val_m)
     assert stitched is not None
     assert cached_full_path_needs_stitch(train_m, val_m, stitched) is False
+
+
+def test_stitch_full_path_trims_train_overlap_before_val_start():
+    """Train sim on full panel must not duplicate OOS dates when stitched."""
+    train_m = _slice_sim(0.0002, 200, seed=10)
+    val_start = train_m["port_ret"].index[-1] + pd.offsets.BDay(1)
+    val_idx = pd.bdate_range(val_start, periods=100, freq="B")
+    rng = np.random.default_rng(11)
+    val_ret = pd.Series(rng.normal(0.0010, 0.008, len(val_idx)), index=val_idx, dtype=float)
+    val_m = {
+        "sharpe": 0.6,
+        "max_drawdown": -0.1,
+        "cagr": 0.1,
+        "volatility": 0.14,
+        "sortino": 0.8,
+        "equity": (1.0 + val_ret).cumprod(),
+        "port_ret": val_ret,
+        "last_weights": np.array([0.5, 0.5], dtype=float),
+    }
+    # Optimizer path: train simulate on full panel leaves an OOS tail on train_m.
+    extra_tail = pd.Series(
+        np.linspace(0.0005, 0.0008, 50),
+        index=val_idx[:50],
+    )
+    train_m = dict(train_m)
+    train_m["port_ret"] = pd.concat([train_m["port_ret"], extra_tail])
+    stitched = stitch_full_path_from_slices(train_m, val_m)
+    assert stitched is not None
+    pr = stitched["port_ret"]
+    assert not pr.index.duplicated().any()
+    assert len(pr) == len(train_m["port_ret"].loc[train_m["port_ret"].index < val_start]) + len(
+        val_m["port_ret"]
+    )
+
+
+def test_stitch_full_path_build_candidate_charts_no_float_series_error():
+    """Regression: duplicate stitched index must not break drawdown_table float()."""
+    from app.engine.allocator import AllocatorParams
+    from app.engine.backtest import _build_candidate
+    from app.engine.portfolio import equity_curve_series, simulate_dynamic_portfolio
+
+    idx = pd.bdate_range("2018-01-01", "2024-06-30", freq="B")
+    rng = np.random.default_rng(99)
+    prices = pd.DataFrame(
+        {
+            "AAA": 100 * np.cumprod(1 + rng.normal(0.0003, 0.012, len(idx))),
+            "BBB": 50 * np.cumprod(1 + rng.normal(0.0002, 0.01, len(idx))),
+            "SPY": 200 * np.cumprod(1 + rng.normal(0.0004, 0.01, len(idx))),
+        },
+        index=idx,
+    )
+    split = int(len(idx) * 0.7)
+    prices_train = prices.iloc[:split]
+    prices_val = prices.iloc[split:]
+    spec = BacktestSpec(benchmark_ticker="SPY")
+    alloc = AllocatorParams(mode="mean_variance", lookback_days=126)
+    kw = dict(spec=spec, max_weight=0.5, allocator=alloc, top_n=2)
+    train_m = simulate_dynamic_portfolio(
+        prices[["AAA", "BBB"]],
+        report_start=str(prices_train.index[0].date()),
+        **kw,
+    )
+    val_m = simulate_dynamic_portfolio(
+        prices[["AAA", "BBB"]],
+        report_start=str(prices_val.index[0].date()),
+        **kw,
+    )
+    stitched = stitch_full_path_from_slices(train_m, val_m)
+    assert stitched is not None
+    assert not stitched["port_ret"].index.duplicated().any()
+
+    candidate = _build_candidate(
+        1,
+        ["AAA", "BBB"],
+        train_m,
+        val_m,
+        True,
+        {"model_code": "M0099"},
+        stitched,
+        equity_curve_series(stitched["equity"]),
+        prices,
+        {"AAA": {"asset_class": "equity"}, "BBB": {"asset_class": "equity"}},
+        spec,
+        objective_effective="max_return",
+        train_start=str(prices_train.index[0].date()),
+        train_end=str(prices_train.index[-1].date()),
+        val_start=str(prices_val.index[0].date()),
+        train_ratio=split / len(idx),
+        is_split_idx=split,
+        include_charts=True,
+    )
+    assert candidate.model_code == "M0099"
+    assert candidate.analytics is not None
 
 
 def test_metrics_only_assembly_full_cagr_between_is_and_oos_when_oos_beats_is():

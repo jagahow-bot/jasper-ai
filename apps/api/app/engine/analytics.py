@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from app.engine.portfolio import scalar_float
 from app.engine.spec import BacktestSpec
 
 ANN = 252
@@ -130,10 +131,10 @@ def drawdown_table(equity: pd.Series, top_n: int = 10) -> list[dict[str, Any]]:
             start = dt
             peak_dt = peak.loc[:dt].idxmax() if dt in peak.index else dt
             trough_dt = dt
-            trough_val = float(dd.loc[dt])
+            trough_val = scalar_float(dd.loc[dt])
         elif is_uw and in_ep:
-            if float(dd.loc[dt]) < trough_val:
-                trough_val = float(dd.loc[dt])
+            if scalar_float(dd.loc[dt]) < trough_val:
+                trough_val = scalar_float(dd.loc[dt])
                 trough_dt = dt
         elif not is_uw and in_ep:
             episodes.append(

@@ -30,6 +30,27 @@ logger = logging.getLogger(__name__)
 from app.engine.factors import FactorParams, pick_top_n, score_assets_with_details
 
 
+def scalar_float(value: Any) -> float:
+    """Coerce numpy/pandas scalar-like values to float (never pass Series to float())."""
+    if isinstance(value, pd.Series):
+        if value.empty:
+            return float("nan")
+        return float(value.iloc[0])
+    if isinstance(value, pd.DataFrame):
+        if value.empty:
+            return float("nan")
+        return float(value.iloc[0, 0])
+    if isinstance(value, np.ndarray):
+        flat = value.ravel()
+        return float(flat[0]) if flat.size else float("nan")
+    if hasattr(value, "item"):
+        try:
+            return float(value.item())
+        except (ValueError, TypeError):
+            pass
+    return float(value)
+
+
 def _downsample_keep_endpoints(items: list[Any], cap: int) -> list[Any]:
     n = len(items)
     if n <= cap or cap <= 0:
@@ -290,7 +311,7 @@ def _apply_report_start_window(
 
     port_ret = metrics["port_ret"].loc[anchor:]
     equity_full = metrics["equity"]
-    eq_base = float(equity_full.loc[anchor])
+    eq_base = scalar_float(equity_full.loc[anchor])
     if not np.isfinite(eq_base) or eq_base <= 0:
         eq_base = 1.0
     equity = equity_full.loc[anchor:] / eq_base
@@ -835,7 +856,15 @@ def stitch_full_path_from_slices(
     val_series = (
         val_ret if isinstance(val_ret, pd.Series) else pd.Series(val_ret, dtype=float)
     )
-    port_ret = pd.concat([train_series.astype(float), val_series.astype(float)])
+    # Train simulates often run on the full panel from IS start, so trim overlap
+    # before chaining; otherwise duplicate calendar dates break .loc scalar reads.
+    val_start = val_series.index[0]
+    last_train_day = train_series.index[-1]
+    if train_series.index[0] < val_start <= last_train_day:
+        train_only = train_series.loc[train_series.index < val_start]
+    else:
+        train_only = train_series
+    port_ret = pd.concat([train_only.astype(float), val_series.astype(float)])
     equity = (1.0 + port_ret).cumprod()
     out: dict[str, Any] = {}
     for key in (
@@ -881,7 +910,7 @@ def metrics_for_horizon_window(
     if start < 0 or end > n or end <= start:
         raise ValueError("Invalid horizon window bounds")
     pr = port_ret.iloc[start:end]
-    eq0 = float(equity.iloc[start])
+    eq0 = scalar_float(equity.iloc[start])
     if eq0 <= 0 or not np.isfinite(eq0):
         raise ValueError("Invalid equity at horizon window start")
     eq = equity.iloc[start:end] / eq0
@@ -905,7 +934,7 @@ def _compute_metrics(port_ret: pd.Series, equity: pd.Series, spec: BacktestSpec)
 
     dd = float((equity / equity.cummax() - 1.0).min())
     years = max(len(equity) / ann, 1e-6)
-    cagr = float(equity.iloc[-1] ** (1.0 / years) - 1.0)
+    cagr = scalar_float(equity.iloc[-1] ** (1.0 / years) - 1.0)
 
     # Downside risk / Sortino
     downside = excess[excess < 0]
@@ -1166,12 +1195,12 @@ def simulate_dynamic_portfolio(
 
 
 def equity_curve_series(equity: pd.Series) -> list[dict[str, float | str]]:
-    base = float(equity.iloc[0])
+    base = scalar_float(equity.iloc[0])
     if not np.isfinite(base) or base <= 0:
         base = 1.0
     normalized = equity / base * 100.0
     return [
-        {"date": d.strftime("%Y-%m-%d"), "value": round(float(v), 4)}
+        {"date": d.strftime("%Y-%m-%d"), "value": round(scalar_float(v), 4)}
         for d, v in normalized.items()
     ]
 
