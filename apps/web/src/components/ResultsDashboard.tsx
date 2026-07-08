@@ -380,7 +380,17 @@ export function ResultsDashboard({
   ]);
 
   const chartsReady =
-    (!needsLazyCharts || selectedHasFullCharts || Boolean(lazyCharts)) &&
+    (!needsLazyCharts || selectedHasFullCharts || lazyPayloadComplete(
+      lazyCharts ?? {
+        model_code: selectedModelCode,
+        equity_curve: [],
+        weight_history: [],
+        weight_history_tickers: [],
+        benchmark_equity_curve: [],
+      },
+      needsLazyCharts,
+      needsLazyAnalytics,
+    )) &&
     (!needsLazyAnalytics ||
       selectedHasDeepAnalytics ||
       Boolean(lazyCharts?.institutional?.rolling?.rolling_sharpe?.length));
@@ -447,7 +457,10 @@ export function ResultsDashboard({
       ),
     [chartCandidate?.analytics?.weight_history_tickers],
   );
-  const equity = chartCandidate?.equity_curve ?? result.equity_curve ?? [];
+  const equity = useMemo(() => {
+    const raw = chartCandidate?.equity_curve ?? result.equity_curve ?? [];
+    return Array.isArray(raw) ? raw : [];
+  }, [chartCandidate?.equity_curve, result.equity_curve]);
   const historySeries = useMemo(() => {
     if (!weightHistory.length) return [];
     const firstEquityDate = equity[0]?.date ? String(equity[0].date) : "";

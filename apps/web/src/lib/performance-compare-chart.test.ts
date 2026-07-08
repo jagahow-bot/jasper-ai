@@ -11,6 +11,7 @@ import {
   resolveDefaultSelectedRowKey,
   resolveHorizonMetrics,
   resolveOutOfSampleMetrics,
+  pickCatalogChampionModelKey,
   candidateRowKey,
 } from "./performance-compare-chart";
 
@@ -346,5 +347,42 @@ describe("performance-compare-chart", () => {
       { model_code: "M0001", rank: 1, sharpe: 1.2, cagr: 0.1, max_drawdown: -0.04 },
     ]);
     expect(mapped[0]?.sharpe).toBe(1.2);
+  });
+
+  it("pickCatalogChampionModelKey chooses objective leader on selection horizon", () => {
+    const candidates = [
+      {
+        model_code: "M0001",
+        rank: 1,
+        sharpe: 1.0,
+        cagr: 0.1,
+        max_drawdown: -0.1,
+        analytics: {
+          sample_metrics: {
+            in_sample: { objective_value: 0.09, cagr: 0.09, sharpe: 0.9, max_drawdown: -0.1 },
+            full_sample: { objective_value: 0.11, cagr: 0.11, sharpe: 1.0, max_drawdown: -0.12 },
+          },
+        },
+      },
+      {
+        model_code: "M0006",
+        rank: 6,
+        sharpe: 1.2,
+        cagr: 0.14,
+        max_drawdown: -0.08,
+        analytics: {
+          sample_metrics: {
+            in_sample: { objective_value: 0.12, cagr: 0.12, sharpe: 1.1, max_drawdown: -0.08 },
+            full_sample: { objective_value: 0.15, cagr: 0.15, sharpe: 1.2, max_drawdown: -0.1 },
+          },
+        },
+      },
+    ];
+    const facts = { objective: "max_return", enable_oos: true, is_all_portfolios_view: true };
+    expect(pickCatalogChampionModelKey(candidates, facts)).toBe("M0006");
+    expect(resolveChampionModelKey(candidates, {
+      ...facts,
+      catalog_champion_model_code: "M0006",
+    })).toBe("M0006");
   });
 });

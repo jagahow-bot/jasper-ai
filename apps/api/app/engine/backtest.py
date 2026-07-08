@@ -40,6 +40,7 @@ from app.engine.portfolio import (
     metrics_for_horizon_window,
     simulate_dynamic_portfolio,
     split_train_validation,
+    stitch_full_path_from_slices,
     trim_prices_to_report_window,
 )
 from app.engine.spec import DEFAULT_SPEC, BacktestSpec
@@ -1036,12 +1037,10 @@ def _run_iterative_search(
             protect_signatures={champ_sig} if champ_sig else None,
         )
 
-        round_best = best_record_in_pool(pool_records, objective_effective)
+        round_best: tuple[float, dict, dict] | None = None
         round_winner_model_code: str | None = None
-        if round_best and round_best[1].get("model_code"):
-            round_winner_model_code = str(round_best[1]["model_code"])
 
-        ai_round_champion_code = round_winner_model_code
+        ai_round_champion_code: str | None = None
         ai_champion_rationale = ""
         if pool_records:
             oos_active = bool(oos and len(prices_val) > 60)
@@ -1069,6 +1068,14 @@ def _run_iterative_search(
                 is_split_idx=is_split_idx,
             )
             deterministic_champion = _round_champion_fallback_code(champ_payload)
+            round_best = (
+                record_for_model_code(pool_records, deterministic_champion)
+                if deterministic_champion
+                else best_record_in_pool(pool_records, objective_effective)
+            )
+            if round_best and round_best[1].get("model_code"):
+                round_winner_model_code = str(round_best[1]["model_code"])
+            ai_round_champion_code = round_winner_model_code
 
             def ai_champion_progress(message: str) -> None:
                 report_progress(
@@ -1093,6 +1100,13 @@ def _run_iterative_search(
                 ai_round_champion_code = str(ai_champ.get("round_champion_model_code"))
             if ai_champ.get("rationale"):
                 ai_champion_rationale = str(ai_champ.get("rationale")).strip()
+            if ai_round_champion_code:
+                synced_best = record_for_model_code(
+                    pool_records, ai_round_champion_code
+                )
+                if synced_best is not None:
+                    round_best = synced_best
+                    round_winner_model_code = str(ai_round_champion_code)
 
         ai_champion_record = (
             record_for_model_code(pool_records, ai_round_champion_code)
@@ -1924,11 +1938,23 @@ def _assemble_candidates_from_records(
         need_val = val_required and (
             val_m is None or (include_charts and val_m.get("equity") is None)
         )
-        need_full = include_charts and (
-            full_m_rank is None or not full_m_rank.get("weight_history")
+        assembly_full_m = full_m_rank
+        if oos and (
+            assembly_full_m is None or assembly_full_m.get("port_ret") is None
+        ):
+            stitched = stitch_full_path_from_slices(train_m, val_m)
+            if stitched is not None:
+                assembly_full_m = stitched
+        need_full_sim = (
+            assembly_full_m is None
+            or assembly_full_m.get("port_ret") is None
+            or (
+                include_charts
+                and not assembly_full_m.get("weight_history")
+            )
         )
 
-        if cache_hit and not (need_train or need_val or need_full):
+        if cache_hit and not (need_train or need_val or need_full_sim):
             if assembly_progress:
                 label = "charts" if include_charts else "metrics"
                 assembly_progress(
@@ -1975,21 +2001,31 @@ def _assemble_candidates_from_records(
                     report_start=str(prices_val.index[0].date()),
                     **val_kw,
                 )
-            if need_full:
+            if oos and (
+                assembly_full_m is None or assembly_full_m.get("port_ret") is None
+            ):
+                stitched = stitch_full_path_from_slices(train_m, val_m)
+                if stitched is not None:
+                    assembly_full_m = stitched
+                    need_full_sim = include_charts and not assembly_full_m.get(
+                        "weight_history"
+                    )
+            if need_full_sim:
                 full_m_rank = simulate_dynamic_portfolio(
                     prices_sim_panel,
                     report_start=report_full,
                     **sim_kw,
                 )
-        metrics_m = full_m_rank or train_m
+                assembly_full_m = full_m_rank
+        metrics_m = assembly_full_m or train_m
         if metrics_m is None:
             raise ValueError(
                 f"Cannot assemble candidate {model_code}: missing simulation metrics"
             )
-        if not include_charts:
-            full_m_rank = metrics_m
         full_curve_rank = (
-            equity_curve_series(full_m_rank["equity"]) if include_charts else []
+            equity_curve_series(assembly_full_m["equity"])
+            if include_charts and assembly_full_m is not None and assembly_full_m.get("equity") is not None
+            else []
         )
         candidates.append(
             _build_candidate(
@@ -1999,7 +2035,7 @@ def _assemble_candidates_from_records(
                 val_m,
                 oos,
                 params,
-                full_m_rank,
+                assembly_full_m,
                 full_curve_rank,
                 prices,
                 universe_by_ticker,

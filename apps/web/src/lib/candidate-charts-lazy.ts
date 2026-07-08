@@ -4,7 +4,9 @@ export function candidateHasFullCharts(c: PortfolioCandidate | undefined): boole
   if (!c) return false;
   const wh = c.analytics?.weight_history;
   const ec = c.equity_curve;
-  return Boolean((wh && wh.length > 0) || (ec && ec.length > 0));
+  const hasWeights = Array.isArray(wh) && wh.length > 0;
+  const hasEquity = Array.isArray(ec) && ec.length > 0;
+  return Boolean(hasWeights || hasEquity);
 }
 
 export function candidateHasDeepAnalytics(c: PortfolioCandidate | undefined): boolean {

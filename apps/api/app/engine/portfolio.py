@@ -793,6 +793,65 @@ def _rebalance_schedule_dynamic(
     )
 
 
+def stitch_full_path_from_slices(
+    train_m: dict[str, Any] | None,
+    val_m: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Chain IS + OOS port_ret into one continuous path for horizon metrics."""
+    if train_m is None or val_m is None:
+        return None
+    train_ret = train_m.get("port_ret")
+    val_ret = val_m.get("port_ret")
+    if train_ret is None or val_ret is None:
+        return None
+    train_series = (
+        train_ret if isinstance(train_ret, pd.Series) else pd.Series(train_ret, dtype=float)
+    )
+    val_series = (
+        val_ret if isinstance(val_ret, pd.Series) else pd.Series(val_ret, dtype=float)
+    )
+    port_ret = pd.concat([train_series.astype(float), val_series.astype(float)])
+    equity = (1.0 + port_ret).cumprod()
+    out: dict[str, Any] = {}
+    for key in (
+        "sharpe",
+        "max_drawdown",
+        "cagr",
+        "volatility",
+        "sortino",
+        "calmar",
+        "var_95",
+        "cvar_95",
+        "win_rate",
+        "turnover_avg",
+        "turnover_total",
+        "max_drawdown_duration_days",
+        "metrics_suspect",
+        "rebalance_count",
+        "rebalance_applied",
+        "rebalance_skipped",
+        "rebalance_freq",
+        "rebalance_dates",
+        "factor_summary",
+        "weight_cap_audit",
+    ):
+        if key in val_m:
+            out[key] = val_m[key]
+        elif key in train_m:
+            out[key] = train_m[key]
+    out["port_ret"] = port_ret
+    out["equity"] = equity
+    if val_m.get("last_weights") is not None:
+        out["last_weights"] = val_m["last_weights"]
+    elif train_m.get("last_weights") is not None:
+        out["last_weights"] = train_m["last_weights"]
+    if train_m.get("weight_history"):
+        out["weight_history"] = train_m.get("weight_history")
+    if train_m.get("weight_history_tickers"):
+        out["weight_history_tickers"] = train_m.get("weight_history_tickers")
+    return out
+
+
 def metrics_for_horizon_window(
     sim: dict[str, Any],
     spec: BacktestSpec,

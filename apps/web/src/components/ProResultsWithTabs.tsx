@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
+import {
+  pickCatalogChampionModelKey,
+} from "@/lib/performance-compare-chart";
 import { useI18n, type TFn } from "@/lib/i18n";
 import type {
   BacktestRequest,
@@ -60,8 +63,9 @@ function mergeAllPortfolios(base: BacktestResult): BacktestResult {
     }
   }
   const all = Array.from(allByCode.values());
+  const objective = String(base.narrative_facts.objective ?? "max_sharpe");
+  const catalogChampion = pickCatalogChampionModelKey(all, base.narrative_facts);
   all.sort((a, b) => {
-    const objective = String(base.narrative_facts.objective ?? "max_sharpe");
     const scoreOf = (x: (typeof all)[number]) => {
       const isObj = x.analytics?.sample_metrics?.in_sample?.objective_value;
       if (isObj != null) return Number(isObj);
@@ -84,6 +88,7 @@ function mergeAllPortfolios(base: BacktestResult): BacktestResult {
       ...base.narrative_facts,
       models_total_catalog: Number(base.narrative_facts.models_total_catalog ?? all.length),
       is_all_portfolios_view: true,
+      catalog_champion_model_code: catalogChampion,
     },
   };
 }

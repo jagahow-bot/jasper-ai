@@ -226,8 +226,8 @@ def _build_institutional_analytics(
     bench_ret = (
         prices[bench_t].pct_change().fillna(0.0) if bench_t in prices.columns else None
     )
-    periodic_equity = train_m["equity"] if oos and train_m is not None else None
-    holdout_equity = val_m["equity"] if val_required and val_m is not None else None
+    periodic_equity = train_m.get("equity") if oos and train_m is not None else None
+    holdout_equity = val_m.get("equity") if val_required and val_m is not None else None
 
     analytics = build_full_analytics(
         port_ret=port_ret,

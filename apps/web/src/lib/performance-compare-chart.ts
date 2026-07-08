@@ -71,6 +71,99 @@ export function resolveOutOfSampleMetrics(
   };
 }
 
+const ROUND_CHAMPION_TIE_THRESHOLDS: Record<string, number> = {
+  max_return: 0.005,
+  min_max_drawdown: 0.005,
+  min_cvar: 0.005,
+  max_sharpe: 0.05,
+  max_sortino: 0.05,
+  mean_variance_utility: 0.05,
+  risk_parity_erc: 0.05,
+  max_diversification: 0.005,
+  custom: 0.05,
+  dynamic: 0.05,
+  dynamic_comprehensive: 0.05,
+};
+
+function championTieThreshold(objective: string): number {
+  return ROUND_CHAMPION_TIE_THRESHOLDS[objective] ?? 0.005;
+}
+
+function championSelectionHorizon(
+  narrativeFacts?: Record<string, unknown> | null,
+): PerformanceCompareHorizon {
+  const oos =
+    narrativeFacts?.enable_oos === true ||
+    narrativeFacts?.oos_enabled === true;
+  return oos ? "in_sample" : "full_sample";
+}
+
+function championPrimaryScore(
+  c: PerformanceCompareCandidate,
+  objective: string,
+  horizon: PerformanceCompareHorizon,
+): number {
+  const m = resolveHorizonMetrics(c, horizon);
+  if (m.objective_value != null) return Number(m.objective_value);
+  if (objective === "max_return") return Number(m.cagr ?? -1e9);
+  if (objective === "min_max_drawdown") return -Math.abs(Number(m.max_drawdown ?? 0));
+  if (objective === "max_sortino") return Number(m.sortino ?? -1e9);
+  if (objective === "min_cvar") return Number((c as { cvar_95?: number }).cvar_95 ?? -1e9);
+  return Number(m.sharpe ?? -1e9);
+}
+
+function championSortKey(
+  c: PerformanceCompareCandidate,
+  objective: string,
+  horizon: PerformanceCompareHorizon,
+  bestPrimary: number,
+  tieThreshold: number,
+): [number, number, number, number] {
+  const m = resolveHorizonMetrics(c, horizon);
+  const primary = championPrimaryScore(c, objective, horizon);
+  const sharpe = Number(m.sharpe ?? -1e9);
+  const mdd = Number(m.max_drawdown ?? -1e9);
+  if (Math.abs(primary - bestPrimary) <= tieThreshold) {
+    return [bestPrimary, sharpe, mdd, primary];
+  }
+  return [primary, -1e9, -1e9, primary];
+}
+
+/** Objective-first champion across the full catalog (ALL ROUNDS tab). */
+export function pickCatalogChampionModelKey(
+  candidates: PerformanceCompareCandidate[],
+  narrativeFacts?: Record<string, unknown> | null,
+): string | null {
+  if (!candidates.length) return null;
+  const objective = String(narrativeFacts?.objective ?? "max_sharpe");
+  const horizon = championSelectionHorizon(narrativeFacts);
+  const tieThreshold = championTieThreshold(objective);
+  const primaries = candidates.map((c) =>
+    championPrimaryScore(c, objective, horizon),
+  );
+  const bestPrimary = Math.max(...primaries);
+  let bestIdx = 0;
+  let bestKey: [number, number, number, number] = [-1e9, -1e9, -1e9, -1e9];
+  for (let i = 0; i < candidates.length; i++) {
+    const key = championSortKey(
+      candidates[i],
+      objective,
+      horizon,
+      bestPrimary,
+      tieThreshold,
+    );
+    if (
+      key[0] > bestKey[0] ||
+      (key[0] === bestKey[0] && key[1] > bestKey[1]) ||
+      (key[0] === bestKey[0] && key[1] === bestKey[1] && key[2] > bestKey[2])
+    ) {
+      bestKey = key;
+      bestIdx = i;
+    }
+  }
+  return candidateModelKey(candidates[bestIdx]);
+}
+
 export function mapCandidatesToPerformanceHorizon(
   candidates: PerformanceCompareCandidate[],
   horizon: PerformanceCompareHorizon = "full_sample",
@@ -131,6 +224,18 @@ export function resolveChampionModelKey(
   candidates: PerformanceCompareCandidate[],
   narrativeFacts?: Record<string, unknown> | null,
 ): string | null {
+  if (narrativeFacts?.is_all_portfolios_view) {
+    const catalog = narrativeFacts?.catalog_champion_model_code;
+    if (typeof catalog === "string" && catalog.trim()) {
+      const code = catalog.trim().toUpperCase();
+      const match = candidates.find((c) => candidateModelKey(c) === code);
+      if (match) return candidateModelKey(match);
+      return code;
+    }
+    const picked = pickCatalogChampionModelKey(candidates, narrativeFacts);
+    if (picked) return picked;
+  }
+
   const aiChampion = narrativeFacts?.ai_champion_model_code;
   if (typeof aiChampion === "string" && aiChampion.trim()) {
     const code = aiChampion.trim().toUpperCase();
