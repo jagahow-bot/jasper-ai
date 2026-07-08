@@ -123,6 +123,29 @@ export async function createJob(req: BacktestRequest): Promise<{ job_id: string 
   });
 }
 
+export type ContinueJobOptions = {
+  extra_refinement_rounds?: number;
+  extra_trials_per_round?: number | null;
+  extra_trials?: number | null;
+};
+
+export async function continueJob(
+  priorJobId: string,
+  options: ContinueJobOptions = {},
+): Promise<{ job_id: string; continued_from: string }> {
+  return fetchJson<{ job_id: string; continued_from: string }>(
+    `/jobs/${encodeURIComponent(priorJobId)}/continue`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        extra_refinement_rounds: options.extra_refinement_rounds ?? 4,
+        extra_trials_per_round: options.extra_trials_per_round ?? null,
+        extra_trials: options.extra_trials ?? null,
+      }),
+    },
+  );
+}
+
 export async function getJobProgress(jobId: string): Promise<JobProgress> {
   return fetchJson<JobProgress>(`/jobs/${jobId}/progress`);
 }

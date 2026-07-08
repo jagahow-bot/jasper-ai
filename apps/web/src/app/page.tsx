@@ -11,6 +11,7 @@ import { ProgressPanel } from "@/components/ProgressPanel";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 import {
+  continueJob,
   createJob,
   downloadCsv,
   fetchApiHealth,
@@ -93,6 +94,7 @@ export default function HomePage() {
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState<
     boolean | null
   >(null);
+  const [continueLoading, setContinueLoading] = useState(false);
   const universeMeta = useMemo(() => getUniverseMeta(), []);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -373,6 +375,51 @@ export default function HomePage() {
     [runBacktest, t],
   );
 
+  const onContinueRefinement = useCallback(
+    async (options: {
+      extraRefinementRounds: number;
+      extraTrialsPerRound: number;
+      extraTrials?: number;
+    }) => {
+      if (!result?.job_id) return;
+      setContinueLoading(true);
+      pushMessage(setMessages, "user", t("chat.continueRefinementUser"));
+      pushMessage(setMessages, "assistant", t("chat.continueRefinementAck"));
+      setPhase("running");
+      setResult(null);
+      setNarrative("");
+      setStatusFeed([]);
+      lastProgressMsg.current = "";
+      lastRoundRef.current = 0;
+      try {
+        const { job_id, continued_from } = await continueJob(result.job_id, {
+          extra_refinement_rounds: options.extraRefinementRounds,
+          extra_trials_per_round: options.extraTrialsPerRound,
+          extra_trials: options.extraTrials ?? null,
+        });
+        const priorReq = await getJobRequest(continued_from);
+        setRequest(priorReq);
+        setJobId(job_id);
+        setActiveJobId(job_id);
+        let done = false;
+        while (!done) {
+          done = await pollJob(job_id);
+          if (!done) await new Promise((r) => setTimeout(r, 400));
+        }
+      } catch (e) {
+        pushMessage(
+          setMessages,
+          "system",
+          e instanceof Error ? e.message : t("chat.runFailed"),
+        );
+        setPhase("constraints");
+      } finally {
+        setContinueLoading(false);
+      }
+    },
+    [pollJob, result?.job_id, t],
+  );
+
   const header = useMemo(() => {
     const labels: Record<WizardPhase, string> = {
       scenario: t("header.phase.scenario"),
@@ -469,6 +516,8 @@ export default function HomePage() {
                 onExport={() => downloadCsv(result, "portfolio")}
                 onQuickTweak={onQuickTweak}
                 onQuickTweakAndRun={onQuickTweakAndRun}
+                onContinueRefinement={onContinueRefinement}
+                continueLoading={continueLoading}
               />
             ) : (
               <ResultsDashboard
@@ -482,6 +531,8 @@ export default function HomePage() {
                 onExport={() => downloadCsv(result, "portfolio")}
                 onQuickTweak={onQuickTweak}
                 onQuickTweakAndRun={onQuickTweakAndRun}
+                onContinueRefinement={onContinueRefinement}
+                continueLoading={continueLoading}
               />
             )
           )}

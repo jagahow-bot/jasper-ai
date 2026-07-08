@@ -20,6 +20,12 @@ type Props = {
   onExport: () => void;
   onQuickTweak: (next: BacktestRequest, label: string) => void;
   onQuickTweakAndRun: (next: BacktestRequest, label: string) => void;
+  onContinueRefinement?: (options: {
+    extraRefinementRounds: number;
+    extraTrialsPerRound: number;
+    extraTrials?: number;
+  }) => void;
+  continueLoading?: boolean;
 };
 
 function mergeRoundIntoResult(

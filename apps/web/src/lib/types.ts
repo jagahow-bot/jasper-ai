@@ -101,6 +101,11 @@ export interface BacktestRequest {
   report_language?: string;
   /** Optional email to notify when the (server-side) job finishes or fails. */
   notify_email?: string | null;
+  /** Prior job to continue refinement from (server-side warm start). */
+  continue_from_job_id?: string | null;
+  extra_refinement_rounds?: number | null;
+  extra_trials_per_round?: number | null;
+  extra_trials?: number | null;
 }
 
 export interface ConvergencePreviewPoint {

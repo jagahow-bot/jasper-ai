@@ -218,6 +218,28 @@ class BacktestRequest(BaseModel):
             "blocks the run."
         ),
     )
+    continue_from_job_id: str | None = Field(
+        default=None,
+        description="Prior job to warm-start from (continuation refinement).",
+    )
+    extra_refinement_rounds: int | None = Field(
+        default=None,
+        ge=1,
+        le=30,
+        description="Pro: additional champion-challenger rounds when continuing.",
+    )
+    extra_trials_per_round: int | None = Field(
+        default=None,
+        ge=2,
+        le=100,
+        description="Pro: override challengers-per-round for continuation runs.",
+    )
+    extra_trials: int | None = Field(
+        default=None,
+        ge=5,
+        le=200,
+        description="Standard mode: extra Optuna trials when continuing.",
+    )
 
     @field_validator("notify_email", mode="before")
     @classmethod
@@ -241,6 +263,19 @@ class BacktestRequest(BaseModel):
         if legacy in from_list:
             return from_list
         return [legacy, *from_list]
+
+
+class ContinueJobRequest(BaseModel):
+    """Body for POST /jobs/{job_id}/continue — extend a below-benchmark run."""
+
+    extra_refinement_rounds: int = Field(default=4, ge=1, le=30)
+    extra_trials_per_round: int | None = Field(default=None, ge=2, le=100)
+    extra_trials: int | None = Field(
+        default=None,
+        ge=5,
+        le=200,
+        description="Standard mode only: additional Optuna trials.",
+    )
 
 
 class JobSummary(BaseModel):

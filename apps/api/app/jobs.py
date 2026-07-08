@@ -14,6 +14,11 @@ from app.candidate_charts import (
 from app.engine.backtest import run_backtest, _is_pro_mode
 from app.engine.report_sim_cache import TrialReportCache
 from app.job_history import list_job_summaries, load_persisted_job, persist_completed_job
+from app.job_continuation import (
+    apply_continuation_request,
+    continuation_runtime_state,
+    extract_continuation_snapshot,
+)
 from app.models import (
     BacktestRequest,
     BacktestResult,
@@ -25,6 +30,7 @@ from app.models import (
 
 
 _jobs: dict[str, dict] = {}
+_continuation_snapshots: dict[str, dict] = {}
 _lock = threading.Lock()
 
 
@@ -87,7 +93,7 @@ def _estimated_trials_total(req: BacktestRequest) -> int:
     return req.trials
 
 
-def create_job(req: BacktestRequest) -> str:
+def create_job(req: BacktestRequest, *, continuation_snapshot: dict | None = None) -> str:
     job_id = str(uuid.uuid4())
     trials_total = _estimated_trials_total(req)
     with _lock:
@@ -106,10 +112,60 @@ def create_job(req: BacktestRequest) -> str:
             "report_cache": None,
             "error": None,
         }
+        if continuation_snapshot is not None:
+            snap = dict(continuation_snapshot)
+            snap["prior_job_id"] = snap.get("prior_job_id") or req.continue_from_job_id
+            _continuation_snapshots[job_id] = snap
 
     thread = threading.Thread(target=_run_job, args=(job_id, req), daemon=True)
     thread.start()
     return job_id
+
+
+def _load_completed_job(job_id: str) -> tuple[BacktestRequest, BacktestResult] | None:
+    with _lock:
+        job = _jobs.get(job_id)
+        if job and job.get("result") is not None and job.get("request") is not None:
+            return job["request"], job["result"]
+    loaded = load_persisted_job(job_id)
+    if loaded is not None:
+        req, result = loaded
+        _hydrate_from_disk(job_id)
+        return req, result
+    return None
+
+
+def continue_job(
+    prior_job_id: str,
+    *,
+    extra_refinement_rounds: int = 4,
+    extra_trials_per_round: int | None = None,
+    extra_trials: int | None = None,
+) -> str:
+    """Queue a new job that carries over prior search state (below-benchmark refinement)."""
+    loaded = _load_completed_job(prior_job_id)
+    if loaded is None:
+        raise LookupError("Prior job not found or not completed")
+    prior_req, prior_result = loaded
+    snapshot = extract_continuation_snapshot(prior_result)
+    if snapshot is None:
+        raise ValueError("Prior job has no continuation state")
+    snapshot = dict(snapshot)
+    snapshot["prior_job_id"] = prior_job_id
+    new_req = apply_continuation_request(
+        prior_req,
+        snapshot,
+        extra_refinement_rounds=extra_refinement_rounds,
+        extra_trials_per_round=extra_trials_per_round,
+        extra_trials=extra_trials,
+        prior_job_id=prior_job_id,
+    )
+    return create_job(new_req, continuation_snapshot=snapshot)
+
+
+def pop_continuation_snapshot(job_id: str) -> dict | None:
+    with _lock:
+        return _continuation_snapshots.pop(job_id, None)
 
 
 def _run_job(job_id: str, req: BacktestRequest) -> None:

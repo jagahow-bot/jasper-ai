@@ -8,6 +8,7 @@ from app.models import (
     BacktestRequest,
     BacktestResult,
     CandidateChartsPayload,
+    ContinueJobRequest,
     JobProgress,
     JobSummary,
 )
@@ -23,6 +24,27 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 def create_backtest_job(req: BacktestRequest) -> dict:
     job_id = job_service.create_job(req)
     return {"job_id": job_id}
+
+
+@router.post("/{job_id}/continue", response_model=dict)
+def continue_backtest_job(job_id: str, body: ContinueJobRequest) -> dict:
+    progress = job_service.get_progress(job_id)
+    if not progress:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if progress.status.value != "completed":
+        raise HTTPException(status_code=409, detail="Prior job must be completed")
+    try:
+        new_job_id = job_service.continue_job(
+            job_id,
+            extra_refinement_rounds=body.extra_refinement_rounds,
+            extra_trials_per_round=body.extra_trials_per_round,
+            extra_trials=body.extra_trials,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"job_id": new_job_id, "continued_from": job_id}
 
 
 @router.get("", response_model=list[JobSummary])
