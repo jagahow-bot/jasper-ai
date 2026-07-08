@@ -63,6 +63,7 @@ import {
   buildCompareEffectKey,
   computeAllCandidatesBelowBenchmark,
 } from "@/lib/compare-summary";
+import { ContinueRefinementCTA } from "@/components/ContinueRefinementCTA";
 import { fetchCandidateCharts } from "@/lib/api";
 import {
   candidateHasDeepAnalytics,
@@ -163,6 +164,12 @@ type Props = {
   onExport: () => void;
   onQuickTweak: (next: BacktestRequest, label: string) => void;
   onQuickTweakAndRun: (next: BacktestRequest, label: string) => void;
+  onContinueRefinement?: (options: {
+    extraRefinementRounds: number;
+    extraTrialsPerRound: number;
+    extraTrials?: number;
+  }) => void;
+  continueLoading?: boolean;
 };
 
 export function ResultsDashboard({
@@ -174,6 +181,8 @@ export function ResultsDashboard({
   onExport,
   onQuickTweak,
   onQuickTweakAndRun,
+  onContinueRefinement,
+  continueLoading = false,
 }: Props) {
   const { t, lang } = useI18n();
   const chartTick = chartTickFontSize();
@@ -202,6 +211,16 @@ export function ResultsDashboard({
   );
 
   const championNarrativeFacts = result.narrative_facts;
+  const warmStartFacts = championNarrativeFacts.warm_start as
+    | {
+        matched?: boolean;
+        match_type?: string;
+        matched_job_id?: string;
+        seeded_model_code?: string;
+        improved?: boolean | null;
+      }
+    | undefined
+    | null;
 
   useEffect(() => {
     setCompareSummary("");
@@ -1462,6 +1481,24 @@ export function ResultsDashboard({
           {(Number(result.narrative_facts.max_weight_observed ?? 0) * 100).toFixed(0)}%)
           {result.narrative_facts.oos_enabled ? ` · ${t("results.selectionHint")}` : ""}
         </p>
+        {warmStartFacts?.matched ? (
+          <p className="ui-hint mt-2 text-[#7ee8ff]">
+            {t(
+              warmStartFacts.match_type === "fuzzy"
+                ? "results.warmStartFuzzy"
+                : "results.warmStartExact",
+              {
+                code: String(warmStartFacts.seeded_model_code ?? "—"),
+                job: String(warmStartFacts.matched_job_id ?? "—").slice(0, 8),
+              },
+            )}
+            {warmStartFacts.improved === true
+              ? ` · ${t("results.warmStartImproved")}`
+              : warmStartFacts.improved === false
+                ? ` · ${t("results.warmStartKept")}`
+                : ""}
+          </p>
+        ) : null}
         {weightCapViolation ? (
           <p className="ui-body mt-2 border-2 border-[#ff2bd6] bg-[rgba(255,43,214,0.08)] px-2 py-1 text-[#ff9ae8]">
             {t("results.weightCapBreach")}{" "}
@@ -2151,23 +2188,34 @@ export function ResultsDashboard({
 
 
       {allBelowBenchmark ? (
-        <div className="pixel-panel border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)]">
-          <p className="ui-section-title mb-1 text-[var(--amber)]">
-            {t("results.belowBenchmarkTitle")}
-          </p>
-          <p className="ui-body text-[#cbd5e1]">
-            {t("results.belowBenchmarkBody", { benchmark: benchTicker })}
-          </p>
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={onRerun}
-              className="pixel-btn pixel-btn-amber"
-            >
-              {t("results.iterateFromHere")}
-            </button>
+        onContinueRefinement ? (
+          <ContinueRefinementCTA
+            jobId={result.job_id}
+            request={request}
+            benchmarkTicker={benchTicker}
+            onContinue={onContinueRefinement}
+            onAdjustConfig={onRerun}
+            loading={continueLoading}
+          />
+        ) : (
+          <div className="pixel-panel border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)]">
+            <p className="ui-section-title mb-1 text-[var(--amber)]">
+              {t("results.belowBenchmarkTitle")}
+            </p>
+            <p className="ui-body text-[#cbd5e1]">
+              {t("results.belowBenchmarkBody", { benchmark: benchTicker })}
+            </p>
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={onRerun}
+                className="pixel-btn pixel-btn-amber"
+              >
+                {t("results.iterateFromHere")}
+              </button>
+            </div>
           </div>
-        </div>
+        )
       ) : null}
 
       <div className="pixel-panel">

@@ -129,6 +129,16 @@ const en: Dict = {
   "results.belowBenchmarkBody":
     "None of the trials beat {benchmark} on the selected objective over this window. That's a real result, not a failure of the tool — you can keep iterating from this run: adjust the factors, constraints, universe, or objective and re-run without starting over.",
   "results.iterateFromHere": "Adjust & re-run",
+  "results.continueRefinementTitle": "Below benchmark — continue refining?",
+  "results.continueRefinementBody":
+    "None of the trials beat {benchmark} on the objective over this window. You can add more Pro rounds (or trials) and carry over the champion, learning history, and AI context from this run.",
+  "results.continueRefinementCta": "Continue optimization",
+  "results.continueRefinementRunning": "Continuing…",
+  "results.continueRefinementHint": "Carries champion pool and prior rounds from job {job}…",
+  "results.extraRoundsLabel": "Additional rounds",
+  "results.extraTrialsPerRoundLabel": "Trials per round (challengers)",
+  "results.extraTrialsLabel": "Additional Optuna trials",
+  "results.continueFromRound": "Will resume at round {round}",
 
   // Conversation log
   "chat.welcome":
@@ -153,6 +163,9 @@ const en: Dict = {
   "chat.tweakRerun": "Adjust and rerun: {label}",
   "chat.ackRerun": "Rerunning with your updated settings…",
   "chat.backToConfig": "Back to setup",
+  "chat.continueRefinementUser": "Continue optimization from this run",
+  "chat.continueRefinementAck":
+    "Continuing with prior champion and learning history — more rounds incoming…",
 
   // Common labels
   "common.on": "ON",
@@ -505,6 +518,10 @@ const en: Dict = {
   "results.sortTableBy": "Sort table by",
   "results.inSampleSelection": "In-Sample (selection)",
   "results.engine": "engine",
+  "results.warmStartExact": "Warm-started from prior champion {code} (job {job})",
+  "results.warmStartFuzzy": "Warm-started from prior champion {code} (job {job}; period end differs)",
+  "results.warmStartImproved": "New champion beat the cached baseline",
+  "results.warmStartKept": "Cached champion still competitive",
   "results.holdings": "holdings",
   "results.cap": "cap",
   "results.weightChartMayListMore": "the holdings chart may show more tickers across rebalances",
@@ -932,6 +949,16 @@ const zh: Dict = {
   "results.belowBenchmarkBody":
     "在此區間內，沒有任何一組試驗在所選目標上勝過 {benchmark}。這是真實的結果，並非工具的問題——你可以從本次執行繼續迭代：調整因子、限制條件、標的池或目標後重新執行，無需從頭開始。",
   "results.iterateFromHere": "調整並重新執行",
+  "results.continueRefinementTitle": "未超越基準，是否繼續優化？",
+  "results.continueRefinementBody":
+    "在此區間內，沒有任何試驗在所選目標上勝過 {benchmark}。可追加 Pro 輪次（或每輪試驗數），並帶入本次的冠軍、學習紀錄與 AI 脈絡繼續搜尋。",
+  "results.continueRefinementCta": "繼續優化",
+  "results.continueRefinementRunning": "延續優化中…",
+  "results.continueRefinementHint": "帶入 job {job}… 的冠軍池與先前輪次紀錄",
+  "results.extraRoundsLabel": "追加輪次",
+  "results.extraTrialsPerRoundLabel": "每輪試驗數（挑戰者）",
+  "results.extraTrialsLabel": "追加 Optuna 試驗",
+  "results.continueFromRound": "將從第 {round} 輪繼續",
   "results.exportCsv": "匯出 CSV",
 
   // Conversation log
@@ -954,6 +981,8 @@ const zh: Dict = {
   "chat.tweakRerun": "調整並重新執行：{label}",
   "chat.ackRerun": "正以更新後的設定重新執行…",
   "chat.backToConfig": "返回設定",
+  "chat.continueRefinementUser": "從本次結果繼續優化",
+  "chat.continueRefinementAck": "帶入先前冠軍與學習紀錄，追加輪次進行中…",
 
   // Common labels
   "common.on": "開",
@@ -1300,6 +1329,10 @@ const zh: Dict = {
   "results.sortTableBy": "表格排序依據",
   "results.inSampleSelection": "樣本內（挑選）",
   "results.engine": "引擎",
+  "results.warmStartExact": "以先前冠軍 {code} 為起點繼續優化（job {job}）",
+  "results.warmStartFuzzy": "以先前冠軍 {code} 為起點繼續優化（job {job}；回測終點不同）",
+  "results.warmStartImproved": "新冠軍超越快取基準",
+  "results.warmStartKept": "快取冠軍仍具競爭力",
   "results.holdings": "持股",
   "results.cap": "上限",
   "results.weightChartMayListMore": "持股圖表可能會顯示跨再平衡的更多標的",
@@ -1714,6 +1747,16 @@ const ko: Dict = {
   "results.belowBenchmarkBody":
     "이 기간 동안 선택한 목표에서 {benchmark}를 이긴 시도가 하나도 없습니다. 이는 도구의 문제가 아니라 실제 결과입니다 — 처음부터 다시 시작할 필요 없이 이번 실행에서 계속 반복할 수 있습니다: 팩터, 제약, 유니버스 또는 목표를 조정한 뒤 다시 실행하세요.",
   "results.iterateFromHere": "조정 후 다시 실행",
+  "results.continueRefinementTitle": "벤치마크 미달 — 최적화를 이어갈까요?",
+  "results.continueRefinementBody":
+    "이 기간 동안 선택한 목표에서 {benchmark}를 이긴 시도가 없습니다. Pro 라운드(또는 시도 수)를 추가하고, 이번 실행의 챔피언·학습 기록·AI 맥락을 이어서 탐색할 수 있습니다.",
+  "results.continueRefinementCta": "최적화 계속",
+  "results.continueRefinementRunning": "이어서 실행 중…",
+  "results.continueRefinementHint": "job {job}… 의 챔피언 풀과 이전 라운드 기록을 유지합니다",
+  "results.extraRoundsLabel": "추가 라운드",
+  "results.extraTrialsPerRoundLabel": "라운드당 시도 수(도전자)",
+  "results.extraTrialsLabel": "추가 Optuna 시도",
+  "results.continueFromRound": "{round}라운드부터 재개",
   "results.exportCsv": "CSV 내보내기",
 
   // Conversation log
@@ -1736,6 +1779,8 @@ const ko: Dict = {
   "chat.tweakRerun": "조정 후 다시 실행: {label}",
   "chat.ackRerun": "업데이트된 설정으로 다시 실행하는 중…",
   "chat.backToConfig": "설정으로 돌아가기",
+  "chat.continueRefinementUser": "이번 실행에서 최적화 이어하기",
+  "chat.continueRefinementAck": "이전 챔피언과 학습 기록을 유지한 채 추가 라운드를 실행합니다…",
 
   // Common labels
   "common.on": "켜기",
@@ -2082,6 +2127,10 @@ const ko: Dict = {
   "results.sortTableBy": "표 정렬 기준",
   "results.inSampleSelection": "인샘플(선택)",
   "results.engine": "엔진",
+  "results.warmStartExact": "이전 챔피언 {code}에서 최적화 재개 (job {job})",
+  "results.warmStartFuzzy": "이전 챔피언 {code}에서 최적화 재개 (job {job}; 기간 종료일 다름)",
+  "results.warmStartImproved": "새 챔피언이 캐시 기준을 상회",
+  "results.warmStartKept": "캐시 챔피언이 여전히 경쟁력 있음",
   "results.holdings": "보유 종목",
   "results.cap": "상한",
   "results.weightChartMayListMore": "보유 종목 차트에는 리밸런싱 전반에 걸쳐 더 많은 종목이 표시될 수 있음",

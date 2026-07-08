@@ -12,6 +12,13 @@ logger = logging.getLogger(__name__)
 import numpy as np
 import pandas as pd
 
+from app.champion_registry import CachedChampion, lookup_champion, record_champion
+from app.job_continuation import (
+    build_continuation_snapshot_from_meta,
+    build_standard_snapshot_from_champion,
+    continuation_runtime_state,
+    extract_continuation_snapshot,
+)
 from app.engine.data import fetch_prices
 from app.engine.asset_class_policy import (
     class_budget_from_params,
@@ -433,6 +440,65 @@ def _record_objective_sort_value(
     return float(score)
 
 
+def _warm_start_progress_message(lang: str, cached: CachedChampion, req: BacktestRequest) -> str:
+    short_job = cached.job_id[:8]
+    if lang == "zh":
+        base = (
+            f"發現相同情境的歷史紀錄（job {short_job}…），"
+            f"以先前冠軍 {cached.model_code} 為起點繼續優化"
+        )
+        if cached.match_type == "fuzzy":
+            base += f"（回測終點不同：快取 {cached.end_date}，本次 {req.end_date}）"
+        return base
+    if lang == "ko":
+        base = (
+            f"동일 시나리오 기록 발견 (job {short_job}…), "
+            f"이전 챔피언 {cached.model_code}에서 최적화 재개"
+        )
+        if cached.match_type == "fuzzy":
+            base += f" (기간 종료일 다름: 캐시 {cached.end_date}, 이번 {req.end_date})"
+        return base
+    base = (
+        f"Found prior run for same scenario (job {short_job}…), "
+        f"warm-starting from champion {cached.model_code}"
+    )
+    if cached.match_type == "fuzzy":
+        base += f" (end date differs: cached {cached.end_date}, this run {req.end_date})"
+    return base
+
+
+def _champion_record_from_cache(
+    cached: CachedChampion,
+) -> tuple[float, dict, dict]:
+    params = dict(cached.champion_params)
+    params["model_code"] = cached.model_code
+    metrics = {
+        "sharpe": float(cached.sharpe or 0.0),
+        "cagr": float(cached.cagr or 0.0),
+        "max_drawdown": float(cached.max_drawdown or 0.0),
+        "raw_score": float(cached.objective_score or 0.0),
+    }
+    score = float(cached.objective_score or 0.0)
+    return score, params, metrics
+
+
+def _warm_start_facts(cached: CachedChampion, req: BacktestRequest) -> dict[str, Any]:
+    return {
+        "matched": True,
+        "match_type": cached.match_type,
+        "matched_job_id": cached.job_id,
+        "seeded_model_code": cached.model_code,
+        "cached_objective_score": cached.objective_score,
+        "cached_sharpe": cached.sharpe,
+        "cached_end_date": cached.end_date,
+        "period_note": (
+            "exact period match"
+            if cached.match_type == "exact"
+            else f"period differs (cached end {cached.end_date}, this run {req.end_date})"
+        ),
+    }
+
+
 def _run_iterative_search(
     req: BacktestRequest,
     *,
@@ -449,6 +515,8 @@ def _run_iterative_search(
     report_progress,
     trial_report_cache: TrialReportCache | None = None,
     dynamic_ctx: dict[str, Any] | None = None,
+    initial_champion_record: tuple[float, dict, dict] | None = None,
+    continuation_state: dict[str, Any] | None = None,
 ) -> tuple[list[tuple[float, dict, dict]], list[dict[str, Any]], dict[str, Any]]:
     """Champion-challenger rounds until plateau or max rounds."""
     trial_objective = trial_scoring_objective(objective_effective)
@@ -460,28 +528,73 @@ def _run_iterative_search(
     max_rounds = int(req.refinement_max_rounds)
     patience = req.refinement_patience
     min_gain = float(req.refinement_min_improvement)
-    # Round 2+ enqueue champion re-sim as an extra Optuna trial on top of challengers.
-    est_trials = batch0 + (challengers + 1) * max(0, max_rounds - 1)
+    start_round_idx = 0
+    if continuation_state and continuation_state.get("mode") == "pro":
+        start_round_idx = int(continuation_state.get("start_round_idx") or 0)
+    remaining_rounds = max(0, max_rounds - start_round_idx)
+    if start_round_idx > 0:
+        est_trials = int(continuation_state.get("global_trial") or 0) + (
+            (challengers + 1) * remaining_rounds
+        )
+    else:
+        est_trials = batch0 + (challengers + 1) * max(0, max_rounds - 1)
     all_records: list[tuple[float, dict, dict]] = []
     convergence_history: list[dict[str, Any]] = []
     learning_trials: list[dict[str, Any]] = []
 
-    champion_score = float("-inf")
-    champion_record: tuple[float, dict, dict] | None = None
-    rounds_without_gain = 0
-    global_trial = 0
-    ai_rationales: list[str] = []
+    if continuation_state and continuation_state.get("mode") == "pro":
+        initial_champion_record = (
+            continuation_state.get("initial_champion_record") or initial_champion_record
+        )
+        learning_trials = list(continuation_state.get("learning_trials") or [])
+        convergence_history = list(continuation_state.get("convergence_history") or [])
+        all_records = list(continuation_state.get("top_records") or [])
+
+    champion_record: tuple[float, dict, dict] | None = initial_champion_record
+    champion_score = (
+        float(initial_champion_record[0]) if initial_champion_record is not None else float("-inf")
+    )
+    rounds_without_gain = int(
+        (continuation_state or {}).get("rounds_without_gain") or 0
+    )
+    global_trial = int((continuation_state or {}).get("global_trial") or 0)
+    ai_rationales: list[str] = list((continuation_state or {}).get("ai_rationales") or [])
     per_round: list[dict[str, Any]] = []
-    prior_challenger_signatures: set[str] = set()
-    next_model_no = [1]
-    retired_model_codes: set[str] = set()
-    carry_champion_model_code: str | None = None
-    prior_round_setup: dict[str, Any] | None = None
-    prior_regime_setups: dict[str, Any] | None = None
-    prior_regime_factor_ranges: dict[str, Any] | None = None
-    prior_regime_class_quotas: dict[str, Any] | None = None
-    prior_factor_ranges: dict[str, Any] | None = None
-    prior_factor_choices: dict[str, Any] | None = None
+    prior_challenger_signatures: set[str] = set(
+        (continuation_state or {}).get("prior_challenger_signatures") or set()
+    )
+    next_model_no = [
+        int((continuation_state or {}).get("next_model_no") or 1)
+    ]
+    retired_model_codes: set[str] = set(
+        (continuation_state or {}).get("retired_model_codes") or set()
+    )
+    carry_champion_model_code: str | None = (
+        (continuation_state or {}).get("carry_champion_model_code")
+        or (
+            str(initial_champion_record[1].get("model_code"))
+            if initial_champion_record and initial_champion_record[1].get("model_code")
+            else None
+        )
+    )
+    prior_round_setup: dict[str, Any] | None = (continuation_state or {}).get(
+        "prior_round_setup"
+    )
+    prior_regime_setups: dict[str, Any] | None = (continuation_state or {}).get(
+        "prior_regime_setups"
+    )
+    prior_regime_factor_ranges: dict[str, Any] | None = (continuation_state or {}).get(
+        "prior_regime_factor_ranges"
+    )
+    prior_regime_class_quotas: dict[str, Any] | None = (continuation_state or {}).get(
+        "prior_regime_class_quotas"
+    )
+    prior_factor_ranges: dict[str, Any] | None = (continuation_state or {}).get(
+        "prior_factor_ranges"
+    )
+    prior_factor_choices: dict[str, Any] | None = (continuation_state or {}).get(
+        "prior_factor_choices"
+    )
     # dynamic_ctx is present whenever regime-adaptive allocation is on (dynamic objective
     # or the standalone regime_adaptive flag), so the AI per-regime allocator matrix applies
     # to any objective, not just objective=dynamic.
@@ -495,7 +608,7 @@ def _run_iterative_search(
         "rows": int(len(prices_train)),
     }
 
-    for round_idx in range(max_rounds):
+    for round_idx in range(start_round_idx, max_rounds):
         n_trials = batch0 if round_idx == 0 else challengers
         carry_msg = (
             "incoming champion + new challengers"
@@ -1220,7 +1333,7 @@ def _run_iterative_search(
             break
 
     # all_records already in chronological Optuna trial order across rounds.
-    rounds_done = len(per_round)
+    rounds_done = start_round_idx + len(per_round)
     final_ai_champion_code: str | None = None
     for pr in per_round:
         code = pr.get("ai_champion_model_code")
@@ -1245,6 +1358,32 @@ def _run_iterative_search(
         "ai_rationales": ai_rationales[:8],
         "per_round": per_round,
         "retired_model_codes": sorted(retired_model_codes),
+        "continuation_snapshot": build_continuation_snapshot_from_meta(
+            {
+                "rounds_completed": rounds_done,
+                "trials_total": global_trial,
+                "retired_model_codes": sorted(retired_model_codes),
+                "ai_rationales": ai_rationales[:12],
+                "champion_adjusted_score": champion_score if champion_record else None,
+                "final_champion_params": (
+                    champion_record[1] if champion_record is not None else None
+                ),
+            },
+            champion_record=champion_record,
+            learning_trials=learning_trials,
+            convergence_history=convergence_history,
+            carry_champion_model_code=carry_champion_model_code,
+            next_model_no=next_model_no[0],
+            prior_challenger_signatures=prior_challenger_signatures,
+            prior_round_setup=prior_round_setup,
+            prior_regime_setups=prior_regime_setups,
+            prior_regime_factor_ranges=prior_regime_factor_ranges,
+            prior_regime_class_quotas=prior_regime_class_quotas,
+            prior_factor_ranges=prior_factor_ranges,
+            prior_factor_choices=prior_factor_choices,
+            rounds_without_gain=rounds_without_gain,
+            all_records=all_records,
+        ),
     }
     return all_records, convergence_history, meta
 
@@ -2251,6 +2390,53 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     ai_generation: dict[str, Any] = {}
     ai_param_sets: list[dict[str, Any]] = []
     trial_report_cache = TrialReportCache()
+    warm_start_info: dict[str, Any] = {"matched": False}
+    continuation_info: dict[str, Any] | None = None
+    continuation_state: dict[str, Any] | None = None
+    cached_champion: CachedChampion | None = None
+    initial_champion_record: tuple[float, dict, dict] | None = None
+    standard_champion_seed: dict[str, Any] | None = None
+    try:
+        from app.jobs import pop_continuation_snapshot
+
+        raw_snap = pop_continuation_snapshot(job_id)
+        if raw_snap is None and req.continue_from_job_id:
+            from app.job_history import load_persisted_job
+
+            loaded = load_persisted_job(req.continue_from_job_id)
+            if loaded is not None:
+                raw_snap = extract_continuation_snapshot(loaded[1])
+                if raw_snap is not None:
+                    raw_snap = dict(raw_snap)
+                    raw_snap["prior_job_id"] = req.continue_from_job_id
+        if raw_snap is not None:
+            continuation_state = continuation_runtime_state(raw_snap)
+            continuation_info = {
+                "continued_from_job_id": raw_snap.get("prior_job_id")
+                or req.continue_from_job_id,
+                "prior_rounds_completed": int(raw_snap.get("rounds_completed") or 0),
+                "prior_trials_total": int(raw_snap.get("trials_total") or 0),
+                "mode": continuation_state.get("mode"),
+            }
+            if continuation_state.get("mode") == "pro":
+                initial_champion_record = continuation_state.get("initial_champion_record")
+                if initial_champion_record and initial_champion_record[1]:
+                    standard_champion_seed = params_for_champion_seed(
+                        initial_champion_record[1]
+                    )
+            elif continuation_state.get("champion_seed"):
+                standard_champion_seed = continuation_state.get("champion_seed")
+    except Exception:  # noqa: BLE001
+        logger.exception("Continuation snapshot load failed; starting fresh")
+    if continuation_state is None:
+        try:
+            cached_champion = lookup_champion(req)
+        except Exception:  # noqa: BLE001
+            logger.exception("Champion registry lookup failed; continuing without warm start")
+        if cached_champion is not None:
+            warm_start_info = _warm_start_facts(cached_champion, req)
+            initial_champion_record = _champion_record_from_cache(cached_champion)
+            standard_champion_seed = params_for_champion_seed(cached_champion.champion_params)
 
     report_progress(
         0,
@@ -2263,6 +2449,35 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             else ""
         ),
     )
+    if cached_champion is not None:
+        report_progress(
+            0,
+            req.trials if not pro_mode else req.refinement_batch_size,
+            _warm_start_progress_message(req.report_language, cached_champion, req),
+        )
+    if continuation_info is not None:
+        prior_id = str(continuation_info.get("continued_from_job_id") or "")[:8]
+        prior_rounds = int(continuation_info.get("prior_rounds_completed") or 0)
+        if req.report_language == "zh":
+            cont_msg = (
+                f"延續先前回測（job {prior_id}…），"
+                f"從第 {prior_rounds + 1} 輪繼續優化（保留冠軍與學習紀錄）"
+            )
+        elif req.report_language == "ko":
+            cont_msg = (
+                f"이전 실행 이어하기 (job {prior_id}…), "
+                f"{prior_rounds + 1}라운드부터 최적화 재개 (챔피언·학습 기록 유지)"
+            )
+        else:
+            cont_msg = (
+                f"Continuing prior run (job {prior_id}…), "
+                f"resuming at round {prior_rounds + 1} with champion and learning history"
+            )
+        report_progress(
+            0,
+            req.trials if not pro_mode else req.refinement_batch_size,
+            cont_msg,
+        )
 
     if pro_mode:
         if not oos:
@@ -2291,6 +2506,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             report_progress=report_progress,
             trial_report_cache=trial_report_cache,
             dynamic_ctx=dynamic_ctx,
+            initial_champion_record=initial_champion_record,
+            continuation_state=continuation_state,
         )
         ai_generation = {
             "enabled": True,
@@ -2386,6 +2603,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
             ),
             enforce_class_weights=req.enforce_class_weights,
+            champion_seed=standard_champion_seed,
         )
         assign_search_model_codes(records, next_model_no=[1])
         for _, params, _ in records:
@@ -2926,6 +3144,20 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "trials_completed": trials_completed,
         "champion_model_code": champion_model_code,
         "ai_champion_model_code": ai_champion_model_code,
+        "warm_start": (
+            {
+                **warm_start_info,
+                "improved": (
+                    float(champion_record[0]) > float(warm_start_info["cached_objective_score"])
+                    if champion_record is not None
+                    and warm_start_info.get("cached_objective_score") is not None
+                    else None
+                ),
+            }
+            if warm_start_info.get("matched")
+            else None
+        ),
+        "continuation": continuation_info,
         "pro_refinement": (
             {
                 **{k: v for k, v in refinement_meta.items() if k != "per_round"},
@@ -2939,6 +3171,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
                 "refinement_challengers_per_round": req.refinement_challengers_per_round,
                 "refinement_max_rounds": req.refinement_max_rounds,
                 "refinement_patience": req.refinement_patience,
+                "continuation_snapshot": refinement_meta.get("continuation_snapshot"),
             }
             if pro_mode
             else None
@@ -3107,6 +3340,18 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             + ranking_note
         )
 
+    if pro_mode:
+        pro_snap = refinement_meta.get("continuation_snapshot")
+        if isinstance(pro_snap, dict):
+            narrative_facts["continuation_snapshot"] = pro_snap
+    else:
+        std_snap = build_standard_snapshot_from_champion(
+            champion_record,
+            trials_total=trials_completed,
+        )
+        if std_snap is not None:
+            narrative_facts["continuation_snapshot"] = std_snap
+
     result = BacktestResult(
         job_id=job_id,
         scenario_id=req.scenario_id,
@@ -3121,6 +3366,28 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         dynamic_objective_timeline=dynamic_timeline,
         dynamic_objective_benchmark_series=dynamic_benchmark_series,
     )
+    if champion_record is not None and isinstance(champion_record[1], dict):
+        try:
+            champ_metrics = champion_record[2] if len(champion_record) > 2 else {}
+            champ_code = str(
+                champion_record[1].get("model_code")
+                or narrative_facts.get("ai_champion_model_code")
+                or narrative_facts.get("champion_model_code")
+                or ""
+            )
+            record_champion(
+                req,
+                job_id,
+                champion_record[1],
+                champ_code or "CHAMPION",
+                objective_effective,
+                sharpe=champ_metrics.get("sharpe"),
+                cagr=champ_metrics.get("cagr"),
+                max_drawdown=champ_metrics.get("max_drawdown"),
+                objective_score=champion_record[0],
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Champion registry write failed")
     try:
         from app.jobs import stash_trial_report_cache
 

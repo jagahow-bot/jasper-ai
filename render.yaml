@@ -39,6 +39,8 @@ services:
         value: "1"
       - key: JOB_HISTORY_DIR
         value: /var/data/jobs
+      - key: CHAMPION_REGISTRY_PATH
+        value: /var/data/champions.db
     disk:
       name: jasper-job-history
       mountPath: /var/data
