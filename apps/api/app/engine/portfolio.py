@@ -793,6 +793,31 @@ def _rebalance_schedule_dynamic(
     )
 
 
+def _port_ret_len(sim: dict[str, Any] | None) -> int:
+    if sim is None:
+        return 0
+    port_ret = sim.get("port_ret")
+    if port_ret is None:
+        return 0
+    if isinstance(port_ret, pd.Series):
+        return len(port_ret)
+    return len(pd.Series(port_ret, dtype=float))
+
+
+def cached_full_path_needs_stitch(
+    train_m: dict[str, Any] | None,
+    val_m: dict[str, Any] | None,
+    full_m: dict[str, Any] | None,
+) -> bool:
+    """True when cached full_m port_ret is shorter than IS+OOS (e.g. OOS-only stash)."""
+    train_len = _port_ret_len(train_m)
+    val_len = _port_ret_len(val_m)
+    full_len = _port_ret_len(full_m)
+    if train_len <= 0 or val_len <= 0 or full_len <= 0:
+        return False
+    return full_len < train_len + val_len
+
+
 def stitch_full_path_from_slices(
     train_m: dict[str, Any] | None,
     val_m: dict[str, Any] | None,
@@ -814,19 +839,6 @@ def stitch_full_path_from_slices(
     equity = (1.0 + port_ret).cumprod()
     out: dict[str, Any] = {}
     for key in (
-        "sharpe",
-        "max_drawdown",
-        "cagr",
-        "volatility",
-        "sortino",
-        "calmar",
-        "var_95",
-        "cvar_95",
-        "win_rate",
-        "turnover_avg",
-        "turnover_total",
-        "max_drawdown_duration_days",
-        "metrics_suspect",
         "rebalance_count",
         "rebalance_applied",
         "rebalance_skipped",

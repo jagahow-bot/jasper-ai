@@ -40,6 +40,7 @@ from app.engine.portfolio import (
     metrics_for_horizon_window,
     simulate_dynamic_portfolio,
     split_train_validation,
+    cached_full_path_needs_stitch,
     stitch_full_path_from_slices,
     trim_prices_to_report_window,
 )
@@ -1431,7 +1432,11 @@ def _ensure_pool_full_sims_for_champion(
         params = dict(params)
         trial_report_cache.register_model_code(params)
         bundle = trial_report_cache.get_bundle(params)
-        if bundle is not None and bundle.full_m is not None and bundle.full_m.get("port_ret") is not None:
+        if bundle is not None and bundle.full_m is not None and bundle.full_m.get(
+            "port_ret"
+        ) is not None and not cached_full_path_needs_stitch(
+            bundle.train_m, bundle.val_m, bundle.full_m
+        ):
             continue
         trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
             _sim_inputs_from_params(params, req, rebalance_rule, spec)
@@ -1489,6 +1494,26 @@ def _ensure_pool_full_sims_for_champion(
             val_m=val_m,
             full_m=full_m,
         )
+
+
+def _resolve_assembly_full_m(
+    *,
+    oos: bool,
+    train_m: dict[str, Any] | None,
+    val_m: dict[str, Any] | None,
+    cached_full_m: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Prefer stitched IS+OOS path when cache full_m is missing or OOS-only."""
+    if not oos:
+        return cached_full_m
+    stitched = stitch_full_path_from_slices(train_m, val_m)
+    if stitched is None:
+        return cached_full_m
+    if cached_full_m is None or cached_full_m.get("port_ret") is None:
+        return stitched
+    if cached_full_path_needs_stitch(train_m, val_m, cached_full_m):
+        return stitched
+    return cached_full_m
 
 
 def _build_sample_metrics_block(
@@ -1938,13 +1963,12 @@ def _assemble_candidates_from_records(
         need_val = val_required and (
             val_m is None or (include_charts and val_m.get("equity") is None)
         )
-        assembly_full_m = full_m_rank
-        if oos and (
-            assembly_full_m is None or assembly_full_m.get("port_ret") is None
-        ):
-            stitched = stitch_full_path_from_slices(train_m, val_m)
-            if stitched is not None:
-                assembly_full_m = stitched
+        assembly_full_m = _resolve_assembly_full_m(
+            oos=oos,
+            train_m=train_m,
+            val_m=val_m,
+            cached_full_m=full_m_rank,
+        )
         need_full_sim = (
             assembly_full_m is None
             or assembly_full_m.get("port_ret") is None
@@ -2001,15 +2025,18 @@ def _assemble_candidates_from_records(
                     report_start=str(prices_val.index[0].date()),
                     **val_kw,
                 )
-            if oos and (
-                assembly_full_m is None or assembly_full_m.get("port_ret") is None
-            ):
-                stitched = stitch_full_path_from_slices(train_m, val_m)
-                if stitched is not None:
-                    assembly_full_m = stitched
-                    need_full_sim = include_charts and not assembly_full_m.get(
-                        "weight_history"
-                    )
+            assembly_full_m = _resolve_assembly_full_m(
+                oos=oos,
+                train_m=train_m,
+                val_m=val_m,
+                cached_full_m=assembly_full_m,
+            )
+            if oos and assembly_full_m is not None and assembly_full_m.get(
+                "port_ret"
+            ) is not None:
+                need_full_sim = include_charts and not assembly_full_m.get(
+                    "weight_history"
+                )
             if need_full_sim:
                 full_m_rank = simulate_dynamic_portfolio(
                     prices_sim_panel,

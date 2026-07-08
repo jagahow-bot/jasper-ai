@@ -58,6 +58,8 @@ export type CompareSummaryPayload = {
   pro_in_sample_champion?: string | null;
   /** When set (e.g. from Gemini compare), overrides ★ for UI alignment. */
   ai_recommended_model_code?: string | null;
+  /** Full-period / catalog champion (★ in compare narrative); not the Pro round IS pick. */
+  catalog_champion_model_code?: string | null;
   candidates: CompareCandidateLite[];
   candidate_count_total?: number;
 };
@@ -370,13 +372,14 @@ ${AI_METRIC_FORMAT_RULES}
 - When horizons.in_sample / out_of_sample / full_sample are present, compare all three (ttl = full_sample) for risk and overfitting — not in-sample alone.
 - Root sharpe/cagr are selection-view metrics; use horizons.full_sample for full-period performance.
 - candidates are sorted by objective rank (best first); rank is the score order, not catalog model number.
-- pro_in_sample_champion (if present) is the AI-selected champion (★), chosen by the AI across the Pro rounds. It is the single champion authority — reference it; do NOT override, re-pick, or introduce any other champion.
-- champion_rationale (if present) is the AI's own reason for choosing the champion (★). Explain that reasoning in plain language and say how the champion compares to the top-ranked alternatives; the champion may not top any single metric because the AI chose it for the composite score plus robustness. Numbers in champion_rationale may cite IS/OOS horizons from optimization — reconcile them with horizons.full_sample (the full-period grid the user sees).
-- Structure: (1) cross-trial overview naming specific model_code values, (2) champion (★) trade-offs vs rank-1 and at least one runner-up, (3) IS/OOS/full-sample and overfitting read, (4) benchmark honesty or iteration guidance when relevant.
-- Write narrative comparison prose only; do NOT select or recommend a different champion model.
+- catalog_champion_model_code (if present) is the full-period champion (★) — the same model the UI stars on horizons.full_sample. Reference it as the champion; do NOT substitute the Pro round in-sample winner.
+- pro_in_sample_champion (if present) is the AI's Pro-round in-sample pick only — context for how rounds evolved, NOT the ★. Round IS winner ≠ final full-period champion.
+- champion_rationale (if present) explains why the AI selected the Pro-round IS champion. Reconcile those IS/OOS numbers with horizons.full_sample; the catalog champion (★) is chosen on full-period performance.
+- Structure: (1) cross-trial overview naming specific model_code values, (2) catalog champion (★) trade-offs vs rank-1 and at least one runner-up on full_sample, (3) IS/OOS/full-sample and overfitting read, (4) benchmark honesty or iteration guidance when relevant.
+- Write narrative comparison prose only; do NOT select or recommend a different champion model than catalog_champion_model_code.
 - benchmark_metrics (if present) are the benchmark's own Sharpe/CAGR/max drawdown (decimal fractions) — use them for an honest vs-benchmark read.
 - If all_candidates_below_benchmark is true, be objective and candid: state plainly in the opening that NONE of the trials beat the benchmark on the objective over this window and that the run underperformed the benchmark — do NOT spin it as a success. Then note the user can keep iterating on THIS run (adjust factors, constraints, universe, or objective and re-run) rather than starting over, and briefly suggest what to try.
-- Open with a balanced cross-trial overview; mention pro_in_sample_champion (the AI's ★) when relevant, and never contradict it.
+- Open with a balanced cross-trial overview; mention catalog_champion_model_code (full-period ★) when relevant, and never contradict it.
 - Return ONLY valid JSON (no markdown): {"summary":"3-4 paragraphs of prose, no bullets or metric dumps"}
 No invented numbers.`;
 }
@@ -385,13 +388,18 @@ export function buildCompareUserPrompt(
   slim: CompareSummaryPayload,
   lang: AiLang = "en",
 ): string {
-  const proRef = slim.pro_in_sample_champion ?? slim.champion_model_code;
+  const catalogRef = slim.catalog_champion_model_code ?? slim.champion_model_code;
+  const catalogNote =
+    catalogRef && catalogRef !== "none"
+      ? `Full-period catalog champion ★ (reference only, do not open with this): ${catalogRef}.`
+      : "";
+  const proRef = slim.pro_in_sample_champion;
   const proNote =
-    proRef && proRef !== "none"
-      ? `AI-selected champion ★ (reference only, do not open with this): ${proRef}.`
+    proRef && proRef !== "none" && proRef !== catalogRef
+      ? `Pro-round in-sample AI pick (context only, not ★): ${proRef}.`
       : "";
   const rationaleNote = slim.champion_rationale?.trim()
-    ? `Champion rationale to explain (why the AI selected ${proRef ?? "the champion"}): ${slim.champion_rationale.trim()}`
+    ? `Pro-round rationale (why AI selected ${proRef ?? "the round champion"} on IS — not the catalog ★): ${slim.champion_rationale.trim()}`
     : "";
   const benchmarkNote = slim.all_candidates_below_benchmark
     ? `HONEST FRAMING: every trial underperformed ${slim.benchmark} on the objective this run — open by saying so plainly (do not overstate), then tell the user they can keep iterating from this run (tweak factors/constraints/universe/objective and re-run) instead of starting over.`
@@ -399,8 +407,8 @@ export function buildCompareUserPrompt(
   return (
     `Compare vs ${slim.benchmark}. Objective: "${slim.objective_label ?? slim.objective ?? "n/a"}". ` +
     `${slim.candidate_count_total ?? slim.candidates.length} trials by objective rank. ` +
-    `Narrative comparison only — the champion (★) was already chosen by the AI; explain that choice with trade-offs vs rank-1 and at least one runner-up (cite model_code), do not re-pick. ` +
-    `${proNote} ${rationaleNote} ${benchmarkNote} ` +
+    `Narrative comparison only — the full-period catalog champion (★) was already chosen; explain that choice with trade-offs vs rank-1 and at least one runner-up on horizons.full_sample (cite model_code), do not re-pick. ` +
+    `${catalogNote} ${proNote} ${rationaleNote} ${benchmarkNote} ` +
     `${languageDirective(lang)} ` +
     `Fields are decimal fractions for rates — format as % inside summary per rules.\n${JSON.stringify(slim)}`
   );
@@ -450,12 +458,13 @@ export function slimComparePayload(
 ): CompareSummaryPayload {
   const horizonMode = options?.horizonMode ?? "all";
   const sorted = sortCandidatesByRank(payload.candidates);
-  // Single champion authority: AI champion first, then champion_model_code (which
-  // the backend already mirrors from ai_champion_model_code in Pro mode).
-  const aiChampion =
+  const aiRoundChampion =
     payload.ai_champion_model_code?.trim().toUpperCase() ||
     payload.champion_model_code?.trim().toUpperCase() ||
     null;
+  const catalogChampion =
+    payload.catalog_champion_model_code?.trim().toUpperCase() ||
+    aiRoundChampion;
   const rationale = payload.champion_rationale?.trim();
   const allBelowBenchmark =
     payload.all_candidates_below_benchmark ??
@@ -466,10 +475,11 @@ export function slimComparePayload(
     objective_label: payload.objective_label,
     benchmark_metrics: payload.benchmark_metrics ?? null,
     all_candidates_below_benchmark: allBelowBenchmark,
-    champion_model_code: aiChampion,
-    ai_champion_model_code: aiChampion,
+    champion_model_code: catalogChampion,
+    ai_champion_model_code: catalogChampion,
+    catalog_champion_model_code: catalogChampion,
     champion_rationale: rationale ? rationale.slice(0, 600) : null,
-    pro_in_sample_champion: aiChampion,
+    pro_in_sample_champion: aiRoundChampion,
     candidate_count_total: sorted.length,
     candidates: sorted
       .slice(0, maxCandidates)
@@ -513,13 +523,14 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
   const obj = payload.objective_label ?? payload.objective ?? "n/a";
   const total = payload.candidate_count_total ?? sorted.length;
   const proStar = sorted.find((c) => c.is_champion === true);
-  const proCode =
+  const catalogCode =
+    payload.catalog_champion_model_code?.trim().toUpperCase() ??
     payload.ai_champion_model_code?.trim().toUpperCase() ??
     payload.champion_model_code?.trim().toUpperCase() ??
     (proStar ? candidateModelKey(proStar) : null);
   const focus = resolveCompareChampion(
     sorted,
-    payload.ai_champion_model_code ?? payload.champion_model_code,
+    catalogCode,
     payload.ai_recommended_model_code,
   ) ?? sorted[0];
   const focusCode = focus.model_code ?? "M?";
@@ -549,17 +560,19 @@ export function buildCompareFallback(payload: CompareSummaryPayload): string {
         horizonLine(focusCode, "out-of-sample", oos),
     );
   }
-  if (proCode && proCode !== candidateModelKey(focus)) {
-    const pro = sorted.find((c) => candidateModelKey(c) === proCode);
+  const proRoundCode = payload.pro_in_sample_champion?.trim().toUpperCase()
+    ?? payload.ai_champion_model_code?.trim().toUpperCase();
+  if (proRoundCode && proRoundCode !== candidateModelKey(focus)) {
+    const pro = sorted.find((c) => candidateModelKey(c) === proRoundCode);
     if (pro) {
       p2Parts.push(
-        `AI-selected champion (★) is ${proCode} (objective rank ${pro.rank ?? "—"}).`,
+        `Pro-round in-sample AI pick was ${proRoundCode} (objective rank ${pro.rank ?? "—"}); catalog full-period champion (★) is ${candidateModelKey(focus)}.`,
       );
     }
   }
   const rationale = payload.champion_rationale?.trim();
   if (rationale) {
-    p2Parts.push(`Why the AI selected ${focusCode}: ${rationale}`);
+    p2Parts.push(`Pro-round IS rationale: ${rationale}`);
   }
   const peers = sorted.filter(
     (c) => candidateModelKey(c) !== candidateModelKey(focus),

@@ -133,10 +133,11 @@ function championSortKey(
 export function pickCatalogChampionModelKey(
   candidates: PerformanceCompareCandidate[],
   narrativeFacts?: Record<string, unknown> | null,
+  horizonOverride?: PerformanceCompareHorizon,
 ): string | null {
   if (!candidates.length) return null;
   const objective = String(narrativeFacts?.objective ?? "max_sharpe");
-  const horizon = championSelectionHorizon(narrativeFacts);
+  const horizon = horizonOverride ?? championSelectionHorizon(narrativeFacts);
   const tieThreshold = championTieThreshold(objective);
   const primaries = candidates.map((c) =>
     championPrimaryScore(c, objective, horizon),

@@ -111,6 +111,45 @@ M0010 Sharpe:
     ).toBe("M0001");
   });
 
+  it("slimComparePayload uses catalog champion as ★ and keeps Pro IS pick separate", () => {
+    const slim = slimComparePayload({
+      benchmark: "VT",
+      champion_model_code: "M0005",
+      ai_champion_model_code: "M0005",
+      catalog_champion_model_code: "M0015",
+      candidates: [
+        { model_code: "M0007", rank: 1, sharpe: 1.5, is_champion: false },
+        { model_code: "M0005", rank: 5, sharpe: 1.2, is_champion: true },
+        { model_code: "M0015", rank: 15, sharpe: 1.4, is_champion: false },
+      ],
+    });
+    expect(slim.catalog_champion_model_code).toBe("M0015");
+    expect(slim.champion_model_code).toBe("M0015");
+    expect(slim.pro_in_sample_champion).toBe("M0005");
+  });
+
+  it("compare prompts reference catalog champion not Pro IS pick", () => {
+    const slim = slimComparePayload({
+      benchmark: "VT",
+      objective_label: "Dynamic",
+      ai_champion_model_code: "M0005",
+      catalog_champion_model_code: "M0015",
+      candidates: [
+        { model_code: "M0007", rank: 1, sharpe: 1.5, is_champion: false },
+        { model_code: "M0005", rank: 5, sharpe: 1.2, is_champion: true },
+        { model_code: "M0015", rank: 15, sharpe: 1.4, is_champion: false },
+      ],
+    });
+    const system = buildCompareSystemPrompt();
+    const user = buildCompareUserPrompt(slim);
+
+    expect(system).toContain("catalog_champion_model_code");
+    expect(system).toContain("Round IS winner");
+    expect(user).toContain("M0015");
+    expect(user).toContain("Pro-round in-sample");
+    expect(user).toContain("M0005");
+  });
+
   it("slimComparePayload sorts by objective rank (best first)", () => {
     const slim = slimComparePayload({
       benchmark: "VT",
@@ -150,10 +189,6 @@ M0010 Sharpe:
     expect(system).not.toContain("recommended_model_code");
     expect(user).toContain("Narrative comparison only");
     expect(user).toContain("do not open with this");
-    const payload = JSON.parse(user.slice(user.indexOf("{"))) as {
-      candidates: { model_code: string }[];
-    };
-    expect(payload.candidates[0]?.model_code).toBe("M0007");
   });
 
   it("carries champion_rationale into slim payload and prompt", () => {
@@ -174,7 +209,7 @@ M0010 Sharpe:
     const system = buildCompareSystemPrompt();
     expect(system).toContain("champion_rationale");
     const user = buildCompareUserPrompt(slim);
-    expect(user).toContain("Champion rationale to explain");
+    expect(user).toContain("Pro-round rationale");
     expect(user).toContain(rationale);
   });
 

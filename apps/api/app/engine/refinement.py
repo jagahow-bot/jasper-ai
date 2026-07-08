@@ -1126,11 +1126,10 @@ def horizon_snapshots_from_full_path(
 ) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any]]:
     """IS/OOS/full snapshots from one continuous full-period backtest (report grid source)."""
     scoring_obj = trial_scoring_objective(objective_effective)
-    full_snap = metrics_snapshot(full_m, objective_mode=scoring_obj)
+    port_ret_full = full_m.get("port_ret")
+    n_full = len(port_ret_full) if port_ret_full is not None else 0
     if oos_enabled and is_split_idx is not None and is_split_idx > 0:
-        port_ret_full = full_m.get("port_ret")
-        n_full = len(port_ret_full) if port_ret_full is not None else 0
-        if 0 < is_split_idx < n_full:
+        if port_ret_full is not None and 0 < is_split_idx < n_full:
             try:
                 is_window = metrics_for_horizon_window(
                     full_m, spec, 0, is_split_idx
@@ -1138,13 +1137,18 @@ def horizon_snapshots_from_full_path(
                 oos_window = metrics_for_horizon_window(
                     full_m, spec, is_split_idx, n_full
                 )
+                full_window = metrics_for_horizon_window(full_m, spec, 0, n_full)
                 is_snap = metrics_snapshot(is_window, objective_mode=scoring_obj)
                 oos_snap = metrics_snapshot(
                     oos_window, objective_mode=scoring_obj
                 )
+                full_snap = metrics_snapshot(
+                    full_window, objective_mode=scoring_obj
+                )
                 return is_snap, oos_snap, full_snap
             except ValueError:
                 pass
+    full_snap = metrics_snapshot(full_m, objective_mode=scoring_obj)
     is_snap = metrics_snapshot(
         train_m or full_m, objective_mode=scoring_obj
     )

@@ -53,6 +53,7 @@ import {
   candidateRowKey,
   performanceCompareRowsByChartKey,
   performanceCompareTickLabel,
+  pickCatalogChampionModelKey,
   resolveChampionCandidateIndex,
   resolveChampionModelKey,
   resolveDefaultSelectedRowKey,
@@ -278,6 +279,20 @@ export function ResultsDashboard({
     () => resolveChampionModelKey(result.candidates, championNarrativeFacts),
     [result.candidates, championNarrativeFacts],
   );
+
+  const catalogChampionForCompare = useMemo(() => {
+    const explicit = championNarrativeFacts.catalog_champion_model_code;
+    if (typeof explicit === "string" && explicit.trim()) {
+      return explicit.trim().toUpperCase();
+    }
+    return (
+      pickCatalogChampionModelKey(
+        result.candidates,
+        championNarrativeFacts,
+        "full_sample",
+      ) ?? championModelKey
+    );
+  }, [result.candidates, championNarrativeFacts, championModelKey]);
 
   const championCandidate = useMemo(() => {
     const idx = resolveChampionCandidateIndex(
@@ -587,6 +602,7 @@ export function ResultsDashboard({
               typeof result.narrative_facts.ai_champion_model_code === "string"
                 ? result.narrative_facts.ai_champion_model_code
                 : championModelKey,
+            catalog_champion_model_code: catalogChampionForCompare,
             champion_rationale: championRationale?.text ?? null,
             benchmark_metrics: benchmarkBarMetrics,
             lang,
