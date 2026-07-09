@@ -2101,36 +2101,119 @@ def _assemble_candidates_from_records(
     return candidates
 
 
+def _leaderboard_is_better_row(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    return float(a.get("in_sample_objective") or -1e9) > float(
+        b.get("in_sample_objective") or -1e9
+    )
+
+
+def _leaderboard_row_from_candidate(
+    c: PortfolioCandidate,
+    *,
+    objective_effective: str,
+) -> dict[str, Any] | None:
+    sm = (c.analytics or {}).get("sample_metrics") or {}
+    is_snap = sm.get("in_sample") or {}
+    oos_snap = sm.get("out_of_sample") or {}
+    full_snap = sm.get("full_sample") or {}
+    if not is_snap and not oos_snap:
+        return None
+    return {
+        "model_code": c.model_code,
+        "rank": c.rank,
+        "in_sample_objective": is_snap.get("objective_value"),
+        "out_of_sample_objective": oos_snap.get("objective_value"),
+        "full_sample_objective": full_snap.get("objective_value"),
+        "gap_objective": (sm.get("gap") or {}).get("objective"),
+        "in_sample_sharpe": is_snap.get("sharpe"),
+        "out_of_sample_sharpe": oos_snap.get("sharpe"),
+        "objective": objective_effective,
+        "objective_label": sm.get("objective_label")
+        or objective_label(objective_effective),
+        "selection_basis": "in_sample",
+    }
+
+
+def _leaderboard_row_from_record(
+    params: dict[str, Any],
+    metrics: dict[str, Any],
+    *,
+    objective_effective: str,
+) -> dict[str, Any] | None:
+    code = params.get("model_code")
+    if not code:
+        return None
+    is_obj = metrics.get("objective_value_is")
+    oos_obj = metrics.get("objective_value_oos")
+    train_m = metrics.get("train_metrics") or {}
+    val_m = metrics.get("validation_metrics") or {}
+    if is_obj is None and isinstance(train_m, dict) and train_m:
+        is_obj = train_m.get("objective_value")
+    if oos_obj is None and isinstance(val_m, dict) and val_m:
+        oos_obj = val_m.get("objective_value")
+    if is_obj is None and oos_obj is None:
+        return None
+    gap = metrics.get("gap_objective")
+    if gap is None and is_obj is not None and oos_obj is not None:
+        gap = round(float(is_obj) - float(oos_obj), 6)
+    rank = params.get("optuna_trial_number")
+    if rank is not None:
+        try:
+            rank = int(rank) + 1
+        except (TypeError, ValueError):
+            rank = None
+    return {
+        "model_code": str(code),
+        "rank": rank,
+        "in_sample_objective": is_obj,
+        "out_of_sample_objective": oos_obj,
+        "full_sample_objective": metrics.get("objective_value_full"),
+        "gap_objective": gap,
+        "in_sample_sharpe": (
+            train_m.get("sharpe") if isinstance(train_m, dict) else None
+        ),
+        "out_of_sample_sharpe": (
+            val_m.get("sharpe") if isinstance(val_m, dict) else None
+        ),
+        "objective": objective_effective,
+        "objective_label": objective_label(objective_effective),
+        "selection_basis": "in_sample",
+    }
+
+
 def _oos_leaderboard(
     candidates: list[PortfolioCandidate],
     *,
+    records: list[tuple[float, dict, dict]] | None = None,
     objective_effective: str,
 ) -> list[dict[str, Any]]:
-    """Holdout ranking for final models (not used during search)."""
-    rows: list[dict[str, Any]] = []
-    for c in candidates:
-        sm = (c.analytics or {}).get("sample_metrics") or {}
-        is_snap = sm.get("in_sample") or {}
-        oos_snap = sm.get("out_of_sample") or {}
-        full_snap = sm.get("full_sample") or {}
-        if not is_snap and not oos_snap:
+    """Holdout ranking for all ranked trials (not capped by top_models)."""
+    by_code: dict[str, dict[str, Any]] = {}
+    for _score, params, metrics in records or []:
+        if not isinstance(params, dict) or not isinstance(metrics, dict):
             continue
-        rows.append(
-            {
-                "model_code": c.model_code,
-                "rank": c.rank,
-                "in_sample_objective": is_snap.get("objective_value"),
-                "out_of_sample_objective": oos_snap.get("objective_value"),
-                "full_sample_objective": full_snap.get("objective_value"),
-                "gap_objective": (sm.get("gap") or {}).get("objective"),
-                "in_sample_sharpe": is_snap.get("sharpe"),
-                "out_of_sample_sharpe": oos_snap.get("sharpe"),
-                "objective": objective_effective,
-                "objective_label": sm.get("objective_label")
-                or objective_label(objective_effective),
-                "selection_basis": "in_sample",
-            }
+        row = _leaderboard_row_from_record(
+            params,
+            metrics,
+            objective_effective=objective_effective,
         )
+        if row is None or not row.get("model_code"):
+            continue
+        code = str(row["model_code"])
+        existing = by_code.get(code)
+        if existing is None or _leaderboard_is_better_row(row, existing):
+            by_code[code] = row
+
+    for c in candidates:
+        row = _leaderboard_row_from_candidate(
+            c,
+            objective_effective=objective_effective,
+        )
+        if row is None or not row.get("model_code"):
+            continue
+        by_code[str(row["model_code"])] = row
+
+    rows = list(by_code.values())
     rows.sort(
         key=lambda r: float(r.get("in_sample_objective") or -1e9),
         reverse=True,
@@ -3249,6 +3332,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         "oos_leaderboard": (
             _oos_leaderboard(
                 candidates,
+                records=records,
                 objective_effective=trial_objective if dynamic_mode else objective_effective,
             )
             if oos and len(prices_val) > 60

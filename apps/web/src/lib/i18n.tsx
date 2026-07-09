@@ -515,8 +515,15 @@ const en: Dict = {
   "results.gapObjectiveSharpe": "In-Sample − Out-of-Sample gap: objective",
   "results.positiveInSampleStronger": "positive means In-Sample is stronger",
   "results.championLeaderboard": "Leaderboard · strategies ranked on the In-Sample period",
+  "results.leaderboardTitleOutOfSample":
+    "Leaderboard · strategies ranked on the Out-of-Sample period",
+  "results.leaderboardTitleFull":
+    "Leaderboard · strategies ranked on the full sample period",
+  "results.leaderboardTitleGap":
+    "Leaderboard · strategies ranked by In-Sample minus Out-of-Sample gap",
   "results.sortTableBy": "Sort table by",
   "results.inSampleSelection": "In-Sample (selection)",
+  "results.gapSelection": "Gap (IS − OOS)",
   "results.engine": "engine",
   "results.warmStartExact": "Warm-started from prior champion {code} (job {job})",
   "results.warmStartFuzzy": "Warm-started from prior champion {code} (job {job}; period end differs)",
@@ -1326,8 +1333,14 @@ const zh: Dict = {
   "results.gapObjectiveSharpe": "樣本內 − 樣本外落差：目標",
   "results.positiveInSampleStronger": "正值代表樣本內表現較強",
   "results.championLeaderboard": "排行榜 · 依樣本內期間為策略排名",
+  "results.leaderboardTitleOutOfSample":
+    "排行榜 · 依樣本外期間為策略排名",
+  "results.leaderboardTitleFull": "排行榜 · 依全樣本期間為策略排名",
+  "results.leaderboardTitleGap":
+    "排行榜 · 依樣本內減樣本外落差為策略排名",
   "results.sortTableBy": "表格排序依據",
   "results.inSampleSelection": "樣本內（挑選）",
+  "results.gapSelection": "落差（樣本內 − 樣本外）",
   "results.engine": "引擎",
   "results.warmStartExact": "以先前冠軍 {code} 為起點繼續優化（job {job}）",
   "results.warmStartFuzzy": "以先前冠軍 {code} 為起點繼續優化（job {job}；回測終點不同）",
@@ -2124,8 +2137,15 @@ const ko: Dict = {
   "results.gapObjectiveSharpe": "인샘플 − 아웃오브샘플 격차: 목표",
   "results.positiveInSampleStronger": "양수면 인샘플이 더 강함을 의미",
   "results.championLeaderboard": "리더보드 · 인샘플 기간으로 순위를 매긴 전략",
+  "results.leaderboardTitleOutOfSample":
+    "리더보드 · 아웃오브샘플 기간으로 순위를 매긴 전략",
+  "results.leaderboardTitleFull":
+    "리더보드 · 전체 표본 기간으로 순위를 매긴 전략",
+  "results.leaderboardTitleGap":
+    "리더보드 · 인샘플−아웃오브샘플 격차로 순위를 매긴 전략",
   "results.sortTableBy": "표 정렬 기준",
   "results.inSampleSelection": "인샘플(선택)",
+  "results.gapSelection": "격차(인샘플 − 아웃오브샘플)",
   "results.engine": "엔진",
   "results.warmStartExact": "이전 챔피언 {code}에서 최적화 재개 (job {job})",
   "results.warmStartFuzzy": "이전 챔피언 {code}에서 최적화 재개 (job {job}; 기간 종료일 다름)",

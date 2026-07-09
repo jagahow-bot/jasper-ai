@@ -87,6 +87,10 @@ import {
 } from "@/lib/benchmark-chart-scale";
 import { getUniverseItems } from "@/lib/universe";
 import { rebalanceFreqLabel, regimeLabel, useI18n } from "@/lib/i18n";
+import {
+  buildHoldoutLeaderboard,
+  type LeaderboardSort,
+} from "@/lib/leaderboard";
 
 const CHAMPION_STROKE = "#ffb000";
 const BENCHMARK_FILL = "#ffb000";
@@ -104,24 +108,12 @@ const METRIC_FILLS = {
  */
 const PERFORMANCE_MIN_NEGATIVE_RATIO = 0.12;
 
-type LeaderboardSort = "in_sample" | "out_of_sample" | "full_sample";
-
-function leaderboardSortValue(
-  row: {
-    in_sample_objective?: number;
-    out_of_sample_objective?: number;
-    full_sample_objective?: number;
-  },
-  sort: LeaderboardSort,
-): number {
-  const v =
-    sort === "out_of_sample"
-      ? row.out_of_sample_objective
-      : sort === "full_sample"
-        ? row.full_sample_objective
-        : row.in_sample_objective;
-  return Number(v ?? -1e9);
-}
+const LEADERBOARD_TITLE_KEYS: Record<LeaderboardSort, string> = {
+  in_sample: "results.championLeaderboard",
+  out_of_sample: "results.leaderboardTitleOutOfSample",
+  full_sample: "results.leaderboardTitleFull",
+  gap: "results.leaderboardTitleGap",
+};
 
 const COLORS = [
   "#39ff14",
@@ -826,17 +818,7 @@ export function ResultsDashboard({
       const full = c.analytics?.sample_metrics?.full_sample?.objective_value;
       if (code && full != null) fullByCode.set(code, Number(full));
     }
-    return [...oosLeaderboardRaw]
-      .map((row) => ({
-        ...row,
-        full_sample_objective:
-          row.full_sample_objective ?? fullByCode.get(String(row.model_code ?? "")),
-      }))
-      .sort(
-        (a, b) =>
-          leaderboardSortValue(b, leaderboardSort) -
-          leaderboardSortValue(a, leaderboardSort),
-      );
+    return buildHoldoutLeaderboard(oosLeaderboardRaw, leaderboardSort, fullByCode);
   }, [oosLeaderboardRaw, result.candidates, leaderboardSort]);
 
   const paramFrontierSamples = useMemo(
@@ -1405,7 +1387,7 @@ export function ResultsDashboard({
           <div className="mt-3 overflow-x-auto">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="ui-section-title text-[var(--cyan)]">
-                {t("results.championLeaderboard")}
+                {t(LEADERBOARD_TITLE_KEYS[leaderboardSort])}
               </p>
               <label className="ui-body flex items-center gap-2 text-dim">
                 {t("results.sortTableBy")}
@@ -1419,6 +1401,7 @@ export function ResultsDashboard({
                   <option value="in_sample">{t("results.inSampleSelection")}</option>
                   <option value="out_of_sample">{t("common.outOfSample")}</option>
                   <option value="full_sample">{t("common.full")}</option>
+                  <option value="gap">{t("results.gapSelection")}</option>
                 </select>
               </label>
             </div>
@@ -1451,7 +1434,7 @@ export function ResultsDashboard({
                     : "";
                   return (
                   <tr
-                    key={`${row.model_code ?? "model"}-oos-${i}`}
+                    key={row.model_code ?? `oos-${i}`}
                     className={`border-t border-[var(--border)] ${
                       rowKey ? "cursor-pointer hover:bg-[rgba(0,245,255,0.06)]" : ""
                     }`}
