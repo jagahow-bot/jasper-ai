@@ -1,0 +1,204 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { ChatLog, type ChatMessage } from "@/components/ChatLog";
+import { useI18n } from "@/lib/i18n";
+import {
+  formatOverlaySummary,
+  signOffOverlay,
+  type ClientOverlay,
+  type OverlayConversationMessage,
+} from "@/lib/overlay-schema";
+
+type Props = {
+  rmId?: string;
+  clientRef?: string;
+  baseScenarioId?: string;
+  onConfirm?: (overlay: ClientOverlay) => void;
+};
+
+function toChatMessages(messages: OverlayConversationMessage[]): ChatMessage[] {
+  return messages.map((m, i) => ({
+    id: `msg-${i}`,
+    role: m.role,
+    content: m.content,
+  }));
+}
+
+export function OverlayConversationPanel({
+  rmId = "rm-demo",
+  clientRef,
+  baseScenarioId,
+  onConfirm,
+}: Props) {
+  const { lang } = useI18n();
+  const reportLanguage = lang === "zh" ? "zh-TW" : lang;
+
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<OverlayConversationMessage[]>([]);
+  const [overlay, setOverlay] = useState<ClientOverlay | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+
+  const interpret = useCallback(
+    async (nextMessages: OverlayConversationMessage[]) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/overlay/interpret", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: nextMessages,
+            prior_overlay: overlay,
+            session_id: overlay?.audit.session_id,
+            rm_id: rmId,
+            client_ref: clientRef,
+            base_scenario_id: baseScenarioId,
+            report_language: reportLanguage,
+          }),
+        });
+        const data = (await res.json()) as {
+          overlay?: ClientOverlay;
+          error?: string;
+        };
+        if (!res.ok || !data.overlay) {
+          throw new Error(data.error ?? "Interpret failed");
+        }
+        setOverlay(data.overlay);
+
+        const assistantReply =
+          lang === "zh"
+            ? data.overlay.clarification_questions?.length
+              ? `已更新 overlay（信心 ${(data.overlay.confidence * 100).toFixed(0)}%）。待澄清：\n${data.overlay.clarification_questions.map((q) => `• ${q}`).join("\n")}`
+              : `已更新 overlay（信心 ${(data.overlay.confidence * 100).toFixed(0)}%）。請檢視摘要並確認。\n${data.overlay.rationale}`
+            : data.overlay.clarification_questions?.length
+              ? `Overlay updated (${(data.overlay.confidence * 100).toFixed(0)}% confidence). Open questions:\n${data.overlay.clarification_questions.map((q) => `• ${q}`).join("\n")}`
+              : `Overlay updated (${(data.overlay.confidence * 100).toFixed(0)}% confidence). Review and confirm.\n${data.overlay.rationale}`;
+
+        setMessages((prev) => [...prev, { role: "assistant", content: assistantReply }]);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Interpret failed");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [overlay, rmId, clientRef, baseScenarioId, reportLanguage, lang],
+  );
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    const userMsg: OverlayConversationMessage = { role: "user", content: text };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setConfirmed(false);
+    await interpret(nextMessages);
+  };
+
+  const handleConfirm = () => {
+    if (!overlay) return;
+    const signed = signOffOverlay(overlay, rmId);
+    setOverlay(signed);
+    setConfirmed(true);
+    onConfirm?.(signed);
+  };
+
+  const phaseLabel =
+    overlay?.audit.phase ??
+    (lang === "zh" ? "探索" : "discovery");
+
+  return (
+    <div className="pixel-panel flex flex-col gap-4">
+      <div>
+        <h3 className="font-pixel text-xs text-neon">
+          {lang === "zh" ? "對話式 Overlay" : "Conversational Overlay"}
+        </h3>
+        <p className="mt-2 text-sm text-dim">
+          {lang === "zh"
+            ? "以自然語言描述客戶需求，AI 結構化為可回測 overlay；確認後方可執行。"
+            : "Describe client needs in natural language; AI structures an overlay for backtest after RM sign-off."}
+        </p>
+      </div>
+
+      <div className="h-48 border border-[var(--border)] bg-[rgba(0,0,0,0.25)] p-2">
+        <ChatLog messages={toChatMessages(messages)} />
+      </div>
+
+      <div className="flex gap-2">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={
+            lang === "zh"
+              ? "例：客戶明年需要 80 萬美元流動性，目前持股偏科技…"
+              : "e.g. Client needs $800k liquidity next year, overweight tech…"
+          }
+          className="pixel-input min-h-16 flex-1"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void send();
+            }
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => void send()}
+          disabled={loading || !input.trim()}
+          className="pixel-btn shrink-0 self-end disabled:opacity-40"
+        >
+          {loading
+            ? lang === "zh"
+              ? "分析中…"
+              : "Analyzing…"
+            : lang === "zh"
+              ? "送出"
+              : "Send"}
+        </button>
+      </div>
+
+      {error && <p className="text-sm text-[var(--magenta)]">{error}</p>}
+
+      {overlay && (
+        <div className="space-y-3 border border-[var(--neon-dim)] bg-[rgba(57,255,20,0.04)] p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-pixel text-[10px] text-neon">
+              {lang === "zh" ? "AI 理解的 Overlay" : "AI overlay summary"}
+            </span>
+            <span className="text-xs text-dim">
+              {lang === "zh" ? "階段" : "Phase"}: {phaseLabel}
+            </span>
+          </div>
+          <pre className="whitespace-pre-wrap font-terminal text-sm leading-snug text-[var(--foreground)]">
+            {formatOverlaySummary(overlay, lang)}
+          </pre>
+          {overlay.clarification_questions?.length ? (
+            <ul className="list-inside list-disc text-sm text-dim">
+              {overlay.clarification_questions.map((q) => (
+                <li key={q}>{q}</li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="text-xs text-dim">{overlay.rationale}</p>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={confirmed || loading}
+            className="pixel-btn w-full disabled:opacity-40"
+          >
+            {confirmed
+              ? lang === "zh"
+                ? "已確認（待回測整合）"
+                : "Confirmed (backtest pending)"
+              : lang === "zh"
+                ? "確認 Overlay 並簽核"
+                : "Confirm overlay & sign off"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
