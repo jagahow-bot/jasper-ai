@@ -30,6 +30,8 @@ type Dict = Record<string, string>;
 const en: Dict = {
   // Header / shell
   "header.phase.scenario": "—",
+  "header.phase.anchor": "ANCHOR",
+  "header.phase.overlay": "CLIENT NEEDS",
   "header.phase.constraints": "SETUP",
   "header.phase.running": "RUNNING",
   "header.phase.results": "RESULTS",
@@ -240,8 +242,11 @@ const en: Dict = {
 
   // Live progress messages (localized on the client from backend templates)
   "progress.msg.queued": "Backtest job queued…",
+  "progress.msg.queuedStatic": "Static replay job queued…",
   "progress.msg.queuedPro": "Pro optimization job queued…",
   "progress.msg.fetching": "Fetching market data, starting optimization…",
+  "progress.msg.fetchingStatic": "Static replay: fetching market data…",
+  "progress.msg.staticSimulating": "Static replay: simulating fixed-weight portfolio…",
   "progress.msg.fetchingPro": "Pro: fetching data, starting iterative search…",
   "progress.msg.complete": "Backtest complete",
   "progress.msg.completePro": "Pro optimization complete",
@@ -858,11 +863,41 @@ const en: Dict = {
   "institutional.ddEnd": "End",
   "institutional.ddDepth": "Depth",
   "institutional.ddDays": "Days",
+
+  // Anchor / benchmark personalization
+  "anchor.title": "Anchor portfolio",
+  "anchor.subtitle":
+    "Choose the benchmark configuration your client starts from. JASPER will build a customized ETF variant on top of this anchor.",
+  "anchor.universeNote": "Demo universe: {count} mainstream ETFs (SPY, QQQ, AGG, GLD, …)",
+  "anchor.selected": "Selected anchor",
+  "anchor.continue": "Continue to client needs",
+
+  // Overlay conversation step
+  "overlay.skipToConfig": "Skip to advanced setup",
+  "overlay.continueToConfig": "Continue to backtest setup",
+
+  // Base vs customized comparison
+  "compare.title": "Anchor vs customized",
+  "compare.subtitle": "Side-by-side metrics from parallel backtests.",
+  "compare.col.metric": "Metric",
+  "compare.col.delta": "Δ",
+  "compare.metric.cagr": "CAGR",
+  "compare.metric.sharpe": "Sharpe",
+  "compare.metric.mdd": "Max drawdown",
+  "compare.metric.vol": "Volatility",
+  "compare.chart.title": "Equity curves",
+  "compare.chart.anchor": "Anchor",
+  "compare.chart.customized": "Customized",
+
+  "progress.dual.anchor": "Anchor backtest",
+  "progress.dual.customized": "Customized backtest",
 };
 
 const zh: Dict = {
   // Header / shell
   "header.phase.scenario": "—",
+  "header.phase.anchor": "基準配置",
+  "header.phase.overlay": "客戶需求",
   "header.phase.constraints": "設定",
   "header.phase.running": "執行中",
   "header.phase.results": "結果",
@@ -1063,8 +1098,11 @@ const zh: Dict = {
 
   // Live progress messages (localized on the client from backend templates)
   "progress.msg.queued": "回測作業已排入佇列…",
+  "progress.msg.queuedStatic": "靜態重播作業已排入佇列…",
   "progress.msg.queuedPro": "Pro 最佳化作業已排入佇列…",
   "progress.msg.fetching": "正在擷取市場資料，開始最佳化…",
+  "progress.msg.fetchingStatic": "靜態重播：正在擷取市場資料…",
+  "progress.msg.staticSimulating": "靜態重播：模擬固定權重組合…",
   "progress.msg.fetchingPro": "Pro：正在擷取資料，開始迭代搜尋…",
   "progress.msg.complete": "回測完成",
   "progress.msg.completePro": "Pro 最佳化完成",
@@ -1662,11 +1700,41 @@ const zh: Dict = {
   "institutional.ddEnd": "結束",
   "institutional.ddDepth": "深度",
   "institutional.ddDays": "天數",
+
+  // Anchor / benchmark personalization
+  "anchor.title": "基準配置",
+  "anchor.subtitle":
+    "選擇客戶的起始基準組合。JASPER 將在此基準上建構客製化 ETF 變體（例如「標普 500 客製版」）。",
+  "anchor.universeNote": "示範標的池：{count} 檔主流 ETF（SPY、QQQ、AGG、GLD 等）",
+  "anchor.selected": "已選基準",
+  "anchor.continue": "下一步：描述客戶需求",
+
+  // Overlay conversation step
+  "overlay.skipToConfig": "略過，直接進階設定",
+  "overlay.continueToConfig": "前往回測設定",
+
+  // Base vs customized comparison
+  "compare.title": "基準 vs 客製化配置",
+  "compare.subtitle": "並行回測的績效並列比較。",
+  "compare.col.metric": "指標",
+  "compare.col.delta": "差異",
+  "compare.metric.cagr": "年化報酬",
+  "compare.metric.sharpe": "夏普比率",
+  "compare.metric.mdd": "最大回撤",
+  "compare.metric.vol": "波動度",
+  "compare.chart.title": "權益曲線",
+  "compare.chart.anchor": "基準",
+  "compare.chart.customized": "客製化",
+
+  "progress.dual.anchor": "基準回測",
+  "progress.dual.customized": "客製化回測",
 };
 
 const ko: Dict = {
   // Header / shell
   "header.phase.scenario": "—",
+  "header.phase.anchor": "기준 구성",
+  "header.phase.overlay": "고객 니즈",
   "header.phase.constraints": "설정",
   "header.phase.running": "실행 중",
   "header.phase.results": "결과",
@@ -1867,8 +1935,11 @@ const ko: Dict = {
 
   // Live progress messages (localized on the client from backend templates)
   "progress.msg.queued": "백테스트 작업이 대기열에 추가되었습니다…",
+  "progress.msg.queuedStatic": "정적 재생 작업이 대기열에 추가되었습니다…",
   "progress.msg.queuedPro": "Pro 최적화 작업이 대기열에 추가되었습니다…",
   "progress.msg.fetching": "시장 데이터를 가져오는 중, 최적화를 시작합니다…",
+  "progress.msg.fetchingStatic": "정적 재생: 시장 데이터를 가져오는 중…",
+  "progress.msg.staticSimulating": "정적 재생: 고정 비중 포트폴리오 시뮬레이션 중…",
   "progress.msg.fetchingPro": "Pro: 데이터를 가져오는 중, 반복 탐색을 시작합니다…",
   "progress.msg.complete": "백테스트 완료",
   "progress.msg.completePro": "Pro 최적화 완료",
@@ -2471,6 +2542,32 @@ const ko: Dict = {
   "institutional.ddEnd": "종료",
   "institutional.ddDepth": "깊이",
   "institutional.ddDays": "일수",
+
+  // Anchor / benchmark personalization
+  "anchor.title": "기준 구성",
+  "anchor.subtitle":
+    "고객의 시작 기준 포트폴리오를 선택하세요. JASPER가 이 기준 위에 맞춤 ETF 변형을 구성합니다.",
+  "anchor.universeNote": "데모 유니버스: 주요 ETF {count}개 (SPY, QQQ, AGG, GLD 등)",
+  "anchor.selected": "선택된 기준",
+  "anchor.continue": "다음: 고객 니즈",
+
+  "overlay.skipToConfig": "건너뛰고 고급 설정으로",
+  "overlay.continueToConfig": "백테스트 설정으로",
+
+  "compare.title": "기준 vs 맞춤 구성",
+  "compare.subtitle": "병렬 백테스트 성과 비교.",
+  "compare.col.metric": "지표",
+  "compare.col.delta": "차이",
+  "compare.metric.cagr": "연환산 수익",
+  "compare.metric.sharpe": "샤프",
+  "compare.metric.mdd": "최대 낙폭",
+  "compare.metric.vol": "변동성",
+  "compare.chart.title": "자산 곡선",
+  "compare.chart.anchor": "기준",
+  "compare.chart.customized": "맞춤",
+
+  "progress.dual.anchor": "기준 백테스트",
+  "progress.dual.customized": "맞춤 백테스트",
 };
 
 const DICTS: Record<Lang, Dict> = { en, zh, ko };

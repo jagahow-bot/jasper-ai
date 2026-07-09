@@ -34,8 +34,11 @@ function labelText(t: TFn, label: string): string {
 
 const EXACT: Record<string, string> = {
   "Backtest job queued…": "progress.msg.queued",
+  "Static replay job queued…": "progress.msg.queuedStatic",
   "Pro convergence job queued…": "progress.msg.queuedPro",
   "Fetching market data, starting optimization…": "progress.msg.fetching",
+  "Static replay: fetching market data…": "progress.msg.fetchingStatic",
+  "Static replay: simulating fixed-weight portfolio…": "progress.msg.staticSimulating",
   "Pro: fetching data, starting iterative search…": "progress.msg.fetchingPro",
   "Backtest complete": "progress.msg.complete",
   "Pro convergence complete": "progress.msg.completePro",

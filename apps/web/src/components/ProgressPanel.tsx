@@ -6,6 +6,10 @@ import type { JobProgress, PortfolioVsBenchmark } from "@/lib/types";
 
 type Props = {
   progress: JobProgress;
+  /** Optional section label (e.g. anchor vs customized in dual runs). */
+  label?: string;
+  /** Bar accent color variant. */
+  accent?: "neon" | "cyan";
 };
 
 function formatPct(value: number | null | undefined): string {
@@ -20,25 +24,29 @@ function formatAlpha(value: number | null | undefined): string {
   return n.toFixed(4);
 }
 
-export function ProgressPanel({ progress }: Props) {
+export function ProgressPanel({ progress, label, accent = "neon" }: Props) {
   const { t } = useI18n();
   const belowBench = progress.round_benchmark_status === "below";
   const pvb = progress.round_portfolio_vs_benchmark as PortfolioVsBenchmark | null | undefined;
   const pct =
     progress.trials_total > 0
       ? Math.min(100, (progress.trial / progress.trials_total) * 100)
-      : 0;
+      : progress.status === "completed"
+        ? 100
+        : 0;
   const hasTrials = progress.trials_total > 0 && progress.trial > 0;
   const isRunning = progress.status === "running" || progress.status === "pending";
+  const barColor = accent === "cyan" ? "bg-[var(--cyan)]" : "bg-[var(--neon)]";
+  const titleColor = accent === "cyan" ? "text-[var(--cyan)]" : "text-neon";
 
   return (
     <div className="pixel-panel space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="ui-panel-title flex items-center gap-2 text-neon glow-title">
+        <h3 className={`ui-panel-title flex items-center gap-2 glow-title ${titleColor}`}>
           {isRunning && <span className="live-dot" aria-hidden />}
-          {t("progress.running")}
+          {label ?? t("progress.running")}
         </h3>
-        <span className="font-terminal text-2xl text-[var(--cyan)]">
+        <span className={`font-terminal text-2xl ${accent === "cyan" ? "text-[var(--cyan)]" : "text-[var(--cyan)]"}`}>
           {Math.round(pct)}%
         </span>
       </div>
@@ -49,7 +57,7 @@ export function ProgressPanel({ progress }: Props) {
         }`}
       >
         <div
-          className="h-full bg-[var(--neon)] transition-all duration-300"
+          className={`h-full transition-all duration-300 ${barColor}`}
           style={{ width: `${pct}%` }}
         />
       </div>

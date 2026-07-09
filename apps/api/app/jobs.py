@@ -84,7 +84,13 @@ def _public_log_message(message: str) -> str:
     )
 
 
+def _is_static_replay(req: BacktestRequest) -> bool:
+    return bool(req.static_replay_holdings)
+
+
 def _estimated_trials_total(req: BacktestRequest) -> int:
+    if _is_static_replay(req):
+        return 1
     if _is_pro_mode(req):
         batch0 = int(req.refinement_batch_size)
         challengers = int(req.refinement_challengers_per_round)
@@ -102,9 +108,13 @@ def create_job(req: BacktestRequest, *, continuation_snapshot: dict | None = Non
             "progress": JobProgress(
                 status=JobStatus.pending,
                 message=(
-                    "Pro convergence job queued…"
-                    if _is_pro_mode(req)
-                    else "Backtest job queued…"
+                    "Static replay job queued…"
+                    if _is_static_replay(req)
+                    else (
+                        "Pro convergence job queued…"
+                        if _is_pro_mode(req)
+                        else "Backtest job queued…"
+                    )
                 ),
                 trials_total=trials_total,
             ),
@@ -190,9 +200,13 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
             _jobs[job_id]["progress"] = JobProgress(
                 status=JobStatus.running,
                 message=(
-                    "Pro: fetching data, starting iterative search…"
-                    if _is_pro_mode(req)
-                    else "Fetching market data, starting optimization…"
+                    "Static replay: fetching market data…"
+                    if _is_static_replay(req)
+                    else (
+                        "Pro: fetching data, starting iterative search…"
+                        if _is_pro_mode(req)
+                        else "Fetching market data, starting optimization…"
+                    )
                 ),
                 trials_total=_estimated_trials_total(req),
             )

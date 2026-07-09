@@ -106,6 +106,8 @@ export interface BacktestRequest {
   extra_refinement_rounds?: number | null;
   extra_trials_per_round?: number | null;
   extra_trials?: number | null;
+  /** Fixed ticker weights for anchor static replay (skips Optuna). */
+  static_replay_holdings?: Record<string, number> | null;
 }
 
 export interface ConvergencePreviewPoint {
@@ -336,10 +338,23 @@ export interface BacktestResult {
 
 export type WizardPhase =
   | "scenario"
+  | "anchor"
+  | "overlay"
   | "constraints"
   | "running"
   | "results"
   | "export";
+
+/** Dual-track personalization: anchor (base) vs overlay-adjusted run. */
+export type PersonalizationCompare = {
+  anchorPortfolioId: string;
+  anchorLabel: string;
+  customizedLabel: string;
+  baseResult: BacktestResult;
+  baseRequest: BacktestRequest;
+  adjustedResult: BacktestResult;
+  adjustedRequest: BacktestRequest;
+};
 
 export type LabRecommendation = "APPLY" | "NOT_YET" | "NEED_MORE_DATA";
 export type RegimeDetectorVersion = "v1" | "v2";

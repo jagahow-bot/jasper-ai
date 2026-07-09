@@ -39,6 +39,7 @@ from app.engine.portfolio import (
     equity_curve_series,
     metrics_for_horizon_window,
     simulate_dynamic_portfolio,
+    simulate_portfolio,
     split_train_validation,
     cached_full_path_needs_stitch,
     stitch_full_path_from_slices,
@@ -2393,7 +2394,193 @@ def _find_record_by_params(
     return None
 
 
+def _run_static_replay_backtest(
+    req: BacktestRequest,
+    job_id: str,
+    progress_cb=None,
+) -> BacktestResult:
+    """Replay fixed target weights on rebalance dates — skips Optuna entirely."""
+    holdings_raw = req.static_replay_holdings or {}
+    if not holdings_raw:
+        raise ValueError("static_replay_holdings is required for static replay")
+
+    objective_effective = _resolve_objective(req.objective.value, req.objective_custom_text)
+    from app.engine.portfolio import _normalize_rebalance_rule
+
+    rebalance_rule = _normalize_rebalance_rule(req.rebalance_freq)
+    tickers = [str(t).upper() for t in holdings_raw.keys()]
+    weights_map = {str(t).upper(): float(w) for t, w in holdings_raw.items()}
+    total_w = sum(weights_map.values())
+    if total_w <= 0:
+        raise ValueError("static_replay_holdings must sum to a positive weight")
+    weights_map = {k: v / total_w for k, v in weights_map.items()}
+
+    bench = "SPY"
+    # Fetch prices for holdings + benchmark
+    fetch_tickers = list(dict.fromkeys([*tickers, bench]))
+    spec = BacktestSpec(
+        benchmark_ticker=bench,
+        fee_bps=req.fee_bps,
+        rebalance_rule=rebalance_rule,
+        max_holdings=max(len(tickers), int(req.max_holdings)),
+    )
+
+    def report_progress(trial: int, total: int, message: str) -> None:
+        if progress_cb:
+            progress_cb(trial=trial, trials_total=total, message=message)
+
+    report_progress(0, 1, "Static replay: fetching market data…")
+
+    try:
+        prices, data_meta = fetch_prices(
+            fetch_tickers, req.start_date, req.end_date, spec.benchmark_ticker
+        )
+    except Exception as exc:
+        raise ValueError(
+            f"Failed to load prices (yfinance): {exc}. Check network, date range, and API is running."
+        ) from exc
+
+    tradable = [t for t in tickers if t in prices.columns]
+    if not tradable:
+        raise ValueError("No static replay tickers available in price data")
+    missing = [t for t in tickers if t not in prices.columns]
+    if missing:
+        logger.warning("Static replay tickers missing from prices: %s", missing)
+        remapped = {t: w for t, w in weights_map.items() if t in tradable}
+        rem_total = sum(remapped.values())
+        weights_map = {k: v / rem_total for k, v in remapped.items()}
+        tickers = tradable
+
+    if bench not in prices.columns:
+        bench = tickers[0]
+        spec = BacktestSpec(
+            benchmark_ticker=bench,
+            fee_bps=req.fee_bps,
+            rebalance_rule=rebalance_rule,
+            max_holdings=max(len(tickers), int(req.max_holdings)),
+        )
+
+    prices_panel = trim_prices_to_report_window(prices[tickers].copy(), req.start_date)
+    w_array = np.array([weights_map.get(t, 0.0) for t in tickers], dtype=float)
+    w_sum = float(w_array.sum())
+    if w_sum <= 0:
+        raise ValueError("Static replay weights invalid after ticker alignment")
+    w_array = w_array / w_sum
+
+    universe = get_universe(req.asset_classes, None, tickers)
+    universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
+
+    oos = req.enable_oos
+    if oos:
+        prices_train, prices_val, train_end, val_start = split_train_validation(
+            prices_panel, req.train_ratio
+        )
+        is_split_idx = len(prices_train)
+    else:
+        prices_train = prices_panel
+        prices_val = prices_panel.iloc[0:0]
+        train_end = str(prices_panel.index[-1].date())
+        val_start = train_end
+        is_split_idx = None
+
+    report_progress(0, 1, "Static replay: simulating fixed-weight portfolio…")
+
+    full_m = simulate_portfolio(
+        prices_panel, w_array, spec, report_start=req.start_date
+    )
+    if oos and is_split_idx is not None and is_split_idx < len(prices_panel):
+        train_m = metrics_for_horizon_window(full_m, spec, 0, is_split_idx)
+        val_m = metrics_for_horizon_window(
+            full_m, spec, is_split_idx, len(prices_panel)
+        )
+    else:
+        train_m = full_m
+        val_m = None
+        oos = False
+
+    full_curve = equity_curve_series(full_m["equity"])
+    params = {
+        "model_code": "STATIC",
+        "mode": "static_replay",
+        "rebalance_freq": rebalance_rule,
+        **{f"static_w_{t}": round(float(weights_map.get(t, 0.0)), 6) for t in tickers},
+    }
+    candidate = _build_candidate(
+        1,
+        tickers,
+        train_m,
+        val_m,
+        oos,
+        params,
+        full_m,
+        full_curve,
+        prices_panel,
+        universe_by_ticker,
+        spec,
+        objective_effective=objective_effective,
+        train_start=str(prices_panel.index[0].date()),
+        train_end=train_end,
+        val_start=val_start if oos else None,
+        train_ratio=float(req.train_ratio) if oos else None,
+        min_weight=req.min_weight,
+        is_split_idx=is_split_idx,
+        include_charts=True,
+    )
+    candidate.is_champion = True
+
+    bench_m = benchmark_metrics(prices_panel, spec.benchmark_ticker, spec)
+    report_progress(1, 1, "Backtest complete")
+
+    narrative_facts: dict[str, Any] = {
+        "scenario_id": req.scenario_id,
+        "static_replay": True,
+        "static_replay_holdings": weights_map,
+        "trials_completed": 1,
+        "optimization_mode": "static_replay",
+        "backtest_methodology": (
+            "Static replay: fixed target weights rebalanced on schedule "
+            f"({rebalance_rule}); no Optuna search."
+        ),
+        "backtest_spec": {
+            "fee_bps": spec.fee_bps,
+            "rebalance_freq": spec.rebalance_rule,
+            "risk_free_rate": spec.risk_free_rate,
+            "benchmark": spec.benchmark_ticker,
+            "benchmark_metrics": bench_m,
+        },
+        "rebalance_freq": rebalance_rule,
+        "rebalance_count": full_m.get("rebalance_count"),
+        "rebalance_applied": full_m.get("rebalance_applied"),
+        "tradable_count": len(tickers),
+        "asset_classes_filter": req.asset_classes,
+        "universe_tickers_filter": tickers,
+        "oos_enabled": oos,
+        "metrics_trustworthy": data_meta["data_source"] == "yfinance"
+        and not full_m.get("metrics_suspect", False),
+        "champion_model_code": "STATIC",
+        "ai_champion_model_code": "STATIC",
+    }
+
+    return BacktestResult(
+        job_id=job_id,
+        scenario_id=req.scenario_id,
+        benchmark=spec.benchmark_ticker,
+        period={"start": req.start_date, "end": req.end_date},
+        candidates=[candidate],
+        equity_curve=full_curve,
+        efficient_frontier=[],
+        narrative_facts=narrative_facts,
+        pro_rounds=None,
+        experimental=None,
+        dynamic_objective_timeline=None,
+        dynamic_objective_benchmark_series=None,
+    )
+
+
 def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> BacktestResult:
+    if req.static_replay_holdings:
+        return _run_static_replay_backtest(req, job_id, progress_cb=progress_cb)
+
     objective_effective = _resolve_objective(req.objective.value, req.objective_custom_text)
     dynamic_mode = is_dynamic_objective(objective_effective)
     # Regime-adaptive allocation can be enabled independently of the composite dynamic

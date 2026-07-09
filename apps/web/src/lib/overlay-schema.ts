@@ -290,6 +290,7 @@ export function overlayToBacktestRequest(
 
   const prompts = overlay.universe.prompts.filter(Boolean);
   const filterText = prompts.length ? prompts.join("; ") : base.universe_filter_text;
+  const fromAnchorReplay = Boolean(base.static_replay_holdings);
 
   return {
     ...base,
@@ -299,7 +300,10 @@ export function overlayToBacktestRequest(
     objective: (opt.objective ?? base.objective) as Objective,
     regime_adaptive: opt.regime_adaptive ?? base.regime_adaptive,
     optimization_mode: (opt.optimization_mode ?? base.optimization_mode) as OptimizationMode,
-    trials: opt.trials ?? base.trials,
+    trials: opt.trials ?? (fromAnchorReplay ? 50 : base.trials),
+    top_models: fromAnchorReplay ? 5 : base.top_models,
+    max_holdings: fromAnchorReplay ? 30 : base.max_holdings,
+    universe_tickers: fromAnchorReplay ? null : base.universe_tickers,
     enforce_class_weights:
       alloc.enforce_class_weights ?? base.enforce_class_weights ?? false,
     universe_filter_prompts: prompts.length ? prompts : base.universe_filter_prompts,
@@ -311,6 +315,7 @@ export function overlayToBacktestRequest(
     param_controls: enforcedControls,
     experiment: inferExperiment(overlay) ?? base.experiment,
     report_language: opts?.reportLanguage ?? base.report_language,
+    static_replay_holdings: null,
   };
 }
 

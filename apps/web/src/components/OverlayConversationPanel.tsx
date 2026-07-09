@@ -114,7 +114,11 @@ export function OverlayConversationPanel({
     <div className="pixel-panel flex flex-col gap-4">
       <div>
         <h3 className="font-pixel text-xs text-neon">
-          {lang === "zh" ? "對話式 Overlay" : "Conversational Overlay"}
+          {lang === "zh"
+            ? "客戶需求對話"
+            : lang === "ko"
+              ? "고객 니즈 대화"
+              : "Conversational Overlay"}
         </h3>
         <p className="mt-2 text-sm text-dim">
           {lang === "zh"
@@ -191,11 +195,15 @@ export function OverlayConversationPanel({
           >
             {confirmed
               ? lang === "zh"
-                ? "已確認（待回測整合）"
-                : "Confirmed (backtest pending)"
+                ? "已確認並簽核"
+                : lang === "ko"
+                  ? "확인 및 서명 완료"
+                  : "Confirmed & signed off"
               : lang === "zh"
                 ? "確認 Overlay 並簽核"
-                : "Confirm overlay & sign off"}
+                : lang === "ko"
+                  ? "Overlay 확인 및 서명"
+                  : "Confirm overlay & sign off"}
           </button>
         </div>
       )}

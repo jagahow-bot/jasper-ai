@@ -1,12 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnchorPortfolioSelector } from "@/components/AnchorPortfolioSelector";
 import { BacktestHistoryPanel } from "@/components/BacktestHistoryPanel";
+import { BenchmarkComparePanel } from "@/components/BenchmarkComparePanel";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { FontSizeControl } from "@/components/FontSizeControl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
 import { LiveStatusCard } from "@/components/LiveStatusCard";
+import { OverlayConversationPanel } from "@/components/OverlayConversationPanel";
+import { DualProgressPanel } from "@/components/DualProgressPanel";
 import { ProgressPanel } from "@/components/ProgressPanel";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
@@ -29,10 +33,24 @@ import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
 import { getUniverseMeta } from "@/lib/universe";
 import { useI18n } from "@/lib/i18n";
 import { translateProgress } from "@/lib/progress-i18n";
+import {
+  buildAnchorBacktestRequest,
+  getAnchorPortfolioById,
+  getCustomizedVsAnchorLabel,
+  getPortfolioLabel,
+  SPY_ANCHOR,
+  SPY_ANCHOR_ID,
+  type ModelPortfolio,
+} from "@/lib/model-portfolios";
+import {
+  overlayToBacktestRequest,
+  type ClientOverlay,
+} from "@/lib/overlay-schema";
 import type {
   BacktestRequest,
   BacktestResult,
   JobProgress,
+  PersonalizationCompare,
   WizardPhase,
 } from "@/lib/types";
 
@@ -79,7 +97,11 @@ function buildDefaultRequest(): BacktestRequest {
 
 export default function HomePage() {
   const { t, lang } = useI18n();
-  const [phase, setPhase] = useState<WizardPhase>("constraints");
+  const [phase, setPhase] = useState<WizardPhase>("anchor");
+  const [anchorPortfolioId, setAnchorPortfolioId] = useState(SPY_ANCHOR_ID);
+  const [signedOverlay, setSignedOverlay] = useState<ClientOverlay | null>(null);
+  const [personalizationCompare, setPersonalizationCompare] =
+    useState<PersonalizationCompare | null>(null);
   const [request, setRequest] = useState<BacktestRequest | null>(
     buildDefaultRequest(),
   );
@@ -87,6 +109,7 @@ export default function HomePage() {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
+  const [anchorProgress, setAnchorProgress] = useState<JobProgress | null>(null);
   const [statusFeed, setStatusFeed] = useState<string[]>([]);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [narrative, setNarrative] = useState("");
@@ -96,6 +119,18 @@ export default function HomePage() {
   >(null);
   const [continueLoading, setContinueLoading] = useState(false);
   const universeMeta = useMemo(() => getUniverseMeta(), []);
+
+  const anchorPortfolio = useMemo(
+    () => getAnchorPortfolioById(anchorPortfolioId) ?? SPY_ANCHOR,
+    [anchorPortfolioId],
+  );
+
+  const syncRequestFromAnchor = useCallback(
+    (portfolio: ModelPortfolio = anchorPortfolio) => {
+      setRequest(buildAnchorBacktestRequest(portfolio, buildDefaultRequest()));
+    },
+    [anchorPortfolio],
+  );
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -130,12 +165,18 @@ export default function HomePage() {
   }, [lang, t, universeMeta.count]);
 
   const presentResult = useCallback(
-    async (id: string, res: BacktestResult, req: BacktestRequest) => {
+    async (
+      id: string,
+      res: BacktestResult,
+      req: BacktestRequest,
+      compare?: PersonalizationCompare | null,
+    ) => {
       recordCompletedBacktest(id, req, res);
       setActiveJobId(id);
       setJobId(id);
       setRequest(req);
       setResult(res);
+      setPersonalizationCompare(compare ?? null);
       const championIdx = resolveChampionCandidateIndex(
         res.candidates,
         res.narrative_facts,
@@ -312,7 +353,9 @@ export default function HomePage() {
       setPhase("running");
       setResult(null);
       setNarrative("");
+      setPersonalizationCompare(null);
       setStatusFeed([]);
+      setAnchorProgress(null);
       lastProgressMsg.current = "";
       lastRoundRef.current = 0;
 
@@ -342,6 +385,165 @@ export default function HomePage() {
     [pollJob, request, t, lang],
   );
 
+  const runPersonalizationBacktest = useCallback(
+    async (reqOverride?: BacktestRequest) => {
+      const anchor = getAnchorPortfolioById(anchorPortfolioId) ?? SPY_ANCHOR;
+      const baseReq = buildAnchorBacktestRequest(
+        anchor,
+        reqOverride ?? request ?? buildDefaultRequest(),
+      );
+      const adjustedReq = signedOverlay
+        ? overlayToBacktestRequest(baseReq, signedOverlay, {
+            scenarioId: `customized-${signedOverlay.audit.session_id}`,
+            reportLanguage: lang,
+          })
+        : baseReq;
+
+      setRequest(adjustedReq);
+      setPhase("running");
+      setResult(null);
+      setNarrative("");
+      setPersonalizationCompare(null);
+      setStatusFeed([]);
+      setAnchorProgress(null);
+      lastProgressMsg.current = "";
+      lastRoundRef.current = 0;
+
+      const anchorLabel = getPortfolioLabel(anchor, lang);
+      const customizedLabel = getCustomizedVsAnchorLabel(anchor, lang);
+      pushMessage(
+        setMessages,
+        "assistant",
+        lang === "zh"
+          ? `執行雙軌回測：基準「${anchorLabel}」vs「${customizedLabel}」。`
+          : lang === "ko"
+            ? `이중 백테스트 실행: 기준「${anchorLabel}」vs「${customizedLabel}」.`
+            : `Running dual backtest: anchor "${anchorLabel}" vs "${customizedLabel}".`,
+      );
+
+      try {
+        const [baseJob, adjustedJob] = await Promise.all([
+          createJob({ ...baseReq, experiment: undefined, report_language: lang }),
+          createJob({
+            ...adjustedReq,
+            experiment: undefined,
+            report_language: lang,
+          }),
+        ]);
+        const [initialAnchorProg, initialCustomProg] = await Promise.all([
+          getJobProgress(baseJob.job_id),
+          getJobProgress(adjustedJob.job_id),
+        ]);
+        setAnchorProgress(initialAnchorProg);
+        setProgress(initialCustomProg);
+        setJobId(adjustedJob.job_id);
+        setActiveJobId(adjustedJob.job_id);
+
+        let baseDone = false;
+        let adjustedDone = false;
+        let baseFailed = false;
+        let adjustedFailed = false;
+
+        while (!baseDone || !adjustedDone) {
+          const polls: Promise<void>[] = [];
+          if (!adjustedDone) {
+            polls.push(
+              getJobProgress(adjustedJob.job_id).then((prog) => {
+                setProgress(prog);
+                if (prog.status === "running" && prog.message) {
+                  if (prog.message !== lastProgressMsg.current) {
+                    lastProgressMsg.current = prog.message;
+                    setStatusFeed((prev) => [prog.message, ...prev].slice(0, 12));
+                  }
+                }
+                if (prog.status === "completed") adjustedDone = true;
+                if (prog.status === "failed") {
+                  adjustedFailed = true;
+                  adjustedDone = true;
+                  pushMessage(setMessages, "system", prog.message);
+                }
+              }),
+            );
+          }
+          if (!baseDone) {
+            polls.push(
+              getJobProgress(baseJob.job_id).then((prog) => {
+                setAnchorProgress(prog);
+                if (prog.status === "completed") baseDone = true;
+                if (prog.status === "failed") {
+                  baseFailed = true;
+                  baseDone = true;
+                }
+              }),
+            );
+          }
+          if (polls.length) await Promise.all(polls);
+          if (!baseDone || !adjustedDone) {
+            await new Promise((r) => setTimeout(r, 400));
+          }
+        }
+
+        if (adjustedFailed) {
+          setPhase("constraints");
+          return;
+        }
+
+        const [baseRes, adjustedRes, baseReqStored, adjustedReqStored] =
+          await Promise.all([
+            getJobResult(baseJob.job_id),
+            getJobResult(adjustedJob.job_id),
+            getJobRequest(baseJob.job_id).catch(() => baseReq),
+            getJobRequest(adjustedJob.job_id).catch(() => adjustedReq),
+          ]);
+
+        const compare: PersonalizationCompare = {
+          anchorPortfolioId: anchor.id,
+          anchorLabel,
+          customizedLabel,
+          baseResult: baseRes,
+          baseRequest: baseReqStored,
+          adjustedResult: adjustedRes,
+          adjustedRequest: adjustedReqStored,
+        };
+
+        if (baseFailed) {
+          pushMessage(
+            setMessages,
+            "system",
+            lang === "zh"
+              ? "基準回測失敗，僅顯示客製化結果。"
+              : "Anchor backtest failed; showing customized result only.",
+          );
+          await presentResult(adjustedJob.job_id, adjustedRes, adjustedReqStored, null);
+          return;
+        }
+
+        recordCompletedBacktest(baseJob.job_id, baseReqStored, baseRes);
+        await presentResult(
+          adjustedJob.job_id,
+          adjustedRes,
+          adjustedReqStored,
+          compare,
+        );
+      } catch (e) {
+        pushMessage(
+          setMessages,
+          "system",
+          e instanceof Error ? e.message : t("chat.runFailed"),
+        );
+        setPhase("constraints");
+      }
+    },
+    [
+      anchorPortfolioId,
+      signedOverlay,
+      request,
+      lang,
+      presentResult,
+      t,
+    ],
+  );
+
   const onRun = useCallback(() => {
     const isPro = request?.optimization_mode === "pro_auto";
     pushMessage(
@@ -354,8 +556,72 @@ export default function HomePage() {
       "assistant",
       isPro ? t("chat.ackPro") : t("chat.ackStandard"),
     );
-    void runBacktest();
-  }, [runBacktest, request?.optimization_mode, t]);
+    if (signedOverlay) {
+      void runPersonalizationBacktest();
+    } else {
+      void runBacktest();
+    }
+  }, [runBacktest, runPersonalizationBacktest, request?.optimization_mode, signedOverlay, t]);
+
+  const onAnchorSelect = useCallback((portfolio: ModelPortfolio) => {
+    setAnchorPortfolioId(portfolio.id);
+    syncRequestFromAnchor(portfolio);
+  }, [syncRequestFromAnchor]);
+
+  const onAnchorContinue = useCallback(() => {
+    const label = getPortfolioLabel(anchorPortfolio, lang);
+    pushMessage(
+      setMessages,
+      "user",
+      lang === "zh"
+        ? `選擇基準配置：${label}`
+        : lang === "ko"
+          ? `기준 구성 선택: ${label}`
+          : `Selected anchor: ${label}`,
+    );
+    pushMessage(
+      setMessages,
+      "assistant",
+      lang === "zh"
+        ? "請以自然語言描述客戶需求，JASPER 將產出客製化配置草案。"
+        : lang === "ko"
+          ? "고객 니즈를 자연어로 설명해 주세요. JASPER가 맞춤 구성 초안을 만듭니다."
+          : "Describe client needs in natural language; JASPER will draft a customized configuration.",
+    );
+    syncRequestFromAnchor();
+    setPhase("overlay");
+  }, [anchorPortfolio, lang, syncRequestFromAnchor]);
+
+  const onOverlayConfirm = useCallback(
+    (overlay: ClientOverlay) => {
+      setSignedOverlay(overlay);
+      const base = buildAnchorBacktestRequest(
+        anchorPortfolio,
+        request ?? buildDefaultRequest(),
+      );
+      setRequest(
+        overlayToBacktestRequest(base, overlay, {
+          scenarioId: `customized-${overlay.audit.session_id}`,
+          reportLanguage: lang,
+        }),
+      );
+      pushMessage(
+        setMessages,
+        "assistant",
+        lang === "zh"
+          ? "Overlay 已簽核。可檢視回測設定後執行「基準 vs 客製化」雙軌回測。"
+          : "Overlay signed off. Review setup, then run the anchor vs customized dual backtest.",
+      );
+      setPhase("constraints");
+    },
+    [anchorPortfolio, request, lang],
+  );
+
+  const onSkipOverlay = useCallback(() => {
+    setSignedOverlay(null);
+    syncRequestFromAnchor();
+    setPhase("constraints");
+  }, [syncRequestFromAnchor]);
 
   const onQuickTweak = useCallback(
     (next: BacktestRequest, label: string) => {
@@ -370,9 +636,13 @@ export default function HomePage() {
     (next: BacktestRequest, label: string) => {
       pushMessage(setMessages, "user", t("chat.tweakRerun", { label }));
       pushMessage(setMessages, "assistant", t("chat.ackRerun"));
-      void runBacktest(next);
+      if (signedOverlay) {
+        void runPersonalizationBacktest(next);
+      } else {
+        void runBacktest(next);
+      }
     },
-    [runBacktest, t],
+    [runBacktest, runPersonalizationBacktest, signedOverlay, t],
   );
 
   const onContinueRefinement = useCallback(
@@ -423,6 +693,8 @@ export default function HomePage() {
   const header = useMemo(() => {
     const labels: Record<WizardPhase, string> = {
       scenario: t("header.phase.scenario"),
+      anchor: t("header.phase.anchor"),
+      overlay: t("header.phase.overlay"),
       constraints: t("header.phase.constraints"),
       running: t("header.phase.running"),
       results: t("header.phase.results"),
@@ -489,8 +761,46 @@ export default function HomePage() {
         </aside>
 
         <section className="space-y-5">
+          {phase === "anchor" && (
+            <AnchorPortfolioSelector
+              selectedId={anchorPortfolioId}
+              onSelect={onAnchorSelect}
+              onContinue={onAnchorContinue}
+            />
+          )}
+
+          {phase === "overlay" && (
+            <div className="space-y-3">
+              <OverlayConversationPanel
+                baseScenarioId={`anchor-${anchorPortfolioId}`}
+                onConfirm={onOverlayConfirm}
+              />
+              <button
+                type="button"
+                onClick={onSkipOverlay}
+                className="pixel-btn w-full border-[var(--border)] bg-transparent text-sm opacity-80 hover:opacity-100"
+              >
+                {t("overlay.skipToConfig")}
+              </button>
+            </div>
+          )}
+
           {phase === "constraints" && request && (
             <>
+              {signedOverlay && (
+                <div className="pixel-panel border-[var(--neon-dim)] bg-[rgba(57,255,20,0.04)] p-3 text-sm">
+                  <p className="font-pixel text-[10px] text-neon">
+                    {getCustomizedVsAnchorLabel(anchorPortfolio, lang)}
+                  </p>
+                  <p className="mt-2 text-dim">
+                    {lang === "zh"
+                      ? "已簽核客戶需求摘要。執行回測將並列比較基準與客製化配置。"
+                      : lang === "ko"
+                        ? "고객 니즈 요약 서명 완료. 백테스트 시 기준과 맞춤 구성을 병렬 비교합니다."
+                        : "Client overlay signed off. Run will compare anchor and customized portfolios side by side."}
+                  </p>
+                </div>
+              )}
               <ConstraintsPanel
                 value={request}
                 onChange={setRequest}
@@ -501,10 +811,26 @@ export default function HomePage() {
             </>
           )}
 
-          {phase === "running" && progress && <ProgressPanel progress={progress} />}
+          {phase === "running" && signedOverlay && anchorProgress && progress ? (
+            <DualProgressPanel
+              anchorProgress={anchorProgress}
+              customizedProgress={progress}
+            />
+          ) : (
+            phase === "running" && progress && <ProgressPanel progress={progress} />
+          )}
 
           {phase === "results" && result && request && (
-            result.pro_rounds && result.pro_rounds.length > 0 ? (
+            <>
+              {personalizationCompare && (
+                <BenchmarkComparePanel
+                  anchorLabel={personalizationCompare.anchorLabel}
+                  customizedLabel={personalizationCompare.customizedLabel}
+                  baseResult={personalizationCompare.baseResult}
+                  adjustedResult={personalizationCompare.adjustedResult}
+                />
+              )}
+              {result.pro_rounds && result.pro_rounds.length > 0 ? (
               <ProResultsWithTabs
                 result={result}
                 narrative={narrative}
@@ -534,7 +860,8 @@ export default function HomePage() {
                 onContinueRefinement={onContinueRefinement}
                 continueLoading={continueLoading}
               />
-            )
+            )}
+            </>
           )}
         </section>
       </main>

@@ -86,6 +86,11 @@ def scenario_payload(
         "max_holdings": int(req.max_holdings),
         "max_turnover": float(req.max_turnover),
         "param_controls": _canonical_param_controls(req.param_controls),
+        "static_replay_holdings": (
+            {str(k).upper(): round(float(v), 6) for k, v in sorted(req.static_replay_holdings.items())}
+            if req.static_replay_holdings
+            else None
+        ),
     }
     if include_end_date:
         payload["end_date"] = req.end_date

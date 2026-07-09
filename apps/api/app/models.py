@@ -240,6 +240,13 @@ class BacktestRequest(BaseModel):
         le=200,
         description="Standard mode: extra Optuna trials when continuing.",
     )
+    static_replay_holdings: dict[str, float] | None = Field(
+        default=None,
+        description=(
+            "Fixed ticker weights for anchor replay (e.g. SPY 1.0 or 60/40). "
+            "Skips Optuna and simulates buy-and-hold / static rebalance only."
+        ),
+    )
 
     @field_validator("notify_email", mode="before")
     @classmethod
