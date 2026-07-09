@@ -2,6 +2,8 @@
 
 Publicly documented ETF model portfolios for JASPER demos, proposal credibility, and future **Base portfolio → Overlay** backtest flows.
 
+Demo portfolios use **widely recognized tickers** — SPY, QQQ, IWM, AGG, BND, GLD — so RM and client conversations map directly to familiar market benchmarks.
+
 ## Files
 
 | Path | Purpose |
@@ -22,14 +24,14 @@ Each portfolio entry includes:
 
 ## Included portfolios (6)
 
-| ID | Focus | Equity % | Source |
-|----|-------|----------|--------|
-| `classic-60-40` | Balanced stocks/bonds | 60% | [Lazy Portfolio ETF](https://www.lazyportfolioetf.com/allocation/stocks-bonds-60-40/) |
-| `bogleheads-three-fund-80-20` | Passive three-fund | 80% | [Bogleheads Wiki](https://www.bogleheads.org/wiki/Three-fund_portfolio) |
-| `global-equity-market-cap` | All-equity global | 100% | [Elm Wealth](https://elmwealth.com/vt-vs-vti-vxus/) |
-| `us-factor-tilt-equity` | Factor premiums | 100% | [FactorIQ](https://factoriq.dev/blog/multi-factor-investing-portfolio) |
-| `us-sector-growth-tilt` | US large cap + sectors | 100% | [Freenance](https://freenance.io/strategies/60-40-portfolio-guide/) |
-| `all-weather-simplified` | Risk-balanced multi-asset | 30% | [ETF Central](https://www.etfcentral.com/news/the-ray-dalio-all-weather-etf-portfolio) |
+| ID | Focus | Key tickers | Equity % | Source |
+|----|-------|-------------|----------|--------|
+| `classic-60-40` | Balanced stocks/bonds | SPY, AGG | 60% | [Lazy Portfolio ETF](https://www.lazyportfolioetf.com/allocation/stocks-bonds-60-40/) |
+| `bogleheads-three-fund-80-20` | Passive three-fund | SPY, VXUS, BND | 80% | [Bogleheads Wiki](https://www.bogleheads.org/wiki/Three-fund_portfolio) |
+| `global-equity-market-cap` | All-equity global | SPY, VXUS | 100% | [Elm Wealth](https://elmwealth.com/vt-vs-vti-vxus/) |
+| `us-multi-cap-equity` | US cap spectrum | SPY, QQQ, IWM | 100% | [ETF Database](https://etfdb.com/compare/SPY-vs-QQQ-vs-IWM/) |
+| `us-sector-growth-tilt` | Large cap + growth tilt | SPY, QQQ, XLV, XLF | 100% | [Freenance](https://freenance.io/strategies/60-40-portfolio-guide/) |
+| `all-weather-simplified` | Risk-balanced multi-asset | SPY, TLT, IEF, GLD | 30% | [ETF Central](https://www.etfcentral.com/news/the-ray-dalio-all-weather-etf-portfolio) |
 
 All tickers are US-listed ETFs available on yfinance and present in `shared/etf-universe.json`.
 

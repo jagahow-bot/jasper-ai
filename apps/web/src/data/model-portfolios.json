@@ -1,12 +1,12 @@
 {
   "version": "1.0",
   "updated": "2026-07-09",
-  "description": "Publicly documented ETF model portfolios for JASPER demo and overlay backtests. Weights are illustrative starting points cited from third-party sources.",
+  "description": "Publicly documented ETF model portfolios for JASPER demo and overlay backtests. Uses widely recognized tickers (SPY, QQQ, IWM, AGG, GLD) for demo credibility. Weights are illustrative starting points cited from third-party sources.",
   "portfolios": [
     {
       "id": "classic-60-40",
       "name": "Classic 60/40 Balanced",
-      "description": "The standard balanced allocation: 60% broad US equities for growth and 40% investment-grade bonds for stability. Widely used as a pension and endowment benchmark.",
+      "description": "The standard balanced allocation: 60% S&P 500 (SPY) for growth and 40% investment-grade bonds (AGG) for stability. Widely used as a pension and endowment benchmark.",
       "source": {
         "name": "Lazy Portfolio ETF — Stocks/Bonds 60/40",
         "url": "https://www.lazyportfolioetf.com/allocation/stocks-bonds-60-40/"
@@ -16,16 +16,16 @@
         "fixed_income": 0.4
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.6, "name": "Vanguard Total Stock Market ETF" },
-        { "ticker": "BND", "weight": 0.4, "name": "Vanguard Total Bond Market ETF" }
+        { "ticker": "SPY", "weight": 0.6, "name": "SPDR S&P 500 ETF Trust" },
+        { "ticker": "AGG", "weight": 0.4, "name": "iShares Core U.S. Aggregate Bond ETF" }
       ],
-      "benchmark": "VTI",
+      "benchmark": "SPY",
       "risk_level": "moderate"
     },
     {
       "id": "bogleheads-three-fund-80-20",
       "name": "Bogleheads Three-Fund (80/20)",
-      "description": "Passive three-fund portfolio: US total market, international stocks, and US bonds. This variant targets an 80% equity / 20% bond split with a 60/20 US/international stock split within equities.",
+      "description": "Passive three-fund portfolio: S&P 500 core (SPY), international stocks, and US bonds (BND). Targets 80% equity / 20% bonds with a 60/20 US/international split within equities.",
       "source": {
         "name": "Bogleheads Wiki — Three-Fund Portfolio",
         "url": "https://www.bogleheads.org/wiki/Three-fund_portfolio"
@@ -35,17 +35,17 @@
         "fixed_income": 0.2
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.6, "name": "Vanguard Total Stock Market ETF" },
+        { "ticker": "SPY", "weight": 0.6, "name": "SPDR S&P 500 ETF Trust" },
         { "ticker": "VXUS", "weight": 0.2, "name": "Vanguard Total International Stock ETF" },
         { "ticker": "BND", "weight": 0.2, "name": "Vanguard Total Bond Market ETF" }
       ],
-      "benchmark": "VTI",
+      "benchmark": "SPY",
       "risk_level": "moderate_aggressive"
     },
     {
       "id": "global-equity-market-cap",
       "name": "Global Equity (Market-Cap Weighted)",
-      "description": "All-equity global allocation approximating world market-cap weights (~60% US / ~40% international). Common core for growth-oriented model portfolios.",
+      "description": "All-equity global allocation approximating world market-cap weights (~60% US via SPY / ~40% international). Common core for growth-oriented model portfolios.",
       "source": {
         "name": "Elm Wealth — VT vs VTI + VXUS (global cap weights)",
         "url": "https://elmwealth.com/vt-vs-vti-vxus/"
@@ -54,37 +54,35 @@
         "equity": 1.0
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.6, "name": "Vanguard Total Stock Market ETF" },
+        { "ticker": "SPY", "weight": 0.6, "name": "SPDR S&P 500 ETF Trust" },
         { "ticker": "VXUS", "weight": 0.4, "name": "Vanguard Total International Stock ETF" }
       ],
-      "benchmark": "VTI",
+      "benchmark": "SPY",
       "risk_level": "aggressive"
     },
     {
-      "id": "us-factor-tilt-equity",
-      "name": "US Equity Factor Tilt",
-      "description": "All-equity sleeve with tilts toward value, quality, momentum, and low-volatility factor premiums. Core market exposure retained via VTI.",
+      "id": "us-multi-cap-equity",
+      "name": "US Multi-Cap Equity (SPY + QQQ + IWM)",
+      "description": "All-equity US sleeve spanning large cap (SPY), growth/tech (QQQ), and small cap (IWM). Recognizable tickers for RM demos covering the US equity spectrum.",
       "source": {
-        "name": "FactorIQ — Multi-Factor Investing Portfolio",
-        "url": "https://factoriq.dev/blog/multi-factor-investing-portfolio"
+        "name": "ETF Database — Core US Equity Building Blocks",
+        "url": "https://etfdb.com/compare/SPY-vs-QQQ-vs-IWM/"
       },
       "asset_class_mix": {
         "equity": 1.0
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.4, "name": "Vanguard Total Stock Market ETF" },
-        { "ticker": "VTV", "weight": 0.15, "name": "Vanguard Value ETF" },
-        { "ticker": "QUAL", "weight": 0.15, "name": "iShares MSCI USA Quality Factor ETF" },
-        { "ticker": "MTUM", "weight": 0.15, "name": "iShares MSCI USA Momentum Factor ETF" },
-        { "ticker": "USMV", "weight": 0.15, "name": "iShares MSCI USA Min Vol Factor ETF" }
+        { "ticker": "SPY", "weight": 0.5, "name": "SPDR S&P 500 ETF Trust" },
+        { "ticker": "QQQ", "weight": 0.25, "name": "Invesco QQQ Trust" },
+        { "ticker": "IWM", "weight": 0.25, "name": "iShares Russell 2000 ETF" }
       ],
-      "benchmark": "VTI",
+      "benchmark": "SPY",
       "risk_level": "aggressive"
     },
     {
       "id": "us-sector-growth-tilt",
-      "name": "US Large Cap + Sector Tilt",
-      "description": "US large-cap core with overweights to technology, healthcare, and financials — a common RM demo for clients seeking growth with sector convictions.",
+      "name": "US Large Cap + Growth Tilt",
+      "description": "S&P 500 core (SPY) with Nasdaq growth overweight (QQQ) and sector tilts to healthcare and financials — a common RM demo for clients seeking growth with sector convictions.",
       "source": {
         "name": "Freenance — 60/40 Portfolio sector-expanded variant",
         "url": "https://freenance.io/strategies/60-40-portfolio-guide/"
@@ -93,18 +91,18 @@
         "equity": 1.0
       },
       "holdings": [
-        { "ticker": "VOO", "weight": 0.5, "name": "Vanguard S&P 500 ETF" },
-        { "ticker": "XLK", "weight": 0.2, "name": "Technology Select Sector SPDR" },
+        { "ticker": "SPY", "weight": 0.4, "name": "SPDR S&P 500 ETF Trust" },
+        { "ticker": "QQQ", "weight": 0.3, "name": "Invesco QQQ Trust" },
         { "ticker": "XLV", "weight": 0.15, "name": "Health Care Select Sector SPDR" },
         { "ticker": "XLF", "weight": 0.15, "name": "Financial Select Sector SPDR" }
       ],
-      "benchmark": "VOO",
+      "benchmark": "QQQ",
       "risk_level": "aggressive"
     },
     {
       "id": "all-weather-simplified",
       "name": "All Weather (Simplified ETF)",
-      "description": "Ray Dalio-inspired risk-balanced allocation across stocks, long/intermediate Treasuries, gold, and commodities. Designed to perform across growth and inflation regimes.",
+      "description": "Ray Dalio-inspired risk-balanced allocation across stocks (SPY), long/intermediate Treasuries, gold (GLD), and commodities. Designed to perform across growth and inflation regimes.",
       "source": {
         "name": "ETF Central — Ray Dalio All-Weather ETF Portfolio",
         "url": "https://www.etfcentral.com/news/the-ray-dalio-all-weather-etf-portfolio"
@@ -116,13 +114,13 @@
         "gold": 0.075
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.3, "name": "Vanguard Total Stock Market ETF" },
+        { "ticker": "SPY", "weight": 0.3, "name": "SPDR S&P 500 ETF Trust" },
         { "ticker": "TLT", "weight": 0.4, "name": "iShares 20+ Year Treasury Bond ETF" },
         { "ticker": "IEF", "weight": 0.15, "name": "iShares 7-10 Year Treasury Bond ETF" },
-        { "ticker": "GLDM", "weight": 0.075, "name": "SPDR Gold MiniShares Trust" },
+        { "ticker": "GLD", "weight": 0.075, "name": "SPDR Gold Shares" },
         { "ticker": "PDBC", "weight": 0.075, "name": "Invesco Optimum Yield Diversified Commodity Strategy ETF" }
       ],
-      "benchmark": "VTI",
+      "benchmark": "SPY",
       "risk_level": "moderate_conservative"
     }
   ]
