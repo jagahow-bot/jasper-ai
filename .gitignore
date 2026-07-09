@@ -18,6 +18,11 @@ dist/
 *.egg-info/
 .pytest_cache/
 
+# Downloaded market data (regenerate via scripts/download_universe_prices.py)
+data/prices/*.parquet
+data/prices/ohlcv/
+data/prices/meta.json
+
 # IDE / OS
 .idea/
 .vscode/

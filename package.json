@@ -12,7 +12,8 @@
     "build": "npm run build --prefix apps/web",
     "start": "npm run start --prefix apps/web",
     "lint": "npm run lint --prefix apps/web",
-    "sync-universe": "node -e \"require('fs').copyFileSync('shared/etf-universe.json','apps/web/src/data/etf-universe.json')\""
+    "sync-universe": "node -e \"require('fs').copyFileSync('shared/etf-universe.json','apps/web/src/data/etf-universe.json')\"",
+    "sync-model-portfolios": "node -e \"require('fs').copyFileSync('shared/model-portfolios/model-portfolios.json','apps/web/src/data/model-portfolios.json')\""
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
