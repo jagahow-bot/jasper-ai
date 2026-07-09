@@ -1,0 +1,11 @@
+{
+  "scope": "demo",
+  "start": "2010-01-01",
+  "end": "2026-07-09",
+  "tickers_requested": 18,
+  "tickers_downloaded": 18,
+  "missing_tickers": [],
+  "close_rows": 4152,
+  "close_columns": 18,
+  "downloaded_at": "2026-07-09"
+}

@@ -58,6 +58,7 @@ def _union_supplement_items(
     supplement_tickers: list[str],
     *,
     allowed_asset_classes: set[str] | None = None,
+    bypass_asset_class_filter: bool = False,
 ) -> list[dict[str, Any]]:
     """Union AI-filter supplement tickers onto the asset-class base pool."""
     sup_set = {str(t).upper() for t in supplement_tickers}
@@ -67,7 +68,11 @@ def _union_supplement_items(
         t = str(u.get("ticker", "")).upper()
         if t not in sup_set or t in seen:
             continue
-        if allowed_asset_classes and str(u.get("asset_class", "")) not in allowed_asset_classes:
+        if (
+            not bypass_asset_class_filter
+            and allowed_asset_classes
+            and str(u.get("asset_class", "")) not in allowed_asset_classes
+        ):
             continue
         out.append(u)
         seen.add(t)
@@ -95,6 +100,7 @@ def pin_guaranteed_supplements(
         all_items,
         supplement_tickers,
         allowed_asset_classes=allowed,
+        bypass_asset_class_filter=True,
     )
 
 

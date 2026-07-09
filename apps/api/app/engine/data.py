@@ -10,6 +10,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from app.config import ROOT
+
 YFINANCE_CHUNK = 25
 MIN_TRADING_DAYS = 504
 # Calendar days to fetch before the UI start so factor/allocator lookbacks are ready on day 1.
@@ -19,8 +21,9 @@ MIN_ROW_COVERAGE = 0.75
 # Symbols listed after requested start + this slack are dropped (not used to trim the panel).
 LATE_LISTING_TOLERANCE_DAYS = 21
 CACHE_TTL_HOURS = 12
-ROOT = Path(__file__).resolve().parents[3]
 PRICE_CACHE_DIR = ROOT / "apps" / "api" / ".cache" / "prices"
+BUNDLED_PRICES_PATH = ROOT / "apps" / "api" / "data" / "bundled_prices" / "closes.parquet"
+DEMO_TICKERS_PATH = ROOT / "shared" / "demo-tickers.json"
 
 
 def _cache_key(
@@ -180,6 +183,82 @@ def _save_cached_prices(path: Path, prices: pd.DataFrame) -> None:
         pass
 
 
+def _load_bundled_prices_panel() -> pd.DataFrame | None:
+    """Committed demo closes panel (Render / offline fallback)."""
+    if not BUNDLED_PRICES_PATH.exists():
+        return None
+    try:
+        panel = pd.read_parquet(BUNDLED_PRICES_PATH)
+    except Exception:
+        return None
+    if panel.empty:
+        return None
+    panel.index = pd.to_datetime(panel.index)
+    panel = panel.sort_index()
+    panel.columns = [str(c).upper() for c in panel.columns]
+    return panel
+
+
+def _slice_price_panel(
+    panel: pd.DataFrame,
+    download_start: str,
+    end: str,
+    tickers: list[str],
+) -> pd.DataFrame:
+    want = [str(t).upper() for t in tickers]
+    cols = [c for c in want if c in panel.columns]
+    if not cols:
+        return pd.DataFrame()
+    out = panel.loc[:, cols].copy()
+    start_ts = pd.Timestamp(download_start)
+    end_ts = pd.Timestamp(end)
+    out = out.loc[(out.index >= start_ts) & (out.index <= end_ts)]
+    return out
+
+
+def _download_yfinance_closes(
+    tickers: list[str],
+    download_start: str,
+    end: str,
+) -> pd.DataFrame:
+    import yfinance as yf
+
+    frames: list[pd.DataFrame] = []
+    for i in range(0, len(tickers), YFINANCE_CHUNK):
+        chunk = tickers[i : i + YFINANCE_CHUNK]
+        data = yf.download(
+            chunk,
+            start=download_start,
+            end=end,
+            auto_adjust=True,
+            progress=False,
+            group_by="column",
+            threads=False,
+        )
+        if data.empty:
+            continue
+        if isinstance(data.columns, pd.MultiIndex):
+            close = data["Close"].copy()
+        else:
+            close = data[["Close"]].rename(columns={"Close": chunk[0]})
+        frames.append(close)
+
+    if not frames:
+        return pd.DataFrame()
+    prices = pd.concat(frames, axis=1)
+    prices.columns = [str(c).upper() for c in prices.columns]
+    return prices
+
+
+def _merge_price_panels(*panels: pd.DataFrame) -> pd.DataFrame:
+    usable = [p for p in panels if p is not None and not p.empty]
+    if not usable:
+        return pd.DataFrame()
+    merged = pd.concat(usable, axis=1)
+    merged = merged.loc[:, ~merged.columns.duplicated()]
+    return merged.sort_index()
+
+
 def fetch_prices(
     tickers: list[str],
     start: str,
@@ -188,12 +267,10 @@ def fetch_prices(
     *,
     prep_buffer_days: int | None = None,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
-    import yfinance as yf
-
     requested_start = start
     buffer_days = int(prep_buffer_days or PRICE_PREP_BUFFER_CALENDAR_DAYS)
     download_start = price_download_start(requested_start, buffer_days=buffer_days)
-    download_tickers = list(dict.fromkeys([*tickers, benchmark]))
+    download_tickers = list(dict.fromkeys([str(t).upper() for t in [*tickers, benchmark]]))
     cpath = _cache_path(_cache_key(tickers, download_start, end, benchmark))
     cached = _load_cached_prices(cpath)
     if cached is not None and not cached.empty:
@@ -203,31 +280,35 @@ def fetch_prices(
         prices = cached.copy()
         data_source = "yfinance_cache"
     else:
-        frames: list[pd.DataFrame] = []
-        for i in range(0, len(download_tickers), YFINANCE_CHUNK):
-            chunk = download_tickers[i : i + YFINANCE_CHUNK]
-            data = yf.download(
-                chunk,
-                start=download_start,
-                end=end,
-                auto_adjust=True,
-                progress=False,
-                group_by="column",
-                threads=False,
-            )
-            if data.empty:
-                continue
-            if isinstance(data.columns, pd.MultiIndex):
-                close = data["Close"].copy()
-            else:
-                close = data[["Close"]].rename(columns={"Close": chunk[0]})
-            frames.append(close)
-
-        if not frames:
-            raise ValueError("yfinance returned no price data")
-        prices = pd.concat(frames, axis=1)
+        bundled_panel = _load_bundled_prices_panel()
+        bundled_slice = (
+            _slice_price_panel(bundled_panel, download_start, end, download_tickers)
+            if bundled_panel is not None
+            else pd.DataFrame()
+        )
+        bundled_ok = [
+            t
+            for t in download_tickers
+            if t in bundled_slice.columns and bundled_slice[t].dropna().shape[0] >= MIN_TRADING_DAYS
+        ]
+        bundled_ok_set = set(bundled_ok)
+        yf_tickers = [t for t in download_tickers if t not in bundled_ok_set]
+        yf_prices = (
+            _download_yfinance_closes(yf_tickers, download_start, end) if yf_tickers else pd.DataFrame()
+        )
+        prices = _merge_price_panels(
+            bundled_slice[bundled_ok] if bundled_ok else pd.DataFrame(),
+            yf_prices,
+        )
+        if prices.empty:
+            raise ValueError("no price data from bundled panel or yfinance")
+        if bundled_ok and yf_prices.empty:
+            data_source = "bundled_parquet"
+        elif bundled_ok:
+            data_source = "bundled_parquet+yfinance"
+        else:
+            data_source = "yfinance"
         _save_cached_prices(cpath, prices)
-        data_source = "yfinance"
     prices = prices.loc[:, ~prices.columns.duplicated()]
     prices = prices.sort_index()
     prices = prices.replace([np.inf, -np.inf], np.nan)

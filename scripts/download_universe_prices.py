@@ -24,7 +24,9 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_PORTFOLIOS_PATH = ROOT / "shared" / "model-portfolios" / "model-portfolios.json"
 UNIVERSE_PATH = ROOT / "shared" / "etf-universe.json"
+DEMO_TICKERS_PATH = ROOT / "shared" / "demo-tickers.json"
 OUTPUT_DIR = ROOT / "data" / "prices"
+BUNDLED_OUTPUT_DIR = ROOT / "apps" / "api" / "data" / "bundled_prices"
 OHLCV_DIR = OUTPUT_DIR / "ohlcv"
 YFINANCE_CHUNK = 25
 DEFAULT_START = "2010-01-01"
@@ -47,11 +49,18 @@ def load_universe_tickers() -> list[str]:
     return sorted(dict.fromkeys(str(u["ticker"]).upper() for u in data["universe"]))
 
 
+def load_demo_tickers() -> list[str]:
+    data = json.loads(DEMO_TICKERS_PATH.read_text(encoding="utf-8"))
+    return sorted(dict.fromkeys(str(t).upper() for t in data.get("tickers", [])))
+
+
 def resolve_tickers(scope: str) -> list[str]:
     if scope == "portfolios":
         return load_portfolio_tickers()
     if scope == "universe":
         return load_universe_tickers()
+    if scope == "demo":
+        return load_demo_tickers()
     if scope == "all":
         combined = [*load_portfolio_tickers(), *load_universe_tickers()]
         return sorted(dict.fromkeys(combined))
@@ -141,9 +150,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Download ETF/stock OHLCV via yfinance")
     parser.add_argument(
         "--scope",
-        choices=("portfolios", "universe", "all"),
+        choices=("portfolios", "universe", "demo", "all"),
         default="portfolios",
-        help="Which ticker set to download (default: portfolios)",
+        help="Which ticker set to download (default: portfolios; demo = bundled Render prices)",
+    )
+    parser.add_argument(
+        "--bundled",
+        action="store_true",
+        help="Write closes.parquet to apps/api/data/bundled_prices (for Docker / Render)",
     )
     parser.add_argument("--start", default=DEFAULT_START, help="Start date YYYY-MM-DD")
     parser.add_argument(
@@ -158,21 +172,48 @@ def main() -> None:
     if not tickers:
         raise SystemExit("No tickers resolved")
 
+    out_dir = BUNDLED_OUTPUT_DIR if args.bundled else OUTPUT_DIR
     print(f"Downloading {len(tickers)} tickers ({args.scope}) from {args.start} to {end}")
+    print(f"Output directory: {out_dir}")
     ohlcv = download_ohlcv(tickers, args.start, end)
     closes = build_close_panel(ohlcv)
-    save_outputs(
-        ohlcv,
-        closes,
-        tickers_requested=tickers,
-        start=args.start,
-        end=end,
-        scope=args.scope,
-    )
+    if args.bundled:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        closes.to_parquet(out_dir / "closes.parquet")
+        meta = {
+            "scope": args.scope,
+            "start": args.start,
+            "end": end,
+            "tickers_requested": len(tickers),
+            "tickers_downloaded": len(ohlcv),
+            "missing_tickers": sorted(set(tickers) - set(ohlcv.keys())),
+            "close_rows": len(closes),
+            "close_columns": len(closes.columns),
+            "downloaded_at": date.today().isoformat(),
+        }
+        (out_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    else:
+        save_outputs(
+            ohlcv,
+            closes,
+            tickers_requested=tickers,
+            start=args.start,
+            end=end,
+            scope=args.scope,
+        )
 
     missing = sorted(set(tickers) - set(ohlcv.keys()))
-    print(f"Saved {len(ohlcv)} OHLCV files to {OHLCV_DIR}")
-    print(f"Saved close panel ({closes.shape[0]} rows x {closes.shape[1]} cols) to {OUTPUT_DIR / 'closes.parquet'}")
+    if args.bundled:
+        print(
+            f"Saved bundled close panel ({closes.shape[0]} rows x {closes.shape[1]} cols) "
+            f"to {out_dir / 'closes.parquet'}"
+        )
+    else:
+        print(f"Saved {len(ohlcv)} OHLCV files to {OHLCV_DIR}")
+        print(
+            f"Saved close panel ({closes.shape[0]} rows x {closes.shape[1]} cols) "
+            f"to {OUTPUT_DIR / 'closes.parquet'}"
+        )
     if missing:
         print(f"Missing tickers ({len(missing)}): {', '.join(missing[:20])}{'...' if len(missing) > 20 else ''}")
         sys.exit(1)

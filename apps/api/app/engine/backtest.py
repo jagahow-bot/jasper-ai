@@ -2439,7 +2439,7 @@ def _run_static_replay_backtest(
         )
     except Exception as exc:
         raise ValueError(
-            f"Failed to load prices (yfinance): {exc}. Check network, date range, and API is running."
+            f"Failed to load prices: {exc}. Check network, date range, and API is running."
         ) from exc
 
     tradable = [t for t in tickers if t in prices.columns]
@@ -2654,7 +2654,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         )
     except Exception as exc:
         raise ValueError(
-            f"Failed to load prices (yfinance): {exc}. Check network, date range, and API is running."
+            f"Failed to load prices: {exc}. Check network, date range, and API is running."
         ) from exc
 
     tickers = [t for t in tickers if t in prices.columns]

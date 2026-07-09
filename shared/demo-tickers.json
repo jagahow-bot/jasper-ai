@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "updated": "2026-07-09",
+  "description": "Mainstream ETF building blocks for JASPER demo personalization (not full universe).",
+  "tickers": [
+    "SPY",
+    "QQQ",
+    "IWM",
+    "DIA",
+    "VTI",
+    "VXUS",
+    "EFA",
+    "AGG",
+    "BND",
+    "TLT",
+    "IEF",
+    "SHY",
+    "LQD",
+    "HYG",
+    "GLD",
+    "PDBC",
+    "XLV",
+    "XLF"
+  ]
+}
