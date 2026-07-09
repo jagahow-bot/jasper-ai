@@ -2435,9 +2435,20 @@ def _run_static_replay_backtest(
 
     try:
         prices, data_meta = fetch_prices(
-            fetch_tickers, req.start_date, req.end_date, spec.benchmark_ticker
+            fetch_tickers,
+            req.start_date,
+            req.end_date,
+            spec.benchmark_ticker,
+            min_valid_tickers=max(1, len(set(fetch_tickers))),
         )
     except Exception as exc:
+        logger.error(
+            "Static replay price load failed: %s | tickers=%s start=%s end=%s",
+            exc,
+            fetch_tickers,
+            req.start_date,
+            req.end_date,
+        )
         raise ValueError(
             f"Failed to load prices: {exc}. Check network, date range, and API is running."
         ) from exc
@@ -2653,6 +2664,13 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             tickers, req.start_date, req.end_date, spec.benchmark_ticker
         )
     except Exception as exc:
+        logger.error(
+            "Backtest price load failed: %s | universe=%d tickers start=%s end=%s",
+            exc,
+            len(tickers),
+            req.start_date,
+            req.end_date,
+        )
         raise ValueError(
             f"Failed to load prices: {exc}. Check network, date range, and API is running."
         ) from exc

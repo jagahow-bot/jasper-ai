@@ -33,6 +33,21 @@ def test_fetch_prices_uses_bundled_without_yfinance(mock_yf):
         mock_yf.assert_not_called()
 
 
+@patch("app.engine.data._download_yfinance_closes")
+def test_fetch_prices_spy_anchor_static_replay_min_one(mock_yf):
+    """SPY-only anchor static replay must not require five valid tickers."""
+    mock_yf.return_value = pd.DataFrame()
+    prices, meta = fetch_prices(
+        ["SPY"],
+        "2018-01-01",
+        "2024-12-31",
+        "SPY",
+        min_valid_tickers=1,
+    )
+    assert "SPY" in prices.columns
+    assert meta["data_source"] in {"bundled_parquet", "bundled_parquet+yfinance", "yfinance_cache"}
+
+
 def test_pin_guaranteed_supplements_includes_outside_asset_class():
     refined = [{"ticker": "SPY", "asset_class": "equity", "category": "us_broad"}]
     pinned = pin_guaranteed_supplements(refined, ["GLD", "AGG"], asset_classes=["equity"])

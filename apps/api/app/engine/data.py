@@ -115,7 +115,7 @@ def _trim_leading_incomplete_rows(
     if prices.empty:
         return prices
     n_cols = len(prices.columns)
-    min_cols = max(3, int(n_cols * MIN_ROW_COVERAGE))
+    min_cols = min(n_cols, max(3, int(n_cols * MIN_ROW_COVERAGE)))
 
     if requested_start is None:
         complete = prices.notna().all(axis=1)
@@ -266,6 +266,7 @@ def fetch_prices(
     benchmark: str,
     *,
     prep_buffer_days: int | None = None,
+    min_valid_tickers: int = 5,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     requested_start = start
     buffer_days = int(prep_buffer_days or PRICE_PREP_BUFFER_CALENDAR_DAYS)
@@ -331,11 +332,16 @@ def fetch_prices(
         if prices[benchmark].notna().sum() >= MIN_TRADING_DAYS:
             valid_cols.append(benchmark)
 
-    if len(valid_cols) < 5:
-        raise ValueError(f"Too few valid tickers ({len(valid_cols)}); shorten range or widen filter")
+    min_needed = max(1, int(min_valid_tickers))
+    if len(valid_cols) < min_needed:
+        raise ValueError(
+            f"Too few valid tickers ({len(valid_cols)}); shorten range or widen filter "
+            f"[data_source={data_source}, requested={len(download_tickers)}, "
+            f"bundled_available={BUNDLED_PRICES_PATH.exists()}, min_needed={min_needed}]"
+        )
 
     prices = prices[valid_cols]
-    min_cols = max(3, int(len(valid_cols) * MIN_ROW_COVERAGE))
+    min_cols = min(len(valid_cols), max(3, int(len(valid_cols) * MIN_ROW_COVERAGE)))
     prices = prices[prices.notna().sum(axis=1) >= min_cols]
     prices = prices.ffill()
     prices = _trim_leading_incomplete_rows(prices, requested_start=requested_start)
