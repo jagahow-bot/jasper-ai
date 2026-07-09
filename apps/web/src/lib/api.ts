@@ -23,9 +23,28 @@ function getApiBase(): string {
 const API_UNAVAILABLE_MSG =
   "Cannot reach quant API. From repo root run npm run dev and confirm api is on 127.0.0.1:8001 (no WinError 10013).";
 
+function resStatusLabel(status: number): string {
+  if (status === 404) return "Resource not found";
+  if (status === 409) return "Job still running";
+  if (status === 422) return "Invalid request";
+  if (status === 502 || status === 503 || status === 504) {
+    return (
+      "Quant API is temporarily unavailable (server may have restarted after heavy load). " +
+      "Wait 30–60 seconds and try again, or reduce search trials."
+    );
+  }
+  return `Request failed (${status})`;
+}
+
 function formatApiError(status: number, body: string): string {
   const trimmed = body.trim();
   if (!trimmed) return resStatusLabel(status);
+  if (
+    (status === 502 || status === 503 || status === 504) &&
+    (trimmed.startsWith("<!") || trimmed.includes("<html"))
+  ) {
+    return resStatusLabel(status);
+  }
   try {
     const parsed = JSON.parse(trimmed) as { detail?: unknown };
     const detail = parsed.detail;
@@ -40,13 +59,6 @@ function formatApiError(status: number, body: string): string {
     /* not JSON */
   }
   return trimmed.length > 240 ? `${trimmed.slice(0, 240)}…` : trimmed;
-}
-
-function resStatusLabel(status: number): string {
-  if (status === 404) return "Resource not found";
-  if (status === 409) return "Job still running";
-  if (status === 422) return "Invalid request";
-  return `Request failed (${status})`;
 }
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {

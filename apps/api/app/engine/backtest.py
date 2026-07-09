@@ -96,6 +96,8 @@ from app.engine.refinement import (
     summarize_params_for_ai,
 )
 from app.engine.memory_budget import (
+    cap_trials_for_runtime,
+    cap_universe_for_runtime,
     maybe_collect_garbage,
     metrics_with_port_ret_from_cache,
     prune_search_records,
@@ -2579,7 +2581,20 @@ def _run_static_replay_backtest(
 
 def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> BacktestResult:
     if req.static_replay_holdings:
-        return _run_static_replay_backtest(req, job_id, progress_cb=progress_cb)
+        result = _run_static_replay_backtest(req, job_id, progress_cb=progress_cb)
+        maybe_collect_garbage(1, 1)
+        return result
+
+    pro_mode_early = _is_pro_mode(req)
+    capped_trials = cap_trials_for_runtime(req.trials, pro_mode=pro_mode_early)
+    if capped_trials < req.trials:
+        logger.info(
+            "Runtime trials cap applied: %d -> %d (job %s)",
+            req.trials,
+            capped_trials,
+            job_id,
+        )
+        req = req.model_copy(update={"trials": capped_trials})
 
     objective_effective = _resolve_objective(req.objective.value, req.objective_custom_text)
     dynamic_mode = is_dynamic_objective(objective_effective)
@@ -2609,6 +2624,10 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         universe_plan["universe"],
         guaranteed_supplements or None,
         asset_classes=req.asset_classes,
+    )
+    universe = cap_universe_for_runtime(
+        universe,
+        pinned_tickers=guaranteed_supplements or None,
     )
     universe_pool_count = len(universe)
     universe_meta = get_universe_meta()
@@ -3728,4 +3747,8 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         stash_trial_report_cache(job_id, trial_report_cache)
     except Exception:  # noqa: BLE001
         logger.debug("trial_report_cache not stashed (jobs store unavailable)", exc_info=True)
+    maybe_collect_garbage(1, 1)
+    import gc
+
+    gc.collect()
     return result

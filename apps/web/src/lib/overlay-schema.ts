@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { enforceAllocControlsForClasses } from "@/lib/asset-class-policy";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/constants";
+import { MAINSTREAM_DEMO_TICKERS } from "@/lib/model-portfolios";
 import type {
   BacktestRequest,
   ExperimentRequest,
@@ -291,6 +292,7 @@ export function overlayToBacktestRequest(
   const prompts = overlay.universe.prompts.filter(Boolean);
   const filterText = prompts.length ? prompts.join("; ") : base.universe_filter_text;
   const fromAnchorReplay = Boolean(base.static_replay_holdings);
+  const demoUniverse = [...MAINSTREAM_DEMO_TICKERS];
 
   return {
     ...base,
@@ -300,16 +302,23 @@ export function overlayToBacktestRequest(
     objective: (opt.objective ?? base.objective) as Objective,
     regime_adaptive: opt.regime_adaptive ?? base.regime_adaptive,
     optimization_mode: (opt.optimization_mode ?? base.optimization_mode) as OptimizationMode,
-    trials: opt.trials ?? (fromAnchorReplay ? 50 : base.trials),
+    trials: opt.trials ?? (fromAnchorReplay ? 25 : base.trials),
     top_models: fromAnchorReplay ? 5 : base.top_models,
-    max_holdings: fromAnchorReplay ? 30 : base.max_holdings,
+    max_holdings: fromAnchorReplay ? demoUniverse.length : base.max_holdings,
     universe_tickers: fromAnchorReplay ? null : base.universe_tickers,
     enforce_class_weights:
       alloc.enforce_class_weights ?? base.enforce_class_weights ?? false,
     universe_filter_prompts: prompts.length ? prompts : base.universe_filter_prompts,
     universe_filter_text: filterText,
-    universe_supplement_tickers:
-      overlay.universe.supplement_tickers?.length
+    universe_supplement_tickers: fromAnchorReplay
+      ? [
+          ...new Set([
+            ...demoUniverse,
+            ...(overlay.universe.supplement_tickers ?? []),
+            ...(base.universe_supplement_tickers ?? []),
+          ]),
+        ]
+      : overlay.universe.supplement_tickers?.length
         ? overlay.universe.supplement_tickers
         : base.universe_supplement_tickers,
     param_controls: enforcedControls,

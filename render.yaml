@@ -3,9 +3,10 @@
 #
 # Memory (jasper-ai-api): Pro backtests load large price panels + Optuna trials.
 #   - 512 MB instances often OOM during online Pro runs; prefer 1 GB+ (Standard).
-#   - Dashboard → jasper-ai-api → Settings → Instance Type → upgrade (not in blueprint).
-#   - Env: OPTUNA_N_JOBS=1 (default on Render), SEARCH_RECORDS_MAX=64,
-#     WEIGHT_HISTORY_TICKER_CAP=28, RENDER_MEMORY_MB=1024 (documentation only).
+#   - Dashboard → jasper-ai-api → Settings → Instance Type → Standard (1 GB RAM) or higher.
+#   - Blueprint env caps below help on 512 MB; upgrade instance for Pro / 50+ trials.
+#   - Env: OPTUNA_N_JOBS=1, SEARCH_RECORDS_MAX=48, RENDER_TRIALS_CAP=30,
+#     UNIVERSE_TICKER_CAP=28, WEIGHT_HISTORY_TICKER_CAP=28.
 #
 # Backtest history (jasper-ai-api): completed jobs persist under JOB_HISTORY_DIR.
 #   - Persistent disk is required — ephemeral container FS is wiped on redeploy.
@@ -37,6 +38,12 @@ services:
     envVars:
       - key: OPTUNA_N_JOBS
         value: "1"
+      - key: SEARCH_RECORDS_MAX
+        value: "48"
+      - key: RENDER_TRIALS_CAP
+        value: "30"
+      - key: UNIVERSE_TICKER_CAP
+        value: "28"
       - key: JOB_HISTORY_DIR
         value: /var/data/jobs
       - key: CHAMPION_REGISTRY_PATH

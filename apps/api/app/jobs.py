@@ -1,3 +1,4 @@
+import gc
 import logging
 import threading
 import traceback
@@ -12,6 +13,7 @@ from app.candidate_charts import (
     resolve_candidate_charts,
 )
 from app.engine.backtest import run_backtest, _is_pro_mode
+from app.engine.memory_budget import is_render_runtime
 from app.engine.report_sim_cache import TrialReportCache
 from app.job_history import list_job_summaries, load_persisted_job, persist_completed_job
 from app.job_continuation import (
@@ -32,6 +34,15 @@ from app.models import (
 _jobs: dict[str, dict] = {}
 _continuation_snapshots: dict[str, dict] = {}
 _lock = threading.Lock()
+# One active backtest per API process on Render avoids 2× peak RAM (dual personalization jobs).
+_backtest_slot = threading.Semaphore(1 if is_render_runtime() else 2)
+
+
+def _evict_stale_report_caches(active_job_id: str) -> None:
+    with _lock:
+        for jid, job in _jobs.items():
+            if jid != active_job_id:
+                job["report_cache"] = None
 
 
 def _notify_async(
@@ -126,6 +137,7 @@ def create_job(req: BacktestRequest, *, continuation_snapshot: dict | None = Non
             snap = dict(continuation_snapshot)
             snap["prior_job_id"] = snap.get("prior_job_id") or req.continue_from_job_id
             _continuation_snapshots[job_id] = snap
+    _evict_stale_report_caches(job_id)
 
     thread = threading.Thread(target=_run_job, args=(job_id, req), daemon=True)
     thread.start()
@@ -211,7 +223,9 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
                 trials_total=_estimated_trials_total(req),
             )
 
-        result = run_backtest(req, job_id, progress_cb=on_progress)
+        with _backtest_slot:
+            result = run_backtest(req, job_id, progress_cb=on_progress)
+        gc.collect()
 
         completed_trials = int(
             (result.narrative_facts or {}).get("trials_completed", req.trials)

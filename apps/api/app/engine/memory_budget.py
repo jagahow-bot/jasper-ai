@@ -25,8 +25,11 @@ _HEAVY_METRIC_KEYS = frozenset(
 )
 
 _DEFAULT_SEARCH_RECORD_CAP = 64
+_DEFAULT_RENDER_SEARCH_RECORD_CAP = 48
 _DEFAULT_WEIGHT_HISTORY_TICKER_CAP = 28
 _DEFAULT_WEIGHT_HISTORY_ROW_CAP = 72
+_DEFAULT_RENDER_TRIALS_CAP = 30
+_DEFAULT_UNIVERSE_TICKER_CAP = 28
 
 
 def _env_int(name: str, default: int) -> int:
@@ -55,7 +58,54 @@ def optuna_n_jobs() -> int:
 
 
 def search_records_cap() -> int:
-    return _env_int("SEARCH_RECORDS_MAX", _DEFAULT_SEARCH_RECORD_CAP)
+    default = (
+        _DEFAULT_RENDER_SEARCH_RECORD_CAP
+        if is_render_runtime()
+        else _DEFAULT_SEARCH_RECORD_CAP
+    )
+    return _env_int("SEARCH_RECORDS_MAX", default)
+
+
+def render_trials_cap() -> int | None:
+    """Max Optuna trials per standard-mode job on Render (None = no cap)."""
+    if not is_render_runtime():
+        return None
+    return _env_int("RENDER_TRIALS_CAP", _DEFAULT_RENDER_TRIALS_CAP)
+
+
+def cap_trials_for_runtime(trials: int, *, pro_mode: bool = False) -> int:
+    if pro_mode:
+        return trials
+    cap = render_trials_cap()
+    if cap is None:
+        return trials
+    return min(int(trials), cap)
+
+
+def universe_ticker_cap() -> int | None:
+    if not is_render_runtime():
+        return None
+    return _env_int("UNIVERSE_TICKER_CAP", _DEFAULT_UNIVERSE_TICKER_CAP)
+
+
+def cap_universe_for_runtime(
+    universe: list[dict[str, Any]],
+    *,
+    pinned_tickers: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Trim tradable universe on memory-constrained hosts; keep pinned supplements first."""
+    cap = universe_ticker_cap()
+    if cap is None or len(universe) <= cap:
+        return universe
+    pinned = {str(t).upper() for t in (pinned_tickers or [])}
+    pinned_items = [
+        u for u in universe if str(u.get("ticker", "")).upper() in pinned
+    ]
+    rest = [u for u in universe if str(u.get("ticker", "")).upper() not in pinned]
+    if len(pinned_items) >= cap:
+        return pinned_items[:cap]
+    slots = cap - len(pinned_items)
+    return pinned_items + rest[:slots]
 
 
 def weight_history_ticker_cap() -> int:

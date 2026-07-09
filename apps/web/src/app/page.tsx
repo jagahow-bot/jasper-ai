@@ -422,65 +422,56 @@ export default function HomePage() {
       );
 
       try {
-        const [baseJob, adjustedJob] = await Promise.all([
-          createJob({ ...baseReq, experiment: undefined, report_language: lang }),
-          createJob({
-            ...adjustedReq,
-            experiment: undefined,
-            report_language: lang,
-          }),
-        ]);
-        const [initialAnchorProg, initialCustomProg] = await Promise.all([
-          getJobProgress(baseJob.job_id),
-          getJobProgress(adjustedJob.job_id),
-        ]);
-        setAnchorProgress(initialAnchorProg);
+        // Run anchor (static replay) first so customized Optuna does not overlap peak RAM on API.
+        const baseJob = await createJob({
+          ...baseReq,
+          experiment: undefined,
+          report_language: lang,
+        });
+        setAnchorProgress(await getJobProgress(baseJob.job_id));
+
+        let baseDone = false;
+        let baseFailed = false;
+        while (!baseDone) {
+          const prog = await getJobProgress(baseJob.job_id);
+          setAnchorProgress(prog);
+          if (prog.status === "completed") baseDone = true;
+          if (prog.status === "failed") {
+            baseFailed = true;
+            baseDone = true;
+          }
+          if (!baseDone) await new Promise((r) => setTimeout(r, 400));
+        }
+
+        const adjustedJob = await createJob({
+          ...adjustedReq,
+          experiment: undefined,
+          report_language: lang,
+        });
+        const initialCustomProg = await getJobProgress(adjustedJob.job_id);
         setProgress(initialCustomProg);
         setJobId(adjustedJob.job_id);
         setActiveJobId(adjustedJob.job_id);
 
-        let baseDone = false;
         let adjustedDone = false;
-        let baseFailed = false;
         let adjustedFailed = false;
 
-        while (!baseDone || !adjustedDone) {
-          const polls: Promise<void>[] = [];
-          if (!adjustedDone) {
-            polls.push(
-              getJobProgress(adjustedJob.job_id).then((prog) => {
-                setProgress(prog);
-                if (prog.status === "running" && prog.message) {
-                  if (prog.message !== lastProgressMsg.current) {
-                    lastProgressMsg.current = prog.message;
-                    setStatusFeed((prev) => [prog.message, ...prev].slice(0, 12));
-                  }
-                }
-                if (prog.status === "completed") adjustedDone = true;
-                if (prog.status === "failed") {
-                  adjustedFailed = true;
-                  adjustedDone = true;
-                  pushMessage(setMessages, "system", prog.message);
-                }
-              }),
-            );
+        while (!adjustedDone) {
+          const prog = await getJobProgress(adjustedJob.job_id);
+          setProgress(prog);
+          if (prog.status === "running" && prog.message) {
+            if (prog.message !== lastProgressMsg.current) {
+              lastProgressMsg.current = prog.message;
+              setStatusFeed((prev) => [prog.message, ...prev].slice(0, 12));
+            }
           }
-          if (!baseDone) {
-            polls.push(
-              getJobProgress(baseJob.job_id).then((prog) => {
-                setAnchorProgress(prog);
-                if (prog.status === "completed") baseDone = true;
-                if (prog.status === "failed") {
-                  baseFailed = true;
-                  baseDone = true;
-                }
-              }),
-            );
+          if (prog.status === "completed") adjustedDone = true;
+          if (prog.status === "failed") {
+            adjustedFailed = true;
+            adjustedDone = true;
+            pushMessage(setMessages, "system", prog.message);
           }
-          if (polls.length) await Promise.all(polls);
-          if (!baseDone || !adjustedDone) {
-            await new Promise((r) => setTimeout(r, 400));
-          }
+          if (!adjustedDone) await new Promise((r) => setTimeout(r, 400));
         }
 
         if (adjustedFailed) {
