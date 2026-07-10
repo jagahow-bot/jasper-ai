@@ -247,6 +247,13 @@ class BacktestRequest(BaseModel):
             "Skips Optuna and simulates buy-and-hold / static rebalance only."
         ),
     )
+    benchmark_ticker: str | None = Field(
+        default=None,
+        description=(
+            "Explicit benchmark for metrics, charts, and AI narratives. "
+            "When set, overrides AI universe benchmark suggestion (e.g. anchor SPY)."
+        ),
+    )
 
     @field_validator("notify_email", mode="before")
     @classmethod

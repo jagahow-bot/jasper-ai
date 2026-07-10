@@ -64,6 +64,10 @@ import {
   buildCompareEffectKey,
   computeAllCandidatesBelowBenchmark,
 } from "@/lib/compare-summary";
+import {
+  benchmarkTickerMismatch,
+  resolveResultBenchmarkTicker,
+} from "@/lib/resolve-result-benchmark";
 import { ContinueRefinementCTA } from "@/components/ContinueRefinementCTA";
 import { fetchCandidateCharts } from "@/lib/api";
 import {
@@ -538,10 +542,27 @@ export function ResultsDashboard({
       }));
   }, [selected?.weights, tickerNameMap, lang]);
 
-  const benchTicker = String(
-    (result.narrative_facts.backtest_spec as { benchmark?: string } | undefined)
-      ?.benchmark ?? "SPY",
+  const benchTicker = resolveResultBenchmarkTicker(
+    request,
+    result.narrative_facts,
   );
+
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV === "development" &&
+      benchmarkTickerMismatch(request, result.narrative_facts)
+    ) {
+      console.warn(
+        "[benchmark] Job backtest_spec disagrees with request.benchmark_ticker — re-run backtest to refresh metrics.",
+        {
+          request: request.benchmark_ticker,
+          job: (
+            result.narrative_facts.backtest_spec as { benchmark?: string } | undefined
+          )?.benchmark,
+        },
+      );
+    }
+  }, [request, result.narrative_facts, result.job_id]);
   const benchmarkEquity = useMemo(() => {
     const fromChart = chartCandidate?.analytics?.benchmark_equity_curve;
     if (fromChart?.length) return fromChart;

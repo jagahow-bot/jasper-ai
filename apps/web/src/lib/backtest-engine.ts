@@ -176,10 +176,11 @@ export function runBacktestEngine(
   });
 
   const best = candidates[0];
+  const benchmarkTicker = (req.benchmark_ticker || "SPY").toUpperCase();
   return {
     job_id: jobId,
     scenario_id: req.scenario_id,
-    benchmark: "SPY",
+    benchmark: benchmarkTicker,
     period: { start: req.start_date, end: req.end_date },
     candidates,
     equity_curve,
@@ -223,7 +224,7 @@ export function runBacktestEngine(
         fee_bps: req.fee_bps,
         rebalance_freq: req.rebalance_freq,
         risk_free_rate: RISK_FREE,
-        benchmark: "SPY",
+        benchmark: benchmarkTicker,
         benchmark_metrics: {
           sharpe: 0.55,
           cagr: 0.08,

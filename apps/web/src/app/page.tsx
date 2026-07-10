@@ -42,6 +42,7 @@ import {
   SPY_ANCHOR_ID,
   type ModelPortfolio,
 } from "@/lib/model-portfolios";
+import { resolveResultBenchmarkTicker } from "@/lib/resolve-result-benchmark";
 import {
   overlayToBacktestRequest,
   type ClientOverlay,
@@ -92,6 +93,7 @@ function buildDefaultRequest(): BacktestRequest {
     refinement_challengers_per_round: 4,
     refinement_max_rounds: 8,
     refinement_min_improvement: 0.01,
+    benchmark_ticker: "SPY",
   };
 }
 
@@ -188,10 +190,7 @@ export default function HomePage() {
       setNarrative("");
       setPhase("results");
       const best = champion ?? res.candidates[0];
-      const bm = String(
-        (res.narrative_facts.backtest_spec as { benchmark?: string } | undefined)
-          ?.benchmark ?? "SPY",
-      );
+      const bm = resolveResultBenchmarkTicker(req, res.narrative_facts);
       pushMessage(
         setMessages,
         "assistant",

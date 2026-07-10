@@ -302,8 +302,13 @@ def _load_price_panel(
     )
     tickers = [u["ticker"] for u in universe]
     rebalance_rule = _normalize_rebalance_rule(req.rebalance_freq)
+    bench_ticker = (
+        str(req.benchmark_ticker).strip().upper()
+        if getattr(req, "benchmark_ticker", None)
+        else (benchmark or str(universe_plan.get("benchmark_ticker", "SPY")))
+    )
     spec = BacktestSpec(
-        benchmark_ticker=benchmark or str(universe_plan.get("benchmark_ticker", "SPY")),
+        benchmark_ticker=bench_ticker,
         fee_bps=req.fee_bps,
         rebalance_rule=rebalance_rule,
         max_holdings=int(req.max_holdings),

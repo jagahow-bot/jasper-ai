@@ -2396,6 +2396,21 @@ def _find_record_by_params(
     return None
 
 
+def _resolve_request_benchmark_ticker(
+    req: BacktestRequest,
+    *,
+    universe_plan: dict[str, Any] | None = None,
+    fallback: str = "SPY",
+) -> str:
+    """Prefer an explicit request benchmark over AI universe suggestion."""
+    explicit = getattr(req, "benchmark_ticker", None)
+    if explicit and str(explicit).strip():
+        return str(explicit).strip().upper()
+    if universe_plan:
+        return str(universe_plan.get("benchmark_ticker", fallback))
+    return fallback
+
+
 def _run_static_replay_backtest(
     req: BacktestRequest,
     job_id: str,
@@ -2417,7 +2432,7 @@ def _run_static_replay_backtest(
         raise ValueError("static_replay_holdings must sum to a positive weight")
     weights_map = {k: v / total_w for k, v in weights_map.items()}
 
-    bench = "SPY"
+    bench = _resolve_request_benchmark_ticker(req)
     # Fetch prices for holdings + benchmark
     fetch_tickers = list(dict.fromkeys([*tickers, bench]))
     spec = BacktestSpec(
@@ -2651,7 +2666,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     from app.engine.portfolio import _normalize_rebalance_rule
 
     rebalance_rule = _normalize_rebalance_rule(req.rebalance_freq)
-    bench = str(universe_plan.get("benchmark_ticker", "SPY"))
+    bench = _resolve_request_benchmark_ticker(req, universe_plan=universe_plan)
     spec = BacktestSpec(
         benchmark_ticker=bench,
         fee_bps=req.fee_bps,

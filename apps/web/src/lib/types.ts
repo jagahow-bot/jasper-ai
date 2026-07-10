@@ -108,6 +108,8 @@ export interface BacktestRequest {
   extra_trials?: number | null;
   /** Fixed ticker weights for anchor static replay (skips Optuna). */
   static_replay_holdings?: Record<string, number> | null;
+  /** Explicit benchmark for metrics and AI narratives; overrides AI universe pick. */
+  benchmark_ticker?: string | null;
 }
 
 export interface ConvergencePreviewPoint {

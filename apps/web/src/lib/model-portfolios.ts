@@ -222,6 +222,7 @@ export function buildAnchorBacktestRequest(
   return {
     ...defaults,
     scenario_id: `anchor-${portfolio.id}`,
+    benchmark_ticker: portfolio.benchmark,
     asset_classes: assetClasses,
     universe_tickers: holdingTickers,
     universe_supplement_tickers: holdingTickers,
