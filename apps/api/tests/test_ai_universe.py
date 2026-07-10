@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from app.engine.ai_universe import (
     _deterministic_refine,
     _filter_universe_by_asset_classes,
@@ -82,3 +86,71 @@ def test_refine_legacy_pick_one_flag() -> None:
     )
     assert len(plan["universe"]) == 2
     assert plan.get("pick_representatives_per_category") is True
+
+
+def test_refine_skips_ai_when_benchmark_fixed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Anchor/customized runs pass benchmark_ticker — must not call Gemini for benchmark."""
+    monkeypatch.setattr("app.engine.ai_universe.settings.gemini_api_key", "test-key")
+
+    def _fail_post(*_args, **_kwargs):
+        raise AssertionError("Gemini should not be called when benchmark_ticker is fixed")
+
+    monkeypatch.setattr("app.engine.ai_universe.httpx.post", _fail_post)
+
+    plan = refine_universe_with_ai(
+        universe=_sample_universe(),
+        objective="max_sharpe",
+        benchmark_ticker="SPY",
+        pick_representatives_per_category=False,
+    )
+    assert plan["benchmark_ticker"] == "SPY"
+    assert plan["source"] == "request"
+    assert len(plan["universe"]) == 4
+
+
+def test_refine_legacy_omits_benchmark_pick_when_fixed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("app.engine.ai_universe.settings.gemini_api_key", "test-key")
+    captured: dict[str, object] = {}
+
+    class _FakeResp:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": json.dumps(
+                                        {
+                                            "representatives": ["SPY", "AGG"],
+                                            "rationale": "ok",
+                                        }
+                                    )
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+
+    def _capture_post(_url, *, json: dict, **_kwargs):
+        captured["prompt"] = json["contents"][0]["parts"][0]["text"]
+        return _FakeResp()
+
+    monkeypatch.setattr("app.engine.ai_universe.httpx.post", _capture_post)
+
+    plan = refine_universe_with_ai(
+        universe=_sample_universe(),
+        objective="max_sharpe",
+        benchmark_ticker="SPY",
+        pick_representatives_per_category=True,
+    )
+    assert plan["benchmark_ticker"] == "SPY"
+    prompt_obj = json.loads(str(captured["prompt"]))
+    assert "Pick the single best benchmark_ticker" not in prompt_obj["task"]
+    assert prompt_obj["benchmark_ticker"] == "SPY"

@@ -288,12 +288,18 @@ def _load_price_panel(
         supplement_tickers=guaranteed_supplements or None,
     )
     objective_effective = _resolve_objective(req.objective.value, req.objective_custom_text)
+    explicit_bench = (
+        str(req.benchmark_ticker).strip().upper()
+        if getattr(req, "benchmark_ticker", None) and str(req.benchmark_ticker).strip()
+        else None
+    )
     universe_plan = refine_universe_with_ai(
         universe=universe,
         objective=trial_scoring_objective(objective_effective)
         if is_dynamic_objective(objective_effective)
         else objective_effective,
         asset_classes=req.asset_classes,
+        benchmark_ticker=explicit_bench,
     )
     universe = pin_guaranteed_supplements(
         universe_plan["universe"],

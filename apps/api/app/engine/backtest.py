@@ -2396,6 +2396,13 @@ def _find_record_by_params(
     return None
 
 
+def _explicit_request_benchmark_ticker(req: BacktestRequest) -> str | None:
+    explicit = getattr(req, "benchmark_ticker", None)
+    if explicit and str(explicit).strip():
+        return str(explicit).strip().upper()
+    return None
+
+
 def _resolve_request_benchmark_ticker(
     req: BacktestRequest,
     *,
@@ -2640,10 +2647,12 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         req.universe_tickers,
         supplement_tickers=guaranteed_supplements or None,
     )
+    explicit_bench = _explicit_request_benchmark_ticker(req)
     universe_plan = refine_universe_with_ai(
         universe=universe,
         objective=trial_objective if dynamic_mode else objective_effective,
         asset_classes=req.asset_classes,
+        benchmark_ticker=explicit_bench,
     )
     # Pinned supplements survive category dedupe during refine (保證名單).
     universe = pin_guaranteed_supplements(

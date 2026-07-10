@@ -100,16 +100,20 @@ def refine_universe_with_ai(
     objective: str,
     asset_classes: list[str] | None = None,
     pick_representatives_per_category: bool | None = None,
+    benchmark_ticker: str | None = None,
 ) -> dict[str, Any]:
     """Filter universe by asset classes (caller) and suggest benchmark.
 
     By default keeps the full ticker list for Optuna/factor selection. Optional
     legacy mode picks one representative ETF per category when enabled.
 
+    When ``benchmark_ticker`` is set (e.g. anchor portfolio benchmark from the
+    request), AI benchmark selection is skipped entirely.
+
     Returns:
     - universe: filtered universe (full list unless legacy pick-one mode)
     - benchmark_ticker: suggested benchmark
-    - source: ai|rules|ai_cache
+    - source: request|ai|rules|ai_cache
     - grouped_categories: optional metadata for UI/logs
     """
     pick_reps = (
@@ -119,10 +123,23 @@ def refine_universe_with_ai(
     )
     universe = _filter_universe_by_asset_classes(universe, asset_classes)
     grouped = _grouped_categories(universe)
+    fixed_bench = str(benchmark_ticker).strip().upper() if benchmark_ticker else None
+
+    if fixed_bench and not pick_reps:
+        return {
+            "universe": list(universe),
+            "benchmark_ticker": fixed_bench,
+            "source": "request",
+            "grouped_categories": grouped,
+            "asset_classes_filter": asset_classes or [],
+            "pick_representatives_per_category": pick_reps,
+        }
 
     key = settings.gemini_api_key
     if not key:
         u, b = _deterministic_refine(universe, pick_representatives=pick_reps)
+        if fixed_bench:
+            b = fixed_bench
         return {
             "universe": u,
             "benchmark_ticker": b,
@@ -133,24 +150,44 @@ def refine_universe_with_ai(
         }
 
     if pick_reps:
-        prompt = {
-            "objective": objective,
-            "grouped_categories": grouped,
-            "benchmark_candidates": _BENCHMARK_CANDIDATES,
-            "task": (
-                "LEGACY: pick one representative ETF per category and suggest best benchmark"
-            ),
-        }
-        schema = {
-            "type": "OBJECT",
-            "properties": {
-                "representatives": {"type": "ARRAY", "items": {"type": "STRING"}},
-                "benchmark_ticker": {"type": "STRING"},
-                "rationale": {"type": "STRING"},
-            },
-            "required": ["representatives", "benchmark_ticker"],
-        }
-        log_action = "representatives (legacy)"
+        if fixed_bench:
+            prompt = {
+                "objective": objective,
+                "grouped_categories": grouped,
+                "benchmark_ticker": fixed_bench,
+                "task": (
+                    "LEGACY: pick one representative ETF per category. "
+                    "Benchmark is fixed; do NOT change benchmark_ticker."
+                ),
+            }
+            schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "representatives": {"type": "ARRAY", "items": {"type": "STRING"}},
+                    "rationale": {"type": "STRING"},
+                },
+                "required": ["representatives"],
+            }
+            log_action = "representatives (legacy, fixed benchmark)"
+        else:
+            prompt = {
+                "objective": objective,
+                "grouped_categories": grouped,
+                "benchmark_candidates": _BENCHMARK_CANDIDATES,
+                "task": (
+                    "LEGACY: pick one representative ETF per category and suggest best benchmark"
+                ),
+            }
+            schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "representatives": {"type": "ARRAY", "items": {"type": "STRING"}},
+                    "benchmark_ticker": {"type": "STRING"},
+                    "rationale": {"type": "STRING"},
+                },
+                "required": ["representatives", "benchmark_ticker"],
+            }
+            log_action = "representatives (legacy)"
     else:
         prompt = {
             "objective": objective,
@@ -216,7 +253,10 @@ def refine_universe_with_ai(
             .get("text", "")
         )
         obj = json.loads(text)
-        bench = str(obj.get("benchmark_ticker", "SPY"))
+        if fixed_bench:
+            bench = fixed_bench
+        else:
+            bench = str(obj.get("benchmark_ticker", "SPY"))
 
         if pick_reps:
             reps = set(str(t) for t in obj.get("representatives", []))
@@ -245,6 +285,8 @@ def refine_universe_with_ai(
         return result
     except Exception:
         u, b = _deterministic_refine(universe, pick_representatives=pick_reps)
+        if fixed_bench:
+            b = fixed_bench
         return {
             "universe": u,
             "benchmark_ticker": b,
