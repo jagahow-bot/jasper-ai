@@ -1,11 +1,12 @@
 import { google } from "@ai-sdk/google";
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import { parseOverlayExtractFromGemini } from "@/lib/overlay-gemini-parse";
 import { interpretOverlayFallback } from "@/lib/overlay-fallback";
 import {
   createSessionId,
-  overlayExtractSchema,
+  validateOverlayExtract,
   wrapExtractAsOverlay,
   type ClientOverlay,
   type OverlayConversationMessage,
@@ -80,6 +81,22 @@ function parseMessages(body: InterpretBody): OverlayConversationMessage[] {
   return [];
 }
 
+function logInterpretResult(
+  source: "gemini" | "rules",
+  overlay: ClientOverlay,
+  turns: number,
+): void {
+  if (process.env.NODE_ENV === "production") return;
+  console.info("[overlay/interpret]", {
+    source,
+    session_id: overlay.audit.session_id,
+    turns,
+    confidence: overlay.confidence,
+    questions: overlay.clarification_questions ?? [],
+    liquidity_amount_usd: overlay.client_profile.liquidity_need?.amount_usd,
+  });
+}
+
 export async function POST(req: Request) {
   const body = (await req.json()) as InterpretBody;
   const messages = parseMessages(body);
@@ -90,15 +107,21 @@ export async function POST(req: Request) {
 
   const lang = parseReportLanguage(body.report_language);
   const sessionId = body.session_id?.trim() || createSessionId();
-  const turns = messages.length;
+  const turns = messages.filter((m) => m.role === "user").length;
   const latestUser =
     [...messages].reverse().find((m) => m.role === "user")?.content ?? messages.at(-1)!.content;
+  const userTranscript =
+    messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
+      .join("\n") || latestUser;
 
   const runFallback = () => {
-    const overlay = interpretOverlayFallback(latestUser, lang, sessionId, turns);
+    const overlay = interpretOverlayFallback(userTranscript, lang, sessionId, turns, body.prior_overlay);
     if (body.rm_id) overlay.audit.rm_id = body.rm_id;
     if (body.client_ref) overlay.audit.client_ref = body.client_ref;
     if (body.base_scenario_id) overlay.audit.base_scenario_id = body.base_scenario_id;
+    logInterpretResult("rules", overlay, turns);
     return overlay;
   };
 
@@ -108,21 +131,31 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { object } = await generateObject({
+    const result = await generateText({
       model: google(GEMINI_MODEL),
       maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-      schema: overlayExtractSchema,
       system: overlaySystemPrompt(lang),
       prompt: buildConversationPrompt(messages, body.prior_overlay),
+      providerOptions: {
+        google: {
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingLevel: "minimal" as const },
+        },
+      },
     });
 
-    const overlay = wrapExtractAsOverlay(object, sessionId, turns, "gemini", body.prior_overlay);
+    const extract = validateOverlayExtract(parseOverlayExtractFromGemini(result.text));
+    const overlay = wrapExtractAsOverlay(extract, sessionId, turns, "gemini", body.prior_overlay);
     if (body.rm_id) overlay.audit.rm_id = body.rm_id;
     if (body.client_ref) overlay.audit.client_ref = body.client_ref;
     if (body.base_scenario_id) overlay.audit.base_scenario_id = body.base_scenario_id;
+    logInterpretResult("gemini", overlay, turns);
 
     return NextResponse.json({ overlay, source: "gemini" });
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[overlay/interpret] Gemini failed; using rules fallback", error);
+    }
     const overlay = runFallback();
     return NextResponse.json({ overlay, source: "rules" });
   }

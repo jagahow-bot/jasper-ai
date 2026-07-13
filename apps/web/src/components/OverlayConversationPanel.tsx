@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { useI18n } from "@/lib/i18n";
 import {
+  formatOverlayAssistantReply,
   formatOverlaySummary,
   signOffOverlay,
   type ClientOverlay,
@@ -66,18 +67,13 @@ export function OverlayConversationPanel({
         if (!res.ok || !data.overlay) {
           throw new Error(data.error ?? "Interpret failed");
         }
-        setOverlay(data.overlay);
+        const interpretedOverlay = data.overlay;
+        setOverlay(interpretedOverlay);
 
-        const assistantReply =
-          lang === "zh"
-            ? data.overlay.clarification_questions?.length
-              ? `已更新 overlay（信心 ${(data.overlay.confidence * 100).toFixed(0)}%）。待澄清：\n${data.overlay.clarification_questions.map((q) => `• ${q}`).join("\n")}`
-              : `已更新 overlay（信心 ${(data.overlay.confidence * 100).toFixed(0)}%）。請檢視摘要並確認。\n${data.overlay.rationale}`
-            : data.overlay.clarification_questions?.length
-              ? `Overlay updated (${(data.overlay.confidence * 100).toFixed(0)}% confidence). Open questions:\n${data.overlay.clarification_questions.map((q) => `• ${q}`).join("\n")}`
-              : `Overlay updated (${(data.overlay.confidence * 100).toFixed(0)}% confidence). Review and confirm.\n${data.overlay.rationale}`;
-
-        setMessages((prev) => [...prev, { role: "assistant", content: assistantReply }]);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: formatOverlayAssistantReply(interpretedOverlay, lang) },
+        ]);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Interpret failed");
       } finally {

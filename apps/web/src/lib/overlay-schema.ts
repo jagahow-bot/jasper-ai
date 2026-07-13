@@ -187,6 +187,36 @@ export function wrapExtractAsOverlay(
   prior?: ClientOverlay | null,
 ): ClientOverlay {
   const now = new Date().toISOString();
+  const clientProfile = {
+    ...prior?.client_profile,
+    ...extract.client_profile,
+    liquidity_need:
+      prior?.client_profile.liquidity_need || extract.client_profile.liquidity_need
+        ? {
+            ...prior?.client_profile.liquidity_need,
+            ...extract.client_profile.liquidity_need,
+          }
+        : undefined,
+  };
+  const allocation = {
+    ...prior?.allocation,
+    ...extract.allocation,
+    sleeve_targets:
+      prior?.allocation.sleeve_targets || extract.allocation.sleeve_targets
+        ? {
+            ...prior?.allocation.sleeve_targets,
+            ...extract.allocation.sleeve_targets,
+          }
+        : undefined,
+    sub_sleeve_targets:
+      prior?.allocation.sub_sleeve_targets || extract.allocation.sub_sleeve_targets
+        ? {
+            ...prior?.allocation.sub_sleeve_targets,
+            ...extract.allocation.sub_sleeve_targets,
+          }
+        : undefined,
+  };
+
   return {
     version: OVERLAY_VERSION,
     audit: {
@@ -203,9 +233,9 @@ export function wrapExtractAsOverlay(
       adjusted_job_id: prior?.audit.adjusted_job_id,
       rm_sign_off: prior?.audit.rm_sign_off,
     },
-    client_profile: extract.client_profile,
+    client_profile: clientProfile,
     market_view: extract.market_view,
-    allocation: extract.allocation,
+    allocation,
     universe: extract.universe,
     optimization: extract.optimization,
     param_adjustments: extract.param_adjustments,
@@ -214,6 +244,22 @@ export function wrapExtractAsOverlay(
     confidence: extract.confidence,
     rationale: extract.rationale,
   };
+}
+
+export function formatOverlayAssistantReply(
+  overlay: ClientOverlay,
+  lang: "zh" | "en" | "ko",
+): string {
+  const questions = overlay.clarification_questions ?? [];
+  const parts = [overlay.rationale];
+
+  if (questions.length) {
+    const header =
+      lang === "zh" ? "待澄清：" : lang === "ko" ? "확인 필요:" : "Open questions:";
+    parts.push(`${header}\n${questions.map((q) => `• ${q}`).join("\n")}`);
+  }
+
+  return parts.join("\n\n");
 }
 
 function sleeveTargetsToParamControls(

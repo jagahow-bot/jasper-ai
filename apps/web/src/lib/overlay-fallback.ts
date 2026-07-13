@@ -1,17 +1,69 @@
 import { ASSET_CLASSES } from "./constants";
 import type { ClientOverlay, OverlayExtractOutput } from "./overlay-schema";
 
+function parseAmountUsd(text: string): number | undefined {
+  const compact = text.replace(/,/g, "");
+  const match =
+    compact.match(/(?:usd|us\$|\$)\s*(\d+(?:\.\d+)?)\s*(million|mn|mm|m)\b/i) ??
+    compact.match(/(\d+(?:\.\d+)?)\s*(million|mn|mm|m)\b/i) ??
+    compact.match(/(?:usd|us\$|\$)\s*(\d+(?:\.\d+)?)\s*(thousand|k)\b/i) ??
+    compact.match(/(\d+(?:\.\d+)?)\s*(?:萬|万)/);
+
+  if (!match) return undefined;
+
+  const value = Number(match[1]);
+  if (!Number.isFinite(value)) return undefined;
+
+  const unit = match[2]?.toLowerCase();
+  if (unit && ["million", "mn", "mm", "m"].includes(unit)) return value * 1_000_000;
+  if (unit && ["thousand", "k"].includes(unit)) return value * 1_000;
+  return value * 10_000;
+}
+
+function hasEsgPreference(text: string): boolean {
+  return /esg|sustainab|responsible investing/i.test(text) || /永續|可持續|社會責任/.test(text);
+}
+
 function baseExtract(text: string, lang: "zh" | "en" | "ko"): OverlayExtractOutput {
   const t = text.toLowerCase();
+  const amountUsd = parseAmountUsd(text);
+  const esgPreference = hasEsgPreference(text);
 
   if (
     /liquidity|cash.?need|withdraw|house|mortgage|tuition/.test(t) ||
     /流動|提領|買房|學費|現金/.test(text)
   ) {
+    const clarificationQuestions = [
+      ...(amountUsd
+        ? []
+        : lang === "zh"
+          ? ["預計提領金額（USD）？"]
+          : ["Expected withdrawal amount (USD)?"]),
+      ...(/high.?yield|高收益|junk/i.test(text)
+        ? []
+        : lang === "zh"
+          ? ["是否排除高收益債？"]
+          : ["Exclude high yield credit?"]),
+    ];
+    const universePrompts = [
+      lang === "zh"
+        ? "短天期與浮動利率債券 ETF"
+        : "short duration and floating rate bond ETFs",
+      ...(esgPreference
+        ? [
+            lang === "zh"
+              ? "優先納入 ESG 或永續篩選 ETF"
+              : "prefer ESG or sustainable-screened ETFs",
+          ]
+        : []),
+    ];
+
     return {
       client_profile: {
         risk_tolerance: "moderate",
+        ...(esgPreference ? { esg_preference: "strict" as const } : {}),
         liquidity_need: {
+          ...(amountUsd ? { amount_usd: amountUsd } : {}),
           description: text.slice(0, 120),
           within_months: /12|一年|12個月/.test(text) ? 12 : 6,
         },
@@ -31,26 +83,19 @@ function baseExtract(text: string, lang: "zh" | "en" | "ko"): OverlayExtractOutp
         max_single_position_pct: 0.08,
       },
       universe: {
-        prompts: [
-          lang === "zh"
-            ? "短天期與浮動利率債券 ETF"
-            : "short duration and floating rate bond ETFs",
-        ],
+        prompts: universePrompts,
       },
       optimization: {
         objective: "min_max_drawdown",
         regime_adaptive: false,
         optimization_mode: "standard",
       },
-      clarification_questions:
-        lang === "zh"
-          ? ["預計提領金額（USD）？", "是否排除高收益債？"]
-          : ["Expected withdrawal amount (USD)?", "Exclude high yield credit?"],
-      confidence: 0.55,
+      clarification_questions: clarificationQuestions,
+      confidence: clarificationQuestions.length === 0 ? 0.72 : amountUsd ? 0.65 : 0.55,
       rationale:
         lang === "zh"
-          ? "偵測到流動性需求：建議防禦型股債配置並縮短債券存續期。"
-          : "Liquidity need detected: defensive allocation with shorter bond duration.",
+          ? `偵測到流動性需求${amountUsd ? `（USD ${amountUsd.toLocaleString()}）` : ""}：建議防禦型股債配置並縮短債券存續期。`
+          : `Liquidity need detected${amountUsd ? ` (USD ${amountUsd.toLocaleString()})` : ""}: defensive allocation with shorter bond duration.`,
     };
   }
 
@@ -184,6 +229,7 @@ export function interpretOverlayFallback(
   lang: "zh" | "en" | "ko",
   sessionId: string,
   turns: number,
+  prior?: ClientOverlay | null,
 ): ClientOverlay {
   const extracted = baseExtract(text, lang);
   const now = new Date().toISOString();
@@ -191,13 +237,26 @@ export function interpretOverlayFallback(
     version: "1.0",
     audit: {
       session_id: sessionId,
-      created_at: now,
+      rm_id: prior?.audit.rm_id,
+      client_ref: prior?.audit.client_ref,
+      created_at: prior?.audit.created_at ?? now,
       updated_at: now,
       phase: extracted.confidence >= 0.7 ? "confirm" : "clarify",
       conversation_turns: turns,
       source: "rules",
+      base_scenario_id: prior?.audit.base_scenario_id,
+      base_job_id: prior?.audit.base_job_id,
+      adjusted_job_id: prior?.audit.adjusted_job_id,
+      rm_sign_off: prior?.audit.rm_sign_off,
     },
-    client_profile: extracted.client_profile,
+    client_profile: {
+      ...prior?.client_profile,
+      ...extracted.client_profile,
+      liquidity_need: {
+        ...prior?.client_profile.liquidity_need,
+        ...extracted.client_profile.liquidity_need,
+      },
+    },
     market_view: extracted.market_view,
     allocation: extracted.allocation,
     universe: extracted.universe,
