@@ -268,7 +268,7 @@ export function RmReportView({
             onChange={(e) => setSelectedRowKey(e.target.value)}
             className="pixel-input ui-body py-1"
           >
-            {candidateOptions.map(({ c, i, rowKey }) => (
+            {candidateOptions.map(({ c, rowKey }) => (
               <option key={rowKey} value={rowKey}>
                 {c.model_code ?? `M?${c.rank}`}
                 {candidateModelKey(c) === championModelKey
@@ -281,7 +281,7 @@ export function RmReportView({
       </div>
       {candidateOptions.length <= 8 ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          {candidateOptions.map(({ c, i, rowKey }) => {
+          {candidateOptions.map(({ c, rowKey }) => {
             const isChampion = candidateModelKey(c) === championModelKey;
             const active = rowKey === selectedRowKey;
             return (
