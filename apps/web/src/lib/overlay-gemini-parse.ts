@@ -358,7 +358,8 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
   };
 
   if (universe) {
-    const { constraints: _constraints, ...universeRest } = universe;
+    const { constraints, ...universeRest } = universe;
+    void constraints;
     root.universe = universeRest;
   }
 
