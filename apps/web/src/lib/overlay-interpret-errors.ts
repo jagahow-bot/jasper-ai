@@ -41,6 +41,17 @@ export function buildOverlayInterpretError(
   return NextResponse.json({ error, code, detail }, { status });
 }
 
+export function formatZodIssueDetail(error: ZodError, limit = 5): string {
+  return error.issues
+    .slice(0, limit)
+    .map((issue) => {
+      const path = issue.path.length ? issue.path.join(".") : "(root)";
+      return `${path}: ${issue.message}`;
+    })
+    .join("; ")
+    .slice(0, 500);
+}
+
 export function classifyOverlayGeminiFailure(error: unknown): {
   code: OverlayInterpretErrorCode;
   error: string;
@@ -48,11 +59,10 @@ export function classifyOverlayGeminiFailure(error: unknown): {
   status: number;
 } {
   if (error instanceof ZodError) {
-    const detail = error.issues.map((i) => i.message).join("; ").slice(0, 500);
     return {
       code: OVERLAY_INTERPRET_ERROR_CODES.VALIDATION_FAILED,
       error: "Gemini overlay response failed schema validation",
-      detail,
+      detail: formatZodIssueDetail(error),
       status: 422,
     };
   }

@@ -214,10 +214,130 @@ export function normalizeLiquidityNeed(
 
 /** Convert 35 → 0.35 and clamp to schema bounds. */
 export function normalizePositionPct(value: unknown): number | undefined {
+  if (typeof value === "string") {
+    const match = value.trim().match(/(\d+(?:\.\d+)?)\s*%?/);
+    if (!match) return undefined;
+    value = Number(match[1]);
+  }
   if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
   let pct = value > 1 ? value / 100 : value;
   pct = Math.min(0.25, Math.max(0.05, pct));
   return pct;
+}
+
+function parseInvestmentHorizonYears(raw: unknown): number | undefined {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.min(50, Math.max(1, Math.round(raw)));
+  }
+  if (typeof raw !== "string") return undefined;
+
+  const yearMatch = raw.match(/(\d+(?:\.\d+)?)\s*(?:years?|yr|年)/i);
+  if (yearMatch) {
+    return Math.min(50, Math.max(1, Math.round(Number(yearMatch[1]))));
+  }
+  if (/multi[- ]?year|長期|多年|long[- ]?term/i.test(raw)) return 5;
+  if (/first year|一年|12個月|12个月|within.*year/i.test(raw)) return 1;
+
+  const monthMatch = raw.match(/(\d+)\s*(?:months?|mo|個月|个月)/i);
+  if (monthMatch) {
+    const years = Math.ceil(Number(monthMatch[1]) / 12);
+    return Math.min(50, Math.max(1, years));
+  }
+
+  return undefined;
+}
+
+function normalizeMarketStance(
+  stance: unknown,
+): "risk_on" | "neutral" | "risk_off" | undefined {
+  if (stance === "risk_on" || stance === "neutral" || stance === "risk_off") return stance;
+  if (typeof stance !== "string") return undefined;
+  const s = stance.toLowerCase();
+  if (/risk.?on|bullish|aggressive|growth/i.test(s)) return "risk_on";
+  if (/risk.?off|bearish|defensive|preservation|cautious/i.test(s)) return "risk_off";
+  return "neutral";
+}
+
+function pickKeys(
+  obj: Record<string, unknown>,
+  allowed: ReadonlySet<string>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (allowed.has(key)) out[key] = val;
+  }
+  return out;
+}
+
+const OVERLAY_EXTRACT_KEYS = new Set([
+  "client_profile",
+  "market_view",
+  "allocation",
+  "universe",
+  "optimization",
+  "param_adjustments",
+  "experiment",
+  "clarification_questions",
+  "confidence",
+  "rationale",
+]);
+
+const CLIENT_PROFILE_KEYS = new Set([
+  "risk_tolerance",
+  "investment_horizon_years",
+  "liquidity_need",
+  "esg_preference",
+  "income_need_pct",
+]);
+
+const LIQUIDITY_NEED_KEYS = new Set(["amount_usd", "within_months", "description"]);
+
+const MARKET_VIEW_KEYS = new Set(["stance", "themes", "narrative_summary"]);
+
+const ALLOCATION_KEYS = new Set([
+  "asset_classes",
+  "sleeve_targets",
+  "sub_sleeve_targets",
+  "enforce_class_weights",
+  "max_single_position_pct",
+]);
+
+const UNIVERSE_KEYS = new Set(["prompts", "supplement_tickers", "exclude_tickers"]);
+
+const OPTIMIZATION_KEYS = new Set([
+  "objective",
+  "regime_adaptive",
+  "optimization_mode",
+  "trials",
+]);
+
+/** Drop Gemini-invented keys before Zod validation. */
+export function stripOverlayExtractKeys(root: Record<string, unknown>): Record<string, unknown> {
+  const out = pickKeys(root, OVERLAY_EXTRACT_KEYS);
+
+  const clientProfile = asRecord(out.client_profile);
+  if (clientProfile) {
+    const profile = pickKeys(clientProfile, CLIENT_PROFILE_KEYS);
+    const liquidity = asRecord(profile.liquidity_need);
+    if (liquidity) {
+      profile.liquidity_need = pickKeys(liquidity, LIQUIDITY_NEED_KEYS);
+    }
+    out.client_profile = profile;
+  }
+
+  const marketView = asRecord(out.market_view);
+  if (marketView) out.market_view = pickKeys(marketView, MARKET_VIEW_KEYS);
+
+  const allocation = asRecord(out.allocation);
+  if (allocation) out.allocation = pickKeys(allocation, ALLOCATION_KEYS);
+
+  const universe = asRecord(out.universe);
+  if (universe) out.universe = pickKeys(universe, UNIVERSE_KEYS);
+
+  const optimization = asRecord(out.optimization);
+  if (optimization) out.optimization = pickKeys(optimization, OPTIMIZATION_KEYS);
+
+  return out;
 }
 
 function normalizeWeightRecord(
@@ -241,13 +361,17 @@ function synthesizeMarketView(root: Record<string, unknown>): Record<string, unk
   const existing = asRecord(root.market_view);
   if (
     existing &&
-    typeof existing.stance === "string" &&
+    normalizeMarketStance(existing.stance) &&
     Array.isArray(existing.themes) &&
     existing.themes.length > 0 &&
     typeof existing.narrative_summary === "string" &&
     existing.narrative_summary.length >= 8
   ) {
-    return existing;
+    return {
+      stance: normalizeMarketStance(existing.stance) ?? "neutral",
+      themes: existing.themes.filter((t): t is string => typeof t === "string").slice(0, 8),
+      narrative_summary: existing.narrative_summary.slice(0, 400),
+    };
   }
 
   const rationale = typeof root.rationale === "string" ? root.rationale : "";
@@ -296,7 +420,10 @@ function normalizeExperiment(raw: unknown): Record<string, unknown> | undefined 
     return exp;
   }
   if ("trigger" in exp) {
-    if (!exp.trigger) return undefined;
+    const trigger = exp.trigger;
+    const enabled =
+      trigger === true || trigger === "true" || trigger === 1 || trigger === "1";
+    if (!enabled) return undefined;
     return {
       enabled: true,
       mode: "objective_switch",
@@ -324,19 +451,13 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
     clientProfile.liquidityNeeds;
   const liquidityNeed = normalizeLiquidityNeed(liquidityRaw);
   const horizonRaw = clientProfile.investment_horizon_years ?? clientProfile.investment_horizon;
-  let investmentHorizonYears: number | undefined;
-  if (typeof horizonRaw === "number" && Number.isFinite(horizonRaw)) {
-    investmentHorizonYears = Math.min(50, Math.max(1, Math.round(horizonRaw)));
-  }
+  const investmentHorizonYears = parseInvestmentHorizonYears(horizonRaw);
 
   root.client_profile = {
-    ...clientProfile,
+    ...pickKeys(clientProfile, CLIENT_PROFILE_KEYS),
     ...(liquidityNeed ? { liquidity_need: liquidityNeed } : {}),
     ...(investmentHorizonYears != null ? { investment_horizon_years: investmentHorizonYears } : {}),
   };
-  delete (root.client_profile as Record<string, unknown>).liquidity_needs;
-  delete (root.client_profile as Record<string, unknown>).liquidityNeeds;
-  delete (root.client_profile as Record<string, unknown>).investment_horizon;
 
   const universe = asRecord(root.universe);
   const allocation = asRecord(root.allocation) ?? {};
@@ -344,17 +465,20 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
   const maxFromUniverse =
     universeConstraints?.max_single_weight ?? universeConstraints?.max_single_position_pct;
   const maxPct = normalizePositionPct(
-    allocation.max_single_position_pct ?? maxFromUniverse,
+    allocation.max_single_position_pct ??
+      allocation.max_single_weight ??
+      maxFromUniverse,
   );
+  const sleeveTargets = normalizeWeightRecord(allocation.sleeve_targets);
+  const subSleeveTargets = normalizeWeightRecord(allocation.sub_sleeve_targets);
   root.allocation = {
-    ...allocation,
+    ...(Array.isArray(allocation.asset_classes) ? { asset_classes: allocation.asset_classes } : {}),
+    ...(allocation.enforce_class_weights != null
+      ? { enforce_class_weights: allocation.enforce_class_weights }
+      : {}),
     ...(maxPct != null ? { max_single_position_pct: maxPct } : {}),
-    ...(normalizeWeightRecord(allocation.sleeve_targets)
-      ? { sleeve_targets: normalizeWeightRecord(allocation.sleeve_targets) }
-      : {}),
-    ...(normalizeWeightRecord(allocation.sub_sleeve_targets)
-      ? { sub_sleeve_targets: normalizeWeightRecord(allocation.sub_sleeve_targets) }
-      : {}),
+    ...(sleeveTargets ? { sleeve_targets: sleeveTargets } : {}),
+    ...(subSleeveTargets ? { sub_sleeve_targets: subSleeveTargets } : {}),
   };
 
   if (universe) {
@@ -388,7 +512,7 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
     root.clarification_questions = [];
   }
 
-  return root;
+  return stripOverlayExtractKeys(root);
 }
 
 /** Coerce Gemini overlay JSON into schema-compatible shape (validate with overlayExtractSchema in route). */

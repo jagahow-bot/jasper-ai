@@ -9,7 +9,9 @@ import {
   parseLiquidityUsdAmount,
   parseOverlayExtractFromGemini,
   stripGeminiMetadata,
+  stripOverlayExtractKeys,
 } from "./overlay-gemini-parse";
+import { validateOverlayExtract, wrapExtractAsOverlay } from "./overlay-schema";
 
 const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const gemini47Response = JSON.parse(
@@ -81,8 +83,12 @@ describe("overlay-gemini-parse", () => {
     const extract = parseOverlayExtractFromGemini(gemini50Extract) as {
       confidence: number;
       market_view: { stance: string; narrative_summary: string };
-      client_profile: { liquidity_need?: { amount_usd?: number; within_months?: number } };
-      allocation: { max_single_position_pct?: number };
+      client_profile: {
+        liquidity_need?: { amount_usd?: number; within_months?: number };
+        investment_horizon_years?: number;
+        age?: number;
+      };
+      allocation: { max_single_position_pct?: number; sleeve_targets?: unknown };
       clarification_questions: string[];
       param_adjustments?: { w_lowvol?: { mode: string; fixed: number } };
       experiment?: unknown;
@@ -93,12 +99,59 @@ describe("overlay-gemini-parse", () => {
     expect(extract.market_view.narrative_summary.length).toBeGreaterThanOrEqual(8);
     expect(extract.client_profile.liquidity_need?.amount_usd).toBe(1_500_000);
     expect(extract.client_profile.liquidity_need?.within_months).toBe(12);
+    expect(extract.client_profile.investment_horizon_years).toBe(5);
+    expect(extract.client_profile.age).toBeUndefined();
     expect(extract.allocation.max_single_position_pct).toBe(0.25);
+    expect(extract.allocation.sleeve_targets).toBeUndefined();
     expect(extract.clarification_questions).toHaveLength(3);
     expect(extract.clarification_questions[0]).toContain("fixed allocation split");
     expect(extract.clarification_questions[1]).toContain("USD 1.5 million");
     expect(extract.param_adjustments?.w_lowvol).toEqual({ mode: "fixed", fixed: 0.15 });
     expect(extract.experiment).toBeUndefined();
+  });
+
+  it("validates 王先生-style Gemini response (fixture 50) through Zod", () => {
+    const gemini50Extract = JSON.parse(
+      readFileSync(join(fixtureDir, "gemini-overlay-50-extract.json"), "utf8"),
+    ) as unknown;
+
+    const extract = validateOverlayExtract(parseOverlayExtractFromGemini(gemini50Extract));
+    const overlay = wrapExtractAsOverlay(extract, "ovl-test-wang", 1, "gemini");
+
+    expect(overlay.confidence).toBe(0.75);
+    expect(overlay.optimization.objective).toBe("min_max_drawdown");
+    expect(overlay.client_profile.liquidity_need?.amount_usd).toBe(1_500_000);
+    expect(overlay.client_profile.liquidity_need?.within_months).toBe(12);
+    expect(overlay.clarification_questions).toHaveLength(3);
+    expect(overlay.rationale).toContain("USD 1.5M");
+    expect(overlay.allocation.max_single_position_pct).toBe(0.25);
+  });
+
+  it("validates ai_studio_code (47) Gemini API response through Zod", () => {
+    const extract = validateOverlayExtract(parseOverlayExtractFromGemini(gemini47Response));
+    expect(extract.confidence).toBe(0.75);
+    expect(extract.market_view.stance).toBe("neutral");
+    expect(extract.client_profile.liquidity_need?.amount_usd).toBe(1_500_000);
+    expect(extract.clarification_questions).toHaveLength(4);
+  });
+
+  it("strips Gemini-invented keys before validation", () => {
+    const stripped = stripOverlayExtractKeys({
+      client_profile: { age: 55, risk_tolerance: "moderate", extra: true },
+      allocation: { asset_classes: ["equity"], sleeve_targets: {} },
+      universe: { prompts: ["US equity ETFs"], constraints: { max_single_weight: 0.35 } },
+      bonus_field: "drop me",
+    }) as {
+      client_profile: { age?: number; risk_tolerance?: string; extra?: boolean };
+      universe: { constraints?: unknown; prompts: string[] };
+      bonus_field?: string;
+    };
+
+    expect(stripped.client_profile.age).toBeUndefined();
+    expect(stripped.client_profile.extra).toBeUndefined();
+    expect(stripped.client_profile.risk_tolerance).toBe("moderate");
+    expect(stripped.universe.constraints).toBeUndefined();
+    expect(stripped.bonus_field).toBeUndefined();
   });
 
   it("prefers liquidity withdrawal over total portfolio in free text", () => {

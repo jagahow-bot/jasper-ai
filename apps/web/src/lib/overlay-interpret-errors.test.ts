@@ -32,6 +32,7 @@ describe("overlay-interpret-errors", () => {
     );
     expect(zodFailure.code).toBe(OVERLAY_INTERPRET_ERROR_CODES.VALIDATION_FAILED);
     expect(zodFailure.status).toBe(422);
+    expect(zodFailure.detail).toBe("confidence: bad field");
 
     const parseFailure = classifyOverlayGeminiFailure(new SyntaxError("Unexpected token"));
     expect(parseFailure.code).toBe(OVERLAY_INTERPRET_ERROR_CODES.PARSE_FAILED);

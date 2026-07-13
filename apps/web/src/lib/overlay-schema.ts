@@ -40,22 +40,26 @@ const objectiveSchema = z.enum([
 const optimizationModeSchema = z.enum(["standard", "pro_auto"]);
 const paramControlModeSchema = z.enum(["fixed", "search", "off"]);
 
-export const paramControlSchema = z.object({
-  mode: paramControlModeSchema,
-  fixed: z.union([z.number(), z.string(), z.null()]).optional(),
-  min: z.number().nullable().optional(),
-  max: z.number().nullable().optional(),
-  step: z.number().nullable().optional(),
-  options: z.array(z.string()).nullable().optional(),
-});
+export const paramControlSchema = z
+  .object({
+    mode: paramControlModeSchema,
+    fixed: z.union([z.number(), z.string(), z.null()]).optional(),
+    min: z.number().nullable().optional(),
+    max: z.number().nullable().optional(),
+    step: z.number().nullable().optional(),
+    options: z.array(z.string()).nullable().optional(),
+  })
+  .strip();
 
-export const experimentOverlaySchema = z.object({
-  enabled: z.boolean(),
-  mode: z.literal("objective_switch"),
-  regime_mode: z.enum(["auto", "risk_off", "neutral", "risk_on"]),
-  note: z.string().nullable().optional(),
-  run_ab_evaluation: z.boolean().optional(),
-});
+export const experimentOverlaySchema = z
+  .object({
+    enabled: z.boolean(),
+    mode: z.literal("objective_switch"),
+    regime_mode: z.enum(["auto", "risk_off", "neutral", "risk_on"]),
+    note: z.string().nullable().optional(),
+    run_ab_evaluation: z.boolean().optional(),
+  })
+  .strip();
 
 export const overlaySessionAuditSchema = z.object({
   session_id: z.string().min(8),
@@ -78,60 +82,73 @@ export const overlaySessionAuditSchema = z.object({
   adjusted_job_id: z.string().optional(),
 });
 
-export const clientProfileOverlaySchema = z.object({
-  risk_tolerance: riskToleranceSchema.optional(),
-  investment_horizon_years: z.number().min(1).max(50).optional(),
-  liquidity_need: z
-    .object({
-      amount_usd: z.number().min(0).optional(),
-      within_months: z.number().min(1).max(120).optional(),
-      description: z.string().max(300).optional(),
-    })
-    .optional(),
-  esg_preference: esgPreferenceSchema.optional(),
-  income_need_pct: z.number().min(0).max(1).optional(),
-});
+export const clientProfileOverlaySchema = z
+  .object({
+    risk_tolerance: riskToleranceSchema.optional(),
+    investment_horizon_years: z.number().min(1).max(50).optional(),
+    liquidity_need: z
+      .object({
+        amount_usd: z.number().min(0).optional(),
+        within_months: z.number().min(1).max(120).optional(),
+        description: z.string().max(300).optional(),
+      })
+      .strip()
+      .optional(),
+    esg_preference: esgPreferenceSchema.optional(),
+    income_need_pct: z.number().min(0).max(1).optional(),
+  })
+  .strip();
 
-export const marketViewOverlaySchema = z.object({
-  stance: marketStanceSchema,
-  themes: z.array(z.string().min(1).max(40)).max(8),
-  narrative_summary: z.string().min(8).max(400),
-});
+export const marketViewOverlaySchema = z
+  .object({
+    stance: marketStanceSchema,
+    themes: z.array(z.string().min(1).max(40)).max(8),
+    narrative_summary: z.string().min(8).max(400),
+  })
+  .strip();
 
-export const allocationOverlaySchema = z.object({
-  asset_classes: z.array(z.enum(ASSET_CLASSES)).min(1).max(5),
-  sleeve_targets: z.record(z.string(), z.number().min(0).max(1)).optional(),
-  sub_sleeve_targets: z.record(z.string(), z.number().min(0).max(1)).optional(),
-  enforce_class_weights: z.boolean().optional(),
-  max_single_position_pct: z.number().min(0.05).max(0.25).optional(),
-});
+export const allocationOverlaySchema = z
+  .object({
+    asset_classes: z.array(z.enum(ASSET_CLASSES)).min(1).max(5),
+    sleeve_targets: z.record(z.string(), z.number().min(0).max(1)).optional(),
+    sub_sleeve_targets: z.record(z.string(), z.number().min(0).max(1)).optional(),
+    enforce_class_weights: z.boolean().optional(),
+    max_single_position_pct: z.number().min(0.05).max(0.25).optional(),
+  })
+  .strip();
 
-export const universeRuleOverlaySchema = z.object({
-  prompts: z.array(z.string().min(4).max(200)).max(6),
-  supplement_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
-  exclude_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
-});
+export const universeRuleOverlaySchema = z
+  .object({
+    prompts: z.array(z.string().min(4).max(200)).max(6),
+    supplement_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
+    exclude_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
+  })
+  .strip();
 
-export const optimizationOverlaySchema = z.object({
-  objective: objectiveSchema,
-  regime_adaptive: z.boolean().optional(),
-  optimization_mode: optimizationModeSchema.optional(),
-  trials: z.number().int().min(10).max(500).optional(),
-});
+export const optimizationOverlaySchema = z
+  .object({
+    objective: objectiveSchema,
+    regime_adaptive: z.boolean().optional(),
+    optimization_mode: optimizationModeSchema.optional(),
+    trials: z.number().int().min(10).max(500).optional(),
+  })
+  .strip();
 
 /** Gemini structured-extract output (no audit envelope). */
-export const overlayExtractSchema = z.object({
-  client_profile: clientProfileOverlaySchema,
-  market_view: marketViewOverlaySchema,
-  allocation: allocationOverlaySchema,
-  universe: universeRuleOverlaySchema,
-  optimization: optimizationOverlaySchema,
-  param_adjustments: z.record(z.string(), paramControlSchema).optional(),
-  experiment: experimentOverlaySchema.optional(),
-  clarification_questions: z.array(z.string().min(4).max(200)).max(5),
-  confidence: z.number().min(0).max(1),
-  rationale: z.string().min(8).max(600),
-});
+export const overlayExtractSchema = z
+  .object({
+    client_profile: clientProfileOverlaySchema,
+    market_view: marketViewOverlaySchema,
+    allocation: allocationOverlaySchema,
+    universe: universeRuleOverlaySchema,
+    optimization: optimizationOverlaySchema,
+    param_adjustments: z.record(z.string(), paramControlSchema).optional(),
+    experiment: experimentOverlaySchema.optional(),
+    clarification_questions: z.array(z.string().min(4).max(200)).max(5),
+    confidence: z.number().min(0).max(1),
+    rationale: z.string().min(8).max(600),
+  })
+  .strip();
 
 export const clientOverlaySchema = z.object({
   version: z.literal(OVERLAY_VERSION),
