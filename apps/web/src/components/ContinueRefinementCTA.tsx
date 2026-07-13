@@ -47,11 +47,11 @@ export function ContinueRefinementCTA({
   }, [isPro, priorRounds, t]);
 
   return (
-    <div className="pixel-panel border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)]">
+    <div className="pixel-panel border border-amber-200 bg-amber-50/50">
       <p className="ui-section-title mb-1 text-[var(--amber)]">
         {t("results.continueRefinementTitle")}
       </p>
-      <p className="ui-body text-[#cbd5e1]">
+      <p className="ui-body">
         {t("results.continueRefinementBody", { benchmark: benchmarkTicker })}
       </p>
       {nextRoundLabel ? (

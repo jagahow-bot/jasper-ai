@@ -28,7 +28,7 @@ function statusBadgeClass(status: JobSummary["status"]): string {
 
 export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Props) {
   const { t } = useI18n();
-  const [rows, setRows] = useState<LocalHistoryEntry[]>(() => readLocalBacktestHistory());
+  const [rows, setRows] = useState<LocalHistoryEntry[]>([]);
   const [fetchError, setFetchError] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -73,7 +73,7 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
         <h2 className="ui-section-title text-[var(--amber)]">{t("history.title")}</h2>
         <button
           type="button"
-          className="ui-body text-[var(--cyan)] hover:underline disabled:opacity-50"
+          className="ui-body text-[var(--primary)] hover:underline disabled:opacity-50"
           onClick={() => void refresh()}
           disabled={refreshing}
           title={t("history.refresh")}
@@ -97,10 +97,10 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
             return (
               <li
                 key={row.job_id}
-                className={`rounded border px-2 py-2 ui-body transition-colors ${
+                className={`rounded-lg border px-2 py-2 ui-body transition-colors ${
                   isActive
-                    ? "border-[var(--cyan)] bg-[rgba(0,255,255,0.06)]"
-                    : "border-[var(--border)] bg-[rgba(0,0,0,0.25)] hover:border-[var(--cyan)]/40"
+                    ? "border-[var(--primary)] bg-[var(--primary-muted)]/50"
+                    : "border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--primary)]/30"
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -120,7 +120,7 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
                       {objectiveLabel(t, row.objective)}
                       {row.champion_model_code ? ` · ${row.champion_model_code}` : ""}
                     </p>
-                    <p className="ui-hint text-[var(--cyan)]">
+                    <p className="ui-hint text-[var(--primary)]">
                       CAGR {formatPct(row.champion_cagr)} · Sharpe{" "}
                       {formatSharpe(row.champion_sharpe)}
                     </p>
@@ -130,7 +130,7 @@ export function BacktestHistoryPanel({ activeJobId, onLoad, loadingJobId }: Prop
                   </div>
                   <button
                     type="button"
-                    className="shrink-0 border border-[var(--cyan)] px-2 py-1 font-pixel text-[8px] text-[var(--cyan)] hover:bg-[var(--cyan)] hover:text-black disabled:opacity-40"
+                    className="shrink-0 rounded-md border border-[var(--primary)] px-2 py-1 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white disabled:opacity-40"
                     disabled={isLoading || row.status !== "completed"}
                     onClick={() => onLoad(row.job_id)}
                   >

@@ -51,17 +51,17 @@ export function FontSizeControl() {
 
   return (
     <div
-      className="flex h-8 items-center gap-1 border-2 border-[var(--neon-dim)] bg-[#050508] px-1 py-0.5 shadow-[0_0_12px_rgba(57,255,20,0.12)]"
+      className="flex h-8 items-center gap-1 rounded-lg border border-[var(--border)] bg-white px-1 py-0.5 shadow-sm"
       role="group"
       aria-label={t("font.aria")}
       title={t("font.aria")}
     >
-      <span className="px-0.5 font-terminal text-[10px] font-bold tracking-wide text-[var(--cyan)]">
+      <span className="px-1 text-xs font-medium text-[var(--text-dim)]">
         {t("font.label")}
       </span>
       <button
         type="button"
-        className="font-terminal flex h-7 min-w-7 items-center justify-center border-2 border-[var(--border)] bg-[#0a1a0a] text-sm font-bold leading-none text-[var(--neon)] transition hover:border-[var(--neon)] hover:bg-[#122812] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex h-7 min-w-7 items-center justify-center rounded-md border border-transparent text-sm font-semibold leading-none text-[var(--foreground)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
         onClick={shrink}
         disabled={!ready || atMin}
         aria-label={t("font.decrease")}
@@ -70,7 +70,7 @@ export function FontSizeControl() {
         A−
       </button>
       <span
-        className="min-w-[2rem] text-center font-terminal text-sm font-bold tabular-nums leading-none text-[var(--cyan)]"
+        className="min-w-[2rem] text-center text-sm font-medium tabular-nums leading-none text-[var(--text-dim)]"
         aria-live="polite"
         aria-atomic="true"
       >
@@ -78,7 +78,7 @@ export function FontSizeControl() {
       </span>
       <button
         type="button"
-        className="font-terminal flex h-7 min-w-7 items-center justify-center border-2 border-[var(--border)] bg-[#0a1a0a] text-sm font-bold leading-none text-[var(--neon)] transition hover:border-[var(--neon)] hover:bg-[#122812] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex h-7 min-w-7 items-center justify-center rounded-md border border-transparent text-sm font-semibold leading-none text-[var(--foreground)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
         onClick={enlarge}
         disabled={!ready || atMax}
         aria-label={t("font.increase")}
@@ -89,7 +89,7 @@ export function FontSizeControl() {
       {!isDefault && (
         <button
           type="button"
-          className="font-terminal h-7 border-2 border-[var(--border)] bg-[#0a1a0a] px-1.5 text-[10px] leading-none text-[var(--text-dim)] transition hover:border-[var(--neon-dim)] hover:text-[var(--neon)]"
+          className="h-7 rounded-md border border-transparent px-1.5 text-xs leading-none text-[var(--text-dim)] transition hover:bg-[var(--surface-2)] hover:text-[var(--foreground)]"
           onClick={reset}
           disabled={!ready}
           aria-label={t("font.reset")}

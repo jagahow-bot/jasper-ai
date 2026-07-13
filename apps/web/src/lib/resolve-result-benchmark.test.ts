@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
   benchmarkTickerMismatch,
+  resolveJobBenchmarkTicker,
   resolveResultBenchmarkTicker,
 } from "./resolve-result-benchmark";
 
 describe("resolveResultBenchmarkTicker", () => {
-  it("prefers job backtest_spec benchmark for metrics alignment", () => {
+  it("prefers explicit request benchmark over stale job backtest_spec", () => {
     expect(
       resolveResultBenchmarkTicker(
         { benchmark_ticker: "SPY" },
+        { backtest_spec: { benchmark: "ACWI" } },
+      ),
+    ).toBe("SPY");
+  });
+
+  it("falls back to job backtest_spec when request benchmark is missing", () => {
+    expect(
+      resolveResultBenchmarkTicker(
+        {},
         { backtest_spec: { benchmark: "VT" } },
       ),
     ).toBe("VT");
@@ -22,6 +32,14 @@ describe("resolveResultBenchmarkTicker", () => {
 
   it("defaults to SPY", () => {
     expect(resolveResultBenchmarkTicker(null, null)).toBe("SPY");
+  });
+});
+
+describe("resolveJobBenchmarkTicker", () => {
+  it("reads persisted job benchmark", () => {
+    expect(
+      resolveJobBenchmarkTicker({ backtest_spec: { benchmark: "acwi" } }),
+    ).toBe("ACWI");
   });
 });
 

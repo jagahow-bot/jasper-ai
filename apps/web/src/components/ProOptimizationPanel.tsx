@@ -39,15 +39,15 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
 
   return (
     <div
-      className={`border-2 p-4 ${
+      className={`rounded-lg border p-4 ${
         isPro
-          ? "border-[var(--amber)] bg-[rgba(255,176,0,0.06)]"
-          : "border-[var(--border)] bg-[#080810]"
+          ? "border-amber-200 bg-amber-50"
+          : "border-[var(--border)] bg-[var(--surface-2)]"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h4 className="font-pixel text-[9px] text-[var(--amber)]">
+          <h4 className="ui-section-title text-[var(--amber)]">
             {t("proPanel.title")}
           </h4>
           <p className="mt-2 text-sm text-dim">

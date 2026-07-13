@@ -24,9 +24,9 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
   return (
     <div className="pixel-panel space-y-4">
       <div>
-        <h2 className="font-pixel text-xs text-neon">{t("anchor.title")}</h2>
-        <p className="mt-2 text-sm text-dim">{t("anchor.subtitle")}</p>
-        <p className="mt-1 text-xs text-dim">
+        <h2 className="ui-panel-title">{t("anchor.title")}</h2>
+        <p className="mt-2 ui-hint">{t("anchor.subtitle")}</p>
+        <p className="mt-1 ui-hint">
           {t("anchor.universeNote", { count: MAINSTREAM_DEMO_TICKERS.length })}
         </p>
       </div>
@@ -43,26 +43,26 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
               key={p.id}
               type="button"
               onClick={() => onSelect(p)}
-              className={`border-2 p-4 text-left transition ${
+              className={`rounded-xl border p-4 text-left transition ${
                 active
-                  ? "border-[var(--neon)] bg-[rgba(57,255,20,0.1)] shadow-pixel"
-                  : "border-[var(--border)] bg-[#080810] hover:border-[var(--cyan)]"
+                  ? "border-[var(--primary)] bg-[var(--primary-muted)] shadow-sm"
+                  : "border-[var(--border)] bg-white hover:border-[var(--primary)]/40 hover:shadow-sm"
               }`}
             >
-              <span className="font-pixel text-[10px] text-neon">{label}</span>
-              <p className="mt-2 text-xs leading-snug text-dim">
+              <span className="text-sm font-semibold text-[var(--foreground)]">{label}</span>
+              <p className="mt-2 ui-hint leading-snug">
                 {getPortfolioDescription(p, lang)}
               </p>
-              <p className="mt-2 font-terminal text-sm text-[var(--cyan)]">{holdings}</p>
+              <p className="mt-2 text-sm text-[var(--primary)]">{holdings}</p>
             </button>
           );
         })}
       </div>
 
       {selected && (
-        <div className="border border-[var(--border)] bg-[rgba(0,0,0,0.2)] p-3 text-sm">
-          <p className="text-dim">{t("anchor.selected")}</p>
-          <p className="mt-1 font-terminal text-[var(--foreground)]">
+        <div className="saas-inset text-sm">
+          <p className="ui-hint">{t("anchor.selected")}</p>
+          <p className="mt-1 font-medium text-[var(--foreground)]">
             {getPortfolioLabel(selected, lang)}
           </p>
         </div>

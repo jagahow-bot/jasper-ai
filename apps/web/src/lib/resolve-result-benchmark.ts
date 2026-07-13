@@ -4,21 +4,28 @@ type NarrativeFacts = {
   backtest_spec?: { benchmark?: string | null } | null;
 };
 
+/** Benchmark ticker persisted on the job result (metrics were computed vs this). */
+export function resolveJobBenchmarkTicker(
+  narrativeFacts: NarrativeFacts | Record<string, unknown> | null | undefined,
+): string {
+  const spec = (narrativeFacts as NarrativeFacts | null | undefined)?.backtest_spec;
+  return String(spec?.benchmark ?? "").trim().toUpperCase();
+}
+
 /**
  * Benchmark ticker for result UI and AI narratives.
- * Job backtest_spec is authoritative for metrics; request.benchmark_ticker
- * is the anchor override sent to the API and a fallback when spec is missing.
+ * Prefer explicit request.benchmark_ticker (anchor override) over the job
+ * backtest_spec so RM anchor SPY is shown even when an older run used AI ACWI.
  */
 export function resolveResultBenchmarkTicker(
   request: Pick<BacktestRequest, "benchmark_ticker"> | null | undefined,
   narrativeFacts: NarrativeFacts | Record<string, unknown> | null | undefined,
 ): string {
-  const spec = (narrativeFacts as NarrativeFacts | null | undefined)?.backtest_spec;
-  const fromJob = String(spec?.benchmark ?? "").trim();
-  if (fromJob) return fromJob.toUpperCase();
-
   const fromRequest = String(request?.benchmark_ticker ?? "").trim();
   if (fromRequest) return fromRequest.toUpperCase();
+
+  const fromJob = resolveJobBenchmarkTicker(narrativeFacts);
+  if (fromJob) return fromJob;
 
   return "SPY";
 }
@@ -28,8 +35,7 @@ export function benchmarkTickerMismatch(
   request: Pick<BacktestRequest, "benchmark_ticker"> | null | undefined,
   narrativeFacts: NarrativeFacts | Record<string, unknown> | null | undefined,
 ): boolean {
-  const spec = (narrativeFacts as NarrativeFacts | null | undefined)?.backtest_spec;
-  const fromJob = String(spec?.benchmark ?? "").trim().toUpperCase();
-  const fromRequest = String(request?.benchmark_ticker ?? "").trim().toUpperCase();
+  const fromJob = resolveJobBenchmarkTicker(narrativeFacts);
+  const fromRequest = resolveResultBenchmarkTicker(request, narrativeFacts);
   return Boolean(fromJob && fromRequest && fromJob !== fromRequest);
 }

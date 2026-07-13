@@ -26,29 +26,29 @@ export function LiveStatusCard({ progress, feed }: Props) {
   const isRunning = progress.status === "running" || progress.status === "pending";
 
   return (
-    <div className="mb-3 shrink-0 border-2 border-[var(--cyan)] bg-[rgba(0,245,255,0.05)] p-3">
+    <div className="mb-3 shrink-0 rounded-lg border border-[var(--primary-muted)] bg-[var(--primary-muted)]/40 p-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="ui-section-title flex items-center gap-2 text-[var(--cyan)]">
+        <span className="ui-section-title flex items-center gap-2 text-[var(--primary)]">
           {isRunning && <span className="live-dot" aria-hidden />}
           {t("live.badge")}
         </span>
-        <span className="font-terminal text-xl text-[var(--cyan)]">
+        <span className="text-xl font-semibold tabular-nums text-[var(--primary)]">
           {Math.round(pct)}%
         </span>
       </div>
 
       <div
-        className={`mt-2 h-2 overflow-hidden border border-[var(--border)] bg-[#050508] ${
+        className={`mt-2 h-2 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)] ${
           isRunning ? "live-bar" : ""
         }`}
       >
         <div
-          className="h-full bg-[var(--cyan)] transition-all duration-300"
+          className="h-full bg-[var(--primary)] transition-all duration-300"
           style={{ width: `${pct}%` }}
         />
       </div>
 
-      <p className="mt-2 font-terminal text-base leading-snug text-[var(--foreground)]">
+      <p className="ui-body mt-2 leading-snug text-[var(--foreground)]">
         {progress.message ? translateProgress(progress.message, t) : t("live.working")}
       </p>
 
@@ -88,7 +88,7 @@ export function LiveStatusCard({ progress, feed }: Props) {
                   className="ui-body truncate text-[var(--text-dim)]"
                   title={localized}
                 >
-                  <span className="text-[var(--neon-dim)]">· </span>
+                  <span className="text-[var(--primary)]">· </span>
                   {localized}
                 </li>
               );

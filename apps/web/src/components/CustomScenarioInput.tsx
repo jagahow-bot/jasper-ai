@@ -45,7 +45,7 @@ export function CustomScenarioInput({ onScenario }: Props) {
   return (
     <div className="pixel-panel space-y-4">
       <div>
-        <h3 className="font-pixel text-xs text-neon">{t("customScenario.title")}</h3>
+        <h3 className="ui-panel-title">{t("customScenario.title")}</h3>
         <p className="mt-2 text-sm text-dim">
           {t("customScenario.description")}
         </p>

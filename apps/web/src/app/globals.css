@@ -3,27 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --font-size-root: 18px;
-  --background: #030306;
-  --foreground: #d4ffd4;
-  --surface: #0a0a12;
-  --surface-2: #0f1020;
-  --border: #1a3d1a;
-  --neon: #39ff14;
-  --neon-dim: #1a8f1a;
-  --cyan: #00f5ff;
-  --magenta: #ff2bd6;
-  --amber: #ffb000;
-  --text-dim: #5a7a5a;
-  --pixel-shadow: 4px 4px 0 #000;
+  --font-size-root: 16px;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-muted: #dbeafe;
+  --neon: #2563eb;
+  --neon-dim: #93c5fd;
+  --cyan: #4f46e5;
+  --magenta: #dc2626;
+  --amber: #d97706;
+  --text-dim: #64748b;
+  --pixel-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 
-  /* ── Typography color roles (semantic, theme-wide) ──────────────────── */
-  --ui-color-title: var(--neon); /* pixel titles / headings */
-  --ui-color-body: var(--foreground); /* default reading text */
-  --ui-color-hint: var(--text-dim); /* footnotes, help text, axis labels */
-  --ui-color-accent: var(--cyan); /* section titles, links, emphasis */
-  --ui-color-label: #a9d9a9; /* form + control field labels */
-  --ui-color-metric: var(--foreground); /* numeric metric values */
+  --ui-color-title: #0f172a;
+  --ui-color-body: #334155;
+  --ui-color-hint: #64748b;
+  --ui-color-accent: #2563eb;
+  --ui-color-label: #475569;
+  --ui-color-metric: #0f172a;
 }
 
 @layer base {
@@ -34,285 +36,215 @@
   body {
     color: var(--foreground);
     background: var(--background);
-    font-family: var(--font-terminal), ui-monospace, monospace;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   }
 
   h1,
   h2,
   h3,
   .font-pixel {
-    font-family: var(--font-pixel), monospace;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    font-weight: 600;
   }
-}
-
-/* CRT scanlines + vignette */
-body::before {
-  content: "";
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.12) 2px,
-    rgba(0, 0, 0, 0.12) 4px
-  );
-  opacity: 0.35;
-}
-
-body::after {
-  content: "";
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 9998;
-  background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.55) 100%);
 }
 
 @layer components {
   .pixel-panel {
-    @apply relative border-2 bg-[var(--surface)] p-5;
-    border-color: var(--neon-dim);
-    box-shadow: var(--pixel-shadow), 0 0 24px rgba(57, 255, 20, 0.06);
-  }
-
-  .pixel-panel::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--neon), transparent);
-    opacity: 0.5;
-  }
-
-  .pixel-panel-cyan {
-    border-color: #0a4a4a;
-    box-shadow: var(--pixel-shadow), 0 0 20px rgba(0, 245, 255, 0.08);
-  }
-
-  .pixel-panel-cyan::before {
-    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-  }
-
-  html[data-font-lg="true"] .pixel-btn {
-    font-size: 11px;
-  }
-
-  html[data-font-lg="true"] .pixel-badge {
-    font-size: 11px;
-  }
-
-  html[data-font-lg="true"] .pixel-chip {
-    font-size: 12px;
-  }
-
-  .pixel-btn {
-    @apply border-2 px-4 py-3 font-pixel text-[10px] uppercase tracking-wider transition;
-    border-color: var(--neon);
-    background: #0a1a0a;
-    color: var(--neon);
+    @apply relative rounded-xl border bg-[var(--surface)] p-5 shadow-sm;
+    border-color: var(--border);
     box-shadow: var(--pixel-shadow);
   }
 
-  .pixel-btn:hover {
-    background: var(--neon);
-    color: #030306;
-    box-shadow: 2px 2px 0 #000;
-    transform: translate(2px, 2px);
+  .pixel-panel::before {
+    content: none;
+  }
+
+  .pixel-panel-cyan {
+    border-color: var(--border);
+    box-shadow: var(--pixel-shadow);
+  }
+
+  .pixel-panel-cyan::before {
+    content: none;
+  }
+
+  html[data-font-lg="true"] .pixel-btn {
+    font-size: 0.875rem;
+  }
+
+  html[data-font-lg="true"] .pixel-badge {
+    font-size: 0.75rem;
+  }
+
+  html[data-font-lg="true"] .pixel-chip {
+    font-size: 0.8125rem;
+  }
+
+  .pixel-btn {
+    @apply rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors;
+    border-color: transparent;
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .pixel-btn:hover:not(:disabled) {
+    background: var(--primary-hover);
+    color: #ffffff;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .pixel-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .pixel-btn-amber {
-    border-color: var(--amber);
-    color: var(--amber);
-    background: #1a1400;
+    border-color: transparent;
+    color: #ffffff;
+    background: var(--amber);
   }
 
-  .pixel-btn-amber:hover {
-    background: var(--amber);
-    color: #030306;
+  .pixel-btn-amber:hover:not(:disabled) {
+    background: #b45309;
+    color: #ffffff;
   }
 
   .pixel-badge {
-    @apply border px-2 py-0.5 text-[10px] uppercase tracking-wide;
-    border-color: var(--neon-dim);
-    color: var(--neon);
-    background: rgba(57, 255, 20, 0.06);
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium;
+    border-color: var(--border);
+    color: var(--ui-color-body);
+    background: var(--surface-2);
   }
 
   .pixel-badge-cyan {
-    border-color: #0a5a5a;
-    color: var(--cyan);
-    background: rgba(0, 245, 255, 0.06);
+    border-color: #c7d2fe;
+    color: #4338ca;
+    background: #eef2ff;
   }
 
   .pixel-badge-warn {
-    border-color: #5a4a00;
-    color: var(--amber);
-    background: rgba(255, 176, 0, 0.08);
+    border-color: #fde68a;
+    color: #b45309;
+    background: #fffbeb;
   }
 
   .pixel-badge-link {
-    @apply inline-flex items-center font-pixel transition;
+    @apply inline-flex items-center transition;
     text-decoration: none;
   }
 
   .pixel-badge-link:hover {
-    border-color: var(--neon);
-    background: rgba(57, 255, 20, 0.12);
-    color: var(--neon);
+    border-color: var(--primary);
+    background: var(--primary-muted);
+    color: var(--primary);
   }
 
   .pixel-input {
-    @apply w-full border-2 bg-[#050508] px-3 py-2 text-sm;
+    @apply w-full rounded-lg border bg-white px-3 py-2 text-sm;
     border-color: var(--border);
     color: var(--foreground);
   }
 
   .pixel-input:focus {
     outline: none;
-    border-color: var(--neon);
-    box-shadow: 0 0 8px rgba(57, 255, 20, 0.25);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
   }
 
   .pixel-chip {
-    @apply border-2 px-3 py-1 text-[11px] uppercase tracking-wide transition;
+    @apply rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors;
     border-color: var(--border);
     color: var(--text-dim);
-    background: #080810;
+    background: var(--surface);
   }
 
   .pixel-chip-active {
-    border-color: var(--neon);
-    color: var(--neon);
-    background: rgba(57, 255, 20, 0.1);
-    box-shadow: 0 0 12px rgba(57, 255, 20, 0.15);
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-muted);
+    box-shadow: none;
   }
 
   .text-dim {
     color: var(--text-dim);
   }
 
-  /*
-   * ╔══════════════════════════════════════════════════════════════════════╗
-   * ║  JASPER TYPOGRAPHY SYSTEM — single source of truth                     ║
-   * ╠══════════════════════════════════════════════════════════════════════╣
-   * ║  Every size is in `rem`, so the whole hierarchy scales together with   ║
-   * ║  the FontSizeControl (--font-size-root, default 18px). NEVER use ad-hoc ║
-   * ║  `text-[8px]` / `text-xs` / bare `font-pixel` literals in components — ║
-   * ║  they freeze at one size and drift out of the system. Use these classes.║
-   * ║                                                                        ║
-   * ║  Two font families:                                                     ║
-   * ║    • pixel  → titles/headings only (uppercase, tracked). Roles below.  ║
-   * ║    • terminal → everything readable (body, labels, hints, metrics).    ║
-   * ║                                                                        ║
-   * ║  COLOR ROLES (tokens, see :root):                                       ║
-   * ║    --ui-color-title   neon    headings / pixel titles                   ║
-   * ║    --ui-color-accent  cyan    section titles, links, emphasis           ║
-   * ║    --ui-color-body    green   default reading text                      ║
-   * ║    --ui-color-label   soft    form + control field labels               ║
-   * ║    --ui-color-hint    dim     footnotes, help text, axis labels         ║
-   * ║    --ui-color-metric  green   numeric metric values                     ║
-   * ║                                                                        ║
-   * ║  SIZE + ROLE HIERARCHY (px shown at the 18px default root):             ║
-   * ║   TITLES (pixel, uppercase)                                            ║
-   * ║    .ui-page-title    1.15rem ~21px  neon   screen / hero title          ║
-   * ║    .ui-group-title   0.95rem ~17px  neon   major group heading          ║
-   * ║    .ui-panel-title   0.85rem ~15px  neon   panel / card title           ║
-   * ║    .ui-section-title 0.75rem ~14px  cyan   minor caps sub-heading        ║
-   * ║   TEXT (terminal)                                                      ║
-   * ║    .ui-metric-value  1.05rem ~19px  green  KPI / big numbers (tabular)  ║
-   * ║    .ui-body          0.92rem ~17px  green  prose, table cells           ║
-   * ║    .ui-label         0.88rem ~16px  soft   form / control field labels  ║
-   * ║    .ui-dropdown      0.85rem ~15px  green  select + option text         ║
-   * ║    .ui-hint          0.80rem ~14px  dim    footnotes, help, axis labels ║
-   * ║    .ui-chart-label   0.78rem ~14px  green  dense chart / table labels   ║
-   * ║                                                                        ║
-   * ║  .ui-hint / .ui-chart-label are the floor: ~14px at default, never      ║
-   * ║  below ~12px even at the smallest A− step so footnotes stay legible.    ║
-   * ╚══════════════════════════════════════════════════════════════════════╝
-   */
   .ui-page-title {
-    @apply font-pixel uppercase tracking-wider;
-    font-size: 1.15rem;
+    @apply font-semibold tracking-tight;
+    font-size: 1.5rem;
     color: var(--ui-color-title);
   }
 
   .ui-group-title {
-    @apply font-pixel uppercase tracking-wider;
-    font-size: 0.95rem;
+    @apply font-semibold tracking-tight;
+    font-size: 1.125rem;
     color: var(--ui-color-title);
   }
 
   .ui-panel-title {
-    @apply font-pixel uppercase tracking-wider;
-    font-size: 0.85rem;
+    @apply font-semibold tracking-tight;
+    font-size: 1rem;
     color: var(--ui-color-title);
   }
 
   .ui-section-title {
-    @apply font-pixel uppercase tracking-wider;
+    @apply text-xs font-semibold uppercase tracking-wide;
     font-size: 0.75rem;
     color: var(--ui-color-accent);
   }
 
   .ui-metric-value {
-    @apply font-terminal tabular-nums;
-    font-size: 1.05rem;
+    @apply font-mono tabular-nums font-semibold;
+    font-size: 1.125rem;
     color: var(--ui-color-metric);
   }
 
   .ui-body {
-    @apply font-terminal leading-relaxed;
-    font-size: 0.92rem;
+    @apply leading-relaxed;
+    font-size: 0.9375rem;
     color: var(--ui-color-body);
   }
 
   .ui-label {
-    @apply font-terminal;
-    font-size: 0.88rem;
+    font-size: 0.875rem;
+    font-weight: 500;
     color: var(--ui-color-label);
   }
 
   .ui-dropdown {
-    @apply font-terminal;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     color: var(--ui-color-body);
   }
 
   .ui-hint {
-    @apply font-terminal leading-relaxed;
-    font-size: 0.8rem;
+    @apply leading-relaxed;
+    font-size: 0.8125rem;
     color: var(--ui-color-hint);
   }
 
   .ui-chart-label {
-    @apply font-terminal;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: var(--ui-color-body);
   }
 
   .glow-title {
-    text-shadow: 0 0 12px rgba(57, 255, 20, 0.5);
+    text-shadow: none;
   }
 
-  /* Live status: pulsing indicator dot */
   .live-dot {
     display: inline-block;
-    width: 0.55rem;
-    height: 0.55rem;
+    width: 0.5rem;
+    height: 0.5rem;
     border-radius: 9999px;
-    background: var(--neon);
-    box-shadow: 0 0 8px var(--neon);
+    background: var(--primary);
+    box-shadow: none;
     animation: live-pulse 1.1s ease-in-out infinite;
   }
 
-  /* Live status: animated sweep over the active progress bar */
   .live-bar {
     position: relative;
     overflow: hidden;
@@ -325,16 +257,20 @@ body::after {
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(255, 255, 255, 0.35),
+      rgba(255, 255, 255, 0.45),
       transparent
     );
     transform: translateX(-100%);
     animation: live-sweep 1.4s ease-in-out infinite;
   }
 
-  /* Live feed: newly prepended line flashes in */
   .live-feed-enter {
     animation: live-flash 0.9s ease-out;
+  }
+
+  .saas-inset {
+    @apply rounded-lg border bg-[var(--surface-2)] p-4;
+    border-color: var(--border);
   }
 }
 
@@ -345,8 +281,8 @@ body::after {
     transform: scale(1);
   }
   50% {
-    opacity: 0.35;
-    transform: scale(0.7);
+    opacity: 0.45;
+    transform: scale(0.85);
   }
 }
 
@@ -362,7 +298,7 @@ body::after {
 
 @keyframes live-flash {
   0% {
-    background: rgba(57, 255, 20, 0.18);
+    background: rgba(37, 99, 235, 0.1);
   }
   100% {
     background: transparent;
@@ -377,7 +313,6 @@ body::after {
   }
 }
 
-/* Pixel-style range slider accent */
 input[type="range"] {
-  accent-color: var(--neon);
+  accent-color: var(--primary);
 }

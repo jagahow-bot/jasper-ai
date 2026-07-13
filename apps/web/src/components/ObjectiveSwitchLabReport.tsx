@@ -50,7 +50,7 @@ export function ObjectiveSwitchLabReport({ result }: Props) {
       {result.detector_version && (
         <p className="ui-hint">
           {t("objectiveLab.regimeDetector")}:{" "}
-          <span className="pixel-badge-cyan inline-block px-2 py-0.5 font-pixel text-[8px]">
+          <span className="pixel-badge-cyan inline-block px-2 py-0.5 text-xs font-medium">
             {result.detector_version.toUpperCase()}
           </span>
           {result.detector_version === "v2"

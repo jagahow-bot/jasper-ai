@@ -36,23 +36,23 @@ export function ProgressPanel({ progress, label, accent = "neon" }: Props) {
         : 0;
   const hasTrials = progress.trials_total > 0 && progress.trial > 0;
   const isRunning = progress.status === "running" || progress.status === "pending";
-  const barColor = accent === "cyan" ? "bg-[var(--cyan)]" : "bg-[var(--neon)]";
-  const titleColor = accent === "cyan" ? "text-[var(--cyan)]" : "text-neon";
+  const barColor = accent === "cyan" ? "bg-[var(--cyan)]" : "bg-[var(--primary)]";
+  const titleColor = accent === "cyan" ? "text-[var(--cyan)]" : "text-[var(--primary)]";
 
   return (
     <div className="pixel-panel space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className={`ui-panel-title flex items-center gap-2 glow-title ${titleColor}`}>
+        <h3 className={`ui-panel-title flex items-center gap-2 ${titleColor}`}>
           {isRunning && <span className="live-dot" aria-hidden />}
           {label ?? t("progress.running")}
         </h3>
-        <span className={`font-terminal text-2xl ${accent === "cyan" ? "text-[var(--cyan)]" : "text-[var(--cyan)]"}`}>
+        <span className="text-2xl font-semibold tabular-nums text-[var(--primary)]">
           {Math.round(pct)}%
         </span>
       </div>
 
       <div
-        className={`h-3 overflow-hidden border-2 border-[var(--border)] bg-[#050508] ${
+        className={`h-2.5 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)] ${
           isRunning ? "live-bar" : ""
         }`}
       >
@@ -62,7 +62,7 @@ export function ProgressPanel({ progress, label, accent = "neon" }: Props) {
         />
       </div>
 
-      <p className="font-terminal text-lg text-[var(--foreground)]">
+      <p className="ui-body text-[var(--foreground)]">
         {translateProgress(progress.message, t)}
       </p>
 
@@ -74,7 +74,7 @@ export function ProgressPanel({ progress, label, accent = "neon" }: Props) {
 
       {belowBench ? (
         <div
-          className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.12)] p-3"
+          className="rounded-lg border border-amber-200 bg-amber-50 p-3"
           role="status"
         >
           <p className="ui-section-title text-[var(--amber)]">

@@ -89,11 +89,11 @@ export default function ObjectiveSwitchLabPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b-2 border-[var(--border)] bg-[var(--surface)]">
+      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div>
-            <h1 className="font-pixel text-sm glow-title text-neon">Objective Switch Lab</h1>
-            <p className="mt-1 font-terminal text-sm text-dim">
+            <h1 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">Objective Switch Lab</h1>
+            <p className="mt-0.5 text-sm text-dim">
               Standalone regime / objective evaluation — not Jasper backtest
             </p>
           </div>
@@ -111,7 +111,7 @@ export default function ObjectiveSwitchLabPage() {
 
       <main className="mx-auto max-w-5xl space-y-6 px-6 py-8">
         <div className="pixel-panel border-[var(--amber)] p-5">
-          <p className="font-pixel text-[8px] text-[var(--amber)]">Lab inputs</p>
+          <p className="ui-section-title text-[var(--amber)]">Lab inputs</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="block text-xs">
               Start
@@ -215,7 +215,7 @@ export default function ObjectiveSwitchLabPage() {
           </div>
 
           <fieldset className="mt-4">
-            <legend className="font-pixel text-[8px] text-dim">Asset classes (universe filter)</legend>
+            <legend className="ui-section-title">Asset classes (universe filter)</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {ASSET_CLASSES.map((cls) => {
                 const on = form.asset_classes?.includes(cls) ?? false;

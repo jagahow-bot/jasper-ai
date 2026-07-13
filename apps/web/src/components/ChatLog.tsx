@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { useI18n } from "@/lib/i18n";
 
 export type ChatMessage = {
   id: string;
@@ -8,52 +9,115 @@ export type ChatMessage = {
   content: string;
 };
 
+type ChatLogProps = {
+  messages: ChatMessage[];
+  /** Activity log: newest at top. Conversation: IM-style, newest at bottom. */
+  variant?: "activity" | "conversation";
+};
+
 /**
- * Activity log rendered newest-first (top). The container auto-pins to the top
- * as new messages arrive so the latest entry is always visible without
- * scrolling — unless the user has scrolled down to read older lines, in which
- * case we leave their position untouched.
+ * Activity log (`variant="activity"`): newest-first at top; auto-pins to top
+ * unless the user scrolls down to read older lines.
+ *
+ * Conversation (`variant="conversation"`): chronological IM layout with speaker
+ * labels; auto-scrolls to the latest message at the bottom.
  */
-export function ChatLog({ messages }: { messages: ChatMessage[] }) {
+export function ChatLog({ messages, variant = "activity" }: ChatLogProps) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
 
-  const ordered = useMemo(() => [...messages].reverse(), [messages]);
+  const ordered = useMemo(
+    () => (variant === "activity" ? [...messages].reverse() : messages),
+    [messages, variant],
+  );
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !pinnedRef.current) return;
-    el.scrollTop = 0;
-  }, [ordered]);
+    if (variant === "conversation") {
+      el.scrollTop = el.scrollHeight;
+    } else {
+      el.scrollTop = 0;
+    }
+  }, [ordered, variant]);
 
   const handleScroll = () => {
     const el = containerRef.current;
     if (!el) return;
-    // Consider the user "pinned" to the latest message while near the top.
-    pinnedRef.current = el.scrollTop <= 24;
+    if (variant === "conversation") {
+      pinnedRef.current =
+        el.scrollHeight - el.scrollTop - el.clientHeight <= 24;
+    } else {
+      pinnedRef.current = el.scrollTop <= 24;
+    }
   };
+
+  if (variant === "conversation") {
+    return (
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="flex h-full flex-col gap-3 overflow-y-auto px-1 py-1 text-sm"
+      >
+        {ordered.map((m) => {
+          const isUser = m.role === "user";
+          const isSystem = m.role === "system";
+          const label = isUser
+            ? t("chat.speakerYou")
+            : isSystem
+              ? t("chat.speakerSystem")
+              : t("chat.speakerJasper");
+
+          return (
+            <div
+              key={m.id}
+              className={`flex flex-col gap-0.5 ${
+                isUser ? "items-end" : "items-start"
+              }`}
+            >
+              <span
+                className={`px-1 text-[10px] font-semibold uppercase tracking-wide text-dim ${
+                  isUser ? "text-right" : "text-left"
+                }`}
+              >
+                {label}
+              </span>
+              <div
+                className={`max-w-[88%] whitespace-pre-wrap rounded-2xl px-3 py-2 leading-snug ${
+                  isUser
+                    ? "rounded-br-md bg-[var(--primary)]/15 text-[var(--foreground)]"
+                    : isSystem
+                      ? "rounded-bl-md border border-red-200 bg-red-50 text-red-700"
+                      : "rounded-bl-md border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] shadow-sm"
+                }`}
+              >
+                {m.content}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex h-full flex-col gap-2 overflow-y-auto pr-1 font-terminal text-lg"
+      className="flex h-full flex-col gap-2 overflow-y-auto pr-1 text-sm"
     >
       {ordered.map((m) => (
         <div
           key={m.id}
-          className={`border-l-2 px-2 py-1 leading-snug ${
+          className={`rounded-r-md border-l-2 px-3 py-2 leading-snug ${
             m.role === "assistant"
-              ? "border-[var(--neon)] bg-[rgba(57,255,20,0.06)] text-[var(--foreground)]"
+              ? "border-[var(--primary)] bg-[var(--primary-muted)]/50 text-[var(--foreground)]"
               : m.role === "user"
-                ? "ml-4 border-[var(--cyan)] bg-[rgba(0,245,255,0.06)] text-[var(--cyan)]"
-                : "border-[var(--magenta)] text-xs text-[var(--magenta)]"
+                ? "ml-3 border-[var(--cyan)] bg-indigo-50 text-[var(--foreground)]"
+                : "border-red-300 bg-red-50 text-sm text-red-700"
           }`}
         >
-          {m.role === "user" && <span className="text-[var(--text-dim)]">{"> "}</span>}
-          {m.role === "assistant" && (
-            <span className="text-[var(--neon-dim)]">$ </span>
-          )}
           {m.content}
         </div>
       ))}

@@ -22,13 +22,15 @@ import type { BacktestRequest } from "@/lib/types";
 type Props = {
   value: BacktestRequest;
   onChange: (next: BacktestRequest) => void;
+  /** RM mode: show fixed universe summary without RUN SEARCH controls. */
+  readOnly?: boolean;
 };
 
 function ruleKey(index: number, rule: string) {
   return `rule-${index}-${rule.slice(0, 32)}`;
 }
 
-export function AssetClassFilter({ value, onChange }: Props) {
+export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
   const { t, lang } = useI18n();
   const [draftText, setDraftText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -189,7 +191,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
+          <span className="text-sm font-medium text-[var(--foreground)]">
             {t("assetFilter.assetClasses")}
           </span>
           <span className="text-xs text-dim">
@@ -203,6 +205,14 @@ export function AssetClassFilter({ value, onChange }: Props) {
         <div className="flex flex-wrap gap-2">
           {ASSET_CLASSES.map((ac) => {
             const active = value.asset_classes.includes(ac);
+            if (readOnly) {
+              if (!active) return null;
+              return (
+                <span key={ac} className="pixel-chip pixel-chip-active">
+                  {assetClassLabel(t, ac)}
+                </span>
+              );
+            }
             return (
               <button
                 key={ac}
@@ -222,8 +232,34 @@ export function AssetClassFilter({ value, onChange }: Props) {
       </div>
 
       <div className="space-y-2 border-t border-[var(--border)] pt-4">
+        {readOnly ? (
+          <div className="rounded border border-[var(--border)] bg-[var(--panel)] p-3">
+            <p className="text-sm font-medium text-[var(--foreground)]">
+              {t("rm.universe.fixedTitle")}
+            </p>
+            <p className="mt-1 text-xs text-[var(--cyan)]">
+              {t("rm.universe.fixedCount", { n: combinedCount })}
+            </p>
+            {pendingRules.length > 0 && (
+              <ul className="mt-2 space-y-1 text-xs text-dim">
+                {pendingRules.map((rule, index) => (
+                  <li key={ruleKey(index, rule)}>
+                    {index + 1}. {rule}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {supplementCount > 0 && (
+              <p className="mt-2 break-words text-xs text-dim">
+                {t("assetFilter.guaranteed")}:{" "}
+                {(value.universe_supplement_tickers ?? []).join(", ")}
+              </p>
+            )}
+          </div>
+        ) : (
+          <>
         <div className="flex items-center justify-between">
-          <span className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
+          <span className="text-sm font-medium text-[var(--foreground)]">
             {t("assetFilter.aiFilter")}
           </span>
           {hasAiApplied && (
@@ -268,7 +304,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
                 key={ruleKey(index, rule)}
                 className="flex items-start gap-2 rounded border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5 text-xs"
               >
-                <span className="shrink-0 font-pixel text-[10px] text-[var(--cyan)]">
+                <span className="shrink-0 text-xs font-medium text-[var(--primary)]">
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1 text-[var(--foreground)]">{rule}</span>
@@ -298,7 +334,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
 
         {(rationale || (perRuleResults && perRuleResults.length > 0)) && (
           <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--panel)] p-3">
-            <p className="font-pixel text-[10px] uppercase tracking-wide text-[var(--foreground)]">
+            <p className="text-sm font-medium text-[var(--foreground)]">
               {t("assetFilter.results")}
             </p>
             {rationale && (
@@ -324,7 +360,7 @@ export function AssetClassFilter({ value, onChange }: Props) {
                       onClick={() => toggleRuleExpanded(row.rule_index)}
                       className="flex w-full items-start gap-2 text-left hover:text-[var(--cyan)]"
                     >
-                      <span className="shrink-0 font-pixel text-[10px] text-[var(--cyan)]">
+                      <span className="shrink-0 text-xs font-medium text-[var(--primary)]">
                         {row.rule_index + 1}
                       </span>
                       <span className="min-w-0 flex-1">
@@ -377,6 +413,8 @@ export function AssetClassFilter({ value, onChange }: Props) {
               </p>
             )}
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

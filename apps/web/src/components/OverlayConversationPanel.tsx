@@ -113,7 +113,7 @@ export function OverlayConversationPanel({
   return (
     <div className="pixel-panel flex flex-col gap-4">
       <div>
-        <h3 className="font-pixel text-xs text-neon">
+        <h3 className="ui-panel-title">
           {lang === "zh"
             ? "客戶需求對話"
             : lang === "ko"
@@ -127,8 +127,8 @@ export function OverlayConversationPanel({
         </p>
       </div>
 
-      <div className="h-48 border border-[var(--border)] bg-[rgba(0,0,0,0.25)] p-2">
-        <ChatLog messages={toChatMessages(messages)} />
+      <div className="h-56 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
+        <ChatLog variant="conversation" messages={toChatMessages(messages)} />
       </div>
 
       <div className="flex gap-2">
@@ -167,16 +167,16 @@ export function OverlayConversationPanel({
       {error && <p className="text-sm text-[var(--magenta)]">{error}</p>}
 
       {overlay && (
-        <div className="space-y-3 border border-[var(--neon-dim)] bg-[rgba(57,255,20,0.04)] p-3">
+        <div className="space-y-3 rounded-lg border border-[var(--primary-muted)] bg-[var(--primary-muted)]/40 p-3">
           <div className="flex items-center justify-between gap-2">
-            <span className="font-pixel text-[10px] text-neon">
+            <span className="ui-section-title">
               {lang === "zh" ? "AI 理解的 Overlay" : "AI overlay summary"}
             </span>
             <span className="text-xs text-dim">
               {lang === "zh" ? "階段" : "Phase"}: {phaseLabel}
             </span>
           </div>
-          <pre className="whitespace-pre-wrap font-terminal text-sm leading-snug text-[var(--foreground)]">
+          <pre className="ui-body whitespace-pre-wrap leading-snug">
             {formatOverlaySummary(overlay, lang)}
           </pre>
           {overlay.clarification_questions?.length ? (

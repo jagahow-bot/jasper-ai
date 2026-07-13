@@ -17,17 +17,24 @@ import type { PortfolioCandidate } from "@/lib/types";
 export function InstitutionalReport({
   candidate,
   benchmark = "SPY",
+  benchmarkMetricsStale,
   analyticsNote,
   isLoadingAnalytics = false,
   loadingModelCode,
+  variant = "default",
 }: {
   candidate: PortfolioCandidate;
   benchmark?: string;
+  /** Job metrics were computed vs a different ticker — user should re-run. */
+  benchmarkMetricsStale?: string;
   analyticsNote?: string;
   isLoadingAnalytics?: boolean;
   loadingModelCode?: string;
+  /** Slim layout for RM quant tab — hides deep quant tables already covered elsewhere. */
+  variant?: "default" | "rm";
 }) {
   const { t } = useI18n();
+  const isRmCompact = variant === "rm";
   const a = candidate.analytics;
   const loadingSuffix = loadingModelCode
     ? ` ${t("institutional.loadingFor", { model: loadingModelCode })}`
@@ -74,6 +81,66 @@ export function InstitutionalReport({
     Object.keys(exposure.by_asset_bucket ?? {}).length === 0 &&
     exposure.equity_pct == null &&
     exposure.bond_pct == null;
+
+  if (isRmCompact) {
+    return (
+      <div className="space-y-5">
+        {isLoadingAnalytics ? (
+          <LoadingPlaceholder label={`${t("institutional.loadingAnalytics")}${loadingSuffix}`} />
+        ) : null}
+        {analyticsNote ? <p className="ui-hint">{analyticsNote}</p> : null}
+        <p className="ui-hint">{t("institutional.rmCompactHint")}</p>
+
+        <Section title={t("institutional.vsBenchmark", { benchmark })}>
+          {benchmarkMetricsStale ? (
+            <p className="ui-hint mb-3 text-amber-700">
+              {t("institutional.benchmarkStaleNote", {
+                computed: benchmarkMetricsStale,
+              })}
+            </p>
+          ) : null}
+          <div className="grid grid-cols-3 gap-3">
+            <Kpi label={t("common.beta")} value={rel.beta ?? candidate.beta} />
+            <Kpi
+              label={t("common.alpha")}
+              value={rel.alpha ?? rel.alpha_annual ?? candidate.alpha ?? candidate.alpha_annual}
+            />
+            <Kpi
+              label={t("institutional.ir")}
+              value={rel.information_ratio ?? candidate.information_ratio}
+            />
+          </div>
+        </Section>
+
+        <Section title={t("institutional.exposure")}>
+          {isLoadingAnalytics && exposureEmpty ? (
+            <LoadingPlaceholder />
+          ) : (
+            <div className="ui-body rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+              <div className="mb-2 text-dim">{t("institutional.assetClass")}</div>
+              {Object.keys(exposure.by_asset_class ?? {}).length === 0 ? (
+                <p className="ui-hint">{t("institutional.insufficientData")}</p>
+              ) : (
+                Object.entries(exposure.by_asset_class ?? {}).map(([k, v]) => (
+                  <div key={k} className="flex justify-between border-t border-[var(--border)] py-1">
+                    <span>{exposureClassLabel(k, t)}</span>
+                    <span className="text-[var(--primary)]">{(Number(v) * 100).toFixed(1)}%</span>
+                  </div>
+                ))
+              )}
+              {!hasExposureByAssetClass(exposure) &&
+              (exposure.equity_pct != null || exposure.bond_pct != null) ? (
+                <div className="mt-3 space-y-2 border-t border-[var(--border)] pt-2">
+                  <Row label={t("institutional.equity")} value={exposure.equity_pct} />
+                  <Row label={t("institutional.bond")} value={exposure.bond_pct} />
+                </div>
+              ) : null}
+            </div>
+          )}
+        </Section>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -125,9 +192,9 @@ export function InstitutionalReport({
       {execution.rebalance_freq != null ? (
         <Section title={t("institutional.rebalanceExecution")}>
           <p className="ui-body">
-            {t("institutional.freq")} <span className="text-neon">{rebalanceFreqLabel(t, String(execution.rebalance_freq))}</span>
+            {t("institutional.freq")} <span className="text-[var(--primary)]">{rebalanceFreqLabel(t, String(execution.rebalance_freq))}</span>
             {" · "}
-            {t("institutional.count")} <span className="text-neon">{String(execution.rebalance_count)}</span>
+            {t("institutional.count")} <span className="text-[var(--primary)]">{String(execution.rebalance_count)}</span>
           </p>
           {Array.isArray(execution.rebalance_dates_sample) &&
             (execution.rebalance_dates_sample as string[]).length > 0 && (
@@ -144,6 +211,13 @@ export function InstitutionalReport({
       ) : null}
 
       <Section title={t("institutional.vsBenchmark", { benchmark })}>
+        {benchmarkMetricsStale ? (
+          <p className="ui-hint mb-3 text-amber-700">
+            {t("institutional.benchmarkStaleNote", {
+              computed: benchmarkMetricsStale,
+            })}
+          </p>
+        ) : null}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Kpi label={t("common.beta")} value={rel.beta ?? candidate.beta} />
           <Kpi label={t("common.alpha")} value={rel.alpha ?? rel.alpha_annual ?? candidate.alpha ?? candidate.alpha_annual} />
@@ -159,16 +233,16 @@ export function InstitutionalReport({
           <LoadingPlaceholder />
         ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="ui-body border-2 border-[var(--border)] bg-[#050508] p-3">
+          <div className="ui-body rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
             <div className="mb-2 text-dim">{t("institutional.assetClass")}</div>
             {Object.entries(exposure.by_asset_class ?? {}).map(([k, v]) => (
               <div key={k} className="flex justify-between border-t border-[var(--border)] py-1">
-                <span>{k}</span>
-                <span className="text-neon">{(Number(v) * 100).toFixed(1)}%</span>
+                <span>{exposureClassLabel(k, t)}</span>
+                <span className="text-[var(--primary)]">{(Number(v) * 100).toFixed(1)}%</span>
               </div>
             ))}
           </div>
-          <div className="ui-body border-2 border-[var(--border)] bg-[#050508] p-3">
+          <div className="ui-body rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
             <div className="mb-2 text-dim">{t("institutional.bucketsRegion")}</div>
             {Object.entries(exposure.by_asset_bucket ?? {}).slice(0, 10).map(([k, v]) => (
               <div key={k} className="flex justify-between border-t border-[var(--border)] py-1">
@@ -177,7 +251,7 @@ export function InstitutionalReport({
               </div>
             ))}
           </div>
-          <div className="ui-body space-y-2 border-2 border-[var(--border)] bg-[#050508] p-3">
+          <div className="ui-body space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
             <Row label={t("institutional.equity")} value={exposure.equity_pct} />
             <Row label={t("institutional.bond")} value={exposure.bond_pct} />
             <Row label={t("institutional.other")} value={exposure.other_pct} />
@@ -422,10 +496,26 @@ function HorizonRow({
   );
 }
 
+function exposureClassLabel(
+  key: string,
+  t: (key: string) => string,
+): string {
+  const normalized = key.toLowerCase();
+  const i18nKey = `institutional.${normalized}`;
+  const translated = t(i18nKey);
+  return translated !== i18nKey ? translated : key;
+}
+
+function hasExposureByAssetClass(exposure: {
+  by_asset_class?: Record<string, number>;
+}): boolean {
+  return Object.keys(exposure.by_asset_class ?? {}).length > 0;
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="pixel-panel">
-      <h4 className="ui-panel-title mb-3 text-[var(--cyan)]">{title}</h4>
+      <h4 className="ui-panel-title mb-3 text-[var(--primary)]">{title}</h4>
       {children}
     </div>
   );
@@ -434,9 +524,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Kpi({ label, value }: { label: string; value?: number | null }) {
   const v = value == null ? "—" : typeof value === "number" ? value.toFixed(3) : String(value);
   return (
-    <div className="border-2 border-[var(--border)] bg-[#050508] p-2 text-center">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2 text-center">
       <div className="ui-hint">{label}</div>
-      <div className="font-terminal text-lg text-neon">{v}</div>
+      <div className="text-lg font-semibold tabular-nums text-[var(--primary)]">{v}</div>
     </div>
   );
 }
@@ -531,7 +621,7 @@ function ReturnTable({
               <td className="py-1">{r.period}</td>
               <td
                 className={`py-1 text-right ${
-                  r.return >= 0 ? "text-neon" : "text-[var(--magenta)]"
+                  r.return >= 0 ? "text-[var(--primary)]" : "text-[var(--magenta)]"
                 }`}
               >
                 {(r.return * 100).toFixed(2)}%

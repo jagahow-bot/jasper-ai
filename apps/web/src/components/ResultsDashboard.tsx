@@ -22,6 +22,7 @@ import {
 import { ChartTooltip } from "@/components/ChartTooltip";
 import { InstitutionalReport } from "@/components/InstitutionalReport";
 import { LinkedEquityWeightChart } from "@/components/LinkedEquityWeightChart";
+import { OptimizationObjectiveBanner } from "@/components/OptimizationObjectiveBanner";
 import { QuickRefinements } from "@/components/QuickRefinements";
 import {
   ASSET_CLASS_LABELS,
@@ -66,8 +67,10 @@ import {
 } from "@/lib/compare-summary";
 import {
   benchmarkTickerMismatch,
+  resolveJobBenchmarkTicker,
   resolveResultBenchmarkTicker,
 } from "@/lib/resolve-result-benchmark";
+import { formatBenchmarkDisplayLabel } from "@/lib/model-portfolios";
 import { ContinueRefinementCTA } from "@/components/ContinueRefinementCTA";
 import { fetchCandidateCharts } from "@/lib/api";
 import {
@@ -90,7 +93,8 @@ import {
   chartTooltipFontSize,
 } from "@/lib/benchmark-chart-scale";
 import { getUniverseItems } from "@/lib/universe";
-import { rebalanceFreqLabel, regimeLabel, useI18n } from "@/lib/i18n";
+import { rebalanceFreqLabel, regimeLabel, objectiveLabel, useI18n } from "@/lib/i18n";
+import { resolveRunObjective } from "@/lib/resolve-run-objective";
 import {
   buildHoldoutLeaderboard,
   type LeaderboardSort,
@@ -167,6 +171,15 @@ type Props = {
     extraTrials?: number;
   }) => void;
   continueLoading?: boolean;
+  /** When false, the run-objective banner is omitted (e.g. parent already shows it). */
+  showRunObjectiveBanner?: boolean;
+  /** Slim layout for RM quant tab — hides sections duplicated in RmReportView. */
+  variant?: "default" | "rm";
+  /** Anchor benchmark ticker from RM step 1 (fallback when job request omits it). */
+  anchorBenchmarkTicker?: string;
+  /** Controlled candidate row key (sync with parent, e.g. RmReportView). */
+  selectedRowKey?: string;
+  onSelectedRowKeyChange?: (rowKey: string) => void;
 };
 
 export function ResultsDashboard({
@@ -180,12 +193,20 @@ export function ResultsDashboard({
   onQuickTweakAndRun,
   onContinueRefinement,
   continueLoading = false,
+  showRunObjectiveBanner = true,
+  variant = "default",
+  anchorBenchmarkTicker,
+  selectedRowKey: selectedRowKeyProp,
+  onSelectedRowKeyChange,
 }: Props) {
   const { t, lang } = useI18n();
+  const isRmCompact = variant === "rm";
   const chartTick = chartTickFontSize();
   const chartLegend = chartLegendFontSize();
   const chartTip = chartTooltipFontSize();
-  const [selectedRowKey, setSelectedRowKey] = useState<string>("");
+  const [selectedRowKeyState, setSelectedRowKeyState] = useState<string>("");
+  const selectedRowKey = selectedRowKeyProp ?? selectedRowKeyState;
+  const setSelectedRowKey = onSelectedRowKeyChange ?? setSelectedRowKeyState;
   const [compareSummary, setCompareSummary] = useState("");
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareRetryNote, setCompareRetryNote] = useState<string | null>(null);
@@ -228,13 +249,14 @@ export function ResultsDashboard({
   }, [resultSelectionEpoch, result.narrative_facts]);
 
   useEffect(() => {
-    setSelectedRowKey(
+    if (selectedRowKeyProp != null) return;
+    setSelectedRowKeyState(
       resolveDefaultSelectedRowKey(
         result.candidates,
         championNarrativeFacts,
       ),
     );
-  }, [resultSelectionEpoch, result.candidates, championNarrativeFacts]);
+  }, [resultSelectionEpoch, result.candidates, championNarrativeFacts, selectedRowKeyProp]);
 
   const defaultSelectedRowKey = useMemo(
     () =>
@@ -542,27 +564,44 @@ export function ResultsDashboard({
       }));
   }, [selected?.weights, tickerNameMap, lang]);
 
+  const benchmarkRequest = useMemo(
+    () =>
+      request.benchmark_ticker || anchorBenchmarkTicker
+        ? {
+            ...request,
+            benchmark_ticker: request.benchmark_ticker ?? anchorBenchmarkTicker,
+          }
+        : request,
+    [request, anchorBenchmarkTicker],
+  );
+
   const benchTicker = resolveResultBenchmarkTicker(
-    request,
+    benchmarkRequest,
     result.narrative_facts,
   );
+  const benchLabel = formatBenchmarkDisplayLabel(benchTicker, lang);
+  const jobBenchTicker = resolveJobBenchmarkTicker(result.narrative_facts);
+  const benchMetricsStale =
+    jobBenchTicker && benchTicker && jobBenchTicker !== benchTicker
+      ? jobBenchTicker
+      : undefined;
 
   useEffect(() => {
     if (
       process.env.NODE_ENV === "development" &&
-      benchmarkTickerMismatch(request, result.narrative_facts)
+      benchmarkTickerMismatch(benchmarkRequest, result.narrative_facts)
     ) {
       console.warn(
         "[benchmark] Job backtest_spec disagrees with request.benchmark_ticker — re-run backtest to refresh metrics.",
         {
-          request: request.benchmark_ticker,
+          request: benchmarkRequest.benchmark_ticker,
           job: (
             result.narrative_facts.backtest_spec as { benchmark?: string } | undefined
           )?.benchmark,
         },
       );
     }
-  }, [request, result.narrative_facts, result.job_id]);
+  }, [benchmarkRequest, result.narrative_facts, result.job_id]);
   const benchmarkEquity = useMemo(() => {
     const fromChart = chartCandidate?.analytics?.benchmark_equity_curve;
     if (fromChart?.length) return fromChart;
@@ -934,11 +973,8 @@ export function ResultsDashboard({
   const rebalanceChartDownsampled =
     rebalanceSnapshotsTotal > rebalanceSnapshotsShown && rebalanceSnapshotsShown > 0;
   const optimizationMode = String(result.narrative_facts.optimization_mode ?? "standard");
-  const objectiveLabel = String(
-    result.narrative_facts.objective_label ??
-      result.narrative_facts.objective ??
-      request.objective,
-  );
+  const runObjectiveKey = resolveRunObjective(request, result.narrative_facts);
+  const localizedObjectiveLabel = objectiveLabel(t, runObjectiveKey);
   const proRefinement = result.narrative_facts.pro_refinement as
     | {
         rounds_completed?: number;
@@ -1092,6 +1128,12 @@ export function ResultsDashboard({
 
   return (
     <div className="space-y-5">
+      {showRunObjectiveBanner && (
+        <OptimizationObjectiveBanner
+          request={request}
+          narrativeFacts={result.narrative_facts}
+        />
+      )}
       {!trustworthy && (
         <div className="ui-body border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-4 py-3 text-[var(--amber)]">
           {dataSource !== "yfinance"
@@ -1133,7 +1175,7 @@ export function ResultsDashboard({
           {result.narrative_facts.improved === true && ` · ${t("results.newRoundBest")}`}
         </div>
       )}
-      <div className="ui-hint border-2 border-[var(--border)] bg-[#050508] px-4 py-2">
+      <div className="ui-hint rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2">
         {optimizationMode === "pro_auto" && !result.narrative_facts.is_round_view ? (
           <>
             <span className="text-[var(--amber)]">{t("results.proRefinement")}</span>
@@ -1147,9 +1189,25 @@ export function ResultsDashboard({
               ? t("results.meta.convergedEarly")
               : t("results.meta.fullSearch")}
           </>
+        ) : isRmCompact ? (
+          <>
+            {championModelKey ? (
+              <span className="text-[var(--primary)]">
+                {t("results.rmChampionLine", {
+                  model: championModelKey,
+                  sharpe: displayMetrics.sharpe.toFixed(3),
+                  cagr: `${(displayMetrics.cagr * 100).toFixed(2)}%`,
+                })}
+              </span>
+            ) : (
+              t("results.meta.search", { trials: trialsRequested })
+            )}
+          </>
         ) : (
           <>{t("results.meta.search", { trials: trialsRequested })}</>
         )}
+        {!isRmCompact && (
+        <>
         {" · "}
         {t("results.meta.reported", { feasible: trialsFeasible, reported: modelsReturned })}
         {modelsTotalCatalog > modelsReturned && (
@@ -1178,6 +1236,8 @@ export function ResultsDashboard({
             </>
           )}
         </span>
+        </>
+        )}
       </div>
 
       <ReportGroup
@@ -1187,10 +1247,10 @@ export function ResultsDashboard({
       >
       <div className="pixel-panel">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="ui-panel-title text-neon glow-title">{t("results.title")}</h3>
+          <h3 className="ui-panel-title">{t("results.title")}</h3>
           {!sortByModelCode && (
             <span className="pixel-badge-cyan">
-              {`${t("results.sort")}: ${objectiveLabel}`}
+              {`${t("results.sort")}: ${localizedObjectiveLabel}`}
             </span>
           )}
           <label className="ui-body flex items-center gap-2 text-dim">
@@ -1212,18 +1272,18 @@ export function ResultsDashboard({
             </select>
           </label>
         </div>
-        {narrative ? (
-          <div className="mt-3 border-2 border-[var(--cyan)] bg-[rgba(0,245,255,0.04)] px-4 py-3 text-dim">
+        {narrative && !isRmCompact ? (
+          <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-dim">
             <p className="ui-section-title mb-2 text-[var(--cyan)]">
               {t("results.fullNarrative")}
             </p>
-            <p className="ui-body whitespace-pre-wrap text-[#cbd5e1]">
+            <p className="ui-body whitespace-pre-wrap text-slate-700">
               {narrativePrefix ? `${narrativePrefix}\n\n` : ""}
               {narrative}
             </p>
           </div>
         ) : null}
-        {sampleMetrics?.in_sample && (
+        {sampleMetrics?.in_sample && !isRmCompact && (
           <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2">
             <p className="ui-section-title text-[var(--amber)]">
               {t("results.rankedOnInSample")} ({Math.round((sampleMetrics.train_ratio ?? 0.7) * 100)}%)
@@ -1238,9 +1298,9 @@ export function ResultsDashboard({
             <div className="mt-2 grid grid-cols-2 gap-2 text-center ui-body sm:grid-cols-4">
               <div>
                 <div className="text-dim">
-                  {t("common.inSample")} {sampleMetrics.objective_label ?? objectiveLabel}
+                  {t("common.inSample")} {localizedObjectiveLabel}
                 </div>
-                <div className="text-neon">
+                <div className="text-[var(--primary)]">
                   {Number(sampleMetrics.in_sample.objective_value).toFixed(4)}
                 </div>
               </div>
@@ -1254,7 +1314,7 @@ export function ResultsDashboard({
               </div>
               <div>
                 <div className="text-dim">{t("common.full")}</div>
-                <div className="text-slate-200">
+                <div className="text-slate-700">
                   {sampleMetrics.full_sample
                     ? Number(sampleMetrics.full_sample.objective_value).toFixed(4)
                     : "—"}
@@ -1271,8 +1331,8 @@ export function ResultsDashboard({
             </div>
           </div>
         )}
-        {isDynamicObjective && (
-          <div className="mt-3 border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
+        {isDynamicObjective && !isRmCompact && (
+          <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
             <p className="ui-section-title text-[var(--amber)]">
               {t("results.dynamicScoreTitle")}
             </p>
@@ -1284,7 +1344,7 @@ export function ResultsDashboard({
             </p>
           </div>
         )}
-        {championRationale && (
+        {championRationale && !isRmCompact && (
           <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2">
             <p className="ui-section-title text-[var(--amber)]">
               {t("results.championWhyTitle", { code: championRationale.code })}
@@ -1293,7 +1353,7 @@ export function ResultsDashboard({
             <div className="mt-2 grid grid-cols-3 gap-2 text-center ui-body">
               <div>
                 <div className="text-dim">{t("results.championFullSharpe")}</div>
-                <div className="text-neon">{championFullMetrics.sharpe.toFixed(3)}</div>
+                <div className="text-[var(--primary)]">{championFullMetrics.sharpe.toFixed(3)}</div>
               </div>
               <div>
                 <div className="text-dim">{t("results.championFullMaxDd")}</div>
@@ -1303,12 +1363,12 @@ export function ResultsDashboard({
               </div>
               <div>
                 <div className="text-dim">{t("results.championFullCagr")}</div>
-                <div className="text-slate-200">
+                <div className="text-slate-700">
                   {(championFullMetrics.cagr * 100).toFixed(2)}%
                 </div>
               </div>
             </div>
-            <p className="ui-body mt-2 text-[#cbd5e1]">{championRationale.text}</p>
+            <p className="ui-body mt-2 text-slate-700">{championRationale.text}</p>
           </div>
         )}
         <p className="ui-hint mt-4">{t("results.fullPeriod")}</p>
@@ -1321,6 +1381,8 @@ export function ResultsDashboard({
           />
           <Metric label={t("common.cagr")} value={displayMetrics.cagr} format="pct" />
         </div>
+        {!isRmCompact && (
+        <>
         <div className="mt-3 grid grid-cols-3 gap-3 text-center">
           <Metric label={t("common.vol")} value={displayMetrics.volatility} format="pct" />
           <Metric label={t("common.sortino")} value={displayMetrics.sortino} />
@@ -1344,8 +1406,10 @@ export function ResultsDashboard({
             <Metric label={t("results.ir")} value={top.information_ratio ?? 0} />
           </div>
         )}
-        {showHorizonCompare && inSampleMetrics && outOfSampleMetrics ? (
-          <div className="mt-4 border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
+        </>
+        )}
+        {showHorizonCompare && inSampleMetrics && outOfSampleMetrics && !isRmCompact ? (
+          <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
             <p className="ui-section-title text-[var(--cyan)]">
               {t("results.horizonCompareTitle")}
             </p>
@@ -1384,7 +1448,7 @@ export function ResultsDashboard({
                     format="pct"
                   />
                   <HorizonMetricRow
-                    label={sampleMetrics?.objective_label ?? objectiveLabel}
+                    label={localizedObjectiveLabel}
                     inSample={inSampleMetrics.objective_value}
                     outOfSample={outOfSampleMetrics.objective_value}
                     full={displayMetrics.objective_value}
@@ -1404,7 +1468,7 @@ export function ResultsDashboard({
             ) : null}
           </div>
         ) : null}
-        {holdoutLeaderboard.length > 0 && (
+        {holdoutLeaderboard.length > 0 && !isRmCompact && (
           <div className="mt-3 overflow-x-auto">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="ui-section-title text-[var(--cyan)]">
@@ -1457,7 +1521,7 @@ export function ResultsDashboard({
                   <tr
                     key={row.model_code ?? `oos-${i}`}
                     className={`border-t border-[var(--border)] ${
-                      rowKey ? "cursor-pointer hover:bg-[rgba(0,245,255,0.06)]" : ""
+                      rowKey ? "cursor-pointer hover:bg-[var(--primary-muted)]/40" : ""
                     }`}
                     onClick={() => {
                       if (rowKey) setSelectedRowKey(rowKey);
@@ -1474,13 +1538,13 @@ export function ResultsDashboard({
                         ? " ★"
                         : ""}
                     </td>
-                    <td className="py-1 text-right text-neon">
+                    <td className="py-1 text-right text-[var(--primary)]">
                       {row.in_sample_objective?.toFixed(4) ?? "—"}
                     </td>
                     <td className="py-1 text-right text-[var(--cyan)]">
                       {row.out_of_sample_objective?.toFixed(4) ?? "—"}
                     </td>
-                    <td className="py-1 text-right text-slate-200">
+                    <td className="py-1 text-right text-slate-700">
                       {row.full_sample_objective?.toFixed(4) ?? "—"}
                     </td>
                     <td className="py-1 text-right text-[#ff2bd6]">
@@ -1493,6 +1557,8 @@ export function ResultsDashboard({
             </table>
           </div>
         )}
+        {!isRmCompact && (
+        <>
         <p className="ui-hint mt-3">
           {t("results.engine")} {String(result.narrative_facts.engine ?? "—")} · {t("results.holdings")}{" "}
           {String(result.narrative_facts.top_holdings_count ?? activeHoldingsCount)}
@@ -1568,6 +1634,8 @@ export function ResultsDashboard({
             ) : null}
           </p>
         ) : null}
+        </>
+        )}
       </div>
       </ReportGroup>
 
@@ -1577,7 +1645,8 @@ export function ResultsDashboard({
         subtitle={t("report.group.performanceHint")}
       >
       <ChartCard title={t("results.chart.performanceComparison")} subtitle={t("results.fullPeriod")}>
-        <div className="mb-3 border-2 border-[#0a4a4a] bg-[rgba(0,245,255,0.05)] px-3 py-2">
+        {!isRmCompact && (
+        <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2">
           <p className="ui-section-title mb-1">{t("results.aiComparison")}</p>
           {compareLoading ? (
             <p className="ui-hint">{t("results.generatingComparison")}</p>
@@ -1591,7 +1660,7 @@ export function ResultsDashboard({
                 .map((para) => para.trim())
                 .filter(Boolean)
                 .map((para, i) => (
-                  <p key={i} className="text-[#cbd5e1]">
+                  <p key={i} className="text-slate-700">
                     {para}
                   </p>
                 ))}
@@ -1600,6 +1669,7 @@ export function ResultsDashboard({
             <p className="ui-hint">{t("results.noComparisonYet")}</p>
           )}
         </div>
+        )}
         <ResponsiveContainer width="100%" height={300}>
           <BarChart
             data={candidateCompare}
@@ -1642,11 +1712,11 @@ export function ResultsDashboard({
                 const code = row?.model_code ?? row?.name ?? "M?";
                 return (
                   <div
-                    className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2"
+                    className="rounded-lg border border-[var(--primary)] bg-white px-3 py-2"
                     style={{ fontSize: chartTip }}
                   >
                     <div
-                      className="mb-1 font-pixel text-[var(--amber)]"
+                      className="mb-1 text-xs font-semibold text-[var(--amber)]"
                       style={{ fontSize: Math.max(11, chartTip - 1) }}
                     >
                       {row?.isBenchmark ? t("results.benchmark") : t("results.model")} {code}
@@ -1680,7 +1750,7 @@ export function ResultsDashboard({
                   ))}
                   {championModelKey ? (
                     <li className="flex items-center gap-1 text-[var(--amber)]">
-                      <span className="font-pixel text-[0.72rem]">★ {t("results.champion")}</span>
+                      <span className="text-xs font-semibold text-[var(--amber)]">★ {t("results.champion")}</span>
                     </li>
                   ) : null}
                 </ul>
@@ -1844,7 +1914,7 @@ export function ResultsDashboard({
           <LinkedEquityWeightChart
             equityCurve={equity}
             benchmarkCurve={benchmarkEquity}
-            benchmarkLabel={benchTicker}
+            benchmarkLabel={benchLabel}
             weightHistory={historySeries}
             weightTickers={weightHistoryTickers}
             colors={COLORS}
@@ -1870,7 +1940,7 @@ export function ResultsDashboard({
           </p>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie data={donut} dataKey="value" nameKey="name" innerRadius={50}>
@@ -1882,7 +1952,7 @@ export function ResultsDashboard({
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="max-h-60 overflow-y-auto border-2 border-[var(--border)] bg-[#050508] p-3">
+            <div className="max-h-60 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
               <table className="w-full text-left ui-body">
                 <thead className="text-dim">
                   <tr>
@@ -1898,7 +1968,7 @@ export function ResultsDashboard({
                       <td className="py-1.5 text-dim">{latestAllocationDate}</td>
                       <td className="py-1.5">{ticker}</td>
                       <td className="py-1.5 text-dim">{name}</td>
-                      <td className="py-1.5 text-right text-neon">
+                      <td className="py-1.5 text-right text-[var(--primary)]">
                         {(weight * 100).toFixed(2)}%
                       </td>
                     </tr>
@@ -1911,6 +1981,7 @@ export function ResultsDashboard({
       </ChartCard>
       </ReportGroup>
 
+      {!isRmCompact && (
       <ReportGroup
         index={5}
         title={t("report.group.strategy")}
@@ -1976,14 +2047,14 @@ export function ResultsDashboard({
                 const label = frontierTooltipLabel(p);
                 return (
                   <div
-                    className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2"
+                    className="rounded-lg border border-[var(--primary)] bg-white px-3 py-2"
                     style={{ fontSize: chartTip }}
                   >
                     <div className="ui-hint mb-1 uppercase tracking-wide">
                       {seriesLabel}
                     </div>
                     <div
-                      className="mb-1 font-pixel text-[var(--amber)]"
+                      className="mb-1 text-xs font-semibold text-[var(--amber)]"
                       style={{ fontSize: Math.max(11, chartTip - 1) }}
                     >
                       {label}
@@ -2036,7 +2107,7 @@ export function ResultsDashboard({
                 key={regime}
                 type="button"
                 onClick={() => setQuotaRegimeTab(regime)}
-                className={`px-2 py-1 font-pixel text-[0.72rem] border ${
+                className={`rounded border px-2 py-1 text-xs font-medium ${
                   quotaRegimeTab === regime
                     ? "border-[var(--cyan)] text-[var(--cyan)]"
                     : "border-[var(--border)] text-dim"
@@ -2049,7 +2120,7 @@ export function ResultsDashboard({
           </div>
         ) : null}
         <div className="grid gap-3 lg:grid-cols-2">
-          <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
             <p className="ui-hint mb-2">
               {regimeQuotaMatrix
                 ? t("results.targetNamesRegime", { regime: regimeLabel(t, quotaRegimeTab) })
@@ -2074,7 +2145,7 @@ export function ResultsDashboard({
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
             <p className="ui-hint mb-2">
               {regimeQuotaMatrix && regimeConditionalExposure
                 ? t("results.actualClassWeightsRegime", {
@@ -2113,7 +2184,7 @@ export function ResultsDashboard({
           </p>
         ) : null}
         <div className="grid gap-3 lg:grid-cols-2">
-          <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
             {factorContribRows.length === 0 ? (
               <p className="ui-hint">{t("results.noFactorAttribution")}</p>
             ) : (
@@ -2131,7 +2202,7 @@ export function ResultsDashboard({
               {t("results.observations")}: {String(factorSummary.factor_observations ?? 0)} ({t("results.rebalanceCrossSections")})
             </p>
           </div>
-          <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
             <p className="ui-section-title mb-2">{t("results.factorMetricLogic")}</p>
             <div className="max-h-56 space-y-1 overflow-y-auto">
               {factorLogicRows.length === 0 ? (
@@ -2139,7 +2210,7 @@ export function ResultsDashboard({
               ) : (
                 factorLogicRows.map(([k, v]) => (
                   <div key={k} className="border-b border-slate-800 py-1">
-                    <span className="ui-body text-slate-200">{factorLogicLabel(k)}</span>
+                    <span className="ui-body text-slate-700">{factorLogicLabel(k)}</span>
                     <div className="ui-hint">{String(v)}</div>
                   </div>
                 ))
@@ -2149,6 +2220,7 @@ export function ResultsDashboard({
         </div>
       </ChartCard>
       </ReportGroup>
+      )}
 
       <ReportGroup
         index={6}
@@ -2157,7 +2229,8 @@ export function ResultsDashboard({
       >
       <InstitutionalReport
         candidate={institutionalCandidate ?? top}
-        benchmark={benchTicker}
+        benchmark={benchLabel}
+        benchmarkMetricsStale={benchMetricsStale}
         isLoadingAnalytics={analyticsLoading}
         loadingModelCode={selectedModelCode || undefined}
         analyticsNote={
@@ -2165,9 +2238,11 @@ export function ResultsDashboard({
             ? t("results.analyticsFallback")
             : undefined
         }
+        variant={isRmCompact ? "rm" : "default"}
       />
       </ReportGroup>
 
+      {!isRmCompact && (
       <ReportGroup
         index={7}
         title={t("report.group.reproducibility")}
@@ -2177,12 +2252,12 @@ export function ResultsDashboard({
         {((aiRationalesByRound?.length ?? 0) > 0 || Boolean(aiGen.rationale)) ? (
           <details
             open
-            className="mb-3 border-2 border-[var(--border)] bg-[#050508] px-3 py-2"
+            className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2"
           >
-            <summary className="ui-body cursor-pointer text-[var(--amber)] hover:text-neon">
+            <summary className="ui-body cursor-pointer text-[var(--amber)] hover:text-[var(--primary)]">
               {t("results.aiParameterRationale")}
             </summary>
-            <div className="ui-body mt-2 max-h-72 space-y-3 overflow-y-auto text-slate-300">
+            <div className="ui-body mt-2 max-h-72 space-y-3 overflow-y-auto text-slate-700">
               {aiRationalesByRound?.length ? (
                 aiRationalesByRound.map((text, i) => (
                   <div key={i}>
@@ -2200,7 +2275,7 @@ export function ResultsDashboard({
         ) : (
           <p className="ui-hint mb-3">{t("results.noAiRationale")}</p>
         )}
-        <details className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
+        <details className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
           <summary className="ui-body cursor-pointer text-dim hover:text-[var(--cyan)]">
             {t("results.fullRunConfig")}
           </summary>
@@ -2218,6 +2293,7 @@ export function ResultsDashboard({
         </details>
       </ChartCard>
       </ReportGroup>
+      )}
 
 
       {allBelowBenchmark ? (
@@ -2231,11 +2307,11 @@ export function ResultsDashboard({
             loading={continueLoading}
           />
         ) : (
-          <div className="pixel-panel border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)]">
+          <div className="pixel-panel border border-amber-200 bg-amber-50/50">
             <p className="ui-section-title mb-1 text-[var(--amber)]">
               {t("results.belowBenchmarkTitle")}
             </p>
-            <p className="ui-body text-[#cbd5e1]">
+            <p className="ui-body text-slate-700">
               {t("results.belowBenchmarkBody", { benchmark: benchTicker })}
             </p>
             <div className="mt-3">
@@ -2251,6 +2327,7 @@ export function ResultsDashboard({
         )
       ) : null}
 
+      {!isRmCompact ? (
       <div className="pixel-panel">
         <QuickRefinements
           request={request}
@@ -2259,6 +2336,7 @@ export function ResultsDashboard({
         />
         <p className="ui-hint mt-2">{t("results.refineHint")}</p>
       </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={onRerun} className="pixel-btn">
@@ -2299,9 +2377,9 @@ function HorizonMetricRow({
   return (
     <tr className="border-t border-[var(--border)]">
       <td className="py-1">{label}</td>
-      <td className="py-1 text-right text-neon">{fmt(inSample)}</td>
+      <td className="py-1 text-right text-[var(--primary)]">{fmt(inSample)}</td>
       <td className="py-1 text-right text-[var(--cyan)]">{fmt(outOfSample)}</td>
-      <td className="py-1 text-right text-slate-200">{fmt(full)}</td>
+      <td className="py-1 text-right text-slate-700">{fmt(full)}</td>
     </tr>
   );
 }
@@ -2322,9 +2400,9 @@ function Metric({
         ? String(value)
         : value.toFixed(3);
   return (
-    <div className="border-2 border-[var(--border)] bg-[#050508] p-3">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
       <div className="ui-body text-dim">{label}</div>
-      <div className="font-terminal text-xl text-neon">{text}</div>
+      <div className="text-xl font-semibold tabular-nums text-[var(--primary)]">{text}</div>
     </div>
   );
 }
@@ -2371,12 +2449,12 @@ function ReportGroup({
 }) {
   return (
     <section className="space-y-5 border-l-4 border-[var(--border)] pl-3 sm:pl-4">
-      <header className="border-b-2 border-[var(--border)] bg-[rgba(0,245,255,0.03)] px-3 py-2">
+      <header className="rounded-lg border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
         <div className="flex items-baseline gap-3">
-          <span className="font-pixel text-[0.72rem] text-[var(--amber)]">
+          <span className="text-xs font-semibold text-[var(--amber)]">
             {String(index).padStart(2, "0")}
           </span>
-          <h3 className="ui-panel-title text-neon glow-title">{title}</h3>
+          <h3 className="ui-panel-title">{title}</h3>
         </div>
         {subtitle ? <p className="ui-hint mt-1">{subtitle}</p> : null}
       </header>

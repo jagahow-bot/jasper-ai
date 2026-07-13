@@ -88,11 +88,11 @@ function PortfolioEquityTooltip({
 
   return (
     <div
-      className="border-2 border-[var(--neon)] bg-[#050508] px-3 py-2 min-w-[160px]"
+      className="min-w-[160px] rounded-lg border border-[var(--border)] bg-white px-3 py-2 shadow-md"
       style={{ fontSize: tipPx }}
     >
       <div
-        className="mb-1 font-pixel text-[var(--amber)]"
+        className="mb-1 text-xs font-semibold text-[var(--amber)]"
         style={{ fontSize: Math.max(11, tipPx - 1) }}
       >
         {dateLabel}
@@ -113,7 +113,7 @@ function PortfolioEquityTooltip({
             <span className="text-dim" style={{ color: row.color }}>
               {row.name ?? row.dataKey}
             </span>
-            <span className="text-neon font-semibold">
+            <span className="font-semibold tabular-nums text-[var(--primary)]">
               {typeof row.value === "number" ? `${row.value.toFixed(2)}%` : "—"}
             </span>
           </li>
@@ -270,7 +270,7 @@ export function LinkedEquityWeightChart({
       </p>
 
       {hasEquity && (
-        <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
             {t("linkedChart.cumulativeTitle", { benchmark: benchmarkLabel })}
           </p>
@@ -445,7 +445,7 @@ export function LinkedEquityWeightChart({
       )}
 
       {hasWeights && (
-        <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
             {t("linkedChart.holdingsTitle")}
             <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
@@ -522,7 +522,7 @@ export function LinkedEquityWeightChart({
       )}
 
       {hasClassWeights && (
-        <div className="border-2 border-[var(--border)] bg-[#050508] p-2">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
             {t("linkedChart.assetClassTitle")}
             <span className="ml-2 normal-case tracking-normal text-[var(--border)]">

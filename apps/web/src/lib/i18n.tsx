@@ -119,10 +119,12 @@ const en: Dict = {
   "pro.role.winner": "Round winner",
 
   // Results dashboard
+  "results.runObjectiveLabel": "Optimization goal for this run",
   "results.title": "Results",
   "results.model": "strategy",
   "results.fullNarrative": "Full summary",
   "results.fullPeriod": "Full period",
+  "results.rmChampionLine": "Champion model {model} · Sharpe {sharpe} · CAGR {cagr}",
   "results.refineHint":
     "Click to apply an adjustment · double-click to apply and rerun.",
   "results.editConfig": "Edit setup",
@@ -849,6 +851,9 @@ const en: Dict = {
   "institutional.gapNote":
     "In-Sample − Out-of-Sample gap: objective {objective}, Sharpe {sharpe} (positive = In-Sample stronger).",
   "institutional.vsBenchmark": "vs {benchmark}",
+  "institutional.rmCompactHint": "Key benchmark and allocation context for client discussions",
+  "institutional.benchmarkStaleNote":
+    "Beta, alpha, and IR below were computed vs {computed}. Re-run the backtest to refresh metrics for the selected anchor benchmark.",
   "institutional.trackingErr": "Tracking err",
   "institutional.ir": "IR",
   "institutional.upCapture": "Up capture",
@@ -875,6 +880,9 @@ const en: Dict = {
   // Overlay conversation step
   "overlay.skipToConfig": "Skip to advanced setup",
   "overlay.continueToConfig": "Continue to backtest setup",
+  "chat.speakerYou": "You:",
+  "chat.speakerJasper": "Jasper:",
+  "chat.speakerSystem": "System:",
 
   // Base vs customized comparison
   "compare.title": "Anchor vs customized",
@@ -888,6 +896,114 @@ const en: Dict = {
   "compare.chart.title": "Equity curves",
   "compare.chart.anchor": "Anchor",
   "compare.chart.customized": "Customized",
+
+  // RM workflow (Relationship Manager)
+  "rm.mode.label": "Mode",
+  "rm.mode.rm": "RM",
+  "rm.mode.advanced": "Advanced",
+  "rm.step.nav": "Workflow steps",
+  "rm.step.anchor": "Anchor",
+  "rm.step.overlay": "Client needs",
+  "rm.step.execute": "Run",
+  "rm.step.report": "Report",
+  "rm.step.skipped": "skipped",
+  "rm.run.title": "Ready to run",
+  "rm.run.subtitle":
+    "Review the signed client overlay, then run the anchor vs customized dual backtest.",
+  "rm.run.clientNeeds": "Client needs summary",
+  "rm.run.whatWillRun": "What will run",
+  "rm.run.period": "Period: {start} → {end}",
+  "rm.run.dualTrack": "Dual track: anchor replay + customized optimization",
+  "rm.run.execute": "Run backtest",
+  "rm.run.showAdvanced": "Advanced settings",
+  "rm.run.hideAdvanced": "Hide advanced settings",
+  "rm.universe.resolving": "Resolving investment universe from client overlay…",
+  "rm.universe.fixedTitle": "Investment universe (fixed)",
+  "rm.universe.fixedCount": "{n} tickers pinned for backtest",
+  "rm.report.title": "RM report",
+  "rm.report.tabRm": "RM summary",
+  "rm.report.tabQuant": "Quant analysis",
+  "rm.report.executiveTitle": "Executive summary",
+  "rm.report.executiveHint": "Key points for your client conversation",
+  "rm.report.metricsSummary":
+    "vs {anchor}: return {cagrDelta}, max drawdown {mddDelta}",
+  "rm.report.noOverlaySummary": "Customized portfolio based on anchor configuration.",
+  "rm.report.overlayTitle": "Signed client needs",
+  "rm.report.overlayHint": "Constraints and preferences confirmed in step 2",
+  "rm.report.overlaySigned": "Signed {date}",
+  "rm.report.metricsTitle": "Key metrics vs anchor",
+  "rm.report.metricsHint": "Green = better than anchor for this metric",
+  "rm.report.holdingsTitle": "Holdings changes",
+  "rm.report.holdingsHint": "What shifted from the anchor portfolio",
+  "rm.report.talkingTitle": "Suggested talking points",
+  "rm.report.talkingHint": "Plain-language angles for the client meeting",
+  "rm.report.narrativeTitle": "Client-ready narrative",
+  "rm.report.narrativeHint": "AI summary you can adapt for the client",
+  "rm.report.disclaimerTitle": "Compliance notice",
+  "rm.report.disclaimerBody":
+    "For internal RM review only. Not investment advice. All figures are backtested simulations — past performance does not guarantee future results. Human review required before any client communication.",
+  "rm.report.openQuant": "Open quant analysis",
+  "rm.report.revise": "Revise client needs",
+  "rm.report.candidateTitle": "Trial strategy",
+  "rm.report.candidateHint":
+    "Compare Optuna trials for the customized run. Champion is selected by default.",
+  "rm.report.candidateChampion": "★",
+  "rm.holdings.change": "Change",
+  "rm.holdings.added": "Added",
+  "rm.holdings.removed": "Removed",
+  "rm.holdings.increased": "Increased",
+  "rm.holdings.decreased": "Decreased",
+  "rm.holdings.unchanged": "Unchanged",
+  "rm.talking.portfolioStructure":
+    "This customized portfolio allocates {assetMix}, with top holdings {topHoldings}. Open by explaining how this structure reflects the client's signed asset scope and needs.",
+  "rm.talking.portfolioHoldingsOnly":
+    "Top holdings are {topHoldings}. Walk the client through how these names form the core of the customized allocation.",
+  "rm.talking.vsAnchorChanges":
+    "Versus {anchor}: {changes} — frame these as intentional shifts toward signed client goals, not random turnover.",
+  "rm.talking.changeAdded": "added {ticker} ({pct}%)",
+  "rm.talking.changeRemoved": "removed {ticker}",
+  "rm.talking.changeIncreased": "increased {ticker} (+{delta} pp)",
+  "rm.talking.changeDecreased": "decreased {ticker} (-{delta} pp)",
+  "rm.talking.clientLiquidity":
+    "The client needs liquidity within {months} months{amount} — highlight how the allocation preserves a cashable buffer.",
+  "rm.talking.liquidityAmount": " (USD {amount})",
+  "rm.talking.clientRiskTolerance":
+    "Client risk tolerance is {tolerance}; the portfolio tilts {tilt} — connect this to their signed downside-risk preference.",
+  "rm.talking.clientMarketView":
+    "Signed market view ({stance}): {summary} — anchor the conversation on how holdings express this view.",
+  "rm.talking.clientUniverse":
+    "Signed universe rules: {rules} — explain how the final holdings respect these constraints.",
+  "rm.talking.riskTolerance.conservative": "conservative",
+  "rm.talking.riskTolerance.moderate": "moderate",
+  "rm.talking.riskTolerance.aggressive": "aggressive",
+  "rm.talking.tilt.defensive": "defensive (higher bond / lower equity)",
+  "rm.talking.tilt.growth": "growth-oriented (higher equity)",
+  "rm.talking.tilt.balanced": "balanced across growth and defense",
+  "rm.talking.objective.min_max_drawdown":
+    "We optimized for {objective}; customized max drawdown is {customized} vs anchor {anchor} ({delta}) — use this as evidence the objective was met.",
+  "rm.talking.objective.max_sharpe":
+    "We optimized for {objective}; customized Sharpe is {customized} vs anchor {anchor} ({delta}) — emphasize risk-adjusted efficiency.",
+  "rm.talking.objective.max_return":
+    "We optimized for {objective}; customized CAGR is {customized} vs anchor {anchor} ({delta}) — link return outcome to the signed goal.",
+  "rm.talking.objective.generic":
+    "Optimization objective: {objective}. Key outcome vs anchor: {customized} vs {anchor} ({delta}).",
+  "rm.talking.performanceWin":
+    "Customized CAGR is {cagrDelta} above anchor{extras} — emphasize return potential while honoring signed constraints.",
+  "rm.talking.extraMddImproved": "max drawdown improved {delta}",
+  "rm.talking.extraVolReduced": "volatility reduced {delta}",
+  "rm.talking.performanceTradeoff":
+    "CAGR is {cagrDelta} below anchor, but {tradeoffs} — present this as a deliberate risk / liquidity trade-off.",
+  "rm.talking.tradeoffMdd": "max drawdown improved {delta}",
+  "rm.talking.tradeoffVol": "volatility reduced {delta}",
+  "rm.talking.tradeoffSharpe": "Sharpe ratio improved vs anchor",
+  "rm.talking.tradeoffGeneric": "lower risk and smoother ride vs anchor",
+  "rm.talking.performanceSimilar":
+    "Returns are close to anchor ({highlights}) — focus on how allocation better matches signed client needs.",
+  "rm.talking.similarGeneric": "allocation fit matters more than small return gaps",
+  "rm.talking.compliance":
+    "Reminder: illustrative backtest for discussion only — not investment advice. Confirm suitability and compliance before any implementation.",
+  "rm.overlay.signed":
+    "Overlay signed off. Universe is pinned — review the summary and run the dual backtest.",
 
   "progress.dual.anchor": "Anchor backtest",
   "progress.dual.customized": "Customized backtest",
@@ -981,10 +1097,12 @@ const zh: Dict = {
   "pro.role.winner": "本輪優勝者",
 
   // Results dashboard
+  "results.runObjectiveLabel": "本次最佳化目標",
   "results.title": "結果",
   "results.model": "策略",
   "results.fullNarrative": "完整摘要",
   "results.fullPeriod": "完整期間",
+  "results.rmChampionLine": "冠軍模型 {model} · 夏普 {sharpe} · 年化報酬 {cagr}",
   "results.refineHint": "點擊套用調整 · 雙擊套用並重新執行。",
   "results.editConfig": "編輯設定",
   "results.belowBenchmarkTitle": "客觀結果：本次測試未能勝過基準",
@@ -1686,6 +1804,9 @@ const zh: Dict = {
   "institutional.gapNote":
     "樣本內 − 樣本外落差：目標 {objective}、夏普 {sharpe}（正值代表樣本內較強）。",
   "institutional.vsBenchmark": "vs {benchmark}",
+  "institutional.rmCompactHint": "客戶溝通用的基準與資產配置重點",
+  "institutional.benchmarkStaleNote":
+    "以下 Beta、Alpha、IR 係以 {computed} 計算。請重新執行回測以更新為所選基準的指標。",
   "institutional.trackingErr": "追蹤誤差",
   "institutional.ir": "資訊比率",
   "institutional.upCapture": "上行捕捉",
@@ -1712,6 +1833,9 @@ const zh: Dict = {
   // Overlay conversation step
   "overlay.skipToConfig": "略過，直接進階設定",
   "overlay.continueToConfig": "前往回測設定",
+  "chat.speakerYou": "您：",
+  "chat.speakerJasper": "JASPER：",
+  "chat.speakerSystem": "系統：",
 
   // Base vs customized comparison
   "compare.title": "基準 vs 客製化配置",
@@ -1725,6 +1849,112 @@ const zh: Dict = {
   "compare.chart.title": "權益曲線",
   "compare.chart.anchor": "基準",
   "compare.chart.customized": "客製化",
+
+  "rm.mode.label": "模式",
+  "rm.mode.rm": "RM 模式",
+  "rm.mode.advanced": "進階模式",
+  "rm.step.nav": "工作流程",
+  "rm.step.anchor": "選基準",
+  "rm.step.overlay": "客戶需求",
+  "rm.step.execute": "一鍵執行",
+  "rm.step.report": "RM 報告",
+  "rm.step.skipped": "已略過",
+  "rm.run.title": "準備執行回測",
+  "rm.run.subtitle": "請確認已簽核的客戶需求摘要，然後執行「基準 vs 客製化」雙軌回測。",
+  "rm.run.clientNeeds": "客戶需求摘要",
+  "rm.run.whatWillRun": "即將執行",
+  "rm.run.period": "回測區間：{start} → {end}",
+  "rm.run.dualTrack": "雙軌：基準重播 ＋ 客製化最佳化",
+  "rm.run.execute": "一鍵執行回測",
+  "rm.run.showAdvanced": "進階設定",
+  "rm.run.hideAdvanced": "收合進階設定",
+  "rm.universe.resolving": "正在依客戶需求固定投資標的…",
+  "rm.universe.fixedTitle": "投資標的（已固定）",
+  "rm.universe.fixedCount": "已固定 {n} 檔標的",
+  "rm.report.title": "RM 客戶報告",
+  "rm.report.tabRm": "RM 摘要",
+  "rm.report.tabQuant": "量化分析",
+  "rm.report.executiveTitle": "執行摘要",
+  "rm.report.executiveHint": "與客戶會議的關鍵重點",
+  "rm.report.metricsSummary":
+    "相對「{anchor}」：年化報酬 {cagrDelta}、最大回撤 {mddDelta}",
+  "rm.report.noOverlaySummary": "依基準配置產出的客製化投資組合。",
+  "rm.report.overlayTitle": "客戶需求摘要",
+  "rm.report.overlayHint": "步驟 2 簽核的約束條件與客戶偏好",
+  "rm.report.overlaySigned": "已簽核 · {date}",
+  "rm.report.metricsTitle": "相對基準的關鍵指標",
+  "rm.report.metricsHint": "綠燈代表該指標優於基準",
+  "rm.report.holdingsTitle": "持股變化",
+  "rm.report.holdingsHint": "相對基準配置的主要調整",
+  "rm.report.talkingTitle": "建議說法",
+  "rm.report.talkingHint": "客戶會議可用的白話說明角度",
+  "rm.report.narrativeTitle": "客戶簡報敘述",
+  "rm.report.narrativeHint": "可由 RM 改寫後用於客戶溝通",
+  "rm.report.disclaimerTitle": "合規聲明",
+  "rm.report.disclaimerBody":
+    "僅供 RM 內部審閱，非投資建議。所有數字均為回測模擬結果，過去績效不代表未來表現。對客戶說明前須經人工審核。",
+  "rm.report.openQuant": "開啟量化分析",
+  "rm.report.revise": "修改客戶需求",
+  "rm.report.candidateTitle": "試驗策略",
+  "rm.report.candidateHint":
+    "切換客製化回測的 Optuna 試驗；預設為冠軍策略。",
+  "rm.report.candidateChampion": "★",
+  "rm.holdings.change": "變化",
+  "rm.holdings.added": "新增",
+  "rm.holdings.removed": "移除",
+  "rm.holdings.increased": "加碼",
+  "rm.holdings.decreased": "減碼",
+  "rm.holdings.unchanged": "持平",
+  "rm.talking.portfolioStructure":
+    "本客製化配置以{assetMix}為主，前三大持股為{topHoldings}。開場可先說明：這是在客戶簽核的資產範圍內，依需求調整後的實際組成。",
+  "rm.talking.portfolioHoldingsOnly":
+    "前三大持股為{topHoldings}。可先帶客戶看核心標的，說明客製化配置的骨架。",
+  "rm.talking.vsAnchorChanges":
+    "相對基準（{anchor}）：{changes}——強調這些是為達成簽核目標而做的有意義調整，而非隨意換股。",
+  "rm.talking.changeAdded": "新增 {ticker}（{pct}%）",
+  "rm.talking.changeRemoved": "移除 {ticker}",
+  "rm.talking.changeIncreased": "加碼 {ticker}（+{delta} 個百分點）",
+  "rm.talking.changeDecreased": "減碼 {ticker}（-{delta} 個百分點）",
+  "rm.talking.clientLiquidity":
+    "客戶需在 {months} 個月內保留流動性{amount}——說明配置如何維持可變現緩衝，呼應簽核時的資金需求。",
+  "rm.talking.liquidityAmount": "（約 USD {amount}）",
+  "rm.talking.clientRiskTolerance":
+    "客戶風險取向為{tolerance}，配置明顯偏{tilt}——可連結到簽核時對下行風險的關注。",
+  "rm.talking.clientMarketView":
+    "簽核市場觀點（{stance}）：{summary}——說明持股如何體現此觀點。",
+  "rm.talking.clientUniverse":
+    "簽核投資標的規則：{rules}——說明最終持股如何符合這些限制。",
+  "rm.talking.riskTolerance.conservative": "保守",
+  "rm.talking.riskTolerance.moderate": "中等",
+  "rm.talking.riskTolerance.aggressive": "積極",
+  "rm.talking.tilt.defensive": "防禦（債券權重較高）",
+  "rm.talking.tilt.growth": "成長（股票權重較高）",
+  "rm.talking.tilt.balanced": "均衡（成長與防禦並重）",
+  "rm.talking.objective.min_max_drawdown":
+    "本次優化目標為「{objective}」；客製化最大回撤為 {customized}，優於基準的 {anchor}（改善 {delta}）——以此說明目標確實反映在績效上。",
+  "rm.talking.objective.max_sharpe":
+    "本次優化目標為「{objective}」；客製化夏普比率為 {customized}，相對基準 {anchor}（{delta}）——強調風險調整後的效率提升。",
+  "rm.talking.objective.max_return":
+    "本次優化目標為「{objective}」；客製化年化報酬為 {customized}，相對基準 {anchor}（{delta}）——連結報酬結果與簽核目標。",
+  "rm.talking.objective.generic":
+    "優化目標：{objective}。相對基準的關鍵結果：{customized} vs {anchor}（{delta}）。",
+  "rm.talking.performanceWin":
+    "客製化年化報酬較基準高 {cagrDelta}{extras}——可強調在滿足客戶約束下仍維持或提升長期報酬潛力。",
+  "rm.talking.extraMddImproved": "最大回撤改善 {delta}",
+  "rm.talking.extraVolReduced": "波動度降低 {delta}",
+  "rm.talking.performanceTradeoff":
+    "年化報酬略低於基準（{cagrDelta}），但{tradeoffs}——建議向客戶說明這是為換取更低回撤與更平穩體驗所做的取捨。",
+  "rm.talking.tradeoffMdd": "最大回撤改善 {delta}",
+  "rm.talking.tradeoffVol": "波動度降低 {delta}",
+  "rm.talking.tradeoffSharpe": "夏普比率優於基準",
+  "rm.talking.tradeoffGeneric": "整體風險較基準更低、路徑更平穩",
+  "rm.talking.performanceSimilar":
+    "報酬與基準相近（{highlights}）——著重說明配置如何更貼合簽核的客戶需求。",
+  "rm.talking.similarGeneric": "配置契合度比小幅報酬差距更重要",
+  "rm.talking.compliance":
+    "提醒：以上為回測示意，僅供討論之用，並非投資建議；實際執行前請確認適合度與合規要求。",
+  "rm.overlay.signed":
+    "客戶需求已簽核，投資標的已固定。請確認摘要後一鍵執行雙軌回測。",
 
   "progress.dual.anchor": "基準回測",
   "progress.dual.customized": "客製化回測",
@@ -1818,10 +2048,12 @@ const ko: Dict = {
   "pro.role.winner": "라운드 우승자",
 
   // Results dashboard
+  "results.runObjectiveLabel": "이번 최적화 목표",
   "results.title": "결과",
   "results.model": "전략",
   "results.fullNarrative": "전체 요약",
   "results.fullPeriod": "전체 기간",
+  "results.rmChampionLine": "챔피언 모델 {model} · 샤프 {sharpe} · 연환산 수익 {cagr}",
   "results.refineHint": "클릭하면 조정 적용 · 더블클릭하면 적용 후 다시 실행.",
   "results.editConfig": "설정 편집",
   "results.belowBenchmarkTitle": "솔직한 평가: 이번 실행은 벤치마크를 밑돌았습니다",
@@ -2528,6 +2760,9 @@ const ko: Dict = {
   "institutional.gapNote":
     "인샘플 − 아웃오브샘플 격차: 목표 {objective}, 샤프 {sharpe}(양수면 인샘플이 더 강함).",
   "institutional.vsBenchmark": "vs {benchmark}",
+  "institutional.rmCompactHint": "고객 설명용 벤치마크·배분 핵심",
+  "institutional.benchmarkStaleNote":
+    "아래 Beta·Alpha·IR은 {computed} 대비로 계산되었습니다. 선택한 기준 벤치마크로 갱신하려면 백테스트를 다시 실행하세요.",
   "institutional.trackingErr": "추적 오차",
   "institutional.ir": "정보 비율",
   "institutional.upCapture": "상승 포착",
@@ -2553,6 +2788,9 @@ const ko: Dict = {
 
   "overlay.skipToConfig": "건너뛰고 고급 설정으로",
   "overlay.continueToConfig": "백테스트 설정으로",
+  "chat.speakerYou": "나:",
+  "chat.speakerJasper": "JASPER:",
+  "chat.speakerSystem": "시스템:",
 
   "compare.title": "기준 vs 맞춤 구성",
   "compare.subtitle": "병렬 백테스트 성과 비교.",
@@ -2565,6 +2803,113 @@ const ko: Dict = {
   "compare.chart.title": "자산 곡선",
   "compare.chart.anchor": "기준",
   "compare.chart.customized": "맞춤",
+
+  "rm.mode.label": "모드",
+  "rm.mode.rm": "RM 모드",
+  "rm.mode.advanced": "고급 모드",
+  "rm.step.nav": "워크플로",
+  "rm.step.anchor": "기준 선택",
+  "rm.step.overlay": "고객 니즈",
+  "rm.step.execute": "실행",
+  "rm.step.report": "RM 보고서",
+  "rm.step.skipped": "건너뜀",
+  "rm.run.title": "백테스트 실행 준비",
+  "rm.run.subtitle":
+    "서명된 고객 오버레이를 확인한 뒤 기준 vs 맞춤 이중 백테스트를 실행하세요.",
+  "rm.run.clientNeeds": "고객 니즈 요약",
+  "rm.run.whatWillRun": "실행 내용",
+  "rm.run.period": "기간: {start} → {end}",
+  "rm.run.dualTrack": "이중: 기준 재현 + 맞춤 최적화",
+  "rm.run.execute": "백테스트 실행",
+  "rm.run.showAdvanced": "고급 설정",
+  "rm.run.hideAdvanced": "고급 설정 숨기기",
+  "rm.universe.resolving": "고객 니즈에 따라 투자 유니버스를 고정하는 중…",
+  "rm.universe.fixedTitle": "투자 유니버스 (고정됨)",
+  "rm.universe.fixedCount": "{n}개 종목 고정",
+  "rm.report.title": "RM 고객 보고서",
+  "rm.report.tabRm": "RM 요약",
+  "rm.report.tabQuant": "퀀트 분석",
+  "rm.report.executiveTitle": "요약",
+  "rm.report.executiveHint": "고객 미팅 핵심 포인트",
+  "rm.report.metricsSummary":
+    "「{anchor}」 대비: 수익 {cagrDelta}, 최대 낙폭 {mddDelta}",
+  "rm.report.noOverlaySummary": "기준 구성을 바탕으로 한 맞춤 포트폴리오.",
+  "rm.report.overlayTitle": "고객 니즈 요약",
+  "rm.report.overlayHint": "2단계에서 서명 확인된 제약 및 고객 선호",
+  "rm.report.overlaySigned": "서명 완료 · {date}",
+  "rm.report.metricsTitle": "기준 대비 핵심 지표",
+  "rm.report.metricsHint": "녹색 = 해당 지표에서 기준보다 우수",
+  "rm.report.holdingsTitle": "보유 종목 변화",
+  "rm.report.holdingsHint": "기준 대비 주요 조정",
+  "rm.report.talkingTitle": "권장 설명 포인트",
+  "rm.report.talkingHint": "고객 미팅용 쉬운 설명",
+  "rm.report.narrativeTitle": "고객용 서술",
+  "rm.report.narrativeHint": "RM이 고객 커뮤니케이션에 맞게 수정 가능",
+  "rm.report.disclaimerTitle": "컴플라이언스",
+  "rm.report.disclaimerBody":
+    "RM 내부 검토용. 투자 권유 아님. 모든 수치는 백테스트 시뮬레이션. 고객 설명 전 인간 검토 필수.",
+  "rm.report.openQuant": "퀀트 분석 열기",
+  "rm.report.revise": "고객 니즈 수정",
+  "rm.report.candidateTitle": "시험 전략",
+  "rm.report.candidateHint":
+    "맞춤 실행의 Optuna 시험을 비교합니다. 기본값은 챔피언 전략입니다.",
+  "rm.report.candidateChampion": "★",
+  "rm.holdings.change": "변화",
+  "rm.holdings.added": "추가",
+  "rm.holdings.removed": "제거",
+  "rm.holdings.increased": "증가",
+  "rm.holdings.decreased": "감소",
+  "rm.holdings.unchanged": "유지",
+  "rm.talking.portfolioStructure":
+    "맞춤 포트폴리오는 {assetMix} 비중이며, 상위 보유 종목은 {topHoldings}입니다. 고객이 서명한 자산 범위와 니즈를 반영한 실제 구성임을 먼저 설명하세요.",
+  "rm.talking.portfolioHoldingsOnly":
+    "상위 보유 종목: {topHoldings}. 핵심 종목을 중심으로 맞춤 구성의 뼈대를 설명하세요.",
+  "rm.talking.vsAnchorChanges":
+    "기준({anchor}) 대비: {changes} — 서명된 고객 목표를 위한 의도적 조정이며 임의 매매가 아님을 강조하세요.",
+  "rm.talking.changeAdded": "{ticker} 추가 ({pct}%)",
+  "rm.talking.changeRemoved": "{ticker} 제거",
+  "rm.talking.changeIncreased": "{ticker} 비중 확대 (+{delta}pp)",
+  "rm.talking.changeDecreased": "{ticker} 비중 축소 (-{delta}pp)",
+  "rm.talking.clientLiquidity":
+    "고객은 {months}개월 이내 유동성{amount}이 필요합니다 — 현금화 가능한 완충을 유지하는 배분임을 설명하세요.",
+  "rm.talking.liquidityAmount": " (USD {amount})",
+  "rm.talking.clientRiskTolerance":
+    "고객 위험 성향은 {tolerance}이며, 포트폴리오는 {tilt} 성향입니다 — 서명 시 하방 리스크 선호와 연결하세요.",
+  "rm.talking.clientMarketView":
+    "서명된 시장 관점({stance}): {summary} — 보유 종목이 이 관점을 어떻게 반영하는지 설명하세요.",
+  "rm.talking.clientUniverse":
+    "서명된 투자 유니버스 규칙: {rules} — 최종 보유가 이 제약을 어떻게 준수하는지 설명하세요.",
+  "rm.talking.riskTolerance.conservative": "보수적",
+  "rm.talking.riskTolerance.moderate": "중립",
+  "rm.talking.riskTolerance.aggressive": "공격적",
+  "rm.talking.tilt.defensive": "방어적(채권 비중 높음)",
+  "rm.talking.tilt.growth": "성장 지향(주식 비중 높음)",
+  "rm.talking.tilt.balanced": "균형(성장·방어 병행)",
+  "rm.talking.objective.min_max_drawdown":
+    "최적화 목표는 「{objective}」입니다. 맞춤 최대 낙폭 {customized}, 기준 {anchor}({delta}) — 목표 달성 근거로 활용하세요.",
+  "rm.talking.objective.max_sharpe":
+    "최적화 목표는 「{objective}」입니다. 맞춤 샤프 {customized}, 기준 {anchor}({delta}) — 위험 조정 수익 효율을 강조하세요.",
+  "rm.talking.objective.max_return":
+    "최적화 목표는 「{objective}」입니다. 맞춤 CAGR {customized}, 기준 {anchor}({delta}) — 서명 목표와 수익 결과를 연결하세요.",
+  "rm.talking.objective.generic":
+    "최적화 목표: {objective}. 기준 대비 핵심 결과: {customized} vs {anchor}({delta}).",
+  "rm.talking.performanceWin":
+    "맞춤 CAGR이 기준보다 {cagrDelta} 높습니다{extras} — 고객 제약을 지키면서 장기 수익 잠재력을 강조하세요.",
+  "rm.talking.extraMddImproved": "최대 낙폭 {delta} 개선",
+  "rm.talking.extraVolReduced": "변동성 {delta} 감소",
+  "rm.talking.performanceTradeoff":
+    "CAGR이 기준보다 {cagrDelta} 낮지만 {tradeoffs} — 의도적 리스크·유동성 트레이드오프로 설명하세요.",
+  "rm.talking.tradeoffMdd": "최대 낙폭 {delta} 개선",
+  "rm.talking.tradeoffVol": "변동성 {delta} 감소",
+  "rm.talking.tradeoffSharpe": "샤프 비율 기준 대비 개선",
+  "rm.talking.tradeoffGeneric": "기준 대비 전반적 리스크가 낮고 경로가 더 안정적",
+  "rm.talking.performanceSimilar":
+    "수익은 기준과 유사합니다({highlights}) — 서명된 고객 니즈에 더 잘 맞는 배분에 초점을 맞추세요.",
+  "rm.talking.similarGeneric": "소폭 수익 차이보다 배분 적합성이 더 중요",
+  "rm.talking.compliance":
+    "참고: 위 내용은 논의용 백테스트 시연일 뿐이며 투자 권유가 아닙니다. 실행 전 적합성·컴플라이언스를 확인하세요.",
+  "rm.overlay.signed":
+    "오버레이 서명 완료. 투자 유니버스가 고정되었습니다. 요약을 확인한 뒤 이중 백테스트를 실행하세요.",
 
   "progress.dual.anchor": "기준 백테스트",
   "progress.dual.customized": "맞춤 백테스트",

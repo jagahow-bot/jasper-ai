@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Press_Start_2P, VT323 } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import {
   FONT_SIZE_DEFAULT,
   FONT_SIZE_LEGACY_DEFAULT,
@@ -9,15 +9,8 @@ import {
 import { I18nProvider, LANG_STORAGE_KEY } from "@/lib/i18n";
 import "./globals.css";
 
-const pressStart = Press_Start_2P({
-  weight: "400",
-  variable: "--font-pixel",
-  subsets: ["latin"],
-});
-
-const vt323 = VT323({
-  weight: "400",
-  variable: "--font-terminal",
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
@@ -47,7 +40,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: langInitScript }} />
       </head>
       <body
-        className={`${pressStart.variable} ${vt323.variable} ${jetbrains.variable} font-terminal text-base antialiased`}
+        className={`${inter.variable} ${jetbrains.variable} font-sans text-base antialiased`}
       >
         <I18nProvider>{children}</I18nProvider>
       </body>

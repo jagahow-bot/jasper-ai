@@ -126,6 +126,21 @@ export function getPortfolioLabel(portfolio: ModelPortfolio, lang: Lang): string
   return PORTFOLIO_LABELS[lang][portfolio.id] ?? portfolio.name;
 }
 
+/** Localized benchmark label, e.g. 標普 500 (SPY) when anchor catalog matches. */
+export function formatBenchmarkDisplayLabel(ticker: string, lang: Lang): string {
+  const upper = ticker.trim().toUpperCase();
+  if (!upper) return "SPY";
+  const portfolio = getAnchorPortfolios().find(
+    (p) => p.benchmark.toUpperCase() === upper,
+  );
+  if (portfolio) {
+    const name = getPortfolioLabel(portfolio, lang);
+    if (name.toUpperCase().includes(upper)) return name;
+    return `${name} (${upper})`;
+  }
+  return upper;
+}
+
 export function getAnchorPortfolios(): ModelPortfolio[] {
   return [SPY_ANCHOR, ...file.portfolios];
 }

@@ -86,7 +86,7 @@ export function ChartTooltip({
 
   const panel = (
     <div
-      className="pointer-events-auto border-2 border-[var(--neon)] bg-[#050508] px-3 py-2 shadow-pixel min-w-[140px] max-w-[min(92vw,22rem)] max-h-[min(70vh,28rem)] overflow-y-auto overflow-x-hidden"
+      className="pointer-events-auto min-w-[140px] max-w-[min(92vw,22rem)] max-h-[min(70vh,28rem)] overflow-y-auto overflow-x-hidden rounded-lg border border-[var(--border)] bg-white px-3 py-2 shadow-md"
       style={{
         fontSize: tipPx,
         zIndex: 10050,
@@ -97,7 +97,7 @@ export function ChartTooltip({
     >
       {heading && (
         <div
-          className="sticky top-0 z-[1] mb-2 border-b border-[var(--border)] bg-[#050508] pb-1 font-pixel text-[var(--amber)]"
+          className="sticky top-0 z-[1] mb-2 border-b border-[var(--border)] bg-white pb-1 text-xs font-semibold text-[var(--amber)]"
           style={{ fontSize: Math.max(11, tipPx - 1) }}
         >
           {heading}
@@ -109,7 +109,7 @@ export function ChartTooltip({
             <span className="text-dim shrink-0" style={{ color: row.color }}>
               {row.name ?? row.dataKey}
             </span>
-            <span className="font-semibold text-neon tabular-nums">
+            <span className="font-semibold tabular-nums text-[var(--primary)]">
               {fmt(row.value)}
             </span>
           </li>

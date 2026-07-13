@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnchorPortfolioSelector } from "@/components/AnchorPortfolioSelector";
 import { BacktestHistoryPanel } from "@/components/BacktestHistoryPanel";
-import { BenchmarkComparePanel } from "@/components/BenchmarkComparePanel";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { FontSizeControl } from "@/components/FontSizeControl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
+import { RmRunPanel } from "@/components/RmRunPanel";
+import { RmReportView } from "@/components/RmReportView";
 import { LiveStatusCard } from "@/components/LiveStatusCard";
+import { OptimizationObjectiveBanner } from "@/components/OptimizationObjectiveBanner";
 import { OverlayConversationPanel } from "@/components/OverlayConversationPanel";
 import { DualProgressPanel } from "@/components/DualProgressPanel";
 import { ProgressPanel } from "@/components/ProgressPanel";
@@ -47,6 +49,7 @@ import {
   overlayToBacktestRequest,
   type ClientOverlay,
 } from "@/lib/overlay-schema";
+import { resolveOverlayUniverse } from "@/lib/resolve-overlay-universe";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -173,10 +176,19 @@ export default function HomePage() {
       req: BacktestRequest,
       compare?: PersonalizationCompare | null,
     ) => {
-      recordCompletedBacktest(id, req, res);
+      const effectiveReq = compare
+        ? {
+            ...req,
+            benchmark_ticker:
+              req.benchmark_ticker ??
+              compare.baseRequest.benchmark_ticker ??
+              compare.adjustedRequest.benchmark_ticker,
+          }
+        : req;
+      recordCompletedBacktest(id, effectiveReq, res);
       setActiveJobId(id);
       setJobId(id);
-      setRequest(req);
+      setRequest(effectiveReq);
       setResult(res);
       setPersonalizationCompare(compare ?? null);
       const championIdx = resolveChampionCandidateIndex(
@@ -190,7 +202,7 @@ export default function HomePage() {
       setNarrative("");
       setPhase("results");
       const best = champion ?? res.candidates[0];
-      const bm = resolveResultBenchmarkTicker(req, res.narrative_facts);
+      const bm = resolveResultBenchmarkTicker(effectiveReq, res.narrative_facts);
       pushMessage(
         setMessages,
         "assistant",
@@ -392,10 +404,15 @@ export default function HomePage() {
         reqOverride ?? request ?? buildDefaultRequest(),
       );
       const adjustedReq = signedOverlay
-        ? overlayToBacktestRequest(baseReq, signedOverlay, {
-            scenarioId: `customized-${signedOverlay.audit.session_id}`,
-            reportLanguage: lang,
-          })
+        ? {
+            ...(reqOverride ??
+              request ??
+              overlayToBacktestRequest(baseReq, signedOverlay, {
+                scenarioId: `customized-${signedOverlay.audit.session_id}`,
+                reportLanguage: lang,
+              })),
+            benchmark_ticker: anchor.benchmark,
+          }
         : baseReq;
 
       setRequest(adjustedReq);
@@ -583,28 +600,27 @@ export default function HomePage() {
   }, [anchorPortfolio, lang, syncRequestFromAnchor]);
 
   const onOverlayConfirm = useCallback(
-    (overlay: ClientOverlay) => {
+    async (overlay: ClientOverlay) => {
       setSignedOverlay(overlay);
       const base = buildAnchorBacktestRequest(
         anchorPortfolio,
         request ?? buildDefaultRequest(),
       );
-      setRequest(
-        overlayToBacktestRequest(base, overlay, {
-          scenarioId: `customized-${overlay.audit.session_id}`,
-          reportLanguage: lang,
-        }),
-      );
+      const reportLanguage = lang === "zh" ? "zh-TW" : lang;
+      pushMessage(setMessages, "assistant", t("rm.universe.resolving"));
+      const resolved = await resolveOverlayUniverse(base, overlay, {
+        scenarioId: `customized-${overlay.audit.session_id}`,
+        reportLanguage,
+      });
+      setRequest(resolved);
       pushMessage(
         setMessages,
         "assistant",
-        lang === "zh"
-          ? "Overlay 已簽核。可檢視回測設定後執行「基準 vs 客製化」雙軌回測。"
-          : "Overlay signed off. Review setup, then run the anchor vs customized dual backtest.",
+        t("rm.overlay.signed"),
       );
       setPhase("constraints");
     },
-    [anchorPortfolio, request, lang],
+    [anchorPortfolio, request, lang, t],
   );
 
   const onSkipOverlay = useCallback(() => {
@@ -695,14 +711,14 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b-2 border-[var(--border)] bg-[var(--surface)] shadow-[0_4px_24px_rgba(0,0,0,0.45)]">
+      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:py-4">
           <div className="min-w-0">
-            <h1 className="font-pixel text-sm glow-title text-neon md:text-base">
+            <h1 className="text-lg font-semibold tracking-tight text-[var(--foreground)] md:text-xl">
               JASPER.AI
             </h1>
-            <p className="mt-1 font-terminal text-lg text-[var(--cyan)]">
-              {`> ${header}`}
+            <p className="mt-0.5 text-sm text-[var(--text-dim)]">
+              {header}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -733,8 +749,8 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[360px_1fr]">
-        <aside className="pixel-panel pixel-panel-cyan flex h-[calc(100vh-120px)] flex-col">
-          <h2 className="mb-3 shrink-0 font-pixel text-[9px] text-[var(--cyan)]">
+        <aside className="pixel-panel flex h-[calc(100vh-120px)] flex-col">
+          <h2 className="mb-3 shrink-0 ui-section-title">
             {t("header.terminalLog")}
           </h2>
           {phase === "running" && progress && (
@@ -768,7 +784,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={onSkipOverlay}
-                className="pixel-btn w-full border-[var(--border)] bg-transparent text-sm opacity-80 hover:opacity-100"
+                className="pixel-btn w-full border border-[var(--border)] bg-white text-sm text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
               >
                 {t("overlay.skipToConfig")}
               </button>
@@ -776,21 +792,17 @@ export default function HomePage() {
           )}
 
           {phase === "constraints" && request && (
-            <>
-              {signedOverlay && (
-                <div className="pixel-panel border-[var(--neon-dim)] bg-[rgba(57,255,20,0.04)] p-3 text-sm">
-                  <p className="font-pixel text-[10px] text-neon">
-                    {getCustomizedVsAnchorLabel(anchorPortfolio, lang)}
-                  </p>
-                  <p className="mt-2 text-dim">
-                    {lang === "zh"
-                      ? "已簽核客戶需求摘要。執行回測將並列比較基準與客製化配置。"
-                      : lang === "ko"
-                        ? "고객 니즈 요약 서명 완료. 백테스트 시 기준과 맞춤 구성을 병렬 비교합니다."
-                        : "Client overlay signed off. Run will compare anchor and customized portfolios side by side."}
-                  </p>
-                </div>
-              )}
+            signedOverlay ? (
+              <RmRunPanel
+                overlay={signedOverlay}
+                anchorPortfolio={anchorPortfolio}
+                request={request}
+                onChange={setRequest}
+                onRun={onRun}
+                apiOnline={apiOnline}
+                emailNotificationsEnabled={emailNotificationsEnabled}
+              />
+            ) : (
               <ConstraintsPanel
                 value={request}
                 onChange={setRequest}
@@ -798,7 +810,7 @@ export default function HomePage() {
                 apiOnline={apiOnline}
                 emailNotificationsEnabled={emailNotificationsEnabled}
               />
-            </>
+            )
           )}
 
           {phase === "running" && signedOverlay && anchorProgress && progress ? (
@@ -811,15 +823,30 @@ export default function HomePage() {
           )}
 
           {phase === "results" && result && request && (
+            personalizationCompare ? (
+              <RmReportView
+                compare={personalizationCompare}
+                overlay={signedOverlay}
+                anchorPortfolio={anchorPortfolio}
+                result={result}
+                narrative={narrative}
+                request={request}
+                onRerun={() => {
+                  setPhase("overlay");
+                  pushMessage(setMessages, "user", t("rm.report.revise"));
+                }}
+                onExport={() => downloadCsv(result, "portfolio")}
+                onQuickTweak={onQuickTweak}
+                onQuickTweakAndRun={onQuickTweakAndRun}
+                onContinueRefinement={onContinueRefinement}
+                continueLoading={continueLoading}
+              />
+            ) : (
             <>
-              {personalizationCompare && (
-                <BenchmarkComparePanel
-                  anchorLabel={personalizationCompare.anchorLabel}
-                  customizedLabel={personalizationCompare.customizedLabel}
-                  baseResult={personalizationCompare.baseResult}
-                  adjustedResult={personalizationCompare.adjustedResult}
-                />
-              )}
+              <OptimizationObjectiveBanner
+                request={request}
+                narrativeFacts={result.narrative_facts}
+              />
               {result.pro_rounds && result.pro_rounds.length > 0 ? (
               <ProResultsWithTabs
                 result={result}
@@ -834,6 +861,7 @@ export default function HomePage() {
                 onQuickTweakAndRun={onQuickTweakAndRun}
                 onContinueRefinement={onContinueRefinement}
                 continueLoading={continueLoading}
+                showRunObjectiveBanner={false}
               />
             ) : (
               <ResultsDashboard
@@ -849,9 +877,11 @@ export default function HomePage() {
                 onQuickTweakAndRun={onQuickTweakAndRun}
                 onContinueRefinement={onContinueRefinement}
                 continueLoading={continueLoading}
+                showRunObjectiveBanner={false}
               />
             )}
             </>
+            )
           )}
         </section>
       </main>

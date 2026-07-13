@@ -29,6 +29,11 @@ type Props = {
     extraTrials?: number;
   }) => void;
   continueLoading?: boolean;
+  showRunObjectiveBanner?: boolean;
+  variant?: "default" | "rm";
+  anchorBenchmarkTicker?: string;
+  selectedRowKey?: string;
+  onSelectedRowKeyChange?: (rowKey: string) => void;
 };
 
 function mergeRoundIntoResult(

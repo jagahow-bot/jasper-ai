@@ -38,6 +38,8 @@ type Props = {
   onRun: () => void;
   apiOnline?: boolean | null;
   emailNotificationsEnabled?: boolean | null;
+  /** RM mode: universe is fixed at overlay sign-off. */
+  universeReadOnly?: boolean;
 };
 
 export function ConstraintsPanel({
@@ -46,6 +48,7 @@ export function ConstraintsPanel({
   onRun,
   apiOnline,
   emailNotificationsEnabled,
+  universeReadOnly = false,
 }: Props) {
   const { t } = useI18n();
   const isPro = value.optimization_mode === "pro_auto";
@@ -150,12 +153,13 @@ export function ConstraintsPanel({
   return (
     <div className="pixel-panel space-y-5">
       <div>
-        <h3 className="ui-panel-title text-neon glow-title">{t("config.title")}</h3>
+        <h3 className="ui-panel-title">{t("config.title")}</h3>
         <p className="mt-2 ui-body text-dim">{t("config.subtitle")}</p>
       </div>
 
       <AssetClassFilter
         value={value}
+        readOnly={universeReadOnly}
         onChange={(next) =>
           onChange({
             ...next,
@@ -318,7 +322,7 @@ export function ConstraintsPanel({
         </label>
       )}
 
-      <div className="space-y-2 border-2 border-[var(--border)] bg-[#050508] px-3 py-2">
+      <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
         <label className="ui-label flex items-center gap-2">
           <input
             type="checkbox"
@@ -474,10 +478,10 @@ export function ConstraintsPanel({
         </select>
       </label>
 
-      <div className="border-2 border-[var(--border)] bg-[#050508] px-3 py-2 ui-hint">
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 ui-hint">
         {t("config.benchmarkLine")}
       </div>
-      <details className="border-2 border-[var(--border)] bg-[#050508] p-3">
+      <details className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
         <summary className="ui-section-title cursor-pointer">
           {t("config.advanced.title")}
         </summary>
