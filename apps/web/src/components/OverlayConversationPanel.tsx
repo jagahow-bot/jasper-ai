@@ -4,6 +4,10 @@ import { useCallback, useState } from "react";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { useI18n } from "@/lib/i18n";
 import {
+  isOverlayInterpretErrorBody,
+  overlayInterpretErrorI18nKey,
+} from "@/lib/overlay-interpret-errors";
+import {
   formatOverlayAssistantReply,
   formatOverlaySummary,
   signOffOverlay,
@@ -32,7 +36,7 @@ export function OverlayConversationPanel({
   baseScenarioId,
   onConfirm,
 }: Props) {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const reportLanguage = lang === "zh" ? "zh-TW" : lang;
 
   const [input, setInput] = useState("");
@@ -60,27 +64,53 @@ export function OverlayConversationPanel({
             report_language: reportLanguage,
           }),
         });
-        const data = (await res.json()) as {
-          overlay?: ClientOverlay;
-          error?: string;
-        };
-        if (!res.ok || !data.overlay) {
-          throw new Error(data.error ?? "Interpret failed");
+        const data: unknown = await res.json();
+        const interpretedOverlay =
+          data && typeof data === "object" && "overlay" in data
+            ? (data as { overlay?: ClientOverlay }).overlay
+            : undefined;
+
+        if (!res.ok || !interpretedOverlay) {
+          const message = isOverlayInterpretErrorBody(data)
+            ? t(overlayInterpretErrorI18nKey(data.code))
+            : data &&
+                typeof data === "object" &&
+                "error" in data &&
+                typeof (data as { error?: unknown }).error === "string"
+              ? (data as { error: string }).error
+              : t("overlay.interpret.error.generic");
+          setError(message);
+          setMessages((prev) => [...prev, { role: "assistant", content: message }]);
+          return;
         }
-        const interpretedOverlay = data.overlay;
+
+        const source =
+          data && typeof data === "object" && "source" in data
+            ? (data as { source?: "gemini" | "rules" }).source
+            : undefined;
+        if (process.env.NODE_ENV !== "production") {
+          console.info("[overlay/ui]", {
+            source: source === "rules" ? "fallback" : (source ?? "unknown"),
+            question_count: interpretedOverlay.clarification_questions?.length ?? 0,
+            liquidity_amount_usd: interpretedOverlay.client_profile.liquidity_need?.amount_usd,
+          });
+        }
+
         setOverlay(interpretedOverlay);
 
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: formatOverlayAssistantReply(interpretedOverlay, lang) },
         ]);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Interpret failed");
+      } catch {
+        const message = t("overlay.interpret.error.generic");
+        setError(message);
+        setMessages((prev) => [...prev, { role: "assistant", content: message }]);
       } finally {
         setLoading(false);
       }
     },
-    [overlay, rmId, clientRef, baseScenarioId, reportLanguage, lang],
+    [overlay, rmId, clientRef, baseScenarioId, reportLanguage, lang, t],
   );
 
   const send = async () => {

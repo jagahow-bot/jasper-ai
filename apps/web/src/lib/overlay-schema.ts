@@ -403,19 +403,34 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
   const lines: string[] = [];
   const { allocation, optimization, market_view, client_profile } = overlay;
 
+  const liquidityLine = (() => {
+    const liq = client_profile.liquidity_need;
+    if (!liq?.amount_usd && !liq?.within_months) return null;
+    const parts: string[] = [];
+    if (liq.within_months) {
+      parts.push(
+        lang === "zh"
+          ? `${liq.within_months} 個月內`
+          : lang === "ko"
+            ? `${liq.within_months}개월 이내`
+            : `within ${liq.within_months} months`,
+      );
+    }
+    if (liq.amount_usd) {
+      parts.push(`USD ${liq.amount_usd.toLocaleString()}`);
+    }
+    if (!parts.length) return null;
+    if (lang === "zh") return `流動性：${parts.join(" · ")}`;
+    if (lang === "ko") return `유동성: ${parts.join(" · ")}`;
+    return `Liquidity: ${parts.join(" · ")}`;
+  })();
+
   if (lang === "zh") {
     lines.push(`市場觀點：${market_view.stance} — ${market_view.narrative_summary}`);
     if (client_profile.risk_tolerance) {
       lines.push(`風險取向：${client_profile.risk_tolerance}`);
     }
-    if (client_profile.liquidity_need?.within_months) {
-      lines.push(
-        `流動性：${client_profile.liquidity_need.within_months} 個月內` +
-          (client_profile.liquidity_need.amount_usd
-            ? ` · USD ${client_profile.liquidity_need.amount_usd.toLocaleString()}`
-            : ""),
-      );
-    }
+    if (liquidityLine) lines.push(liquidityLine);
     lines.push(`資產類別：${allocation.asset_classes.join("、")}`);
     if (allocation.sleeve_targets) {
       const sleeves = Object.entries(allocation.sleeve_targets)
@@ -436,14 +451,7 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
     if (client_profile.risk_tolerance) {
       lines.push(`위험 성향: ${client_profile.risk_tolerance}`);
     }
-    if (client_profile.liquidity_need?.within_months) {
-      lines.push(
-        `유동성: ${client_profile.liquidity_need.within_months}개월 이내` +
-          (client_profile.liquidity_need.amount_usd
-            ? ` · USD ${client_profile.liquidity_need.amount_usd.toLocaleString()}`
-            : ""),
-      );
-    }
+    if (liquidityLine) lines.push(liquidityLine);
     lines.push(`자산군: ${allocation.asset_classes.join(", ")}`);
     if (allocation.sleeve_targets) {
       const sleeves = Object.entries(allocation.sleeve_targets)
@@ -460,6 +468,10 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
   }
 
   lines.push(`View: ${market_view.stance} — ${market_view.narrative_summary}`);
+  if (client_profile.risk_tolerance) {
+    lines.push(`Risk tolerance: ${client_profile.risk_tolerance}`);
+  }
+  if (liquidityLine) lines.push(liquidityLine);
   lines.push(`Asset classes: ${allocation.asset_classes.join(", ")}`);
   lines.push(`Objective: ${optimization.objective}`);
   if (overlay.universe.prompts.length) {

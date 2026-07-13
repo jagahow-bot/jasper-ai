@@ -880,6 +880,18 @@ const en: Dict = {
   // Overlay conversation step
   "overlay.skipToConfig": "Skip to advanced setup",
   "overlay.continueToConfig": "Continue to backtest setup",
+  "overlay.interpret.error.apiKeyMissing":
+    "Overlay interpretation is unavailable: Gemini API key is not configured.",
+  "overlay.interpret.error.geminiUnavailable":
+    "Overlay interpretation failed: Gemini is temporarily unavailable. Please try again.",
+  "overlay.interpret.error.parseFailed":
+    "Overlay interpretation failed: AI response could not be parsed. Please try again.",
+  "overlay.interpret.error.validationFailed":
+    "Overlay interpretation failed: AI response did not match the expected schema. Please try again.",
+  "overlay.interpret.error.responseInvalid":
+    "Overlay interpretation failed: AI returned an unusable response. Please try again.",
+  "overlay.interpret.error.generic":
+    "Overlay interpretation failed. Please try again or contact support.",
   "chat.speakerYou": "You:",
   "chat.speakerJasper": "Jasper:",
   "chat.speakerSystem": "System:",
@@ -1833,6 +1845,18 @@ const zh: Dict = {
   // Overlay conversation step
   "overlay.skipToConfig": "略過，直接進階設定",
   "overlay.continueToConfig": "前往回測設定",
+  "overlay.interpret.error.apiKeyMissing":
+    "無法解讀客戶需求：尚未設定 Gemini API 金鑰。",
+  "overlay.interpret.error.geminiUnavailable":
+    "解讀失敗：Gemini 暫時無法使用，請稍後再試。",
+  "overlay.interpret.error.parseFailed":
+    "解讀失敗：AI 回應無法解析，請再試一次。",
+  "overlay.interpret.error.validationFailed":
+    "解讀失敗：AI 回應格式不符預期，請再試一次。",
+  "overlay.interpret.error.responseInvalid":
+    "解讀失敗：AI 回應無法使用，請再試一次。",
+  "overlay.interpret.error.generic":
+    "客戶需求解讀失敗，請稍後再試或聯絡支援。",
   "chat.speakerYou": "您：",
   "chat.speakerJasper": "JASPER：",
   "chat.speakerSystem": "系統：",
@@ -2788,6 +2812,18 @@ const ko: Dict = {
 
   "overlay.skipToConfig": "건너뛰고 고급 설정으로",
   "overlay.continueToConfig": "백테스트 설정으로",
+  "overlay.interpret.error.apiKeyMissing":
+    "고객 니즈 해석 불가: Gemini API 키가 설정되지 않았습니다.",
+  "overlay.interpret.error.geminiUnavailable":
+    "해석 실패: Gemini를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
+  "overlay.interpret.error.parseFailed":
+    "해석 실패: AI 응답을 파싱할 수 없습니다. 다시 시도하세요.",
+  "overlay.interpret.error.validationFailed":
+    "해석 실패: AI 응답 형식이 예상과 다릅니다. 다시 시도하세요.",
+  "overlay.interpret.error.responseInvalid":
+    "해석 실패: AI 응답을 사용할 수 없습니다. 다시 시도하세요.",
+  "overlay.interpret.error.generic":
+    "고객 니즈 해석에 실패했습니다. 잠시 후 다시 시도하거나 지원팀에 문의하세요.",
   "chat.speakerYou": "나:",
   "chat.speakerJasper": "JASPER:",
   "chat.speakerSystem": "시스템:",

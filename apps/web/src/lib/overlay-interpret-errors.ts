@@ -1,0 +1,95 @@
+import { NextResponse } from "next/server";
+import { ZodError } from "zod";
+
+export const OVERLAY_INTERPRET_ERROR_CODES = {
+  API_KEY_MISSING: "API_KEY_MISSING",
+  GEMINI_UNAVAILABLE: "GEMINI_UNAVAILABLE",
+  PARSE_FAILED: "PARSE_FAILED",
+  VALIDATION_FAILED: "VALIDATION_FAILED",
+  RESPONSE_INVALID: "RESPONSE_INVALID",
+} as const;
+
+export type OverlayInterpretErrorCode =
+  (typeof OVERLAY_INTERPRET_ERROR_CODES)[keyof typeof OVERLAY_INTERPRET_ERROR_CODES];
+
+export type OverlayInterpretErrorBody = {
+  error: string;
+  code: OverlayInterpretErrorCode;
+  detail?: string;
+};
+
+const I18N_KEY_BY_CODE: Record<OverlayInterpretErrorCode, string> = {
+  [OVERLAY_INTERPRET_ERROR_CODES.API_KEY_MISSING]: "overlay.interpret.error.apiKeyMissing",
+  [OVERLAY_INTERPRET_ERROR_CODES.GEMINI_UNAVAILABLE]: "overlay.interpret.error.geminiUnavailable",
+  [OVERLAY_INTERPRET_ERROR_CODES.PARSE_FAILED]: "overlay.interpret.error.parseFailed",
+  [OVERLAY_INTERPRET_ERROR_CODES.VALIDATION_FAILED]: "overlay.interpret.error.validationFailed",
+  [OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID]: "overlay.interpret.error.responseInvalid",
+};
+
+export function allowOverlayRulesFallback(req: Request): boolean {
+  if (process.env.OVERLAY_ALLOW_RULES_FALLBACK === "true") return true;
+  const url = new URL(req.url);
+  return url.searchParams.get("fallback") === "1";
+}
+
+export function buildOverlayInterpretError(
+  code: OverlayInterpretErrorCode,
+  error: string,
+  detail?: string,
+  status = 503,
+): NextResponse<OverlayInterpretErrorBody> {
+  return NextResponse.json({ error, code, detail }, { status });
+}
+
+export function classifyOverlayGeminiFailure(error: unknown): {
+  code: OverlayInterpretErrorCode;
+  error: string;
+  detail?: string;
+  status: number;
+} {
+  if (error instanceof ZodError) {
+    const detail = error.issues.map((i) => i.message).join("; ").slice(0, 500);
+    return {
+      code: OVERLAY_INTERPRET_ERROR_CODES.VALIDATION_FAILED,
+      error: "Gemini overlay response failed schema validation",
+      detail,
+      status: 422,
+    };
+  }
+  if (error instanceof SyntaxError) {
+    return {
+      code: OVERLAY_INTERPRET_ERROR_CODES.PARSE_FAILED,
+      error: "Gemini overlay response was not valid JSON",
+      detail: error.message.slice(0, 500),
+      status: 422,
+    };
+  }
+  if (error instanceof Error) {
+    return {
+      code: OVERLAY_INTERPRET_ERROR_CODES.GEMINI_UNAVAILABLE,
+      error: "Gemini overlay interpretation is temporarily unavailable",
+      detail: error.message.slice(0, 500),
+      status: 502,
+    };
+  }
+  return {
+    code: OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID,
+    error: "Gemini overlay interpretation failed",
+    status: 422,
+  };
+}
+
+export function overlayInterpretErrorI18nKey(code: string | undefined): string {
+  if (code && code in I18N_KEY_BY_CODE) {
+    return I18N_KEY_BY_CODE[code as OverlayInterpretErrorCode];
+  }
+  return "overlay.interpret.error.generic";
+}
+
+export function isOverlayInterpretErrorBody(
+  value: unknown,
+): value is OverlayInterpretErrorBody {
+  if (!value || typeof value !== "object") return false;
+  const body = value as OverlayInterpretErrorBody;
+  return typeof body.error === "string" && typeof body.code === "string";
+}

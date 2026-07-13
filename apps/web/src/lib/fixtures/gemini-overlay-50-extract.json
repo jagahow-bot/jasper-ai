@@ -1,0 +1,45 @@
+{
+  "client_profile": {
+    "age": 55,
+    "risk_tolerance": "moderate",
+    "liquidity_needs": "High. Needs USD 1.5 million within the first year for real estate purchase.",
+    "investment_horizon": "Multi-year core allocation with a 6-month phased entry (dollar-cost averaging)."
+  },
+  "allocation": {
+    "asset_classes": [
+      "equity",
+      "bond",
+      "commodity"
+    ],
+    "sleeve_targets": {},
+    "sub_sleeve_targets": {}
+  },
+  "universe": {
+    "prompts": [
+      "US large-cap equity ETFs with ESG integration, benchmarked against SPY",
+      "Investment grade corporate bond ETFs with high liquidity",
+      "Short-term US Treasury bond ETFs for capital preservation and liquidity",
+      "Gold and precious metals ETFs as defensive buffers"
+    ],
+    "constraints": {
+      "max_single_weight": 0.35
+    }
+  },
+  "optimization": {
+    "objective": "min_max_drawdown",
+    "regime_adaptive": true
+  },
+  "param_adjustments": {
+    "w_lowvol": 0.15
+  },
+  "experiment": {
+    "trigger": false
+  },
+  "confidence": 0.75,
+  "rationale": "The client prioritizes liquidity and capital preservation due to an upcoming USD 1.5M real estate purchase, making 'min_max_drawdown' the most suitable optimization objective. A diversified mix of ESG-aligned US equities, investment-grade bonds, short-duration Treasuries, and gold is proposed to limit drawdown and single-ETF concentration under 35%. A regime-adaptive approach is enabled to dynamically manage the defensive buffer (gold and short bonds) during market downturns.",
+  "clarification_questions": [
+    "Would the client prefer a specific fixed allocation split between the core equity (SPY-benchmarked) sleeve and the defensive liquidity sleeve (e.g., 60% Equity / 30% Fixed Income / 10% Gold)?",
+    "Should we explicitly reserve the USD 1.5 million in ultra-short-term cash equivalents (like T-Bills) separate from the core risk-managed portfolio?",
+    "Do you have specific ESG rating thresholds or exclusion criteria for the equity and bond ETF selection?"
+  ]
+}

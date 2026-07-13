@@ -2,8 +2,14 @@ import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
-import { parseOverlayExtractFromGemini } from "@/lib/overlay-gemini-parse";
 import { interpretOverlayFallback } from "@/lib/overlay-fallback";
+import {
+  allowOverlayRulesFallback,
+  buildOverlayInterpretError,
+  classifyOverlayGeminiFailure,
+  OVERLAY_INTERPRET_ERROR_CODES,
+} from "@/lib/overlay-interpret-errors";
+import { parseOverlayExtractFromGemini } from "@/lib/overlay-gemini-parse";
 import {
   createSessionId,
   validateOverlayExtract,
@@ -88,13 +94,23 @@ function logInterpretResult(
 ): void {
   if (process.env.NODE_ENV === "production") return;
   console.info("[overlay/interpret]", {
-    source,
+    source: source === "rules" ? "fallback" : "gemini",
     session_id: overlay.audit.session_id,
     turns,
     confidence: overlay.confidence,
-    questions: overlay.clarification_questions ?? [],
+    question_count: overlay.clarification_questions?.length ?? 0,
     liquidity_amount_usd: overlay.client_profile.liquidity_need?.amount_usd,
   });
+}
+
+function attachAuditFields(
+  overlay: ClientOverlay,
+  body: InterpretBody,
+): ClientOverlay {
+  if (body.rm_id) overlay.audit.rm_id = body.rm_id;
+  if (body.client_ref) overlay.audit.client_ref = body.client_ref;
+  if (body.base_scenario_id) overlay.audit.base_scenario_id = body.base_scenario_id;
+  return overlay;
 }
 
 export async function POST(req: Request) {
@@ -116,18 +132,26 @@ export async function POST(req: Request) {
       .map((m) => m.content)
       .join("\n") || latestUser;
 
+  const useRulesFallback = allowOverlayRulesFallback(req);
+
   const runFallback = () => {
     const overlay = interpretOverlayFallback(userTranscript, lang, sessionId, turns, body.prior_overlay);
-    if (body.rm_id) overlay.audit.rm_id = body.rm_id;
-    if (body.client_ref) overlay.audit.client_ref = body.client_ref;
-    if (body.base_scenario_id) overlay.audit.base_scenario_id = body.base_scenario_id;
+    attachAuditFields(overlay, body);
     logInterpretResult("rules", overlay, turns);
     return overlay;
   };
 
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    const overlay = runFallback();
-    return NextResponse.json({ overlay, source: "rules" });
+    if (useRulesFallback) {
+      const overlay = runFallback();
+      return NextResponse.json({ overlay, source: "rules" });
+    }
+    return buildOverlayInterpretError(
+      OVERLAY_INTERPRET_ERROR_CODES.API_KEY_MISSING,
+      "Gemini API key is not configured",
+      "Set GOOGLE_GENERATIVE_AI_API_KEY or enable rules fallback for offline demos.",
+      503,
+    );
   }
 
   try {
@@ -144,19 +168,45 @@ export async function POST(req: Request) {
       },
     });
 
-    const extract = validateOverlayExtract(parseOverlayExtractFromGemini(result.text));
+    let extract;
+    try {
+      extract = validateOverlayExtract(parseOverlayExtractFromGemini(result.text));
+    } catch (parseError) {
+      if (useRulesFallback) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[overlay/interpret] Gemini response unusable; using rules fallback", parseError);
+        }
+        const overlay = runFallback();
+        return NextResponse.json({ overlay, source: "rules" });
+      }
+      const classified = classifyOverlayGeminiFailure(parseError);
+      return buildOverlayInterpretError(
+        classified.code,
+        classified.error,
+        classified.detail,
+        classified.status,
+      );
+    }
+
     const overlay = wrapExtractAsOverlay(extract, sessionId, turns, "gemini", body.prior_overlay);
-    if (body.rm_id) overlay.audit.rm_id = body.rm_id;
-    if (body.client_ref) overlay.audit.client_ref = body.client_ref;
-    if (body.base_scenario_id) overlay.audit.base_scenario_id = body.base_scenario_id;
+    attachAuditFields(overlay, body);
     logInterpretResult("gemini", overlay, turns);
 
     return NextResponse.json({ overlay, source: "gemini" });
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[overlay/interpret] Gemini failed; using rules fallback", error);
+    if (useRulesFallback) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[overlay/interpret] Gemini failed; using rules fallback", error);
+      }
+      const overlay = runFallback();
+      return NextResponse.json({ overlay, source: "rules" });
     }
-    const overlay = runFallback();
-    return NextResponse.json({ overlay, source: "rules" });
+    const classified = classifyOverlayGeminiFailure(error);
+    return buildOverlayInterpretError(
+      classified.code,
+      classified.error,
+      classified.detail,
+      classified.status,
+    );
   }
 }

@@ -1,23 +1,9 @@
 import { ASSET_CLASSES } from "./constants";
+import { parseLiquidityUsdAmount } from "./overlay-gemini-parse";
 import type { ClientOverlay, OverlayExtractOutput } from "./overlay-schema";
 
 function parseAmountUsd(text: string): number | undefined {
-  const compact = text.replace(/,/g, "");
-  const match =
-    compact.match(/(?:usd|us\$|\$)\s*(\d+(?:\.\d+)?)\s*(million|mn|mm|m)\b/i) ??
-    compact.match(/(\d+(?:\.\d+)?)\s*(million|mn|mm|m)\b/i) ??
-    compact.match(/(?:usd|us\$|\$)\s*(\d+(?:\.\d+)?)\s*(thousand|k)\b/i) ??
-    compact.match(/(\d+(?:\.\d+)?)\s*(?:萬|万)/);
-
-  if (!match) return undefined;
-
-  const value = Number(match[1]);
-  if (!Number.isFinite(value)) return undefined;
-
-  const unit = match[2]?.toLowerCase();
-  if (unit && ["million", "mn", "mm", "m"].includes(unit)) return value * 1_000_000;
-  if (unit && ["thousand", "k"].includes(unit)) return value * 1_000;
-  return value * 10_000;
+  return parseLiquidityUsdAmount(text);
 }
 
 function hasEsgPreference(text: string): boolean {

@@ -6,6 +6,7 @@ import {
   extractOverlayJsonText,
   normalizeLiquidityNeed,
   normalizePositionPct,
+  parseLiquidityUsdAmount,
   parseOverlayExtractFromGemini,
   stripGeminiMetadata,
 } from "./overlay-gemini-parse";
@@ -70,5 +71,39 @@ describe("overlay-gemini-parse", () => {
     expect(extract.clarification_questions).toHaveLength(4);
     expect(extract.clarification_questions[0]).toContain("target split");
     expect(extract.rationale).toContain("$1.5M");
+  });
+
+  it("parses ai_studio_code (50).txt fixture with missing market_view", () => {
+    const gemini50Extract = JSON.parse(
+      readFileSync(join(fixtureDir, "gemini-overlay-50-extract.json"), "utf8"),
+    ) as unknown;
+
+    const extract = parseOverlayExtractFromGemini(gemini50Extract) as {
+      confidence: number;
+      market_view: { stance: string; narrative_summary: string };
+      client_profile: { liquidity_need?: { amount_usd?: number; within_months?: number } };
+      allocation: { max_single_position_pct?: number };
+      clarification_questions: string[];
+      param_adjustments?: { w_lowvol?: { mode: string; fixed: number } };
+      experiment?: unknown;
+    };
+
+    expect(extract.confidence).toBe(0.75);
+    expect(extract.market_view.stance).toBe("neutral");
+    expect(extract.market_view.narrative_summary.length).toBeGreaterThanOrEqual(8);
+    expect(extract.client_profile.liquidity_need?.amount_usd).toBe(1_500_000);
+    expect(extract.client_profile.liquidity_need?.within_months).toBe(12);
+    expect(extract.allocation.max_single_position_pct).toBe(0.25);
+    expect(extract.clarification_questions).toHaveLength(3);
+    expect(extract.clarification_questions[0]).toContain("fixed allocation split");
+    expect(extract.clarification_questions[1]).toContain("USD 1.5 million");
+    expect(extract.param_adjustments?.w_lowvol).toEqual({ mode: "fixed", fixed: 0.15 });
+    expect(extract.experiment).toBeUndefined();
+  });
+
+  it("prefers liquidity withdrawal over total portfolio in free text", () => {
+    const text =
+      "王先生總資產約1200萬美元，明年買房需要提領150萬美元流動性，偏好ESG與防禦配置。";
+    expect(parseLiquidityUsdAmount(text)).toBe(1_500_000);
   });
 });
