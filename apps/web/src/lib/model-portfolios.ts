@@ -16,6 +16,12 @@ export type ModelPortfolioSource = {
 
 export type ModelPortfolio = {
   id: string;
+  /** Stable publisher AM id (e.g. amundi-demo). */
+  am_id: string;
+  /** Display name of the Asset Manager publisher. */
+  asset_manager: string;
+  /** Product / theme title (also mirrored in `name`). */
+  theme: string;
   name: string;
   description: string;
   source: ModelPortfolioSource;
@@ -77,11 +83,14 @@ export const SPY_ANCHOR_ID = "spy-benchmark";
 
 export const SPY_ANCHOR: ModelPortfolio = {
   id: SPY_ANCHOR_ID,
-  name: "S&P 500 (SPY)",
+  am_id: "state-street-demo",
+  asset_manager: "State Street Demo",
+  theme: "S&P 500 Benchmark",
+  name: "S&P 500 Benchmark",
   description:
-    "Single-ticker US large-cap benchmark. Common anchor for personalized ETF variants.",
+    "State Street Demo single-ticker US large-cap benchmark (SPY). Common anchor for personalized ETF variants.",
   source: {
-    name: "SPDR S&P 500 ETF Trust",
+    name: "Demo AM catalog — State Street Demo S&P 500 Benchmark",
     url: "https://www.ssga.com/us/en/individual/etfs/funds/spdr-sp-500-etf-trust-spy",
   },
   asset_class_mix: { equity: 1 },
@@ -92,38 +101,90 @@ export const SPY_ANCHOR: ModelPortfolio = {
   risk_level: "moderate",
 };
 
-const PORTFOLIO_LABELS: Record<Lang, Record<string, string>> = {
+const ASSET_MANAGER_LABELS: Record<Lang, Record<string, string>> = {
   en: {
-    [SPY_ANCHOR_ID]: "S&P 500 (SPY)",
-    "classic-60-40": "Classic 60/40 Balanced",
-    "bogleheads-three-fund-80-20": "Bogleheads Three-Fund (80/20)",
-    "global-equity-market-cap": "Global Equity (Market-Cap)",
-    "us-multi-cap-equity": "US Multi-Cap Equity",
-    "us-sector-growth-tilt": "US Large Cap + Growth Tilt",
-    "all-weather-simplified": "All Weather (Simplified)",
+    [SPY_ANCHOR_ID]: "State Street Demo",
+    "classic-60-40": "Amundi",
+    "bogleheads-three-fund-80-20": "Vanguard-style Demo",
+    "global-equity-market-cap": "Julia Demo AM",
+    "us-multi-cap-equity": "Julius Baer Model",
+    "us-sector-growth-tilt": "BlackRock",
+    "all-weather-simplified": "Pictet",
   },
   zh: {
-    [SPY_ANCHOR_ID]: "標普 500",
-    "classic-60-40": "經典 60/40 平衡",
-    "bogleheads-three-fund-80-20": "三基金組合（80/20）",
-    "global-equity-market-cap": "全球股票（市值加權）",
-    "us-multi-cap-equity": "美國多市值股票",
-    "us-sector-growth-tilt": "美國大型股＋成長傾斜",
-    "all-weather-simplified": "全天候（簡化版）",
+    [SPY_ANCHOR_ID]: "State Street Demo",
+    "classic-60-40": "Amundi",
+    "bogleheads-three-fund-80-20": "Vanguard-style Demo",
+    "global-equity-market-cap": "Julia Demo AM",
+    "us-multi-cap-equity": "Julius Baer Model",
+    "us-sector-growth-tilt": "BlackRock",
+    "all-weather-simplified": "Pictet",
   },
   ko: {
-    [SPY_ANCHOR_ID]: "S&P 500",
-    "classic-60-40": "클래식 60/40 균형",
-    "bogleheads-three-fund-80-20": "보글헤즈 3-펀드 (80/20)",
-    "global-equity-market-cap": "글로벌 주식 (시가총액)",
-    "us-multi-cap-equity": "미국 멀티캡 주식",
-    "us-sector-growth-tilt": "미국 대형주 + 성장",
-    "all-weather-simplified": "올웨더 (간소화)",
+    [SPY_ANCHOR_ID]: "State Street Demo",
+    "classic-60-40": "Amundi",
+    "bogleheads-three-fund-80-20": "Vanguard-style Demo",
+    "global-equity-market-cap": "Julia Demo AM",
+    "us-multi-cap-equity": "Julius Baer Model",
+    "us-sector-growth-tilt": "BlackRock",
+    "all-weather-simplified": "Pictet",
   },
 };
 
+/** Theme / product title (card title). */
+const PORTFOLIO_LABELS: Record<Lang, Record<string, string>> = {
+  en: {
+    [SPY_ANCHOR_ID]: "S&P 500 Benchmark",
+    "classic-60-40": "Balanced 60/40",
+    "bogleheads-three-fund-80-20": "Three-Fund",
+    "global-equity-market-cap": "Global Market-Cap Equity",
+    "us-multi-cap-equity": "Growth Multi-Cap",
+    "us-sector-growth-tilt": "US Equity Core",
+    "all-weather-simplified": "All Weather Defensive",
+  },
+  zh: {
+    [SPY_ANCHOR_ID]: "標普 500 基準",
+    "classic-60-40": "平衡 60/40",
+    "bogleheads-three-fund-80-20": "三基金組合",
+    "global-equity-market-cap": "全球市值加權股票",
+    "us-multi-cap-equity": "成長多市值",
+    "us-sector-growth-tilt": "美國股票核心",
+    "all-weather-simplified": "全天候防禦",
+  },
+  ko: {
+    [SPY_ANCHOR_ID]: "S&P 500 벤치마크",
+    "classic-60-40": "균형 60/40",
+    "bogleheads-three-fund-80-20": "3-펀드",
+    "global-equity-market-cap": "글로벌 시가총액 주식",
+    "us-multi-cap-equity": "성장 멀티캡",
+    "us-sector-growth-tilt": "미국 주식 코어",
+    "all-weather-simplified": "올웨더 방어형",
+  },
+};
+
+export function getAssetManagerLabel(
+  portfolio: ModelPortfolio,
+  lang: Lang,
+): string {
+  return (
+    ASSET_MANAGER_LABELS[lang][portfolio.id] ??
+    portfolio.asset_manager ??
+    "Demo AM"
+  );
+}
+
+/** Theme / product name for the selected anchor. */
 export function getPortfolioLabel(portfolio: ModelPortfolio, lang: Lang): string {
-  return PORTFOLIO_LABELS[lang][portfolio.id] ?? portfolio.name;
+  return (
+    PORTFOLIO_LABELS[lang][portfolio.id] ??
+    portfolio.theme ??
+    portfolio.name
+  );
+}
+
+/** "AM · Theme" composite for compact displays. */
+export function getAmThemeLabel(portfolio: ModelPortfolio, lang: Lang): string {
+  return `${getAssetManagerLabel(portfolio, lang)} · ${getPortfolioLabel(portfolio, lang)}`;
 }
 
 /**
@@ -192,22 +253,36 @@ export function getAnchorPortfolioById(id: string): ModelPortfolio | undefined {
 const PORTFOLIO_DESCRIPTIONS: Record<Lang, Record<string, string>> = {
   en: {},
   zh: {
-    [SPY_ANCHOR_ID]: "美國大型股單一標的基準，常用於客製化 ETF 變體的起點。",
-    "classic-60-40": "60% 標普 500（SPY）＋ 40% 投資級債券（AGG），機構常用的平衡基準。",
-    "bogleheads-three-fund-80-20": "被動三基金：美國股票、國際股票與美國債券，80/20 股債比。",
-    "global-equity-market-cap": "全球股票配置，約 60% 美國、40% 國際，依市值加權。",
-    "us-multi-cap-equity": "美國大型（SPY）、成長科技（QQQ）與小型股（IWM）的全市值覆蓋。",
-    "us-sector-growth-tilt": "標普核心搭配那斯達克成長與醫療、金融產業傾斜。",
-    "all-weather-simplified": "股、債、黃金與大宗商品風險平衡，適應不同總經環境。",
+    [SPY_ANCHOR_ID]:
+      "State Street Demo 單一標的美股大型股基準（SPY），常用於客製化變體的起點。",
+    "classic-60-40":
+      "Amundi 風格平衡配置：60% 股票成長＋40% 投資級債券。成分以主流 ETF 示意。",
+    "bogleheads-three-fund-80-20":
+      "Vanguard-style Demo 三基金主題：美股、國際股與債券，約 80/20 股債比（非官方產品）。",
+    "global-equity-market-cap":
+      "Julia Demo AM 全球市值加權主題（約 60% 美股／40% 國際），示意未來可掛入標的池的財富產品。",
+    "us-multi-cap-equity":
+      "Julius Baer Model 成長多市值示意：美股大型、成長科技與小型股袖口。",
+    "us-sector-growth-tilt":
+      "BlackRock 風格美國股票核心，成長傾斜並含醫療與金融產業袖口。",
+    "all-weather-simplified":
+      "Pictet 風格全天候防禦：股、債、黃金與大宗商品風險平衡。",
   },
   ko: {
-    [SPY_ANCHOR_ID]: "미국 대형주 단일 벤치마크. 맞춤 ETF 변형의 출발점.",
-    "classic-60-40": "SPY 60% + AGG 40%. 기관에서 흔히 쓰는 균형 벤치마크.",
-    "bogleheads-three-fund-80-20": "미국·국제 주식과 미국 채권의 패시브 3-펀드 80/20.",
-    "global-equity-market-cap": "미국 약 60%, 국제 약 40%의 시가총액 가중 글로벌 주식.",
-    "us-multi-cap-equity": "SPY·QQQ·IWM으로 미국 대형·성장·소형을 포괄.",
-    "us-sector-growth-tilt": "S&P 코어 + 나스닥 성장 + 헬스케어·금융 섹터.",
-    "all-weather-simplified": "주식·채권·금·원자재 리스크 균형 배분.",
+    [SPY_ANCHOR_ID]:
+      "State Street Demo 미국 대형주 단일 벤치마크(SPY). 맞춤 변형의 출발점.",
+    "classic-60-40":
+      "Amundi 스타일 균형: 주식 60% + 투자등급 채권 40%. 구성은 주요 ETF로 예시.",
+    "bogleheads-three-fund-80-20":
+      "Vanguard-style Demo 3-펀드 테마: 미국·국제 주식과 채권 80/20 (공식 상품 아님).",
+    "global-equity-market-cap":
+      "Julia Demo AM 글로벌 시가총액 테마(미국 ~60% / 국제 ~40%). 향후 Investment Pool 매핑용 예시.",
+    "us-multi-cap-equity":
+      "Julius Baer Model 성장 멀티캡: 미국 대형·성장·소형 슬리브.",
+    "us-sector-growth-tilt":
+      "BlackRock 스타일 미국 주식 코어 + 성장 틸트, 헬스케어·금융 섹터.",
+    "all-weather-simplified":
+      "Pictet 스타일 올웨더 방어형: 주식·채권·금·원자재 리스크 균형.",
   },
 };
 

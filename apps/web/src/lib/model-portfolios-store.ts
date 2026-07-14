@@ -8,7 +8,7 @@ import {
   type PoolItem,
 } from "@/lib/investment-pool";
 
-export const MODEL_PORTFOLIOS_STORAGE_KEY = "jasper_model_portfolios_v1";
+export const MODEL_PORTFOLIOS_STORAGE_KEY = "jasper_model_portfolios_v2";
 
 export type ManagedModelPortfolio = ModelPortfolio & {
   enabled: boolean;
@@ -23,7 +23,37 @@ export type ModelImportReport = {
   conflicts: string[];
 };
 
-type StoredPortfolio = ModelPortfolio & { enabled?: boolean };
+/** Stored / imported rows may omit newer AM fields — normalize before use. */
+type StoredPortfolio = Omit<
+  ModelPortfolio,
+  "am_id" | "asset_manager" | "theme"
+> & {
+  enabled?: boolean;
+  am_id?: string;
+  asset_manager?: string;
+  theme?: string;
+};
+
+function normalizePortfolioFields(
+  p: StoredPortfolio,
+): ModelPortfolio & { enabled?: boolean } {
+  const theme = p.theme || p.name;
+  const asset_manager = p.asset_manager || "Demo AM";
+  const am_id =
+    p.am_id ||
+    asset_manager
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") ||
+    "demo-am";
+  return {
+    ...p,
+    theme,
+    name: p.name || theme,
+    asset_manager,
+    am_id,
+  };
+}
 
 function withConflicts(
   portfolio: StoredPortfolio,
@@ -40,7 +70,7 @@ function withConflicts(
     conflict_tickers.push(bm);
   }
   return {
-    ...portfolio,
+    ...normalizePortfolioFields(portfolio),
     enabled: portfolio.enabled !== false,
     conflict_tickers: [...new Set(conflict_tickers)],
   };
@@ -188,6 +218,9 @@ export function importModelsFromCsv(
   type Acc = {
     id: string;
     name: string;
+    theme: string;
+    asset_manager: string;
+    am_id: string;
     risk_level: string;
     benchmark: string;
     enabled: boolean;
@@ -215,6 +248,15 @@ export function importModelsFromCsv(
     };
     const risk = get("risk_profile", "moderate");
     const benchmark = get("benchmark_ticker", "SPY").toUpperCase();
+    const asset_manager = get("asset_manager", "Demo AM");
+    const am_id = get(
+      "am_id",
+      asset_manager
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "demo-am",
+    );
+    const theme = get("theme", pname);
     const enabledRaw = get("enabled", "true").toLowerCase();
     const enabled = !(
       enabledRaw === "false" ||
@@ -227,6 +269,9 @@ export function importModelsFromCsv(
       acc = {
         id,
         name: pname,
+        theme,
+        asset_manager,
+        am_id,
         risk_level: risk,
         benchmark,
         enabled,
@@ -236,6 +281,9 @@ export function importModelsFromCsv(
     }
     acc.holdings.push({ ticker, weight, name: ticker });
     acc.name = pname;
+    acc.theme = theme;
+    acc.asset_manager = asset_manager;
+    acc.am_id = am_id;
     acc.risk_level = risk;
     acc.benchmark = benchmark;
     acc.enabled = enabled;
@@ -269,6 +317,9 @@ export function importModelsFromCsv(
     const portfolio: ManagedModelPortfolio = withConflicts(
       {
         id: acc.id,
+        am_id: acc.am_id,
+        asset_manager: acc.asset_manager,
+        theme: acc.theme,
         name: acc.name,
         description: `Imported model portfolio ${acc.name}`,
         source: { name: "CSV import", url: "" },
@@ -334,7 +385,7 @@ function splitCsvLine(line: string): string[] {
 
 export function modelsToCsv(portfolios: ManagedModelPortfolio[]): string {
   const header =
-    "portfolio_id,portfolio_name,risk_profile,ticker,weight,benchmark_ticker,enabled";
+    "portfolio_id,portfolio_name,asset_manager,am_id,theme,risk_profile,ticker,weight,benchmark_ticker,enabled";
   const rows: string[] = [];
   for (const p of portfolios) {
     for (const h of p.holdings) {
@@ -342,6 +393,9 @@ export function modelsToCsv(portfolios: ManagedModelPortfolio[]): string {
         [
           p.id,
           `"${p.name.replace(/"/g, '""')}"`,
+          `"${(p.asset_manager || "Demo AM").replace(/"/g, '""')}"`,
+          p.am_id || "demo-am",
+          `"${(p.theme || p.name).replace(/"/g, '""')}"`,
           p.risk_level,
           h.ticker,
           h.weight,

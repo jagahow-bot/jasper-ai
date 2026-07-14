@@ -1,8 +1,6 @@
-# JASPER Demo Model Portfolios
+# JASPER Demo AM Model Portfolios
 
-Publicly documented ETF model portfolios for JASPER demos, proposal credibility, and future **Base portfolio → Overlay** backtest flows.
-
-Demo portfolios use **widely recognized tickers** — SPY, QQQ, IWM, AGG, BND, GLD — so RM and client conversations map directly to familiar market benchmarks.
+Demo **Asset Manager (AM)** model portfolios for JASPER Benchmark Personalization. Each entry mimics a themed wealth product published by an AM; holdings use **mainstream ETFs as placeholders**. Later AMs can list their own products mapped into the Investment Pool.
 
 ## Files
 
@@ -15,23 +13,28 @@ Demo portfolios use **widely recognized tickers** — SPY, QQQ, IWM, AGG, BND, G
 
 Each portfolio entry includes:
 
-- `id`, `name`, `description`
+- `id` — stable id (keep for `suggested_model_portfolio_id`)
+- `am_id`, `asset_manager` — publisher AM (demo brands / clearly labeled)
+- `theme` / `name` — product or theme title shown in Anchor cards
+- `description` — short AM theme copy
 - `source` — `{ name, url }` for demo credibility
 - `asset_class_mix` — high-level weights by asset class
-- `holdings` — `[{ ticker, weight, name }]`
-- `benchmark` — default benchmark ticker for backtests
+- `holdings` — `[{ ticker, weight, name }]` (ETF placeholders)
+- `benchmark` — default benchmark ticker for backtests (unchanged for engine)
 - `risk_level` — `moderate_conservative` \| `moderate` \| `moderate_aggressive` \| `aggressive`
 
-## Included portfolios (6)
+## Included portfolios (6 + SPY anchor in UI)
 
-| ID | Focus | Key tickers | Equity % | Source |
-|----|-------|-------------|----------|--------|
-| `classic-60-40` | Balanced stocks/bonds | SPY, AGG | 60% | [Lazy Portfolio ETF](https://www.lazyportfolioetf.com/allocation/stocks-bonds-60-40/) |
-| `bogleheads-three-fund-80-20` | Passive three-fund | SPY, VXUS, BND | 80% | [Bogleheads Wiki](https://www.bogleheads.org/wiki/Three-fund_portfolio) |
-| `global-equity-market-cap` | All-equity global | SPY, VXUS | 100% | [Elm Wealth](https://elmwealth.com/vt-vs-vti-vxus/) |
-| `us-multi-cap-equity` | US cap spectrum | SPY, QQQ, IWM | 100% | [ETF Database](https://etfdb.com/compare/SPY-vs-QQQ-vs-IWM/) |
-| `us-sector-growth-tilt` | Large cap + growth tilt | SPY, QQQ, XLV, XLF | 100% | [Freenance](https://freenance.io/strategies/60-40-portfolio-guide/) |
-| `all-weather-simplified` | Risk-balanced multi-asset | SPY, TLT, IEF, GLD | 30% | [ETF Central](https://www.etfcentral.com/news/the-ray-dalio-all-weather-etf-portfolio) |
+| ID | Asset Manager | Theme | Key tickers | Equity % |
+|----|---------------|-------|-------------|----------|
+| `classic-60-40` | Amundi | Balanced 60/40 | SPY, AGG | 60% |
+| `bogleheads-three-fund-80-20` | Vanguard-style Demo | Three-Fund | SPY, VXUS, BND | 80% |
+| `global-equity-market-cap` | Julia Demo AM | Global Market-Cap Equity | SPY, VXUS | 100% |
+| `us-multi-cap-equity` | Julius Baer Model | Growth Multi-Cap | SPY, QQQ, IWM | 100% |
+| `us-sector-growth-tilt` | BlackRock | US Equity Core | SPY, QQQ, XLV, XLF | 100% |
+| `all-weather-simplified` | Pictet | All Weather Defensive | SPY, TLT, IEF, GLD, PDBC | 30% |
+
+Plus UI-only `spy-benchmark` (State Street Demo · S&P 500 Benchmark).
 
 All tickers are US-listed ETFs available on yfinance and present in `shared/etf-universe.json`.
 
@@ -55,6 +58,6 @@ cd apps/api
 
 Output: `data/prices/closes.parquet` (wide adjusted close panel) and `data/prices/ohlcv/{TICKER}.parquet` per symbol.
 
-## UI integration (future)
+## UI integration
 
-Import from `@/lib/model-portfolios` for a **Base portfolio** selector in the overlay flow. Not yet wired into the main scenario form.
+Import from `@/lib/model-portfolios` for the **Anchor portfolio** selector (`AnchorPortfolioSelector`) in Benchmark Personalization. Admin list: `/models`.

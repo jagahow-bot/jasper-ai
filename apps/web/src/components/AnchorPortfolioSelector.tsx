@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  getAmThemeLabel,
+  getAssetManagerLabel,
   getPortfolioDescription,
   getPortfolioLabel,
   MAINSTREAM_DEMO_TICKERS,
@@ -65,7 +67,8 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
       <div className="grid gap-3 sm:grid-cols-2">
         {portfolios.map((p) => {
           const active = p.id === selectedId;
-          const label = getPortfolioLabel(p, lang);
+          const am = getAssetManagerLabel(p, lang);
+          const theme = getPortfolioLabel(p, lang);
           const holdings = p.holdings
             .map((h) => `${h.ticker} ${(h.weight * 100).toFixed(0)}%`)
             .join(" · ");
@@ -74,17 +77,27 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
               key={p.id}
               type="button"
               onClick={() => onSelect(p)}
-              className={`rounded-xl border p-4 text-left transition ${
+              className={`flex flex-col rounded-xl border p-4 text-left transition ${
                 active
                   ? "border-[var(--primary)] bg-[var(--primary-muted)] shadow-sm"
                   : "border-[var(--border)] bg-white hover:border-[var(--primary)]/40 hover:shadow-sm"
               }`}
             >
-              <span className="text-sm font-semibold text-[var(--foreground)]">{label}</span>
-              <p className="mt-2 ui-hint leading-snug">
+              <span className="inline-flex w-fit rounded-md bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-[var(--text-dim)]">
+                {am}
+              </span>
+              <span className="mt-2 text-sm font-semibold text-[var(--foreground)]">
+                {theme}
+              </span>
+              <p className="mt-2 flex-1 ui-hint leading-snug">
                 {getPortfolioDescription(p, lang)}
               </p>
-              <p className="mt-2 text-sm text-[var(--primary)]">{holdings}</p>
+              <div className="mt-3 border-t border-[var(--border)]/60 pt-2">
+                <p className="text-sm text-[var(--primary)]">{holdings}</p>
+                <p className="mt-1 text-[11px] text-[var(--text-dim)]">
+                  {t("anchor.placeholderHoldingsHint")}
+                </p>
+              </div>
             </button>
           );
         })}
@@ -98,7 +111,7 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
         <div className="saas-inset text-sm">
           <p className="ui-hint">{t("anchor.selected")}</p>
           <p className="mt-1 font-medium text-[var(--foreground)]">
-            {getPortfolioLabel(selected, lang)}
+            {getAmThemeLabel(selected, lang)}
           </p>
         </div>
       )}

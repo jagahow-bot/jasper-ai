@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppNav } from "@/components/AppNav";
 import { useI18n } from "@/lib/i18n";
-import { getPortfolioLabel } from "@/lib/model-portfolios";
+import {
+  getAmThemeLabel,
+  getAssetManagerLabel,
+  getPortfolioLabel,
+} from "@/lib/model-portfolios";
 import {
   importModelsFromCsv,
   modelsToCsv,
@@ -159,6 +163,9 @@ export default function ModelPortfoliosPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
+                      <span className="pixel-badge pixel-badge-cyan">
+                        {getAssetManagerLabel(p, lang)}
+                      </span>
                       <h2 className="text-base font-semibold text-[var(--foreground)]">
                         {label}
                       </h2>
@@ -173,7 +180,7 @@ export default function ModelPortfoliosPage() {
                       ) : null}
                     </div>
                     <p className="mt-1 text-sm text-[var(--text-dim)]">
-                      {p.id} · BM {p.benchmark}
+                      {getAmThemeLabel(p, lang)} · {p.id} · BM {p.benchmark}
                     </p>
                     <p className="mt-2 text-sm text-[var(--primary)]">
                       {p.holdings

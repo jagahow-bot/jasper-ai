@@ -217,6 +217,7 @@ flowchart LR
 | 決策 | 規格 |
 |------|------|
 | **產品方向** | **YES — 上傳／維護 Model Portfolios**（與 Investment Pool 同粒度精神：Demo＝**全局**清單，非 per-client） |
+| **敘事** | 呈現為 **Asset Manager（AM）發布的主題模型組合**（例：Amundi · Balanced 60/40）；成分以主流 ETF 示意，之後 AM 可將自家財富產品掛入 Investment Pool |
 | **用途** | 作為階段三 **Benchmark Personalization** 的 **Anchor（基準／錨點）目錄**；取代／擴充僅靜態 `model-portfolios.json` 的敘事 |
 | **與 Pool 關係** | 組成成分受 enabled Investment Pool 約束（見下） |
 
@@ -224,10 +225,11 @@ flowchart LR
 
 | 欄位 | 說明 |
 |------|------|
-| **Name** | 組合顯示名（例：Classic 60/40、Equity Aggressive） |
+| **Asset Manager** | 發布方 AM（`asset_manager` / `am_id`；Demo 可用 Demo AM／示意品牌） |
+| **Theme / Name** | 主題或產品名（例：US Equity Core、Balanced 60/40） |
 | **Risk profile** | conservative / moderate / aggressive（或機構等級代碼）；便於依客戶 `risk_profile` 預選 Anchor |
-| **Holdings + weights** | ticker → weight；權重建議合計 = 1.0（或 100%） |
-| **Benchmark ticker** | 可選：對應單一指數／基準 ETF（例：SPY）；組合型 Anchor 可填主基準或留空依產品規則 |
+| **Holdings + weights** | ticker → weight；權重建議合計 = 1.0（或 100%）；Demo 以主流 ETF 為 placeholder |
+| **Benchmark ticker** | 可選：對應單一指數／基準 ETF（例：SPY）；**引擎用 benchmark 不變** |
 | **Enabled** | 關閉者不出現在階段三 Anchor 選單 |
 
 #### 4.6.3 CSV 匯入／維護
