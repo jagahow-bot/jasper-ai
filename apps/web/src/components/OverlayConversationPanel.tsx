@@ -140,7 +140,7 @@ export function OverlayConversationPanel({
     (lang === "zh" ? "探索" : "discovery");
 
   return (
-    <div className="pixel-panel flex flex-col gap-4">
+    <div className="pixel-panel flex min-h-0 flex-col gap-4">
       <div>
         <h3 className="ui-panel-title">
           {lang === "zh"
@@ -156,7 +156,7 @@ export function OverlayConversationPanel({
         </p>
       </div>
 
-      <div className="min-h-40 max-h-52 flex-1 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
+      <div className="max-h-[280px] min-h-40 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
         <ChatLog variant="conversation" messages={toChatMessages(messages)} />
       </div>
 

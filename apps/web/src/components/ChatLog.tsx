@@ -15,6 +15,16 @@ type ChatLogProps = {
   variant?: "activity" | "conversation";
 };
 
+function getScrollParent(el: HTMLElement): HTMLElement {
+  let node: HTMLElement | null = el.parentElement;
+  while (node) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") return node;
+    node = node.parentElement;
+  }
+  return el;
+}
+
 /**
  * Activity log (`variant="activity"`): newest-first at top; auto-pins to top
  * unless the user scrolls down to read older lines.
@@ -36,7 +46,8 @@ export function ChatLog({ messages, variant = "activity" }: ChatLogProps) {
     const el = containerRef.current;
     if (!el || !pinnedRef.current) return;
     if (variant === "conversation") {
-      el.scrollTop = el.scrollHeight;
+      const scroller = getScrollParent(el);
+      scroller.scrollTop = scroller.scrollHeight;
     } else {
       el.scrollTop = 0;
     }
@@ -45,20 +56,28 @@ export function ChatLog({ messages, variant = "activity" }: ChatLogProps) {
   const handleScroll = () => {
     const el = containerRef.current;
     if (!el) return;
-    if (variant === "conversation") {
-      pinnedRef.current =
-        el.scrollHeight - el.scrollTop - el.clientHeight <= 24;
-    } else {
-      pinnedRef.current = el.scrollTop <= 24;
-    }
+    pinnedRef.current = el.scrollTop <= 24;
   };
+
+  useEffect(() => {
+    if (variant !== "conversation") return;
+    const el = containerRef.current;
+    if (!el) return;
+    const scroller = getScrollParent(el);
+    if (scroller === el) return;
+    const onScroll = () => {
+      pinnedRef.current =
+        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= 24;
+    };
+    scroller.addEventListener("scroll", onScroll);
+    return () => scroller.removeEventListener("scroll", onScroll);
+  }, [variant]);
 
   if (variant === "conversation") {
     return (
       <div
         ref={containerRef}
-        onScroll={handleScroll}
-        className="flex h-full flex-col gap-3 overflow-y-auto px-1 py-1 text-sm"
+        className="flex min-h-0 flex-col gap-3 px-1 py-1 text-sm"
       >
         {ordered.map((m) => {
           const isUser = m.role === "user";
@@ -105,7 +124,7 @@ export function ChatLog({ messages, variant = "activity" }: ChatLogProps) {
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex h-full flex-col gap-2 overflow-y-auto pr-1 text-sm"
+      className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto pr-1 text-sm"
     >
       {ordered.map((m) => (
         <div
