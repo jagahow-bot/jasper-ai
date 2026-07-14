@@ -539,7 +539,7 @@ function synthesizeMarketView(root: Record<string, unknown>): Record<string, unk
   }
   if (!themes.length) themes.push(riskTolerance === "aggressive" ? "growth" : "balanced");
 
-  let stance =
+  const stance =
     normalizeMarketStance(existing?.stance) ??
     (riskTolerance === "aggressive"
       ? "risk_on"
