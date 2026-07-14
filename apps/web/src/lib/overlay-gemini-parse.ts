@@ -168,12 +168,22 @@ export function normalizeLiquidityNeed(
 } | undefined {
   if (raw == null) return undefined;
   if (typeof raw === "string") {
-    const amountUsd = parseLiquidityUsdAmount(raw) ?? parseUsdAmount(raw);
-    const withinMonths = parseWithinMonthsFromText(raw);
+    const trimmed = raw.trim();
+    if (!trimmed) return undefined;
+    // Growth / cash-only cases often emit a prose "no withdrawal" string — omit entirely.
+    if (
+      /no\s+(near[- ]?term\s+)?(liquidity|withdrawal|withdraw)/i.test(trimmed) ||
+      /without\s+(near[- ]?term\s+)?(liquidity|withdrawal)/i.test(trimmed) ||
+      /無(明確)?(提領|流動性|現金需求)|没有(明确)?(提领|流动性)|不做提領|無需提領/i.test(trimmed)
+    ) {
+      return undefined;
+    }
+    const amountUsd = parseLiquidityUsdAmount(trimmed) ?? parseUsdAmount(trimmed);
+    const withinMonths = parseWithinMonthsFromText(trimmed);
     return {
       ...(amountUsd != null ? { amount_usd: amountUsd } : {}),
       ...(withinMonths != null ? { within_months: withinMonths } : {}),
-      description: raw.slice(0, 300),
+      description: trimmed.slice(0, 300),
     };
   }
   if (typeof raw !== "object" || Array.isArray(raw)) return undefined;
@@ -204,6 +214,16 @@ export function normalizeLiquidityNeed(
         : undefined;
 
   if (amountUsd == null && withinMonths == null && !description) return undefined;
+
+  // Empty / zero-need objects with only a "none" description → omit
+  if (
+    amountUsd == null &&
+    withinMonths == null &&
+    description &&
+    /no\s+(near[- ]?term\s+)?(liquidity|withdrawal)|無(明確)?(提領|流動性)|无需提领/i.test(description)
+  ) {
+    return undefined;
+  }
 
   return {
     ...(amountUsd != null ? { amount_usd: amountUsd } : {}),
@@ -256,6 +276,124 @@ function normalizeMarketStance(
   if (/risk.?on|bullish|aggressive|growth/i.test(s)) return "risk_on";
   if (/risk.?off|bearish|defensive|preservation|cautious/i.test(s)) return "risk_off";
   return "neutral";
+}
+
+function normalizeRiskTolerance(
+  raw: unknown,
+): "conservative" | "moderate" | "aggressive" | undefined {
+  if (raw === "conservative" || raw === "moderate" || raw === "aggressive") return raw;
+  if (typeof raw !== "string") return undefined;
+  const s = raw.toLowerCase();
+  if (/aggress|growth|high.?risk|進取|積極|공격/i.test(s)) return "aggressive";
+  if (/conserv|defensive|low.?risk|保守|안정/i.test(s)) return "conservative";
+  if (/moderat|balanced|中等|穩健|보통/i.test(s)) return "moderate";
+  return undefined;
+}
+
+function normalizeEsgPreference(
+  raw: unknown,
+): "none" | "light" | "strict" | undefined {
+  if (raw === "none" || raw === "light" || raw === "strict") return raw;
+  if (typeof raw !== "string") return undefined;
+  const s = raw.toLowerCase().trim();
+  if (/^(no|none|n\/a|false|0|無|无|不要|拒絕|거부)/i.test(s) || /no\s*esg|not\s*esg|without\s*esg/i.test(s)) {
+    return "none";
+  }
+  if (/strict|strong|mandat|嚴格|엄격/i.test(s)) return "strict";
+  if (/light|prefer|soft|輕度|선호/i.test(s)) return "light";
+  return undefined;
+}
+
+const VALID_ASSET_CLASSES = new Set([
+  "equity",
+  "bond",
+  "commodity",
+  "real_estate",
+  "alternative",
+]);
+
+function normalizeAssetClasses(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw
+    .filter((v): v is string => typeof v === "string")
+    .map((v) => v.toLowerCase().trim())
+    .filter((v) => VALID_ASSET_CLASSES.has(v));
+  return out.length ? out.slice(0, 5) : undefined;
+}
+
+function normalizeClarificationQuestions(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    let text: string | undefined;
+    if (typeof item === "string") {
+      text = item.trim();
+    } else if (item && typeof item === "object" && !Array.isArray(item)) {
+      const obj = item as Record<string, unknown>;
+      const candidate = obj.question ?? obj.text ?? obj.prompt ?? obj.content;
+      if (typeof candidate === "string") text = candidate.trim();
+    }
+    if (!text) continue;
+    const clipped = text.slice(0, 200);
+    if (clipped.length >= 4) out.push(clipped);
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
+function normalizeUniversePrompts(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((v): v is string => typeof v === "string")
+    .map((v) => v.trim().slice(0, 200))
+    .filter((v) => v.length >= 4)
+    .slice(0, 6);
+}
+
+function normalizeTickerList(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw
+    .filter((v): v is string => typeof v === "string")
+    .map((v) => v.trim().toUpperCase().slice(0, 8))
+    .filter((v) => v.length >= 1)
+    .slice(0, 30);
+  return out.length ? out : undefined;
+}
+
+function normalizeOptimization(
+  raw: unknown,
+  stance: "risk_on" | "neutral" | "risk_off",
+): Record<string, unknown> {
+  const opt = asRecord(raw) ?? {};
+  const objectiveRaw = opt.objective;
+  const validObjectives = new Set([
+    "max_sharpe",
+    "max_return",
+    "min_max_drawdown",
+    "max_sortino",
+    "min_cvar",
+    "risk_parity_erc",
+    "max_diversification",
+    "mean_variance_utility",
+    "custom",
+    "dynamic",
+  ]);
+  let objective =
+    typeof objectiveRaw === "string" && validObjectives.has(objectiveRaw)
+      ? objectiveRaw
+      : undefined;
+  if (!objective) {
+    objective = stance === "risk_off" ? "min_max_drawdown" : "max_sharpe";
+  }
+  const out: Record<string, unknown> = { objective };
+  if (typeof opt.regime_adaptive === "boolean") out.regime_adaptive = opt.regime_adaptive;
+  if (opt.optimization_mode === "standard" || opt.optimization_mode === "pro_auto") {
+    out.optimization_mode = opt.optimization_mode;
+  }
+  if (typeof opt.trials === "number" && Number.isFinite(opt.trials)) {
+    out.trials = Math.min(500, Math.max(10, Math.round(opt.trials)));
+  }
+  return out;
 }
 
 function pickKeys(
@@ -359,38 +497,66 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 function synthesizeMarketView(root: Record<string, unknown>): Record<string, unknown> {
   const existing = asRecord(root.market_view);
+  const clientProfile = asRecord(root.client_profile) ?? {};
+  const riskTolerance = normalizeRiskTolerance(clientProfile.risk_tolerance);
+  const rationale = typeof root.rationale === "string" ? root.rationale : "";
+
+  const themesFromExisting =
+    existing && Array.isArray(existing.themes)
+      ? existing.themes
+          .filter((t): t is string => typeof t === "string")
+          .map((t) => t.trim().slice(0, 40))
+          .filter((t) => t.length >= 1)
+          .slice(0, 8)
+      : [];
+
   if (
     existing &&
     normalizeMarketStance(existing.stance) &&
-    Array.isArray(existing.themes) &&
-    existing.themes.length > 0 &&
+    themesFromExisting.length > 0 &&
     typeof existing.narrative_summary === "string" &&
     existing.narrative_summary.length >= 8
   ) {
     return {
       stance: normalizeMarketStance(existing.stance) ?? "neutral",
-      themes: existing.themes.filter((t): t is string => typeof t === "string").slice(0, 8),
+      themes: themesFromExisting,
       narrative_summary: existing.narrative_summary.slice(0, 400),
     };
   }
 
-  const rationale = typeof root.rationale === "string" ? root.rationale : "";
-  const clientProfile = asRecord(root.client_profile) ?? {};
-  const themes: string[] = [];
+  const themes: string[] = [...themesFromExisting];
   if (clientProfile.liquidity_need || clientProfile.liquidity_needs) themes.push("liquidity");
+  if (riskTolerance === "aggressive") themes.push("growth");
+  if (/concentrat|diversif|分散|集中|QQQ|nasdaq/i.test(rationale)) {
+    themes.push("concentration_reduction");
+  }
   if (/esg/i.test(rationale) || clientProfile.esg_preference) themes.push("esg");
   if (/drawdown|defensive|preservation|liquidity/i.test(rationale)) {
     themes.push("capital_preservation");
   }
-  if (!themes.length) themes.push("balanced");
+  if (/phased|gradual|dca|分批|逐步|달러코스트/i.test(rationale)) {
+    themes.push("phased_deployment");
+  }
+  if (!themes.length) themes.push(riskTolerance === "aggressive" ? "growth" : "balanced");
+
+  let stance =
+    normalizeMarketStance(existing?.stance) ??
+    (riskTolerance === "aggressive"
+      ? "risk_on"
+      : riskTolerance === "conservative"
+        ? "risk_off"
+        : "neutral");
 
   const narrativeSummary =
-    rationale.length >= 8
-      ? rationale.slice(0, 400)
-      : "Structured overlay from RM conversation pending confirmation.";
+    (typeof existing?.narrative_summary === "string" && existing.narrative_summary.length >= 8
+      ? existing.narrative_summary
+      : rationale.length >= 8
+        ? rationale
+        : "Structured overlay from RM conversation pending confirmation."
+    ).slice(0, 400);
 
   return {
-    stance: "neutral",
+    stance,
     themes: themes.slice(0, 8),
     narrative_summary: narrativeSummary,
   };
@@ -452,11 +618,22 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
   const liquidityNeed = normalizeLiquidityNeed(liquidityRaw);
   const horizonRaw = clientProfile.investment_horizon_years ?? clientProfile.investment_horizon;
   const investmentHorizonYears = parseInvestmentHorizonYears(horizonRaw);
+  const riskTolerance = normalizeRiskTolerance(clientProfile.risk_tolerance);
+  const esgPreference = normalizeEsgPreference(clientProfile.esg_preference);
+
+  let incomeNeedPct: number | undefined;
+  const incomeRaw = clientProfile.income_need_pct;
+  if (typeof incomeRaw === "number" && Number.isFinite(incomeRaw)) {
+    incomeNeedPct = incomeRaw > 1 ? incomeRaw / 100 : incomeRaw;
+    incomeNeedPct = Math.min(1, Math.max(0, incomeNeedPct));
+  }
 
   root.client_profile = {
-    ...pickKeys(clientProfile, CLIENT_PROFILE_KEYS),
-    ...(liquidityNeed ? { liquidity_need: liquidityNeed } : {}),
+    ...(riskTolerance ? { risk_tolerance: riskTolerance } : {}),
     ...(investmentHorizonYears != null ? { investment_horizon_years: investmentHorizonYears } : {}),
+    ...(liquidityNeed ? { liquidity_need: liquidityNeed } : {}),
+    ...(esgPreference ? { esg_preference: esgPreference } : {}),
+    ...(incomeNeedPct != null ? { income_need_pct: incomeNeedPct } : {}),
   };
 
   const universe = asRecord(root.universe);
@@ -471,9 +648,13 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
   );
   const sleeveTargets = normalizeWeightRecord(allocation.sleeve_targets);
   const subSleeveTargets = normalizeWeightRecord(allocation.sub_sleeve_targets);
+  const assetClasses =
+    normalizeAssetClasses(allocation.asset_classes) ??
+    (riskTolerance === "aggressive" ? ["equity", "bond"] : ["equity", "bond", "commodity"]);
+
   root.allocation = {
-    ...(Array.isArray(allocation.asset_classes) ? { asset_classes: allocation.asset_classes } : {}),
-    ...(allocation.enforce_class_weights != null
+    asset_classes: assetClasses,
+    ...(typeof allocation.enforce_class_weights === "boolean"
       ? { enforce_class_weights: allocation.enforce_class_weights }
       : {}),
     ...(maxPct != null ? { max_single_position_pct: maxPct } : {}),
@@ -484,7 +665,16 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
   if (universe) {
     const { constraints, ...universeRest } = universe;
     void constraints;
-    root.universe = universeRest;
+    const prompts = normalizeUniversePrompts(universeRest.prompts);
+    const supplement = normalizeTickerList(universeRest.supplement_tickers);
+    const exclude = normalizeTickerList(universeRest.exclude_tickers);
+    root.universe = {
+      prompts,
+      ...(supplement ? { supplement_tickers: supplement } : {}),
+      ...(exclude ? { exclude_tickers: exclude } : {}),
+    };
+  } else {
+    root.universe = { prompts: [] };
   }
 
   const paramAdjustments = normalizeParamAdjustments(root.param_adjustments);
@@ -502,14 +692,34 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
   }
 
   root.market_view = synthesizeMarketView(root);
+  const stance = (root.market_view as { stance: "risk_on" | "neutral" | "risk_off" }).stance;
+  root.optimization = normalizeOptimization(root.optimization, stance);
 
   if (typeof root.confidence === "string") {
     const confidence = Number.parseFloat(root.confidence);
     if (Number.isFinite(confidence)) root.confidence = confidence;
   }
+  if (typeof root.confidence === "number" && Number.isFinite(root.confidence)) {
+    let confidence = root.confidence;
+    if (confidence > 1) confidence = confidence / 100;
+    root.confidence = Math.min(1, Math.max(0, confidence));
+  } else {
+    root.confidence = 0.5;
+  }
 
-  if (!Array.isArray(root.clarification_questions)) {
-    root.clarification_questions = [];
+  root.clarification_questions = normalizeClarificationQuestions(root.clarification_questions);
+
+  if (typeof root.rationale !== "string" || root.rationale.trim().length < 8) {
+    const narrative =
+      typeof (root.market_view as { narrative_summary?: string }).narrative_summary === "string"
+        ? (root.market_view as { narrative_summary: string }).narrative_summary
+        : "";
+    root.rationale =
+      narrative.length >= 8
+        ? narrative.slice(0, 600)
+        : "Structured overlay extracted from RM conversation; please confirm with the client.";
+  } else {
+    root.rationale = root.rationale.trim().slice(0, 600);
   }
 
   return stripOverlayExtractKeys(root);

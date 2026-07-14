@@ -1,0 +1,47 @@
+{
+  "client_profile": {
+    "risk_tolerance": "積極成長型",
+    "investment_horizon": "10 years multi-year growth",
+    "liquidity_needs": "No near-term withdrawal; gradual cash deployment only.",
+    "esg_preference": "no ESG",
+    "age": 48,
+    "occupation": "entrepreneur"
+  },
+  "market_view": {
+    "stance": "growth / risk-on",
+    "themes": ["US Multi-Cap", "reduce QQQ concentration", "phased cash invest"],
+    "narrative_summary": ""
+  },
+  "allocation": {
+    "asset_classes": ["equity", "bond", "cash"],
+    "sleeve_targets": {},
+    "sub_sleeve_targets": {},
+    "max_single_position_pct": 40
+  },
+  "universe": {
+    "prompts": [
+      "US multi-cap equity ETFs as portfolio anchor",
+      "Broad US equity ETFs to reduce Nasdaq-100 single-ETF concentration"
+    ],
+    "exclude_tickers": ["QQQ"],
+    "constraints": {
+      "max_single_weight": 0.4
+    }
+  },
+  "optimization": {
+    "objective": "max_sharpe"
+  },
+  "param_adjustments": {},
+  "experiment": {
+    "trigger": false
+  },
+  "confidence": "0.7",
+  "rationale": "陳女士風險偏好積極，偏好以美國 Multi-Cap 作為核心錨定，並希望降低 QQQ 集中度；單一持股上限約 35–40%，不做 ESG，現金採分批進場，目前無明確提領需求。",
+  "clarification_questions": [
+    {
+      "question": "希望核心美股與債券的目標配置比例為何？"
+    },
+    "現金分批進場建議採 3 個月或 6 個月時程？",
+    "ok"
+  ]
+}

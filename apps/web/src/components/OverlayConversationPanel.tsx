@@ -156,20 +156,21 @@ export function OverlayConversationPanel({
         </p>
       </div>
 
-      <div className="h-56 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
+      <div className="min-h-40 max-h-52 flex-1 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
         <ChatLog variant="conversation" messages={toChatMessages(messages)} />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex shrink-0 items-end gap-2">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          rows={6}
           placeholder={
             lang === "zh"
               ? "例：客戶明年需要 80 萬美元流動性，目前持股偏科技…"
               : "e.g. Client needs $800k liquidity next year, overweight tech…"
           }
-          className="pixel-input min-h-16 flex-1"
+          className="pixel-input min-h-[160px] flex-1 resize-y"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

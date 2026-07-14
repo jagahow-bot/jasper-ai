@@ -159,4 +159,56 @@ describe("overlay-gemini-parse", () => {
       "王先生總資產約1200萬美元，明年買房需要提領150萬美元流動性，偏好ESG與防禦配置。";
     expect(parseLiquidityUsdAmount(text)).toBe(1_500_000);
   });
+
+  it("normalizes aggressive growth / no-liquidity 陳女士 Gemini extract through Zod", () => {
+    const chenExtract = JSON.parse(
+      readFileSync(join(fixtureDir, "gemini-overlay-chen-growth-extract.json"), "utf8"),
+    ) as unknown;
+
+    const normalized = parseOverlayExtractFromGemini(chenExtract) as {
+      client_profile: {
+        risk_tolerance?: string;
+        esg_preference?: string;
+        liquidity_need?: unknown;
+        age?: number;
+      };
+      market_view: { stance: string; themes: string[]; narrative_summary: string };
+      allocation: {
+        asset_classes: string[];
+        max_single_position_pct?: number;
+        sleeve_targets?: unknown;
+      };
+      universe: { prompts: string[]; exclude_tickers?: string[] };
+      optimization: { objective: string };
+      clarification_questions: string[];
+      confidence: number;
+      param_adjustments?: unknown;
+      experiment?: unknown;
+    };
+
+    expect(normalized.client_profile.risk_tolerance).toBe("aggressive");
+    expect(normalized.client_profile.esg_preference).toBe("none");
+    expect(normalized.client_profile.liquidity_need).toBeUndefined();
+    expect(normalized.client_profile.age).toBeUndefined();
+    expect(normalized.market_view.stance).toBe("risk_on");
+    expect(normalized.market_view.themes.length).toBeGreaterThan(0);
+    expect(normalized.market_view.narrative_summary.length).toBeGreaterThanOrEqual(8);
+    expect(normalized.allocation.asset_classes).toEqual(["equity", "bond"]);
+    expect(normalized.allocation.max_single_position_pct).toBe(0.25);
+    expect(normalized.allocation.sleeve_targets).toBeUndefined();
+    expect(normalized.universe.exclude_tickers).toEqual(["QQQ"]);
+    expect(normalized.optimization.objective).toBe("max_sharpe");
+    expect(normalized.clarification_questions).toHaveLength(2);
+    expect(normalized.clarification_questions[0]).toContain("核心美股");
+    expect(normalized.confidence).toBe(0.7);
+    expect(normalized.param_adjustments).toBeUndefined();
+    expect(normalized.experiment).toBeUndefined();
+
+    const extract = validateOverlayExtract(normalized);
+    const overlay = wrapExtractAsOverlay(extract, "ovl-test-chen", 1, "gemini");
+    expect(overlay.client_profile.risk_tolerance).toBe("aggressive");
+    expect(overlay.client_profile.liquidity_need).toBeUndefined();
+    expect(overlay.allocation.max_single_position_pct).toBe(0.25);
+    expect(overlay.market_view.stance).toBe("risk_on");
+  });
 });

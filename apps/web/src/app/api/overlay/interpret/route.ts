@@ -61,20 +61,87 @@ function buildConversationPrompt(
 function overlaySystemPrompt(lang: Lang): string {
   return `Private banking quant copilot. Extract client needs from RM conversation into structured overlay JSON.
 
-Rules:
-- You assist RM structuring — NEVER output trade orders ("buy/sell X shares") or fabricated performance.
-- Output ONLY fields in the schema; use clarification_questions when information is missing.
-- confidence: 0–1 reflecting how complete the structured overlay is.
-- rationale: 2–4 sentences for RM confirmation (${rationaleLanguageDirective(lang)}).
-- allocation.asset_classes: pick 1–5 from equity,bond,commodity,real_estate,alternative.
-- allocation.sleeve_targets: optional w_equity,w_bond,w_commodity,w_real_estate,w_alternative (0–1, should sum ≈1).
-- allocation.sub_sleeve_targets: optional regional keys like w_equity_us,w_bond_us.
-- universe.prompts: natural-language ETF filter rules (not trade instructions).
-- optimization.objective: max_sharpe for risk-on, min_max_drawdown for defensive/liquidity.
+Output MUST be a single JSON object matching this schema exactly. Do not wrap in markdown.
+
+Required top-level keys (always present):
+- client_profile (object)
+- market_view (object) — REQUIRED, never omit
+- allocation (object)
+- universe (object)
+- optimization (object)
+- clarification_questions (array of strings) — use [] if none
+- confidence (number 0–1)
+- rationale (string, 8–600 chars)
+
+Optional top-level keys (omit entirely if unused — do not invent wrong shapes):
+- param_adjustments
+- experiment
+
+Field rules:
+- client_profile.risk_tolerance: "conservative" | "moderate" | "aggressive" only.
+- client_profile.investment_horizon_years: number 1–50 (not a string like "long-term").
+- client_profile.liquidity_need: OBJECT with optional amount_usd (number), within_months (1–120), description (string).
+  NEVER use string key "liquidity_needs". If no liquidity/withdrawal need is stated, OMIT liquidity_need entirely.
+- client_profile.esg_preference: "none" | "light" | "strict" only. Use "none" when client rejects ESG.
+- client_profile.income_need_pct: 0–1 fraction if stated.
+- market_view.stance: "risk_on" | "neutral" | "risk_off" (aggressive/growth HNWI → risk_on).
+- market_view.themes: array of 1–8 short strings (e.g. "us_multi_cap", "concentration_reduction").
+- market_view.narrative_summary: 8–400 chars summarizing the investment view.
+- allocation.asset_classes: 1–5 from equity,bond,commodity,real_estate,alternative (required).
+- allocation.sleeve_targets: optional object of w_* keys with 0–1 fractions summing ≈1. Omit if unknown; never emit {}.
+- allocation.sub_sleeve_targets: optional regional weights (0–1). Omit if unknown; never emit {}.
+- allocation.max_single_position_pct: 0–1 FRACTION in [0.05, 0.25]. Prefer 0.35→0.25 (schema cap). Accept 35 only if you must; prefer 0.25.
+- allocation.enforce_class_weights: boolean when RM wants hard sleeve enforcement.
+- universe.prompts: natural-language ETF filter rules (not trade orders), each 4–200 chars, max 6.
+- universe.supplement_tickers / exclude_tickers: optional ticker arrays.
+- optimization.objective: max_sharpe for risk-on/growth; min_max_drawdown for defensive/liquidity.
 - optimization.regime_adaptive: true when RM mentions regime/market switching.
-- param_adjustments: only when RM specifies factor tilts (w_lowvol, w_mom, etc.).
-- experiment: only when RM explicitly wants regime objective switch testing.
-- Conservative: lower confidence and ask rather than guess weights.`;
+- clarification_questions: array of STRINGS only (not objects), each 4–200 chars, max 5.
+- param_adjustments: only for explicit factor tilts. Shape: { "w_lowvol": { "mode": "fixed"|"search"|"off", "fixed"?: number, "min"?: number, "max"?: number } }.
+- experiment: only when RM explicitly wants regime objective-switch testing:
+  { "enabled": true, "mode": "objective_switch", "regime_mode": "auto"|"risk_off"|"neutral"|"risk_on" }.
+
+Soft guidance:
+- If uncertain about an optional field, OMIT it rather than inventing wrong types/keys.
+- You assist RM structuring — NEVER output trade orders ("buy/sell X shares") or fabricated performance.
+- confidence: 0–1 reflecting completeness of the structured overlay.
+- rationale: 2–4 sentences for RM confirmation (${rationaleLanguageDirective(lang)}).
+
+Example (aggressive growth HNWI, US multi-cap anchor, reduce QQQ concentration, no ESG, gradual cash invest, no liquidity withdrawal):
+{
+  "client_profile": {
+    "risk_tolerance": "aggressive",
+    "investment_horizon_years": 10,
+    "esg_preference": "none"
+  },
+  "market_view": {
+    "stance": "risk_on",
+    "themes": ["us_multi_cap", "concentration_reduction", "phased_deployment"],
+    "narrative_summary": "Aggressive HNWI with US multi-cap core; reduce single-ETF QQQ concentration and deploy cash gradually without ESG screens."
+  },
+  "allocation": {
+    "asset_classes": ["equity", "bond"],
+    "max_single_position_pct": 0.25,
+    "enforce_class_weights": false
+  },
+  "universe": {
+    "prompts": [
+      "US multi-cap equity ETFs as core anchor",
+      "Broad market equity ETFs to diversify away from Nasdaq-100 concentration"
+    ],
+    "exclude_tickers": ["QQQ"]
+  },
+  "optimization": {
+    "objective": "max_sharpe",
+    "regime_adaptive": false
+  },
+  "clarification_questions": [
+    "Preferred equity vs bond sleeve split for the core book?",
+    "Cash deployment schedule (e.g. 3 vs 6 months)?"
+  ],
+  "confidence": 0.72,
+  "rationale": "Client is aggressive with a US multi-cap preference, wants lower QQQ concentration, no ESG, and gradual cash investment. No near-term liquidity withdrawal was stated."
+}`;
 }
 
 function parseMessages(body: InterpretBody): OverlayConversationMessage[] {
