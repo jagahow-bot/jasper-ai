@@ -401,6 +401,8 @@ export function buildPerformanceCompareRows(input: {
   sortByModelCode: boolean;
   benchmarkBarMetrics?: BenchmarkBarMetrics | null;
   benchTicker: string;
+  /** Friendly axis / tooltip label (may include portfolio name). Defaults to ticker. */
+  benchDisplayName?: string;
   selectedChartKey?: string | null;
   /** Bar metrics horizon; defaults to full period (ttl). */
   horizon?: PerformanceCompareHorizon;
@@ -412,6 +414,7 @@ export function buildPerformanceCompareRows(input: {
     sortByModelCode,
     benchmarkBarMetrics,
     benchTicker,
+    benchDisplayName,
     selectedChartKey,
     horizon = "full_sample",
   } = input;
@@ -452,11 +455,12 @@ export function buildPerformanceCompareRows(input: {
 
   const bmSharpe = Number(benchmarkBarMetrics.sharpe ?? 0);
   const bmSortino = Number(benchmarkBarMetrics.sortino ?? bmSharpe);
+  const displayName = (benchDisplayName ?? benchTicker).trim() || benchTicker;
   return [
     ...modelRows,
     {
       chartKey: `bench-${benchTicker}`,
-      name: benchTicker,
+      name: displayName,
       model_code: benchTicker,
       modelKey: `bench:${benchTicker}`,
       rank: 0,

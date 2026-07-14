@@ -6,6 +6,7 @@ import {
   pickCatalogChampionModelKey,
 } from "@/lib/performance-compare-chart";
 import { useI18n, type TFn } from "@/lib/i18n";
+import type { ModelPortfolio } from "@/lib/model-portfolios";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -32,6 +33,7 @@ type Props = {
   showRunObjectiveBanner?: boolean;
   variant?: "default" | "rm";
   anchorBenchmarkTicker?: string;
+  anchorPortfolio?: ModelPortfolio | null;
   selectedRowKey?: string;
   onSelectedRowKeyChange?: (rowKey: string) => void;
 };
@@ -323,7 +325,7 @@ function RoundSeedPanel({ round }: { round: ProRoundSnapshot }) {
 
 export function ProResultsWithTabs(props: Props) {
   const { t } = useI18n();
-  const { result } = props;
+  const { result, request, anchorBenchmarkTicker } = props;
   const rounds = result.pro_rounds ?? [];
   const [tab, setTab] = useState<TabId>("final");
 
@@ -448,7 +450,12 @@ export function ProResultsWithTabs(props: Props) {
                   status={round.benchmark_status}
                   alpha={round.benchmark_alpha}
                   pvb={round.portfolio_vs_benchmark}
-                  benchmarkTicker={result.benchmark ?? "SPY"}
+                  benchmarkTicker={
+                    request.benchmark_ticker ??
+                    result.benchmark ??
+                    anchorBenchmarkTicker ??
+                    "SPY"
+                  }
                 />
                 <RoundSeedPanel round={round} />
               </>

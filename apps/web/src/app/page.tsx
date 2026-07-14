@@ -36,6 +36,10 @@ import {
   type DemoClient,
 } from "@/lib/clients";
 import { DEFAULT_ASSET_CLASSES } from "@/lib/constants";
+import {
+  DEFAULT_BACKTEST_START,
+  lastCompletedMonthEnd,
+} from "@/lib/default-backtest-dates";
 import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
 import { getUniverseMeta } from "@/lib/universe";
@@ -93,8 +97,8 @@ function buildDefaultRequest(): BacktestRequest {
     objective: "max_sharpe",
     regime_adaptive: false,
     backtest_mode: "static",
-    start_date: "2018-01-01",
-    end_date: "2024-12-31",
+    start_date: DEFAULT_BACKTEST_START,
+    end_date: lastCompletedMonthEnd(),
     trials: 50,
     top_models: 5,
     asset_classes: [...DEFAULT_ASSET_CLASSES],

@@ -479,7 +479,9 @@ export function ConstraintsPanel({
       </label>
 
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 ui-hint">
-        {t("config.benchmarkLine")}
+        {t("config.benchmarkLine", {
+          benchmark: String(value.benchmark_ticker ?? "SPY").toUpperCase(),
+        })}
       </div>
       <details className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
         <summary className="ui-section-title cursor-pointer">

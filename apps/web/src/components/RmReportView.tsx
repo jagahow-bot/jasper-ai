@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BenchmarkComparePanel } from "@/components/BenchmarkComparePanel";
+import { InvestmentProposalPreview } from "@/components/InvestmentProposalPreview";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 import { formatOverlaySummary } from "@/lib/overlay-schema";
@@ -20,6 +21,7 @@ import {
   buildMetricCompareRows,
   buildTalkingPoints,
 } from "@/lib/rm-report-utils";
+import { resolveTickerDisplayName } from "@/lib/ticker-display-name";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -76,6 +78,7 @@ export function RmReportView({
 }: Props) {
   const { t, lang } = useI18n();
   const [tab, setTab] = useState<TabId>("rm");
+  const [proposalOpen, setProposalOpen] = useState(false);
 
   const candidateEpoch = useMemo(
     () =>
@@ -232,6 +235,7 @@ export function RmReportView({
         continueLoading={continueLoading}
         variant="rm"
         anchorBenchmarkTicker={anchorPortfolio.benchmark}
+        anchorPortfolio={anchorPortfolio}
         selectedRowKey={selectedRowKey}
         onSelectedRowKeyChange={setSelectedRowKey}
       />
@@ -249,6 +253,7 @@ export function RmReportView({
         showRunObjectiveBanner={false}
         variant="rm"
         anchorBenchmarkTicker={anchorPortfolio.benchmark}
+        anchorPortfolio={anchorPortfolio}
         selectedRowKey={selectedRowKey}
         onSelectedRowKeyChange={setSelectedRowKey}
       />
@@ -357,7 +362,6 @@ export function RmReportView({
             </section>
           ) : null}
 
-          {/* Executive summary */}
           <section className="pixel-panel border-indigo-100 bg-indigo-50/50">
             <h3 className="ui-panel-title text-[var(--primary)]">
               {t("rm.report.executiveTitle")}
@@ -377,7 +381,6 @@ export function RmReportView({
 
           {candidateSelector}
 
-          {/* Anchor vs customized comparison */}
           <BenchmarkComparePanel
             anchorLabel={compare.anchorLabel}
             customizedLabel={compare.customizedLabel}
@@ -387,16 +390,16 @@ export function RmReportView({
             candidatePick={candidatePick}
           />
 
-          {/* Holdings diff */}
           {holdingsDiff.length > 0 && (
             <section className="pixel-panel">
               <h3 className="ui-panel-title">{t("rm.report.holdingsTitle")}</h3>
               <p className="ui-hint mt-1">{t("rm.report.holdingsHint")}</p>
               <div className="mt-3 overflow-x-auto">
-                <table className="w-full min-w-[420px] text-left ui-body">
+                <table className="w-full min-w-[520px] text-left ui-body">
                   <thead className="text-dim">
                     <tr>
                       <th className="pb-2 pr-3">{t("common.ticker")}</th>
+                      <th className="pb-2 pr-3">{t("common.name")}</th>
                       <th className="pb-2 pr-3 text-right">{compare.anchorLabel}</th>
                       <th className="pb-2 pr-3 text-right">{compare.customizedLabel}</th>
                       <th className="pb-2 pr-3 text-right">{t("compare.col.delta")}</th>
@@ -407,6 +410,9 @@ export function RmReportView({
                     {holdingsDiff.slice(0, 12).map((row) => (
                       <tr key={row.ticker} className="border-t border-[var(--border)]">
                         <td className="py-2 pr-3 font-medium">{row.ticker}</td>
+                        <td className="py-2 pr-3 text-dim">
+                          {resolveTickerDisplayName(row.ticker)}
+                        </td>
                         <td className="py-2 pr-3 text-right text-dim">
                           {row.anchorPct > 0.1 ? `${row.anchorPct.toFixed(1)}%` : "—"}
                         </td>
@@ -434,7 +440,6 @@ export function RmReportView({
             </section>
           )}
 
-          {/* Client meeting talking points */}
           <section className="pixel-panel border-amber-200 bg-amber-50/40">
             <h3 className="ui-panel-title text-[var(--amber)]">
               {t("rm.report.talkingTitle")}
@@ -447,18 +452,20 @@ export function RmReportView({
             </ul>
           </section>
 
-          {/* AI narrative for client-ready section */}
-          {narrative && (
-            <section className="pixel-panel">
-              <h3 className="ui-panel-title">{t("rm.report.narrativeTitle")}</h3>
-              <p className="ui-hint mt-1">{t("rm.report.narrativeHint")}</p>
-              <div className="ui-body mt-3 whitespace-pre-wrap">
-                {narrative}
-              </div>
-            </section>
-          )}
+          <section className="pixel-panel border-2 border-[var(--primary)]/30 bg-[var(--primary)]/5">
+            <h3 className="ui-panel-title text-[var(--primary)]">
+              {t("proposal.ctaTitle")}
+            </h3>
+            <p className="ui-hint mt-1">{t("proposal.ctaHint")}</p>
+            <button
+              type="button"
+              onClick={() => setProposalOpen(true)}
+              className="pixel-btn mt-4 min-w-[14rem]"
+            >
+              {t("proposal.generate")}
+            </button>
+          </section>
 
-          {/* Compliance disclaimer */}
           <section className="saas-inset">
             <p className="ui-section-title text-dim">{t("rm.report.disclaimerTitle")}</p>
             <p className="ui-hint mt-2">{t("rm.report.disclaimerBody")}</p>
@@ -485,6 +492,14 @@ export function RmReportView({
           </div>
         </div>
       )}
+
+      <InvestmentProposalPreview
+        open={proposalOpen}
+        onClose={() => setProposalOpen(false)}
+        compare={compare}
+        overlay={overlay}
+        anchorPortfolio={anchorPortfolio}
+      />
     </div>
   );
 }

@@ -70,7 +70,7 @@ import {
   resolveJobBenchmarkTicker,
   resolveResultBenchmarkTicker,
 } from "@/lib/resolve-result-benchmark";
-import { formatBenchmarkDisplayLabel } from "@/lib/model-portfolios";
+import { formatBenchmarkDisplayLabel, anchorDiffersFromBenchmarkTicker, type ModelPortfolio } from "@/lib/model-portfolios";
 import { ContinueRefinementCTA } from "@/components/ContinueRefinementCTA";
 import { fetchCandidateCharts } from "@/lib/api";
 import {
@@ -177,6 +177,8 @@ type Props = {
   variant?: "default" | "rm";
   /** Anchor benchmark ticker from RM step 1 (fallback when job request omits it). */
   anchorBenchmarkTicker?: string;
+  /** Selected model portfolio (for localized benchmark labels). */
+  anchorPortfolio?: ModelPortfolio | null;
   /** Controlled candidate row key (sync with parent, e.g. RmReportView). */
   selectedRowKey?: string;
   onSelectedRowKeyChange?: (rowKey: string) => void;
@@ -196,6 +198,7 @@ export function ResultsDashboard({
   showRunObjectiveBanner = true,
   variant = "default",
   anchorBenchmarkTicker,
+  anchorPortfolio = null,
   selectedRowKey: selectedRowKeyProp,
   onSelectedRowKeyChange,
 }: Props) {
@@ -340,7 +343,7 @@ export function ResultsDashboard({
       const row = rounds[i];
       const text = (row?.ai_champion_rationale ?? "").trim();
       if (row?.ai_champion_model_code && text) {
-        return { code: String(row.ai_champion_model_code), text };
+        return { code: String(row.ai_champion_model_code), text, source: "ai" as const };
       }
     }
     return null;
@@ -350,6 +353,55 @@ export function ResultsDashboard({
     () => resolveHorizonMetrics(championCandidate, "full_sample"),
     [championCandidate],
   );
+
+  const ruleBasedChampionRationale = useMemo(() => {
+    if (!championCandidate) return null;
+    const code =
+      championCandidate.model_code ??
+      championModelKey ??
+      `M?${championCandidate.rank ?? "?"}`;
+    const objective = String(
+      result.narrative_facts.objective_label ??
+        result.narrative_facts.objective ??
+        request.objective ??
+        "max_sharpe",
+    );
+    const others = result.candidates.filter(
+      (c) => candidateModelKey(c) !== championModelKey,
+    );
+    const alt = others[0];
+    const altMetrics = alt ? resolveHorizonMetrics(alt, "full_sample") : null;
+    const parts: string[] = [
+      t("results.championWhyFallbackLead", {
+        code,
+        objective,
+        sharpe: championFullMetrics.sharpe.toFixed(3),
+        cagr: `${(championFullMetrics.cagr * 100).toFixed(2)}%`,
+        mdd: `${(championFullMetrics.max_drawdown * 100).toFixed(2)}%`,
+      }),
+    ];
+    if (alt && altMetrics) {
+      parts.push(
+        t("results.championWhyFallbackAlt", {
+          alt: alt.model_code ?? `M?${alt.rank}`,
+          altSharpe: altMetrics.sharpe.toFixed(3),
+          altCagr: `${(altMetrics.cagr * 100).toFixed(2)}%`,
+        }),
+      );
+    }
+    return { code, text: parts.join(" "), source: "rule" as const };
+  }, [
+    championCandidate,
+    championModelKey,
+    championFullMetrics,
+    result.candidates,
+    result.narrative_facts.objective,
+    result.narrative_facts.objective_label,
+    request.objective,
+    t,
+  ]);
+
+  const displayChampionRationale = championRationale ?? ruleBasedChampionRationale;
 
   const selectedModelCode = selected?.model_code ?? "";
   const selectedHasFullCharts = useMemo(
@@ -579,7 +631,13 @@ export function ResultsDashboard({
     benchmarkRequest,
     result.narrative_facts,
   );
-  const benchLabel = formatBenchmarkDisplayLabel(benchTicker, lang);
+  const benchLabel = formatBenchmarkDisplayLabel(benchTicker, lang, {
+    anchorPortfolio,
+  });
+  const showAnchorBenchmarkNote = anchorDiffersFromBenchmarkTicker(
+    anchorPortfolio,
+    benchTicker,
+  );
   const jobBenchTicker = resolveJobBenchmarkTicker(result.narrative_facts);
   const benchMetricsStale =
     jobBenchTicker && benchTicker && jobBenchTicker !== benchTicker
@@ -637,7 +695,7 @@ export function ResultsDashboard({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            benchmark: benchTicker,
+            benchmark: benchLabel,
             objective: String(result.narrative_facts.objective ?? request.objective),
             objective_label: String(
               result.narrative_facts.objective_label ??
@@ -655,7 +713,7 @@ export function ResultsDashboard({
                 ? result.narrative_facts.ai_champion_model_code
                 : championModelKey,
             catalog_champion_model_code: catalogChampionForCompare,
-            champion_rationale: championRationale?.text ?? null,
+            champion_rationale: displayChampionRationale?.text ?? null,
             benchmark_metrics: benchmarkBarMetrics,
             lang,
             candidates: result.candidates.map((c) => {
@@ -827,6 +885,7 @@ export function ResultsDashboard({
         sortByModelCode,
         benchmarkBarMetrics,
         benchTicker,
+        benchDisplayName: benchLabel,
         selectedChartKey,
       }),
     [
@@ -835,6 +894,7 @@ export function ResultsDashboard({
       defaultSelectedRowKey,
       benchmarkBarMetrics,
       benchTicker,
+      benchLabel,
       sortByModelCode,
       selectedChartKey,
     ],
@@ -1344,12 +1404,20 @@ export function ResultsDashboard({
             </p>
           </div>
         )}
-        {championRationale && !isRmCompact && (
+        {displayChampionRationale && (
           <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2">
             <p className="ui-section-title text-[var(--amber)]">
-              {t("results.championWhyTitle", { code: championRationale.code })}
+              {isRmCompact
+                ? t("rm.quant.championWhyTitle")
+                : t("results.championWhyTitle", { code: displayChampionRationale.code })}
             </p>
-            <p className="ui-hint mt-1 text-dim">{t("results.championWhyHorizonNote")}</p>
+            {!isRmCompact ? (
+              <p className="ui-hint mt-1 text-dim">{t("results.championWhyHorizonNote")}</p>
+            ) : (
+              <p className="ui-hint mt-1 text-dim">
+                {t("rm.quant.championWhyCode", { code: displayChampionRationale.code })}
+              </p>
+            )}
             <div className="mt-2 grid grid-cols-3 gap-2 text-center ui-body">
               <div>
                 <div className="text-dim">{t("results.championFullSharpe")}</div>
@@ -1368,7 +1436,7 @@ export function ResultsDashboard({
                 </div>
               </div>
             </div>
-            <p className="ui-body mt-2 text-slate-700">{championRationale.text}</p>
+            <p className="ui-body mt-2 text-slate-700">{displayChampionRationale.text}</p>
           </div>
         )}
         <p className="ui-hint mt-4">{t("results.fullPeriod")}</p>
@@ -1645,6 +1713,14 @@ export function ResultsDashboard({
         subtitle={t("report.group.performanceHint")}
       >
       <ChartCard title={t("results.chart.performanceComparison")} subtitle={t("results.fullPeriod")}>
+        {showAnchorBenchmarkNote ? (
+          <p className="ui-hint mb-3 text-dim">
+            {t("results.anchorBenchmarkNote", {
+              anchor: benchLabel,
+              ticker: benchTicker,
+            })}
+          </p>
+        ) : null}
         {!isRmCompact && (
         <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2">
           <p className="ui-section-title mb-1">{t("results.aiComparison")}</p>
@@ -1709,7 +1785,9 @@ export function ResultsDashboard({
                       mdd_pct?: number;
                     }
                   | undefined;
-                const code = row?.model_code ?? row?.name ?? "M?";
+                const code = row?.isBenchmark
+                  ? (row?.name ?? row?.model_code ?? "—")
+                  : (row?.model_code ?? row?.name ?? "M?");
                 return (
                   <div
                     className="rounded-lg border border-[var(--primary)] bg-white px-3 py-2"
@@ -1719,7 +1797,8 @@ export function ResultsDashboard({
                       className="mb-1 text-xs font-semibold text-[var(--amber)]"
                       style={{ fontSize: Math.max(11, chartTip - 1) }}
                     >
-                      {row?.isBenchmark ? t("results.benchmark") : t("results.model")} {code}
+                      {row?.isBenchmark ? t("results.benchmark") : t("results.model")}{" "}
+                      {code}
                       {row?.isChampion ? ` · ${t("results.champion")}` : ""}
                     </div>
                     <div>{t("common.cagr")}: {Number(row?.cagr_pct ?? 0).toFixed(2)}%</div>
@@ -2312,7 +2391,7 @@ export function ResultsDashboard({
               {t("results.belowBenchmarkTitle")}
             </p>
             <p className="ui-body text-slate-700">
-              {t("results.belowBenchmarkBody", { benchmark: benchTicker })}
+              {t("results.belowBenchmarkBody", { benchmark: benchLabel })}
             </p>
             <div className="mt-3">
               <button

@@ -573,6 +573,12 @@ const en: Dict = {
   "results.championWhyTitle": "Why ★ {code} is the champion",
   "results.championWhyHorizonNote":
     "Full-period metrics below match the report grid. The AI rationale may cite in-sample (IS) or out-of-sample (OOS) horizons from optimization rounds.",
+  "results.championWhyFallbackLead":
+    "{code} was selected as champion under objective “{objective}” (full sample: Sharpe {sharpe}, CAGR {cagr}, max DD {mdd}).",
+  "results.championWhyFallbackAlt":
+    "Compared with runner-up {alt} (Sharpe {altSharpe}, CAGR {altCagr}).",
+  "results.anchorBenchmarkNote":
+    "Anchor model portfolio: {anchor}. Performance benchmark ticker (price series): {ticker} — the chart compares strategies to this ticker’s returns, not a replica of every anchor holding.",
   "results.championFullSharpe": "Full Sharpe",
   "results.championFullMaxDd": "Full max DD",
   "results.championFullCagr": "Full CAGR",
@@ -674,7 +680,7 @@ const en: Dict = {
     "Pro mode manages this for you using the round settings above.",
   "config.trialsHint.standard":
     "How many strategies to test. The first few start from AI suggestions; the rest are explored automatically. Set the report size below.",
-  "config.benchmarkLine": "Benchmark: SPY · Risk-free rate: 4%",
+  "config.benchmarkLine": "Benchmark: {benchmark} · Risk-free rate: 4%",
 
   // Constraints — advanced controls
   "config.advanced.title": "Advanced controls (optional)",
@@ -949,8 +955,6 @@ const en: Dict = {
   "rm.report.holdingsHint": "What shifted from the anchor portfolio",
   "rm.report.talkingTitle": "Suggested talking points",
   "rm.report.talkingHint": "Plain-language angles for the client meeting",
-  "rm.report.narrativeTitle": "Client-ready narrative",
-  "rm.report.narrativeHint": "AI summary you can adapt for the client",
   "rm.report.disclaimerTitle": "Compliance notice",
   "rm.report.disclaimerBody":
     "For internal RM review only. Not investment advice. All figures are backtested simulations — past performance does not guarantee future results. Human review required before any client communication.",
@@ -960,6 +964,48 @@ const en: Dict = {
   "rm.report.candidateHint":
     "Compare Optuna trials for the customized run. Champion is selected by default.",
   "rm.report.candidateChampion": "★",
+  "rm.quant.championWhyTitle": "Why this champion was selected",
+  "rm.quant.championWhyCode": "Champion strategy: {code}",
+  "proposal.ctaTitle": "Investment Proposal",
+  "proposal.ctaHint": "Generate a print-ready 10-section private-bank style proposal from this run",
+  "proposal.generate": "Generate Investment Proposal",
+  "proposal.title": "Investment Proposal (draft)",
+  "proposal.subtitle": "Internal RM draft — numbers from dual backtest; review before client use",
+  "proposal.print": "Print / Save as PDF",
+  "proposal.close": "Close",
+  "proposal.draftBanner":
+    "Working draft only. JASPER does not place trades. Formal client documents still require RM and compliance review.",
+  "proposal.section.executive": "Executive Summary",
+  "proposal.section.profile": "Client Profile & Objectives",
+  "proposal.section.current": "Current Portfolio Snapshot",
+  "proposal.section.market": "Market Context & Rationale",
+  "proposal.section.allocation": "Proposed Allocation",
+  "proposal.section.construction": "Strategy Construction & Constraints",
+  "proposal.section.validation": "Historical Validation (Backtest)",
+  "proposal.section.risk": "Risk Analysis",
+  "proposal.section.implementation": "Implementation Notes",
+  "proposal.section.disclaimers": "Disclaimers & Next Steps",
+  "proposal.body.executive":
+    "Recommended direction: customize {anchor} into {customized}, validated by dual-track backtest.",
+  "proposal.body.metricsPending": "Key performance deltas will appear after metrics load.",
+  "proposal.body.profileFallback": "Client preferences were captured in the overlay workflow.",
+  "proposal.body.currentAnchor": "Starting point (anchor model portfolio): {anchor}",
+  "proposal.body.market":
+    "Adjustment rationale centers on moving from {anchor} toward {customized} while respecting signed client needs.",
+  "proposal.body.allocationFallback": "Customized holdings will appear after weights resolve.",
+  "proposal.body.constructionFallback":
+    "Backtest window {start} → {end}; objective {objective}. Overlay prompts and excludes apply.",
+  "proposal.body.excludes": "Excluded tickers: {tickers}",
+  "proposal.body.objectiveLine": "Optimization objective: {objective}",
+  "proposal.body.validationNote":
+    "Figures come from the engine dual backtest (anchor vs customized), not generative AI invention.",
+  "proposal.body.riskMdd": "Customized max drawdown {customized} vs anchor {anchor}.",
+  "proposal.body.riskFallback": "Review drawdown and concentration in the quant tab.",
+  "proposal.body.impl1": "Phase entries if liquidity or market impact is a concern.",
+  "proposal.body.impl2": "Confirm fees, taxes, and suitability under bank policy before client delivery.",
+  "proposal.body.impl3": "Rebalance cadence follows the signed backtest configuration unless amended.",
+  "proposal.body.disclaimer1": "Past performance is not indicative of future results.",
+  "proposal.body.disclaimer2": "This draft is for RM internal use until compliance clearance.",
   "rm.holdings.change": "Change",
   "rm.holdings.added": "Added",
   "rm.holdings.removed": "Removed",
@@ -1623,6 +1669,12 @@ const zh: Dict = {
   "results.championWhyTitle": "為什麼 ★ {code} 是冠軍",
   "results.championWhyHorizonNote":
     "下方完整期間指標與報告格一致。AI 說明可能引用優化回合的樣本內（IS）或樣本外（OOS）指標。",
+  "results.championWhyFallbackLead":
+    "在目標「{objective}」下選出 {code} 為冠軍（完整樣本：夏普 {sharpe}、年化 {cagr}、最大回撤 {mdd}）。",
+  "results.championWhyFallbackAlt":
+    "相對於次優 {alt}（夏普 {altSharpe}、年化 {altCagr}）。",
+  "results.anchorBenchmarkNote":
+    "錨點模型組合：{anchor}。績效基準代碼（價格序列）：{ticker} — 圖表是與該代碼報酬比較，並非複製錨點的每一檔持股。",
   "results.championFullSharpe": "完整期間夏普",
   "results.championFullMaxDd": "完整期間最大回撤",
   "results.championFullCagr": "完整期間年化報酬",
@@ -1721,7 +1773,7 @@ const zh: Dict = {
   "config.trialsHint.pro": "Pro 模式會依上方的輪次設定替你管理。",
   "config.trialsHint.standard":
     "要測試多少種策略。前幾個從 AI 建議開始，其餘由系統自動探索。報告數量請在下方設定。",
-  "config.benchmarkLine": "基準：SPY · 無風險利率：4%",
+  "config.benchmarkLine": "基準：{benchmark} · 無風險利率：4%",
 
   // Constraints — advanced controls
   "config.advanced.title": "進階控制（選用）",
@@ -1984,8 +2036,6 @@ const zh: Dict = {
   "rm.report.holdingsHint": "相對基準配置的主要調整",
   "rm.report.talkingTitle": "建議說法",
   "rm.report.talkingHint": "客戶會議可用的白話說明角度",
-  "rm.report.narrativeTitle": "客戶簡報敘述",
-  "rm.report.narrativeHint": "可由 RM 改寫後用於客戶溝通",
   "rm.report.disclaimerTitle": "合規聲明",
   "rm.report.disclaimerBody":
     "僅供 RM 內部審閱，非投資建議。所有數字均為回測模擬結果，過去績效不代表未來表現。對客戶說明前須經人工審核。",
@@ -1995,6 +2045,48 @@ const zh: Dict = {
   "rm.report.candidateHint":
     "切換客製化回測的 Optuna 試驗；預設為冠軍策略。",
   "rm.report.candidateChampion": "★",
+  "rm.quant.championWhyTitle": "為何選為冠軍策略",
+  "rm.quant.championWhyCode": "冠軍策略：{code}",
+  "proposal.ctaTitle": "Investment Proposal",
+  "proposal.ctaHint": "從本次回測產生可列印的私人銀行十段投資建議書草案",
+  "proposal.generate": "生成 Investment Proposal",
+  "proposal.title": "Investment Proposal（草案）",
+  "proposal.subtitle": "RM 內部草案 — 數字來自雙軌回測；對客前請審核",
+  "proposal.print": "列印／另存為 PDF",
+  "proposal.close": "關閉",
+  "proposal.draftBanner":
+    "僅為作業草案。JASPER 不下單。正式對客文件仍須 RM／合規審核。",
+  "proposal.section.executive": "執行摘要 Executive Summary",
+  "proposal.section.profile": "客戶輪廓與目標 Client Profile & Objectives",
+  "proposal.section.current": "現況持倉摘要 Current Portfolio Snapshot",
+  "proposal.section.market": "市場脈絡與建議理由 Market Context & Rationale",
+  "proposal.section.allocation": "建議配置 Proposed Allocation",
+  "proposal.section.construction": "策略建構與約束 Strategy Construction & Constraints",
+  "proposal.section.validation": "歷史驗證（回測）Historical Validation",
+  "proposal.section.risk": "風險分析 Risk Analysis",
+  "proposal.section.implementation": "執行注意事項 Implementation Notes",
+  "proposal.section.disclaimers": "免責與下一步 Disclaimers & Next Steps",
+  "proposal.body.executive":
+    "建議方向：將 {anchor} 客製化為 {customized}，並以雙軌回測驗證。",
+  "proposal.body.metricsPending": "關鍵績效差異將於指標載入後顯示。",
+  "proposal.body.profileFallback": "客戶偏好已於 Overlay 流程確認。",
+  "proposal.body.currentAnchor": "起點（錨點模型組合）：{anchor}",
+  "proposal.body.market":
+    "調整理由聚焦於從 {anchor} 移向 {customized}，並遵循已簽核客戶需求。",
+  "proposal.body.allocationFallback": "客製化持股將於權重解析後顯示。",
+  "proposal.body.constructionFallback":
+    "回測區間 {start} → {end}；目標 {objective}。Overlay 提示與排除條件仍適用。",
+  "proposal.body.excludes": "排除標的：{tickers}",
+  "proposal.body.objectiveLine": "最佳化目標：{objective}",
+  "proposal.body.validationNote":
+    "數字來自引擎雙軌回測（錨點 vs 客製化），非 AI 編造。",
+  "proposal.body.riskMdd": "客製化最大回撤 {customized}，錨點為 {anchor}。",
+  "proposal.body.riskFallback": "請於量化分析分頁檢視回撤與集中度。",
+  "proposal.body.impl1": "若流動性或市場衝擊敏感，可分批建倉。",
+  "proposal.body.impl2": "對客前請確認費用、稅務與適配性（依機構規範）。",
+  "proposal.body.impl3": "再平衡頻率依已簽核回測設定，除非另行修訂。",
+  "proposal.body.disclaimer1": "過往績效不代表未來結果。",
+  "proposal.body.disclaimer2": "本草案僅供 RM 內部使用，待合規放行後再對客。",
   "rm.holdings.change": "變化",
   "rm.holdings.added": "新增",
   "rm.holdings.removed": "移除",
@@ -2658,6 +2750,12 @@ const ko: Dict = {
   "results.championWhyTitle": "★ {code}가 챔피언인 이유",
   "results.championWhyHorizonNote":
     "아래 전체 기간 지표는 보고서 표와 일치합니다. AI 설명은 최적화 라운드의 인샘플(IS) 또는 아웃오브샘플(OOS) 지표를 인용할 수 있습니다.",
+  "results.championWhyFallbackLead":
+    "목표 “{objective}” 기준으로 {code}가 챔피언으로 선정되었습니다(전체 샘플: 샤프 {sharpe}, CAGR {cagr}, 최대낙폭 {mdd}).",
+  "results.championWhyFallbackAlt":
+    "차순위 {alt} 대비(샤프 {altSharpe}, CAGR {altCagr}).",
+  "results.anchorBenchmarkNote":
+    "앵커 모델 포트폴리오: {anchor}. 성과 벤치마크 티커(가격 시계열): {ticker} — 차트는 이 티커 수익률과 비교하며, 앵커 보유 종목을 그대로 복제하지는 않습니다.",
   "results.championFullSharpe": "전체 기간 샤프",
   "results.championFullMaxDd": "전체 기간 최대 낙폭",
   "results.championFullCagr": "전체 기간 CAGR",
@@ -2757,7 +2855,7 @@ const ko: Dict = {
   "config.trialsHint.pro": "Pro 모드가 위의 라운드 설정을 사용해 대신 관리합니다.",
   "config.trialsHint.standard":
     "테스트할 전략 수. 처음 몇 개는 AI 제안에서 시작하고, 나머지는 자동으로 탐색됩니다. 보고서 크기는 아래에서 설정하세요.",
-  "config.benchmarkLine": "벤치마크: SPY · 무위험 수익률: 4%",
+  "config.benchmarkLine": "벤치마크: {benchmark} · 무위험 수익률: 4%",
 
   // Constraints — advanced controls
   "config.advanced.title": "고급 설정(선택)",
@@ -3022,8 +3120,6 @@ const ko: Dict = {
   "rm.report.holdingsHint": "기준 대비 주요 조정",
   "rm.report.talkingTitle": "권장 설명 포인트",
   "rm.report.talkingHint": "고객 미팅용 쉬운 설명",
-  "rm.report.narrativeTitle": "고객용 서술",
-  "rm.report.narrativeHint": "RM이 고객 커뮤니케이션에 맞게 수정 가능",
   "rm.report.disclaimerTitle": "컴플라이언스",
   "rm.report.disclaimerBody":
     "RM 내부 검토용. 투자 권유 아님. 모든 수치는 백테스트 시뮬레이션. 고객 설명 전 인간 검토 필수.",
@@ -3033,6 +3129,48 @@ const ko: Dict = {
   "rm.report.candidateHint":
     "맞춤 실행의 Optuna 시험을 비교합니다. 기본값은 챔피언 전략입니다.",
   "rm.report.candidateChampion": "★",
+  "rm.quant.championWhyTitle": "챔피언 전략으로 선정된 이유",
+  "rm.quant.championWhyCode": "챔피언 전략: {code}",
+  "proposal.ctaTitle": "Investment Proposal",
+  "proposal.ctaHint": "이번 실행으로 인쇄 가능한 프라이빗뱅크형 10섹션 제안서를 생성합니다",
+  "proposal.generate": "Investment Proposal 생성",
+  "proposal.title": "Investment Proposal (초안)",
+  "proposal.subtitle": "RM 내부 초안 — 수치는 듀얼 백테스트 기반; 고객 전달 전 검토 필요",
+  "proposal.print": "인쇄 / PDF로 저장",
+  "proposal.close": "닫기",
+  "proposal.draftBanner":
+    "작업용 초안입니다. JASPER는 주문을 실행하지 않습니다. 정식 고객 문서는 RM/컴플라이언스 검토가 필요합니다.",
+  "proposal.section.executive": "요약 Executive Summary",
+  "proposal.section.profile": "고객 프로필 및 목표 Client Profile & Objectives",
+  "proposal.section.current": "현재 포트폴리오 요약 Current Portfolio Snapshot",
+  "proposal.section.market": "시장 맥락 및 제안 근거 Market Context & Rationale",
+  "proposal.section.allocation": "제안 배분 Proposed Allocation",
+  "proposal.section.construction": "전략 구성 및 제약 Strategy Construction & Constraints",
+  "proposal.section.validation": "역사적 검증(백테스트) Historical Validation",
+  "proposal.section.risk": "리스크 분석 Risk Analysis",
+  "proposal.section.implementation": "실행 유의사항 Implementation Notes",
+  "proposal.section.disclaimers": "면책 및 다음 단계 Disclaimers & Next Steps",
+  "proposal.body.executive":
+    "권장 방향: {anchor}를 {customized}로 맞춤화하고 듀얼 백테스트로 검증.",
+  "proposal.body.metricsPending": "핵심 성과 차이는 지표 로드 후 표시됩니다.",
+  "proposal.body.profileFallback": "고객 선호는 오버레이 워크플로에서 확인되었습니다.",
+  "proposal.body.currentAnchor": "출발점(앵커 모델 포트폴리오): {anchor}",
+  "proposal.body.market":
+    "조정 근거는 서명된 고객 니즈를 존중하며 {anchor}에서 {customized}로 이동하는 데 초점을 둡니다.",
+  "proposal.body.allocationFallback": "맞춤 보유 종목은 가중치 해석 후 표시됩니다.",
+  "proposal.body.constructionFallback":
+    "백테스트 구간 {start} → {end}; 목표 {objective}. 오버레이 프롬프트와 제외 종목이 적용됩니다.",
+  "proposal.body.excludes": "제외 티커: {tickers}",
+  "proposal.body.objectiveLine": "최적화 목표: {objective}",
+  "proposal.body.validationNote":
+    "수치는 엔진 듀얼 백테스트(앵커 vs 맞춤)에서 오며 AI가 만들어 낸 것이 아닙니다.",
+  "proposal.body.riskMdd": "맞춤 최대낙폭 {customized}, 앵커 {anchor}.",
+  "proposal.body.riskFallback": "퀀트 탭에서 낙폭과 집중도를 검토하세요.",
+  "proposal.body.impl1": "유동성·시장충격이 우려되면 분할 진입을 고려하세요.",
+  "proposal.body.impl2": "고객 전달 전 수수료·세금·적합성(은행 정책)을 확인하세요.",
+  "proposal.body.impl3": "리밸런싱 주기는 별도 수정이 없으면 서명된 백테스트 설정을 따릅니다.",
+  "proposal.body.disclaimer1": "과거 성과가 미래 결과를 보장하지 않습니다.",
+  "proposal.body.disclaimer2": "본 초안은 컴플라이언스 승인 전까지 RM 내부용입니다.",
   "rm.holdings.change": "변화",
   "rm.holdings.added": "추가",
   "rm.holdings.removed": "제거",

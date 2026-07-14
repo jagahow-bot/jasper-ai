@@ -126,19 +126,58 @@ export function getPortfolioLabel(portfolio: ModelPortfolio, lang: Lang): string
   return PORTFOLIO_LABELS[lang][portfolio.id] ?? portfolio.name;
 }
 
-/** Localized benchmark label, e.g. 標普 500 (SPY) when anchor catalog matches. */
-export function formatBenchmarkDisplayLabel(ticker: string, lang: Lang): string {
+/**
+ * Localized performance-benchmark label for charts / institutional sections.
+ * Prefer the selected anchor model-portfolio name when provided (e.g. Multi-Cap
+ * whose official benchmark_ticker is still SPY), and always surface the ticker
+ * when it is not already in the display name.
+ */
+export function formatBenchmarkDisplayLabel(
+  ticker: string,
+  lang: Lang,
+  opts?: { anchorPortfolio?: ModelPortfolio | null },
+): string {
   const upper = ticker.trim().toUpperCase();
   if (!upper) return "SPY";
-  const portfolio = getAnchorPortfolios().find(
+
+  const withTicker = (name: string) =>
+    name.toUpperCase().includes(upper) ? name : `${name} (${upper})`;
+
+  if (opts?.anchorPortfolio) {
+    return withTicker(getPortfolioLabel(opts.anchorPortfolio, lang));
+  }
+
+  // Without an explicit anchor, prefer the pure single-ticker catalog match.
+  if (upper === "SPY") {
+    const spy = getAnchorPortfolioById(SPY_ANCHOR_ID);
+    if (spy) return withTicker(getPortfolioLabel(spy, lang));
+  }
+  const byTicker = getAnchorPortfolios().find(
     (p) => p.benchmark.toUpperCase() === upper,
   );
-  if (portfolio) {
-    const name = getPortfolioLabel(portfolio, lang);
-    if (name.toUpperCase().includes(upper)) return name;
-    return `${name} (${upper})`;
-  }
+  if (byTicker) return withTicker(getPortfolioLabel(byTicker, lang));
   return upper;
+}
+
+/**
+ * True when the selected model portfolio is more than a single-ticker clone of
+ * the performance benchmark (so UX should clarify anchor vs ticker).
+ */
+export function anchorDiffersFromBenchmarkTicker(
+  portfolio: ModelPortfolio | null | undefined,
+  benchmarkTicker: string,
+): boolean {
+  if (!portfolio) return false;
+  const ticker = benchmarkTicker.trim().toUpperCase();
+  if (!ticker) return false;
+  if (
+    portfolio.holdings.length === 1 &&
+    portfolio.holdings[0].ticker.toUpperCase() === ticker &&
+    Math.abs(portfolio.holdings[0].weight - 1) < 1e-6
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function getAnchorPortfolios(): ModelPortfolio[] {
