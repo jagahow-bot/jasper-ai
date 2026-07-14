@@ -19,6 +19,8 @@ type Props = {
   rmId?: string;
   clientRef?: string;
   baseScenarioId?: string;
+  /** Prefill the input when launching from Client Dashboard. */
+  initialDraft?: string;
   onConfirm?: (overlay: ClientOverlay) => void;
 };
 
@@ -34,12 +36,13 @@ export function OverlayConversationPanel({
   rmId = "rm-demo",
   clientRef,
   baseScenarioId,
+  initialDraft,
   onConfirm,
 }: Props) {
   const { lang, t } = useI18n();
   const reportLanguage = lang === "zh" ? "zh-TW" : lang;
 
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(initialDraft ?? "");
   const [messages, setMessages] = useState<OverlayConversationMessage[]>([]);
   const [overlay, setOverlay] = useState<ClientOverlay | null>(null);
   const [loading, setLoading] = useState(false);

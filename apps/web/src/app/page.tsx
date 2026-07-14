@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnchorPortfolioSelector } from "@/components/AnchorPortfolioSelector";
+import { AppNav } from "@/components/AppNav";
 import { BacktestHistoryPanel } from "@/components/BacktestHistoryPanel";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
-import { FontSizeControl } from "@/components/FontSizeControl";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
 import { RmRunPanel } from "@/components/RmRunPanel";
 import { RmReportView } from "@/components/RmReportView";
@@ -29,6 +29,12 @@ import {
   findLocalHistoryEntry,
   recordCompletedBacktest,
 } from "@/lib/backtest-history";
+import {
+  buildClientOverlayPrefill,
+  getDemoClientById,
+  localizedText,
+  type DemoClient,
+} from "@/lib/clients";
 import { DEFAULT_ASSET_CLASSES } from "@/lib/constants";
 import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
@@ -44,6 +50,7 @@ import {
   SPY_ANCHOR_ID,
   type ModelPortfolio,
 } from "@/lib/model-portfolios";
+import { getManagedPortfolioById } from "@/lib/model-portfolios-store";
 import { resolveResultBenchmarkTicker } from "@/lib/resolve-result-benchmark";
 import {
   overlayToBacktestRequest,
@@ -57,6 +64,15 @@ import type {
   PersonalizationCompare,
   WizardPhase,
 } from "@/lib/types";
+
+function asModelPortfolio(
+  p: ModelPortfolio & { conflict_tickers?: string[]; enabled?: boolean },
+): ModelPortfolio {
+  const rest: Record<string, unknown> = { ...p };
+  delete rest.conflict_tickers;
+  delete rest.enabled;
+  return rest as ModelPortfolio;
+}
 
 function pushMessage(
   set: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
@@ -104,6 +120,8 @@ export default function HomePage() {
   const { t, lang } = useI18n();
   const [phase, setPhase] = useState<WizardPhase>("anchor");
   const [anchorPortfolioId, setAnchorPortfolioId] = useState(SPY_ANCHOR_ID);
+  const [activeClient, setActiveClient] = useState<DemoClient | null>(null);
+  const [overlayPrefill, setOverlayPrefill] = useState<string | undefined>();
   const [signedOverlay, setSignedOverlay] = useState<ClientOverlay | null>(null);
   const [personalizationCompare, setPersonalizationCompare] =
     useState<PersonalizationCompare | null>(null);
@@ -124,11 +142,15 @@ export default function HomePage() {
   >(null);
   const [continueLoading, setContinueLoading] = useState(false);
   const universeMeta = useMemo(() => getUniverseMeta(), []);
+  const clientLaunchApplied = useRef(false);
 
-  const anchorPortfolio = useMemo(
-    () => getAnchorPortfolioById(anchorPortfolioId) ?? SPY_ANCHOR,
-    [anchorPortfolioId],
-  );
+  const anchorPortfolio = useMemo(() => {
+    const managed = getManagedPortfolioById(anchorPortfolioId);
+    if (managed) {
+      return asModelPortfolio(managed);
+    }
+    return getAnchorPortfolioById(anchorPortfolioId) ?? SPY_ANCHOR;
+  }, [anchorPortfolioId]);
 
   const syncRequestFromAnchor = useCallback(
     (portfolio: ModelPortfolio = anchorPortfolio) => {
@@ -345,15 +367,56 @@ export default function HomePage() {
 
   // Deep link from notification emails: /?job=<id> auto-loads that job's
   // results on first mount so recipients land straight on their report.
+  // Client Dashboard launch: /?client=<id>&anchor=<id> prefills context.
   const deepLinkLoaded = useRef(false);
   useEffect(() => {
     if (deepLinkLoaded.current) return;
     if (typeof window === "undefined") return;
-    const jobParam = new URLSearchParams(window.location.search).get("job");
-    if (!jobParam) return;
-    deepLinkLoaded.current = true;
-    void loadHistoricalJob(jobParam);
-  }, [loadHistoricalJob]);
+    const params = new URLSearchParams(window.location.search);
+    const jobParam = params.get("job");
+    if (jobParam) {
+      deepLinkLoaded.current = true;
+      void loadHistoricalJob(jobParam);
+      return;
+    }
+
+    if (clientLaunchApplied.current) return;
+    const clientId = params.get("client");
+    const anchorParam = params.get("anchor");
+    if (!clientId && !anchorParam) return;
+    clientLaunchApplied.current = true;
+
+    const client = clientId ? getDemoClientById(clientId) : null;
+    if (client) {
+      setActiveClient(client);
+      setOverlayPrefill(buildClientOverlayPrefill(client, lang));
+      const anchorId =
+        anchorParam ||
+        client.suggested_model_portfolio_id ||
+        SPY_ANCHOR_ID;
+      const portfolio =
+        getManagedPortfolioById(anchorId) ??
+        getAnchorPortfolioById(anchorId) ??
+        SPY_ANCHOR;
+      setAnchorPortfolioId(portfolio.id);
+      syncRequestFromAnchor(asModelPortfolio(portfolio));
+      pushMessage(
+        setMessages,
+        "assistant",
+        t("clients.launchBanner", {
+          name: localizedText(client.display_name, lang),
+        }),
+      );
+    } else if (anchorParam) {
+      const portfolio =
+        getManagedPortfolioById(anchorParam) ??
+        getAnchorPortfolioById(anchorParam);
+      if (portfolio) {
+        setAnchorPortfolioId(portfolio.id);
+        syncRequestFromAnchor(asModelPortfolio(portfolio));
+      }
+    }
+  }, [loadHistoricalJob, lang, t, syncRequestFromAnchor]);
 
   const runBacktest = useCallback(
     async (reqOverride?: BacktestRequest) => {
@@ -711,19 +774,11 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)] shadow-sm">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:py-4">
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight text-[var(--foreground)] md:text-xl">
-              JASPER.AI
-            </h1>
-            <p className="mt-0.5 text-sm text-[var(--text-dim)]">
-              {header}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <LanguageSwitcher />
-            <FontSizeControl />
+      <AppNav
+        subtitle={header}
+        showLabLink
+        extraBadges={
+          <>
             {apiOnline === false && (
               <span
                 className="pixel-badge pixel-badge-warn max-w-xs"
@@ -738,18 +793,12 @@ export default function HomePage() {
             <span className="pixel-badge">
               {t("header.etfs", { count: universeMeta.count })}
             </span>
-            <a
-              href="/lab/objective-switch"
-              className="pixel-badge pixel-badge-link"
-            >
-              {t("header.objectiveLab")}
-            </a>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <main className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[360px_1fr]">
-        <aside className="pixel-panel flex h-[calc(100vh-120px)] flex-col">
+        <aside className="pixel-panel flex h-[calc(100vh-160px)] flex-col">
           <h2 className="mb-3 shrink-0 ui-section-title">
             {t("header.terminalLog")}
           </h2>
@@ -767,6 +816,23 @@ export default function HomePage() {
         </aside>
 
         <section className="space-y-5">
+          {activeClient ? (
+            <div className="saas-inset flex flex-wrap items-center justify-between gap-2 text-sm">
+              <p>
+                {t("clients.contextBanner", {
+                  name: localizedText(activeClient.display_name, lang),
+                  risk: activeClient.risk_profile,
+                })}
+              </p>
+              <Link
+                href={`/clients/${activeClient.client_id}`}
+                className="text-[var(--primary)] hover:underline"
+              >
+                {t("clients.viewDashboard")}
+              </Link>
+            </div>
+          ) : null}
+
           {phase === "anchor" && (
             <AnchorPortfolioSelector
               selectedId={anchorPortfolioId}
@@ -779,6 +845,8 @@ export default function HomePage() {
             <div className="space-y-3">
               <OverlayConversationPanel
                 baseScenarioId={`anchor-${anchorPortfolioId}`}
+                clientRef={activeClient?.client_id}
+                initialDraft={overlayPrefill}
                 onConfirm={onOverlayConfirm}
               />
               <button

@@ -1,0 +1,249 @@
+{
+  "version": "1.0",
+  "updated": "2026-07-14",
+  "description": "Demo private-banking clients for JASPER RM Copilot (Client Dashboard → Benchmark Personalization).",
+  "clients": [
+    {
+      "client_id": "JB-HNWI-001",
+      "display_name": {
+        "en": "Mr. Wang",
+        "zh": "王先生",
+        "ko": "왕 씨"
+      },
+      "segment": "UHNW",
+      "risk_profile": "moderate",
+      "currency": "USD",
+      "age": 55,
+      "aum_usd": 12000000,
+      "cash_usd": 12000000,
+      "investment_horizon": "5–7 years",
+      "liquidity_notes": {
+        "en": "Needs ~USD 1.5M within 12 months for a residential purchase; remaining cash to be invested gradually.",
+        "zh": "明年購屋需提領約 150 萬美元流動性；其餘現金擬分批投入。",
+        "ko": "향후 12개월 내 주택 구매로 약 USD 150만 유동성 필요; 잔여 현금은 분할 투자 예정."
+      },
+      "preferences": {
+        "esg": "light",
+        "tags": ["ESG", "capital_preservation", "liquidity"]
+      },
+      "rm_owner": "RM Demo",
+      "as_of_date": "2026-07-14",
+      "suggested_model_portfolio_id": "classic-60-40",
+      "holdings": [
+        {
+          "ticker": "CASH",
+          "name": "Cash / money market",
+          "asset_class": "cash",
+          "weight": 1.0,
+          "region": "us",
+          "notes": "Fully in cash pending deployment"
+        }
+      ],
+      "notes": {
+        "en": "Prior overlay demo persona: 55yo, $12M cash, $1.5M house liquidity, light ESG preference.",
+        "zh": "Overlay 示範情境：55 歲、現金約 1,200 萬美元、購屋流動性 150 萬、輕度 ESG 偏好。",
+        "ko": "이전 오버레이 데모 페르소나: 55세, 현금 약 1,200만 달러, 주택 유동성 150만, ESG 경미 선호."
+      }
+    },
+    {
+      "client_id": "JB-HNWI-002",
+      "display_name": {
+        "en": "Ms. Chen",
+        "zh": "陳小姐",
+        "ko": "천 씨"
+      },
+      "segment": "HNW",
+      "risk_profile": "aggressive",
+      "currency": "USD",
+      "age": 38,
+      "aum_usd": 4500000,
+      "cash_usd": 350000,
+      "investment_horizon": "10+ years",
+      "liquidity_notes": {
+        "en": "No near-term withdrawal; open to growth / tech tilt.",
+        "zh": "近期無提領需求；可接受成長／科技傾斜。",
+        "ko": "단기 인출 없음; 성장·테크 틸트 가능."
+      },
+      "preferences": {
+        "esg": "none",
+        "tags": ["growth", "tech", "US_equity"]
+      },
+      "rm_owner": "RM Demo",
+      "as_of_date": "2026-07-14",
+      "suggested_model_portfolio_id": "us-multi-cap-equity",
+      "holdings": [
+        {
+          "ticker": "QQQ",
+          "name": "Invesco QQQ Trust",
+          "asset_class": "equity",
+          "weight": 0.45,
+          "region": "us"
+        },
+        {
+          "ticker": "SPY",
+          "name": "SPDR S&P 500 ETF Trust",
+          "asset_class": "equity",
+          "weight": 0.3,
+          "region": "us"
+        },
+        {
+          "ticker": "IWM",
+          "name": "iShares Russell 2000 ETF",
+          "asset_class": "equity",
+          "weight": 0.15,
+          "region": "us"
+        },
+        {
+          "ticker": "CASH",
+          "name": "Cash",
+          "asset_class": "cash",
+          "weight": 0.1,
+          "region": "us"
+        }
+      ],
+      "notes": {
+        "en": "Tech-heavy book; RM to discuss concentration vs model multi-cap anchor.",
+        "zh": "持股偏科技；理專可對照多市值模型組合討論集中度。",
+        "ko": "테크 비중 높음; 멀티캡 모델과 집중도 논의."
+      }
+    },
+    {
+      "client_id": "JB-HNWI-003",
+      "display_name": {
+        "en": "Mr. Lin",
+        "zh": "林先生",
+        "ko": "린 씨"
+      },
+      "segment": "HNW",
+      "risk_profile": "conservative",
+      "currency": "USD",
+      "age": 62,
+      "aum_usd": 6800000,
+      "cash_usd": 800000,
+      "investment_horizon": "3–5 years",
+      "liquidity_notes": {
+        "en": "May need ~USD 400k for family medical / estate planning within 24 months.",
+        "zh": "未來 24 個月內可能需約 40 萬美元作為醫療／遺產規劃。",
+        "ko": "향후 24개월 내 의료·상속 계획으로 약 USD 40만 필요할 수 있음."
+      },
+      "preferences": {
+        "esg": "moderate",
+        "tags": ["income", "drawdown_control", "bonds"]
+      },
+      "rm_owner": "RM Demo",
+      "as_of_date": "2026-07-14",
+      "suggested_model_portfolio_id": "all-weather-simplified",
+      "holdings": [
+        {
+          "ticker": "AGG",
+          "name": "iShares Core U.S. Aggregate Bond ETF",
+          "asset_class": "fixed_income",
+          "weight": 0.4,
+          "region": "us"
+        },
+        {
+          "ticker": "BND",
+          "name": "Vanguard Total Bond Market ETF",
+          "asset_class": "fixed_income",
+          "weight": 0.2,
+          "region": "us"
+        },
+        {
+          "ticker": "SPY",
+          "name": "SPDR S&P 500 ETF Trust",
+          "asset_class": "equity",
+          "weight": 0.25,
+          "region": "us"
+        },
+        {
+          "ticker": "GLD",
+          "name": "SPDR Gold Shares",
+          "asset_class": "commodity",
+          "weight": 0.05,
+          "region": "global"
+        },
+        {
+          "ticker": "CASH",
+          "name": "Cash",
+          "asset_class": "cash",
+          "weight": 0.1,
+          "region": "us"
+        }
+      ],
+      "notes": {
+        "en": "Bond-heavy; prefers capital preservation and smoother path vs equities.",
+        "zh": "債市比重高；偏好資本保全與較平穩走勢。",
+        "ko": "채권 비중 높음; 자본 보전과 변동성 완화 선호."
+      }
+    },
+    {
+      "client_id": "JB-HNWI-004",
+      "display_name": {
+        "en": "Mrs. Chang",
+        "zh": "張太太",
+        "ko": "장 씨"
+      },
+      "segment": "UHNW",
+      "risk_profile": "moderate",
+      "currency": "USD",
+      "age": 48,
+      "aum_usd": 9200000,
+      "cash_usd": 600000,
+      "investment_horizon": "7–10 years",
+      "liquidity_notes": {
+        "en": "Annual philanthropy ~USD 200k; otherwise fully invested horizon.",
+        "zh": "每年慈善約 20 萬美元；其餘長期配置。",
+        "ko": "연간 기부 약 USD 20만; 그 외 장기 투자."
+      },
+      "preferences": {
+        "esg": "strong",
+        "tags": ["ESG", "global", "balanced"]
+      },
+      "rm_owner": "RM Demo",
+      "as_of_date": "2026-07-14",
+      "suggested_model_portfolio_id": "bogleheads-three-fund-80-20",
+      "holdings": [
+        {
+          "ticker": "SPY",
+          "name": "SPDR S&P 500 ETF Trust",
+          "asset_class": "equity",
+          "weight": 0.35,
+          "region": "us"
+        },
+        {
+          "ticker": "VXUS",
+          "name": "Vanguard Total International Stock ETF",
+          "asset_class": "equity",
+          "weight": 0.25,
+          "region": "intl"
+        },
+        {
+          "ticker": "BND",
+          "name": "Vanguard Total Bond Market ETF",
+          "asset_class": "fixed_income",
+          "weight": 0.25,
+          "region": "us"
+        },
+        {
+          "ticker": "XLV",
+          "name": "Health Care Select Sector SPDR",
+          "asset_class": "equity",
+          "weight": 0.08,
+          "region": "us"
+        },
+        {
+          "ticker": "CASH",
+          "name": "Cash",
+          "asset_class": "cash",
+          "weight": 0.07,
+          "region": "us"
+        }
+      ],
+      "notes": {
+        "en": "Strong ESG preference; global equity + bonds; suggest three-fund as anchor.",
+        "zh": "ESG 偏好強；全球股債配置；建議以三基金組合為錨點。",
+        "ko": "ESG 선호 강함; 글로벌 주식·채권; 3-펀드를 앵커로 제안."
+      }
+    }
+  ]
+}

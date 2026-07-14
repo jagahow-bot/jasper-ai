@@ -2,10 +2,10 @@
 
 >
 >
-> **版本**：1.1（PoC — 基準客製化 / SPY V2）  
-> **適用場景**：私人銀行 RM 以自然語言捕捉客戶需求，經 AI 引導對話結構化為 **Overlay JSON**，再映射至 `BacktestRequest` 執行「**基準配置 vs 客製化配置**」（例如標普 500 客製版）並列回測，產出機構級 RM 報告。  
+> **版本**：1.2（PoC — **基準客製化 / Benchmark Personalization**）  
+> **適用場景**：私人銀行 RM 以自然語言捕捉客戶需求，經 AI 引導對話結構化為 **Overlay JSON**，再映射至 `BacktestRequest` 執行「**Anchor（基準）vs Customized（客製化配置）**」並列回測（例：「標普 500 客製版」「Classic 60/40 客製版」），產出機構級 RM 報告。  
 > **設計原則**：AI 只負責**萃取與確認**客戶意圖，不產生自由下單指令；所有績效數字由量化引擎計算。  
-> **產品敘事**：Universe = 主流 ETF 積木（SPY、QQQ、AGG、IWM、GLD…）；**Anchor（基準配置）** = SPY 或機構模型組合；RM 描述客戶需求 → JASPER 輸出 **客製化變體** → 驗證 = 客製化 vs 基準並列比較。
+> **產品敘事**：Universe = 主流 ETF 積木（SPY、QQQ、AGG、IWM、GLD…）；**Anchor（基準配置）** = RM 選定之 model portfolio（例：SPY／標普 500、QQQ、Classic 60/40）；RM 描述客戶需求 → JASPER 輸出 **客製化配置（Customized Portfolio）** → 驗證 = **基準 vs 客製化** 並列比較。UI 可顯示「客製化配置 vs {錨點顯示名}」。**勿**以「SPY V2」作為通用產品名。
 
 ---
 
@@ -19,8 +19,8 @@
 | **1. 需求探索**       | 以口語描述客戶情境（流動性、集中度、市場擔憂）          | AI 多輪追問、標記已確認／待澄清欄位                                           | `clarification_questions`、部分 Overlay |
 | **2. 結構化確認**      | 檢視「AI 理解的 overlay」摘要卡，修正欄位       | 顯示映射預覽（資產類別、universe 規則、槽位權重）                                 | phase=`confirm`                      |
 | **3. RM 簽核**      | 點選「確認並執行回測」、可附註                  | 寫入 `rm_sign_off`、鎖定 Overlay 版本                                | 不可變 overlay snapshot                 |
-| **4. 雙軌回測**       | 等待引擎完成                           | **Base**：機構模型／上次冠軍；**Adjusted**：Overlay 映射的 `BacktestRequest` | 兩份 `BacktestResult`                  |
-| **5. 檢視報告**       | 比較 base vs adjusted、編輯敘事要點       | Institutional Report + AI 敘事（`narrative_facts` 校驗）            | RM 簡報素材                              |
+| **4. 雙軌回測**       | 等待引擎完成                           | **Anchor（基準）**：機構模型／選定錨點；**Customized（客製化）**：Overlay 映射的 `BacktestRequest` | 兩份 `BacktestResult`                  |
+| **5. 檢視報告**       | 比較 **基準 vs 客製化**、編輯敘事要點       | Institutional Report + AI 敘事（`narrative_facts` 校驗）            | RM 簡報素材                              |
 | **6. 客戶簡報**       | 匯出／共閱（i18n）                      | 審計軌跡保留 overlay + sign-off + job_id                            | 合規可追溯                                |
 
 
@@ -344,7 +344,7 @@ RM 確認 → overlayToBacktestRequest(base, overlay) → POST /api/jobs (adjust
 | **基準配置選擇（Anchor）**       | ✓ `AnchorPortfolioSelector` + `model-portfolios` | 客戶實際持倉／行內模型庫 |
 | 對話式 Overlay 萃取            | ✓ `/api/overlay/interpret`   | 多語音／會議記錄匯入       |
 | Overlay → BacktestRequest | ✓ `overlayToBacktestRequest` | 與核心銀行帳戶持倉同步      |
-| 雙軌 base vs adjusted       | ✓ 並行 `createJob` + `BenchmarkComparePanel` | 自動載入客戶實際持倉       |
+| 雙軌 Anchor vs Customized   | ✓ 並行 `createJob` + `BenchmarkComparePanel` | 自動載入客戶實際持倉       |
 | RM 簽核 UI                  | ✓ `OverlayConversationPanel`（已接入主精靈） | SSO + 合規系統 API   |
 | Session 持久化               | 瀏覽器 / 匯出 JSON                | 機構資料庫 + 保留政策     |
 | Universe                  | 328 ETF                      | Julius Baer 產品目錄 |
@@ -362,7 +362,7 @@ RM 確認 → overlayToBacktestRequest(base, overlay) → POST /api/jobs (adjust
 2. `/api/overlay/interpret` — Gemini structured extract + fallback
 3. `OverlayConversationPanel.tsx` — 對話 + 摘要卡 + 確認
 4. **`AnchorPortfolioSelector` + `page.tsx` 精靈** — 基準 → Overlay → 設定 → 雙軌回測
-5. **`BenchmarkComparePanel`** — 基準 vs 客製化並列指標（CAGR、夏普、回撤）
+5. **`BenchmarkComparePanel`** — Anchor vs Customized（基準 vs 客製化）並列指標（CAGR、夏普、回撤）
 6. **報告比較視圖** — 並列 institutional metrics（Phase 2）
 
 ---
