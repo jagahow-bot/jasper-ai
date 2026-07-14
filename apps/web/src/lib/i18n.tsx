@@ -878,9 +878,9 @@ const en: Dict = {
   // Anchor / benchmark personalization
   "anchor.title": "Anchor portfolio",
   "anchor.subtitle":
-    "Choose an Asset Manager model portfolio as the client's starting benchmark. JASPER builds a customized variant on top — later AMs can list their own wealth products in the Investment Pool.",
-  "anchor.universeNote": "Demo universe: {count} mainstream ETFs (SPY, QQQ, AGG, GLD, …)",
-  "anchor.placeholderHoldingsHint": "Holdings shown as mainstream ETF placeholders",
+    "Choose an Asset Manager model portfolio as the client's starting benchmark. Each model is a theme built from that issuer's ETFs in the Investment Pool — JASPER builds a customized variant on top.",
+  "anchor.universeNote": "Demo universe: {count} mainstream ETFs (SPY, IVV, QQQ, VTI, AGG, …)",
+  "anchor.placeholderHoldingsHint": "All constituents are ETFs from this Asset Manager",
   "anchor.selected": "Selected anchor",
   "anchor.continue": "Continue to client needs",
   "anchor.am": "Asset Manager",
@@ -1124,7 +1124,7 @@ const en: Dict = {
 
   "models.title": "Model Portfolios",
   "models.subtitle": "AM anchor catalog",
-  "models.hint": "Maintain Asset Manager model portfolios used as anchors in Benchmark Personalization. Constituents must be enabled in the Investment Pool. Flat CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
+  "models.hint": "Maintain Asset Manager model portfolios used as anchors in Benchmark Personalization. Each portfolio should use ETFs from a single issuer; constituents must be enabled in the Investment Pool. Flat CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
   "models.countBadge": "{ready} ready / {total} total",
   "models.resetBundled": "Reset to bundled",
   "models.importCsv": "Import CSV",
@@ -1966,9 +1966,9 @@ const zh: Dict = {
   // Anchor / benchmark personalization
   "anchor.title": "基準配置",
   "anchor.subtitle":
-    "選擇資產管理公司（AM）發布的主題模型組合作為客戶起點基準。JASPER 會在其上建立客製化變體——之後 AM 可將自家財富產品掛入投資標的池。",
-  "anchor.universeNote": "示範標的池：{count} 檔主流 ETF（SPY、QQQ、AGG、GLD 等）",
-  "anchor.placeholderHoldingsHint": "成分以主流 ETF 示意",
+    "選擇資產管理公司（AM）發布的主題模型組合作為客戶起點基準；每個組合的成分均為該發行機構在投資標的池中的 ETF。JASPER 會在其上建立客製化變體。",
+  "anchor.universeNote": "示範標的池：{count} 檔主流 ETF（SPY、IVV、QQQ、VTI、AGG 等）",
+  "anchor.placeholderHoldingsHint": "成分均為該發行機構 ETF",
   "anchor.selected": "已選基準",
   "anchor.continue": "下一步：描述客戶需求",
   "anchor.am": "資產管理人",
@@ -2209,7 +2209,7 @@ const zh: Dict = {
 
   "models.title": "模型組合",
   "models.subtitle": "AM 錨點目錄",
-  "models.hint": "維護基準客製化用的資產管理人（AM）模型組合。成分必須屬於已啟用的投資標的池。扁平 CSV：portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled。",
+  "models.hint": "維護基準客製化用的資產管理人（AM）模型組合；每個組合應僅使用單一發行機構的 ETF，且成分必須屬於已啟用的投資標的池。扁平 CSV：portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled。",
   "models.countBadge": "可用 {ready} / 共 {total}",
   "models.resetBundled": "重設為內建組合",
   "models.importCsv": "匯入 CSV",
@@ -3056,9 +3056,9 @@ const ko: Dict = {
   // Anchor / benchmark personalization
   "anchor.title": "기준 구성",
   "anchor.subtitle":
-    "자산운용사(AM)가 발행한 테마 모델 포트폴리오를 고객의 시작 벤치마크로 선택하세요. JASPER가 그 위에 맞춤 변형을 구성합니다 — 이후 AM은 자체 상품을 Investment Pool에 등록할 수 있습니다.",
-  "anchor.universeNote": "데모 유니버스: 주요 ETF {count}개 (SPY, QQQ, AGG, GLD 등)",
-  "anchor.placeholderHoldingsHint": "구성은 주요 ETF로 예시",
+    "자산운용사(AM)가 발행한 테마 모델 포트폴리오를 고객의 시작 벤치마크로 선택하세요. 각 모델은 해당 운용사 ETF로만 구성되며, JASPER가 그 위에 맞춤 변형을 만듭니다.",
+  "anchor.universeNote": "데모 유니버스: 주요 ETF {count}개 (SPY, IVV, QQQ, VTI, AGG 등)",
+  "anchor.placeholderHoldingsHint": "구성은 모두 해당 운용사 ETF",
   "anchor.selected": "선택된 기준",
   "anchor.continue": "다음: 고객 니즈",
   "anchor.am": "자산운용사",
@@ -3298,7 +3298,7 @@ const ko: Dict = {
 
   "models.title": "모델 포트폴리오",
   "models.subtitle": "AM 앵커 카탈로그",
-  "models.hint": "벤치마크 맞춤화용 자산운용사(AM) 모델 포트폴리오를 관리합니다. 구성 종목은 활성 투자 유니버스에 있어야 합니다. CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
+  "models.hint": "벤치마크 맞춤화용 자산운용사(AM) 모델 포트폴리오를 관리합니다. 각 포트폴리오는 단일 운용사 ETF만 사용해야 하며, 구성 종목은 활성 투자 유니버스에 있어야 합니다. CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
   "models.countBadge": "사용가능 {ready} / 전체 {total}",
   "models.resetBundled": "기본 모델로 재설정",
   "models.importCsv": "CSV 가져오기",

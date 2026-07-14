@@ -16,9 +16,9 @@ export type ModelPortfolioSource = {
 
 export type ModelPortfolio = {
   id: string;
-  /** Stable publisher AM id (e.g. amundi-demo). */
+  /** Stable issuer family id (e.g. blackrock-ishares). */
   am_id: string;
-  /** Display name of the Asset Manager publisher. */
+  /** Display name of the Asset Manager / issuer family. */
   asset_manager: string;
   /** Product / theme title (also mirrored in `name`). */
   theme: string;
@@ -38,7 +38,7 @@ type ModelPortfoliosFile = {
   portfolios: ModelPortfolio[];
 };
 
-const file = modelPortfoliosFile as ModelPortfoliosFile;
+const file = modelPortfoliosFile as unknown as ModelPortfoliosFile;
 
 export function getModelPortfolios(): ModelPortfolio[] {
   return file.portfolios;
@@ -62,6 +62,7 @@ export const MAINSTREAM_DEMO_TICKERS = [
   "SPY",
   "QQQ",
   "IWM",
+  "IVV",
   "DIA",
   "VTI",
   "VXUS",
@@ -83,14 +84,14 @@ export const SPY_ANCHOR_ID = "spy-benchmark";
 
 export const SPY_ANCHOR: ModelPortfolio = {
   id: SPY_ANCHOR_ID,
-  am_id: "state-street-demo",
-  asset_manager: "State Street Demo",
+  am_id: "state-street-spdr",
+  asset_manager: "State Street SPDR",
   theme: "S&P 500 Benchmark",
   name: "S&P 500 Benchmark",
   description:
-    "State Street Demo single-ticker US large-cap benchmark (SPY). Common anchor for personalized ETF variants.",
+    "State Street SPDR single-ticker US large-cap benchmark (SPY). Common anchor for personalized ETF variants.",
   source: {
-    name: "Demo AM catalog — State Street Demo S&P 500 Benchmark",
+    name: "SPDR S&P 500 ETF Trust",
     url: "https://www.ssga.com/us/en/individual/etfs/funds/spdr-sp-500-etf-trust-spy",
   },
   asset_class_mix: { equity: 1 },
@@ -103,31 +104,34 @@ export const SPY_ANCHOR: ModelPortfolio = {
 
 const ASSET_MANAGER_LABELS: Record<Lang, Record<string, string>> = {
   en: {
-    [SPY_ANCHOR_ID]: "State Street Demo",
-    "classic-60-40": "Amundi",
-    "bogleheads-three-fund-80-20": "Vanguard-style Demo",
-    "global-equity-market-cap": "Julia Demo AM",
-    "us-multi-cap-equity": "Julius Baer Model",
-    "us-sector-growth-tilt": "BlackRock",
-    "all-weather-simplified": "Pictet",
+    [SPY_ANCHOR_ID]: "State Street SPDR",
+    "classic-60-40": "BlackRock iShares",
+    "bogleheads-three-fund-80-20": "Vanguard",
+    "global-equity-market-cap": "Vanguard",
+    "us-multi-cap-equity": "State Street SPDR",
+    "us-sector-growth-tilt": "Invesco",
+    "all-weather-simplified": "BlackRock iShares",
+    "vanguard-equity-tilt-80-20": "Vanguard",
   },
   zh: {
-    [SPY_ANCHOR_ID]: "State Street Demo",
-    "classic-60-40": "Amundi",
-    "bogleheads-three-fund-80-20": "Vanguard-style Demo",
-    "global-equity-market-cap": "Julia Demo AM",
-    "us-multi-cap-equity": "Julius Baer Model",
-    "us-sector-growth-tilt": "BlackRock",
-    "all-weather-simplified": "Pictet",
+    [SPY_ANCHOR_ID]: "State Street SPDR",
+    "classic-60-40": "BlackRock iShares",
+    "bogleheads-three-fund-80-20": "Vanguard",
+    "global-equity-market-cap": "Vanguard",
+    "us-multi-cap-equity": "State Street SPDR",
+    "us-sector-growth-tilt": "Invesco",
+    "all-weather-simplified": "BlackRock iShares",
+    "vanguard-equity-tilt-80-20": "Vanguard",
   },
   ko: {
-    [SPY_ANCHOR_ID]: "State Street Demo",
-    "classic-60-40": "Amundi",
-    "bogleheads-three-fund-80-20": "Vanguard-style Demo",
-    "global-equity-market-cap": "Julia Demo AM",
-    "us-multi-cap-equity": "Julius Baer Model",
-    "us-sector-growth-tilt": "BlackRock",
-    "all-weather-simplified": "Pictet",
+    [SPY_ANCHOR_ID]: "State Street SPDR",
+    "classic-60-40": "BlackRock iShares",
+    "bogleheads-three-fund-80-20": "Vanguard",
+    "global-equity-market-cap": "Vanguard",
+    "us-multi-cap-equity": "State Street SPDR",
+    "us-sector-growth-tilt": "Invesco",
+    "all-weather-simplified": "BlackRock iShares",
+    "vanguard-equity-tilt-80-20": "Vanguard",
   },
 };
 
@@ -135,30 +139,33 @@ const ASSET_MANAGER_LABELS: Record<Lang, Record<string, string>> = {
 const PORTFOLIO_LABELS: Record<Lang, Record<string, string>> = {
   en: {
     [SPY_ANCHOR_ID]: "S&P 500 Benchmark",
-    "classic-60-40": "Balanced 60/40",
+    "classic-60-40": "Balanced Core",
     "bogleheads-three-fund-80-20": "Three-Fund",
-    "global-equity-market-cap": "Global Market-Cap Equity",
-    "us-multi-cap-equity": "Growth Multi-Cap",
-    "us-sector-growth-tilt": "US Equity Core",
+    "global-equity-market-cap": "Global Equity",
+    "us-multi-cap-equity": "US Large Cap Core",
+    "us-sector-growth-tilt": "Tech Growth",
     "all-weather-simplified": "All Weather Defensive",
+    "vanguard-equity-tilt-80-20": "Equity Tilt 80/20",
   },
   zh: {
     [SPY_ANCHOR_ID]: "標普 500 基準",
-    "classic-60-40": "平衡 60/40",
+    "classic-60-40": "平衡核心",
     "bogleheads-three-fund-80-20": "三基金組合",
-    "global-equity-market-cap": "全球市值加權股票",
-    "us-multi-cap-equity": "成長多市值",
-    "us-sector-growth-tilt": "美國股票核心",
+    "global-equity-market-cap": "全球股票",
+    "us-multi-cap-equity": "美國大型股核心",
+    "us-sector-growth-tilt": "科技成長",
     "all-weather-simplified": "全天候防禦",
+    "vanguard-equity-tilt-80-20": "股票傾斜 80/20",
   },
   ko: {
     [SPY_ANCHOR_ID]: "S&P 500 벤치마크",
-    "classic-60-40": "균형 60/40",
+    "classic-60-40": "균형 코어",
     "bogleheads-three-fund-80-20": "3-펀드",
-    "global-equity-market-cap": "글로벌 시가총액 주식",
-    "us-multi-cap-equity": "성장 멀티캡",
-    "us-sector-growth-tilt": "미국 주식 코어",
+    "global-equity-market-cap": "글로벌 주식",
+    "us-multi-cap-equity": "미국 대형주 코어",
+    "us-sector-growth-tilt": "테크 성장",
     "all-weather-simplified": "올웨더 방어형",
+    "vanguard-equity-tilt-80-20": "주식 틸트 80/20",
   },
 };
 
@@ -254,35 +261,39 @@ const PORTFOLIO_DESCRIPTIONS: Record<Lang, Record<string, string>> = {
   en: {},
   zh: {
     [SPY_ANCHOR_ID]:
-      "State Street Demo 單一標的美股大型股基準（SPY），常用於客製化變體的起點。",
+      "State Street SPDR 單一標的美股大型股基準（SPY），常用於客製化變體的起點。",
     "classic-60-40":
-      "Amundi 風格平衡配置：60% 股票成長＋40% 投資級債券。成分以主流 ETF 示意。",
+      "BlackRock iShares 平衡核心：60% 美股大型（IVV）＋40% 美國綜合債（AGG）。成分均為該發行機構 ETF。",
     "bogleheads-three-fund-80-20":
-      "Vanguard-style Demo 三基金主題：美股、國際股與債券，約 80/20 股債比（非官方產品）。",
+      "Vanguard 三基金：全美股市、國際股與美國債，約 80/20 股債比。成分均為該發行機構 ETF。",
     "global-equity-market-cap":
-      "Julia Demo AM 全球市值加權主題（約 60% 美股／40% 國際），示意未來可掛入標的池的財富產品。",
+      "Vanguard 全球股票主題（約 60% 美股／40% 國際），僅用 VTI 與 VXUS。成分均為該發行機構 ETF。",
     "us-multi-cap-equity":
-      "Julius Baer Model 成長多市值示意：美股大型、成長科技與小型股袖口。",
+      "State Street SPDR 美國大型股核心：SPY 加上醫療與金融產業 Select Sector。成分均為該發行機構 ETF。",
     "us-sector-growth-tilt":
-      "BlackRock 風格美國股票核心，成長傾斜並含醫療與金融產業袖口。",
+      "Invesco 科技成長：QQQ 為主，搭配小幅商品衛星（PDBC）。成分均為該發行機構 ETF。",
     "all-weather-simplified":
-      "Pictet 風格全天候防禦：股、債、黃金與大宗商品風險平衡。",
+      "BlackRock iShares 全天候防禦：大型股股票＋長中短期公債。成分均為該發行機構 ETF。",
+    "vanguard-equity-tilt-80-20":
+      "Vanguard 股票傾斜 80/20：VTI 80%＋BND 20%。成分均為該發行機構 ETF。",
   },
   ko: {
     [SPY_ANCHOR_ID]:
-      "State Street Demo 미국 대형주 단일 벤치마크(SPY). 맞춤 변형의 출발점.",
+      "State Street SPDR 미국 대형주 단일 벤치마크(SPY). 맞춤 변형의 출발점.",
     "classic-60-40":
-      "Amundi 스타일 균형: 주식 60% + 투자등급 채권 40%. 구성은 주요 ETF로 예시.",
+      "BlackRock iShares 균형 코어: 미국 대형주(IVV) 60% + 종합채권(AGG) 40%. 구성은 모두 해당 운용사 ETF.",
     "bogleheads-three-fund-80-20":
-      "Vanguard-style Demo 3-펀드 테마: 미국·국제 주식과 채권 80/20 (공식 상품 아님).",
+      "Vanguard 3-펀드: 미국·국제 주식과 채권 80/20. 구성은 모두 해당 운용사 ETF.",
     "global-equity-market-cap":
-      "Julia Demo AM 글로벌 시가총액 테마(미국 ~60% / 국제 ~40%). 향후 Investment Pool 매핑용 예시.",
+      "Vanguard 글로벌 주식(미국 ~60% / 국제 ~40%), VTI·VXUS만 사용. 구성은 모두 해당 운용사 ETF.",
     "us-multi-cap-equity":
-      "Julius Baer Model 성장 멀티캡: 미국 대형·성장·소형 슬리브.",
+      "State Street SPDR 미국 대형주 코어: SPY + 헬스케어·금융 섹터. 구성은 모두 해당 운용사 ETF.",
     "us-sector-growth-tilt":
-      "BlackRock 스타일 미국 주식 코어 + 성장 틸트, 헬스케어·금융 섹터.",
+      "Invesco 테크 성장: QQQ 중심 + 소규모 원자재(PDBC). 구성은 모두 해당 운용사 ETF.",
     "all-weather-simplified":
-      "Pictet 스타일 올웨더 방어형: 주식·채권·금·원자재 리스크 균형.",
+      "BlackRock iShares 올웨더 방어형: 대형주 + 장·중·단기 국채. 구성은 모두 해당 운용사 ETF.",
+    "vanguard-equity-tilt-80-20":
+      "Vanguard 주식 틸트 80/20: VTI 80% + BND 20%. 구성은 모두 해당 운용사 ETF.",
   },
 };
 

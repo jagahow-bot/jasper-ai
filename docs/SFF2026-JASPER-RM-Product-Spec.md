@@ -217,7 +217,7 @@ flowchart LR
 | 決策 | 規格 |
 |------|------|
 | **產品方向** | **YES — 上傳／維護 Model Portfolios**（與 Investment Pool 同粒度精神：Demo＝**全局**清單，非 per-client） |
-| **敘事** | 呈現為 **Asset Manager（AM）發布的主題模型組合**（例：Amundi · Balanced 60/40）；成分以主流 ETF 示意，之後 AM 可將自家財富產品掛入 Investment Pool |
+| **敘事** | 呈現為 **Asset Manager（AM）發布的主題模型組合**（例：BlackRock iShares · Balanced Core）；**每個組合的成分均為該發行機構 ETF**（Demo 池內真實 ETF），可誠實顯示 AM 徽章 |
 | **用途** | 作為階段三 **Benchmark Personalization** 的 **Anchor（基準／錨點）目錄**；取代／擴充僅靜態 `model-portfolios.json` 的敘事 |
 | **與 Pool 關係** | 組成成分受 enabled Investment Pool 約束（見下） |
 
@@ -225,10 +225,10 @@ flowchart LR
 
 | 欄位 | 說明 |
 |------|------|
-| **Asset Manager** | 發布方 AM（`asset_manager` / `am_id`；Demo 可用 Demo AM／示意品牌） |
-| **Theme / Name** | 主題或產品名（例：US Equity Core、Balanced 60/40） |
+| **Asset Manager** | 發行機構家族（`asset_manager` / `am_id`；例：BlackRock iShares、Vanguard、State Street SPDR、Invesco） |
+| **Theme / Name** | 投資主題或產品名（例：Balanced Core、Three-Fund、Tech Growth） |
 | **Risk profile** | conservative / moderate / aggressive（或機構等級代碼）；便於依客戶 `risk_profile` 預選 Anchor |
-| **Holdings + weights** | ticker → weight；權重建議合計 = 1.0（或 100%）；Demo 以主流 ETF 為 placeholder |
+| **Holdings + weights** | ticker → weight；權重建議合計 = 1.0（或 100%）；**同一組合僅使用該 AM 的 ETF** |
 | **Benchmark ticker** | 可選：對應單一指數／基準 ETF（例：SPY）；**引擎用 benchmark 不變** |
 | **Enabled** | 關閉者不出現在階段三 Anchor 選單 |
 

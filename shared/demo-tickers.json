@@ -1,11 +1,12 @@
-{
+﻿{
   "version": "1.0",
-  "updated": "2026-07-09",
+  "updated": "2026-07-14",
   "description": "Mainstream ETF building blocks for JASPER demo personalization (not full universe).",
   "tickers": [
     "SPY",
     "QQQ",
     "IWM",
+    "IVV",
     "DIA",
     "VTI",
     "VXUS",
