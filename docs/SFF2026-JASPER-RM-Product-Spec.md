@@ -330,20 +330,22 @@ flowchart LR
 
 在 Dual Backtest / Institutional Report 之後，產出一份符合**私人銀行對客 Investment Proposal**慣例的結構文件（草案），供 RM 審核後用於客戶會議——**不是自動成交、不是法規終稿**。
 
-### 6.2 產業慣例 10 段結構 × JASPER 輸出對照
+### 6.2 產業慣例結構 × JASPER 輸出對照
+
+> **品質對齊（2026-07-14）**：Investment Proposal Preview 已對齊示範 PDF `invest-proposal-example.pdf` 約 **~80%**：封面（客戶／RM／日期／機密）、歡迎信、目錄、執行摘要、客戶輪廓、現況持倉表、建議策略（AM·Theme 錨點＋客製化）、配置表（ETF 名稱＋%＋示意金額）、話術理由、雙軌績效圖＋指標／持倉變化表、執行（DCA／再平衡／流動性）、警語與適配免責。其餘 20% 需銀行正式範本、法遵審核、基金事實表、收費明細與監管文案。
 
 | # | Proposal Section（Eng） | 中文標題（建議） | 內容期望 | 主要對應 JASPER 輸出／來源 |
 |---|-------------------------|------------------|----------|----------------------------|
-| 1 | **Executive Summary** | 執行摘要 | 客戶目標、建議方向、一句話結論 | Overlay 確認摘要 + 冠軍／調整後關鍵結論 |
+| — | **Cover + Letter** | 封面與開場信 | 客戶、編製人、日期、機密、投資金額；Dear Client 開場 | Demo Client + Overlay RM sign-off + 當日日期 |
+| 1 | **Executive Summary** | 執行摘要 | 客戶目標、建議方向、一句話結論 | Overlay 確認摘要 + 雙軌關鍵績效差異 |
 | 2 | **Client Profile & Objectives** | 客戶輪廓與目標 | 風險、年期、流動性、偏好 | Client Dashboard Profile + Overlay 已確認欄位 |
-| 3 | **Current Portfolio Snapshot** | 現況持倉摘要 | 配置、集中度、與目標落差 | Client Investments +（可選）相對 Anchor 落差敘事 |
-| 4 | **Market Context & Rationale** | 市場脈絡與建議理由 | 為何現在調整、觀點假設 | RM／Overlay 市場觀點 + AI 敘事（校驗後） |
-| 5 | **Proposed Allocation** | 建議配置 | 資產類別／槽位權重、核心持倉 | Adjusted Backtest 權重、sleeve targets、核心 ticker |
-| 6 | **Strategy Construction & Constraints** | 策略建構與約束 | Universe 規則、上限、排除、再平衡假設 | Overlay universe / optimization / param_adjustments |
-| 7 | **Historical Validation（Backtest）** | 歷史驗證（回測） | Anchor vs Customized 績效、回撤、樣本外 | Dual Backtest、Institutional Report 圖表與指標 |
-| 8 | **Risk Analysis** | 風險分析 | 波動、最大回撤、追蹤誤差／集中度 | 引擎風險指標 + 持倉／類別曝險 |
-| 9 | **Implementation Notes** | 執行注意事項 | 分批、流動性、稅務／費用（Demo 級） | RM 可編輯備註；PoC 以 checklist 模板為主 |
-| 10 | **Disclaimers & Next Steps** | 免責與下一步 | 過往績效不代表未來；待 RM／合規確認 | 固定法遵 boilerplate + Session／job 審計參考 |
+| 3 | **Current Situation / Holdings** | 現況與持倉 | 配置、金額示意 | Client Investments snapshot |
+| 4 | **Recommended Strategy** | 建議策略 | 錨點 AM Theme + 客製化方向與約束 | Model Portfolio（AM·Theme）+ Overlay universe／objective |
+| 5 | **Proposed Allocation** | 建議配置 | ETF 名稱、權重、金額示意表 | Customized champion weights + ticker display names |
+| 6 | **Rationale & Talking Points** | 理由與話術 | 會議可用敘事 | `buildTalkingPoints`（已校驗數字） |
+| 7 | **Risk & Performance** | 風險與績效示意 | 雙軌淨值圖、指標表、持倉變化 | Dual Backtest equity + metrics |
+| 8 | **Implementation** | 執行規劃 | DCA、再平衡、流動性緩衝 | 模板 checklist + 客戶流動性備註 |
+| 9 | **Disclaimers & Suitability** | 免責與適配 | 過往績效、下單邊界、適配仍歸銀行 | 固定 boilerplate + Session 審計參考 |
 
 ### 6.3 產出形式（PoC）
 
@@ -473,3 +475,4 @@ Investment Proposal 明確標示：
 | 0.1 | 2026-07-14 | 初稿：前後擴充四階段、全局 Investment Pool、Investment Proposal 十段對照、Demo／非目標／MVP |
 | 0.2 | 2026-07-14 | 命名：淘汰「SPY V2」通用產品名；改採 **基準客製化／Benchmark Personalization**；新增 §5.0 命名約定 |
 | 0.3 | 2026-07-14 | **Model Portfolios 維護**（§4.6）：全局 CSV、Pool 成分約束、關係圖 Pool→Models→BP；E2E／MVP **M1b**／名詞對照同步 |
+| 0.4 | 2026-07-14 | Investment Proposal 對齊 `invest-proposal-example.pdf` ~80%（封面／配置表／雙軌績效／執行與警語）；§6.2 結構更新 |

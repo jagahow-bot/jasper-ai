@@ -970,7 +970,8 @@ const en: Dict = {
   "rm.quant.championWhyTitle": "Why this champion was selected",
   "rm.quant.championWhyCode": "Champion strategy: {code}",
   "proposal.ctaTitle": "Investment Proposal",
-  "proposal.ctaHint": "Generate a print-ready 10-section private-bank style proposal from this run",
+  "proposal.ctaHint":
+    "Generate a print-ready private-bank style proposal (cover, allocation table, dual-track performance) from this run",
   "proposal.generate": "Generate Investment Proposal",
   "proposal.title": "Investment Proposal (draft)",
   "proposal.subtitle": "Internal RM draft — numbers from dual backtest; review before client use",
@@ -978,37 +979,117 @@ const en: Dict = {
   "proposal.close": "Close",
   "proposal.draftBanner":
     "Working draft only. JASPER does not place trades. Formal client documents still require RM and compliance review.",
+  "proposal.toc": "Contents",
+  "proposal.cover.docTitle": "Investment Proposal",
+  "proposal.cover.firm": "Private Banking · RM Copilot",
+  "proposal.cover.confidential": "Confidential — for intended recipient only",
+  "proposal.cover.clientFallback": "Valued client",
+  "proposal.cover.rmFallback": "Relationship Manager",
+  "proposal.cover.amountPending": "To be confirmed",
+  "proposal.cover.strategyLine":
+    "Anchor: {am} · {theme}. Recommended path: {customized}.",
+  "proposal.letter.dear": "Dear {client},",
+  "proposal.letter.thanks":
+    "Thank you for discussing your {amount} investment mandate anchored on {strategy}. Please find below our proposed portfolio and supporting analysis.",
+  "proposal.letter.recommend":
+    "We recommend progressing from {anchor} toward the customized allocation ({customized}), subject to your confirmation and bank suitability review.",
+  "proposal.letter.close": "Kind regards,",
+  "proposal.field.client": "Client",
+  "proposal.field.preparedBy": "Prepared by",
+  "proposal.field.date": "Date",
+  "proposal.field.investment": "Illustrative investment amount",
+  "proposal.field.segment": "Segment",
+  "proposal.field.age": "Age",
+  "proposal.field.risk": "Risk profile",
+  "proposal.field.horizon": "Investment horizon",
+  "proposal.field.horizonYears": "Horizon (overlay)",
+  "proposal.field.years": "{n} years",
+  "proposal.field.aum": "AUM",
+  "proposal.field.cash": "Cash",
+  "proposal.field.liquidity": "Liquidity needs",
+  "proposal.field.overlayLiquidity": "Liquidity (overlay)",
+  "proposal.field.withinMonths": "Within {n} months",
+  "proposal.field.esg": "ESG preference",
+  "proposal.field.objective": "Optimization objective",
+  "proposal.field.marketStance": "Market stance",
+  "proposal.field.profile": "Profile",
+  "proposal.table.fund": "Fund / ETF",
+  "proposal.table.holding": "Holding",
+  "proposal.table.pct": "Allocation %",
+  "proposal.table.amount": "Monetary allocation",
+  "proposal.table.total": "Total",
+  "proposal.table.metric": "Metric",
+  "proposal.table.delta": "Delta",
+  "proposal.table.anchorPct": "Anchor %",
+  "proposal.table.customPct": "Proposed %",
   "proposal.section.executive": "Executive Summary",
   "proposal.section.profile": "Client Profile & Objectives",
-  "proposal.section.current": "Current Portfolio Snapshot",
-  "proposal.section.market": "Market Context & Rationale",
+  "proposal.section.current": "Current Situation / Holdings",
+  "proposal.section.strategy": "Recommended Strategy",
   "proposal.section.allocation": "Proposed Allocation",
+  "proposal.section.rationale": "Rationale & Talking Points",
+  "proposal.section.performance": "Risk & Performance Illustration",
+  "proposal.section.implementation": "Implementation",
+  "proposal.section.disclaimers": "Disclaimers & Suitability",
+  "proposal.section.market": "Market Context & Rationale",
   "proposal.section.construction": "Strategy Construction & Constraints",
   "proposal.section.validation": "Historical Validation (Backtest)",
   "proposal.section.risk": "Risk Analysis",
-  "proposal.section.implementation": "Implementation Notes",
-  "proposal.section.disclaimers": "Disclaimers & Next Steps",
+  "proposal.body.letterIntro":
+    "This proposal outlines a customized ETF portfolio for {client} (illustrative size {amount}), using {am} · {theme} as the model-portfolio anchor.",
   "proposal.body.executive":
     "Recommended direction: customize {anchor} into {customized}, validated by dual-track backtest.",
   "proposal.body.metricsPending": "Key performance deltas will appear after metrics load.",
   "proposal.body.profileFallback": "Client preferences were captured in the overlay workflow.",
   "proposal.body.currentAnchor": "Starting point (anchor model portfolio): {anchor}",
+  "proposal.body.currentFootnote":
+    "Current holdings snapshot as of {asOf}. Demo data — not a custodian feed.",
   "proposal.body.market":
     "Adjustment rationale centers on moving from {anchor} toward {customized} while respecting signed client needs.",
+  "proposal.body.strategyAnchor":
+    "Anchor model portfolio: {am} · {theme} (risk band: {risk}). This is the AM-themed starting product.",
+  "proposal.body.strategyCustomize":
+    "Customized recommendation ({customized}) personalizes the anchor ({anchor}) using signed overlay constraints and dual backtest validation.",
   "proposal.body.allocationFallback": "Customized holdings will appear after weights resolve.",
+  "proposal.body.allocationFootnote":
+    "Weights from the customized champion (or selected trial). Monetary figures are illustrative using the client cash / AUM snapshot.",
   "proposal.body.constructionFallback":
     "Backtest window {start} → {end}; objective {objective}. Overlay prompts and excludes apply.",
   "proposal.body.excludes": "Excluded tickers: {tickers}",
   "proposal.body.objectiveLine": "Optimization objective: {objective}",
   "proposal.body.validationNote":
-    "Figures come from the engine dual backtest (anchor vs customized), not generative AI invention.",
+    "Figures come from the engine dual backtest (anchor vs customized), not generative AI invention. Past performance is not a reliable guide to future performance.",
+  "proposal.body.chartCaption":
+    "Illustrative dual equity (rebased to 100) over {start} → {end}. Actual policy values will differ after fees, taxes, and timing.",
   "proposal.body.riskMdd": "Customized max drawdown {customized} vs anchor {anchor}.",
   "proposal.body.riskFallback": "Review drawdown and concentration in the quant tab.",
+  "proposal.body.implDca":
+    "Consider dollar-cost averaging (DCA) into equity sleeves if lump-sum market timing is a concern.",
+  "proposal.body.implRebalance":
+    "Rebalance according to the signed backtest window assumptions ({start} → {end}) unless the bank policy specifies otherwise.",
+  "proposal.body.implLiquidity":
+    "Retain a liquidity buffer aligned to near-term cash needs before full deployment.",
+  "proposal.body.implClientLiquidity": "Client liquidity note: {note}",
   "proposal.body.impl1": "Phase entries if liquidity or market impact is a concern.",
   "proposal.body.impl2": "Confirm fees, taxes, and suitability under bank policy before client delivery.",
   "proposal.body.impl3": "Rebalance cadence follows the signed backtest configuration unless amended.",
+  "proposal.body.signOffNote": "RM sign-off note: {note}",
   "proposal.body.disclaimer1": "Past performance is not indicative of future results.",
   "proposal.body.disclaimer2": "This draft is for RM internal use until compliance clearance.",
+  "proposal.body.disclaimerSuitability":
+    "Suitability, KYC, and product approval remain bank-controlled processes; JASPER does not certify regulatory fitness.",
+  "proposal.body.nextSteps":
+    "Next steps: RM review → compliance / suitability check → client discussion → implementation instructions (outside JASPER).",
+  "proposal.warning.pastPerformance":
+    "Warning: Past performance is not a reliable guide to future performance.",
+  "proposal.warning.valueFluctuation":
+    "Warning: The value of an investment may go down as well as up, and you may lose some or all of the money invested.",
+  "proposal.warning.currency":
+    "Warning: Returns may be affected by changes in currency exchange rates.",
+  "proposal.warning.estimates":
+    "Warning: These figures are estimates / backtested illustrations only.",
+  "proposal.warning.noAdvice":
+    "Warning: This material is for information and discussion purposes only and does not constitute an offer or investment advice.",
   "rm.holdings.change": "Change",
   "rm.holdings.added": "Added",
   "rm.holdings.removed": "Removed",
@@ -2056,7 +2137,8 @@ const zh: Dict = {
   "rm.quant.championWhyTitle": "為何選為冠軍策略",
   "rm.quant.championWhyCode": "冠軍策略：{code}",
   "proposal.ctaTitle": "Investment Proposal",
-  "proposal.ctaHint": "從本次回測產生可列印的私人銀行十段投資建議書草案",
+  "proposal.ctaHint":
+    "從本次回測產生可列印的私人銀行風格建議書（封面、配置表、雙軌績效）",
   "proposal.generate": "生成 Investment Proposal",
   "proposal.title": "Investment Proposal（草案）",
   "proposal.subtitle": "RM 內部草案 — 數字來自雙軌回測；對客前請審核",
@@ -2064,37 +2146,117 @@ const zh: Dict = {
   "proposal.close": "關閉",
   "proposal.draftBanner":
     "僅為作業草案。JASPER 不下單。正式對客文件仍須 RM／合規審核。",
+  "proposal.toc": "目錄 Contents",
+  "proposal.cover.docTitle": "Investment Proposal",
+  "proposal.cover.firm": "私人銀行 · RM Copilot",
+  "proposal.cover.confidential": "機密 — 僅供指定收件人",
+  "proposal.cover.clientFallback": "貴賓客戶",
+  "proposal.cover.rmFallback": "理財經理",
+  "proposal.cover.amountPending": "待確認",
+  "proposal.cover.strategyLine":
+    "錨點：{am} · {theme}。建議路徑：{customized}。",
+  "proposal.letter.dear": "親愛的 {client}：",
+  "proposal.letter.thanks":
+    "感謝與您討論約 {amount} 的投資配置，錨點為 {strategy}。以下為建議組合與相關分析。",
+  "proposal.letter.recommend":
+    "我們建議自 {anchor} 朝客製化配置（{customized}）推進，最終仍須您的確認與本行之適配審查。",
+  "proposal.letter.close": "此致",
+  "proposal.field.client": "客戶",
+  "proposal.field.preparedBy": "編製人",
+  "proposal.field.date": "日期",
+  "proposal.field.investment": "參考投資金額",
+  "proposal.field.segment": "客群",
+  "proposal.field.age": "年齡",
+  "proposal.field.risk": "風險屬性",
+  "proposal.field.horizon": "投資年期",
+  "proposal.field.horizonYears": "年期（Overlay）",
+  "proposal.field.years": "{n} 年",
+  "proposal.field.aum": "管理資產",
+  "proposal.field.cash": "現金",
+  "proposal.field.liquidity": "流動性需求",
+  "proposal.field.overlayLiquidity": "流動性（Overlay）",
+  "proposal.field.withinMonths": "{n} 個月內",
+  "proposal.field.esg": "ESG 偏好",
+  "proposal.field.objective": "最佳化目標",
+  "proposal.field.marketStance": "市場觀點",
+  "proposal.field.profile": "輪廓",
+  "proposal.table.fund": "基金／ETF",
+  "proposal.table.holding": "持倉",
+  "proposal.table.pct": "配置比例",
+  "proposal.table.amount": "金額配置",
+  "proposal.table.total": "合計",
+  "proposal.table.metric": "指標",
+  "proposal.table.delta": "差異",
+  "proposal.table.anchorPct": "錨點 %",
+  "proposal.table.customPct": "建議 %",
   "proposal.section.executive": "執行摘要 Executive Summary",
   "proposal.section.profile": "客戶輪廓與目標 Client Profile & Objectives",
-  "proposal.section.current": "現況持倉摘要 Current Portfolio Snapshot",
-  "proposal.section.market": "市場脈絡與建議理由 Market Context & Rationale",
+  "proposal.section.current": "現況與持倉 Current Situation / Holdings",
+  "proposal.section.strategy": "建議策略 Recommended Strategy",
   "proposal.section.allocation": "建議配置 Proposed Allocation",
+  "proposal.section.rationale": "理由與話術 Rationale & Talking Points",
+  "proposal.section.performance": "風險與績效示意 Risk & Performance",
+  "proposal.section.implementation": "執行規劃 Implementation",
+  "proposal.section.disclaimers": "免責與適配 Disclaimers & Suitability",
+  "proposal.section.market": "市場脈絡與建議理由 Market Context & Rationale",
   "proposal.section.construction": "策略建構與約束 Strategy Construction & Constraints",
   "proposal.section.validation": "歷史驗證（回測）Historical Validation",
   "proposal.section.risk": "風險分析 Risk Analysis",
-  "proposal.section.implementation": "執行注意事項 Implementation Notes",
-  "proposal.section.disclaimers": "免責與下一步 Disclaimers & Next Steps",
+  "proposal.body.letterIntro":
+    "本建議書為 {client} 之客製化 ETF 配置草案（參考規模 {amount}），以 {am} · {theme} 為模型組合錨點。",
   "proposal.body.executive":
     "建議方向：將 {anchor} 客製化為 {customized}，並以雙軌回測驗證。",
   "proposal.body.metricsPending": "關鍵績效差異將於指標載入後顯示。",
   "proposal.body.profileFallback": "客戶偏好已於 Overlay 流程確認。",
   "proposal.body.currentAnchor": "起點（錨點模型組合）：{anchor}",
+  "proposal.body.currentFootnote":
+    "現況持倉截至 {asOf}。Demo 資料 — 非保管行正式進帳。",
   "proposal.body.market":
     "調整理由聚焦於從 {anchor} 移向 {customized}，並遵循已簽核客戶需求。",
+  "proposal.body.strategyAnchor":
+    "錨點模型組合：{am} · {theme}（風險帶：{risk}）。此為資產管理公司主題產品起點。",
+  "proposal.body.strategyCustomize":
+    "客製化建議（{customized}）依已簽核 Overlay 約束，對錨點（{anchor}）進行個人化，並以雙軌回測驗證。",
   "proposal.body.allocationFallback": "客製化持股將於權重解析後顯示。",
+  "proposal.body.allocationFootnote":
+    "權重來自客製化冠軍（或選定試驗）。金額為示意，依客戶現金／AUM 快照推估。",
   "proposal.body.constructionFallback":
     "回測區間 {start} → {end}；目標 {objective}。Overlay 提示與排除條件仍適用。",
   "proposal.body.excludes": "排除標的：{tickers}",
   "proposal.body.objectiveLine": "最佳化目標：{objective}",
   "proposal.body.validationNote":
-    "數字來自引擎雙軌回測（錨點 vs 客製化），非 AI 編造。",
+    "數字來自引擎雙軌回測（錨點 vs 客製化），非 AI 編造。過往績效並非未來表現之可靠指引。",
+  "proposal.body.chartCaption":
+    "雙軌淨值示意（均 rebase 至 100），區間 {start} → {end}。實際保單／帳戶價值將受費用、稅負與進出時點影響。",
   "proposal.body.riskMdd": "客製化最大回撤 {customized}，錨點為 {anchor}。",
   "proposal.body.riskFallback": "請於量化分析分頁檢視回撤與集中度。",
+  "proposal.body.implDca":
+    "若顧慮一次性進場時機，可對股票部位採定期定額（DCA）分批布局。",
+  "proposal.body.implRebalance":
+    "再平衡依已簽核回測假設（{start} → {end}），除非銀行政策另有規定。",
+  "proposal.body.implLiquidity":
+    "全額投入前，請保留足以因應短期現金需求的流動性緩衝。",
+  "proposal.body.implClientLiquidity": "客戶流動性備註：{note}",
   "proposal.body.impl1": "若流動性或市場衝擊敏感，可分批建倉。",
   "proposal.body.impl2": "對客前請確認費用、稅務與適配性（依機構規範）。",
   "proposal.body.impl3": "再平衡頻率依已簽核回測設定，除非另行修訂。",
+  "proposal.body.signOffNote": "RM 簽核備註：{note}",
   "proposal.body.disclaimer1": "過往績效不代表未來結果。",
   "proposal.body.disclaimer2": "本草案僅供 RM 內部使用，待合規放行後再對客。",
+  "proposal.body.disclaimerSuitability":
+    "適配性、KYC 與產品核准仍為銀行可控流程；JASPER 不對法規適配出具認證。",
+  "proposal.body.nextSteps":
+    "下一步：RM 審閱 → 合規／適配檢查 → 客戶討論 → 執行指示（於 JASPER 外完成）。",
+  "proposal.warning.pastPerformance":
+    "警語：過往績效並非未來表現之可靠指引。",
+  "proposal.warning.valueFluctuation":
+    "警語：投資價值可升可跌，您可能損失部分或全部本金。",
+  "proposal.warning.currency":
+    "警語：報酬可能受匯率波動影響。",
+  "proposal.warning.estimates":
+    "警語：數字僅為估計／回測示意。",
+  "proposal.warning.noAdvice":
+    "警語：本資料僅供資訊與討論，不構成要約或投資建議。",
   "rm.holdings.change": "變化",
   "rm.holdings.added": "新增",
   "rm.holdings.removed": "移除",
@@ -3145,7 +3307,8 @@ const ko: Dict = {
   "rm.quant.championWhyTitle": "챔피언 전략으로 선정된 이유",
   "rm.quant.championWhyCode": "챔피언 전략: {code}",
   "proposal.ctaTitle": "Investment Proposal",
-  "proposal.ctaHint": "이번 실행으로 인쇄 가능한 프라이빗뱅크형 10섹션 제안서를 생성합니다",
+  "proposal.ctaHint":
+    "이번 실행으로 인쇄 가능한 프라이빗뱅크형 제안서(표지·배분표·듀얼 성과)를 생성합니다",
   "proposal.generate": "Investment Proposal 생성",
   "proposal.title": "Investment Proposal (초안)",
   "proposal.subtitle": "RM 내부 초안 — 수치는 듀얼 백테스트 기반; 고객 전달 전 검토 필요",
@@ -3153,37 +3316,117 @@ const ko: Dict = {
   "proposal.close": "닫기",
   "proposal.draftBanner":
     "작업용 초안입니다. JASPER는 주문을 실행하지 않습니다. 정식 고객 문서는 RM/컴플라이언스 검토가 필요합니다.",
+  "proposal.toc": "목차 Contents",
+  "proposal.cover.docTitle": "Investment Proposal",
+  "proposal.cover.firm": "Private Banking · RM Copilot",
+  "proposal.cover.confidential": "기밀 — 지정 수신인 전용",
+  "proposal.cover.clientFallback": "고객",
+  "proposal.cover.rmFallback": "담당 RM",
+  "proposal.cover.amountPending": "확인 예정",
+  "proposal.cover.strategyLine":
+    "앵커: {am} · {theme}. 권장 경로: {customized}.",
+  "proposal.letter.dear": "{client} 님께,",
+  "proposal.letter.thanks":
+    "{strategy}를 앵커로 한 약 {amount} 투자 논의를 감사드립니다. 아래는 제안 포트폴리오와 분석입니다.",
+  "proposal.letter.recommend":
+    "{anchor}에서 맞춤 배분({customized})으로 진행하시길 권고드리며, 최종 확인과 은행 적합성 심사가 필요합니다.",
+  "proposal.letter.close": "감사합니다,",
+  "proposal.field.client": "고객",
+  "proposal.field.preparedBy": "작성자",
+  "proposal.field.date": "일자",
+  "proposal.field.investment": "참고 투자금액",
+  "proposal.field.segment": "세그먼트",
+  "proposal.field.age": "연령",
+  "proposal.field.risk": "위험성향",
+  "proposal.field.horizon": "투자기간",
+  "proposal.field.horizonYears": "기간(오버레이)",
+  "proposal.field.years": "{n}년",
+  "proposal.field.aum": "AUM",
+  "proposal.field.cash": "현금",
+  "proposal.field.liquidity": "유동성 니즈",
+  "proposal.field.overlayLiquidity": "유동성(오버레이)",
+  "proposal.field.withinMonths": "{n}개월 이내",
+  "proposal.field.esg": "ESG 선호",
+  "proposal.field.objective": "최적화 목표",
+  "proposal.field.marketStance": "시장 관점",
+  "proposal.field.profile": "프로필",
+  "proposal.table.fund": "펀드 / ETF",
+  "proposal.table.holding": "보유",
+  "proposal.table.pct": "배분 %",
+  "proposal.table.amount": "금액 배분",
+  "proposal.table.total": "합계",
+  "proposal.table.metric": "지표",
+  "proposal.table.delta": "차이",
+  "proposal.table.anchorPct": "앵커 %",
+  "proposal.table.customPct": "제안 %",
   "proposal.section.executive": "요약 Executive Summary",
   "proposal.section.profile": "고객 프로필 및 목표 Client Profile & Objectives",
-  "proposal.section.current": "현재 포트폴리오 요약 Current Portfolio Snapshot",
-  "proposal.section.market": "시장 맥락 및 제안 근거 Market Context & Rationale",
+  "proposal.section.current": "현재 상황 / 보유 Current Situation / Holdings",
+  "proposal.section.strategy": "권장 전략 Recommended Strategy",
   "proposal.section.allocation": "제안 배분 Proposed Allocation",
+  "proposal.section.rationale": "근거 및 설명 포인트 Rationale & Talking Points",
+  "proposal.section.performance": "리스크·성과 예시 Risk & Performance",
+  "proposal.section.implementation": "실행 Implementation",
+  "proposal.section.disclaimers": "면책 및 적합성 Disclaimers & Suitability",
+  "proposal.section.market": "시장 맥락 및 제안 근거 Market Context & Rationale",
   "proposal.section.construction": "전략 구성 및 제약 Strategy Construction & Constraints",
   "proposal.section.validation": "역사적 검증(백테스트) Historical Validation",
   "proposal.section.risk": "리스크 분석 Risk Analysis",
-  "proposal.section.implementation": "실행 유의사항 Implementation Notes",
-  "proposal.section.disclaimers": "면책 및 다음 단계 Disclaimers & Next Steps",
+  "proposal.body.letterIntro":
+    "본 제안서는 {client}의 맞춤 ETF 포트폴리오 초안이며(참고 규모 {amount}), {am} · {theme}를 모델 포트폴리오 앵커로 사용합니다.",
   "proposal.body.executive":
     "권장 방향: {anchor}를 {customized}로 맞춤화하고 듀얼 백테스트로 검증.",
   "proposal.body.metricsPending": "핵심 성과 차이는 지표 로드 후 표시됩니다.",
   "proposal.body.profileFallback": "고객 선호는 오버레이 워크플로에서 확인되었습니다.",
   "proposal.body.currentAnchor": "출발점(앵커 모델 포트폴리오): {anchor}",
+  "proposal.body.currentFootnote":
+    "현재 보유 스냅샷 기준일 {asOf}. 데모 데이터 — 커스터디 피드가 아닙니다.",
   "proposal.body.market":
     "조정 근거는 서명된 고객 니즈를 존중하며 {anchor}에서 {customized}로 이동하는 데 초점을 둡니다.",
+  "proposal.body.strategyAnchor":
+    "앵커 모델 포트폴리오: {am} · {theme} (리스크 밴드: {risk}). AM 테마 상품 출발점입니다.",
+  "proposal.body.strategyCustomize":
+    "맞춤 권고({customized})는 서명된 오버레이 제약으로 앵커({anchor})를 개인화하고 듀얼 백테스트로 검증합니다.",
   "proposal.body.allocationFallback": "맞춤 보유 종목은 가중치 해석 후 표시됩니다.",
+  "proposal.body.allocationFootnote":
+    "가중치는 맞춤 챔피언(또는 선택 트라이얼) 기준입니다. 금액은 고객 현금/AUM 스냅샷의 예시입니다.",
   "proposal.body.constructionFallback":
     "백테스트 구간 {start} → {end}; 목표 {objective}. 오버레이 프롬프트와 제외 종목이 적용됩니다.",
   "proposal.body.excludes": "제외 티커: {tickers}",
   "proposal.body.objectiveLine": "최적화 목표: {objective}",
   "proposal.body.validationNote":
-    "수치는 엔진 듀얼 백테스트(앵커 vs 맞춤)에서 오며 AI가 만들어 낸 것이 아닙니다.",
+    "수치는 엔진 듀얼 백테스트(앵커 vs 맞춤)에서 오며 AI가 만들어 낸 것이 아닙니다. 과거 성과는 미래 성과의 신뢰할 수 있는 지표가 아닙니다.",
+  "proposal.body.chartCaption":
+    "듀얼 에쿼티 예시(100 리베이스), 구간 {start} → {end}. 실제 계좌 가치는 수수료·세금·타이밍에 따라 달라집니다.",
   "proposal.body.riskMdd": "맞춤 최대낙폭 {customized}, 앵커 {anchor}.",
   "proposal.body.riskFallback": "퀀트 탭에서 낙폭과 집중도를 검토하세요.",
+  "proposal.body.implDca":
+    "일시 투자 타이밍이 우려되면 주식 슬리브에 DCA(분할 매수)를 고려하세요.",
+  "proposal.body.implRebalance":
+    "리밸런싱은 서명된 백테스트 가정({start} → {end})을 따르며, 은행 정책이 우선합니다.",
+  "proposal.body.implLiquidity":
+    "전액 투입 전 단기 현금 수요에 맞는 유동성 버퍼를 유지하세요.",
+  "proposal.body.implClientLiquidity": "고객 유동성 메모: {note}",
   "proposal.body.impl1": "유동성·시장충격이 우려되면 분할 진입을 고려하세요.",
   "proposal.body.impl2": "고객 전달 전 수수료·세금·적합성(은행 정책)을 확인하세요.",
   "proposal.body.impl3": "리밸런싱 주기는 별도 수정이 없으면 서명된 백테스트 설정을 따릅니다.",
+  "proposal.body.signOffNote": "RM 서명 메모: {note}",
   "proposal.body.disclaimer1": "과거 성과가 미래 결과를 보장하지 않습니다.",
   "proposal.body.disclaimer2": "본 초안은 컴플라이언스 승인 전까지 RM 내부용입니다.",
+  "proposal.body.disclaimerSuitability":
+    "적합성·KYC·상품 승인은 은행 프로세스이며, JASPER는 규제 적합성을 인증하지 않습니다.",
+  "proposal.body.nextSteps":
+    "다음 단계: RM 검토 → 컴플라이언스/적합성 → 고객 논의 → 실행 지시(JASPER 외부).",
+  "proposal.warning.pastPerformance":
+    "경고: 과거 성과는 미래 성과의 신뢰할 수 있는 지표가 아닙니다.",
+  "proposal.warning.valueFluctuation":
+    "경고: 투자 가치는 하락할 수 있으며 원금 일부 또는 전부를 잃을 수 있습니다.",
+  "proposal.warning.currency":
+    "경고: 수익률은 환율 변동의 영향을 받을 수 있습니다.",
+  "proposal.warning.estimates":
+    "경고: 수치는 추정/백테스트 예시일 뿐입니다.",
+  "proposal.warning.noAdvice":
+    "경고: 본 자료는 정보·논의 목적이며 청약/투자 권유가 아닙니다.",
   "rm.holdings.change": "변화",
   "rm.holdings.added": "추가",
   "rm.holdings.removed": "제거",

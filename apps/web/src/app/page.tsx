@@ -900,6 +900,7 @@ export default function HomePage() {
                 compare={personalizationCompare}
                 overlay={signedOverlay}
                 anchorPortfolio={anchorPortfolio}
+                client={activeClient}
                 result={result}
                 narrative={narrative}
                 request={request}

@@ -7,6 +7,7 @@ import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 import { formatOverlaySummary } from "@/lib/overlay-schema";
 import type { ClientOverlay } from "@/lib/overlay-schema";
+import type { DemoClient } from "@/lib/clients";
 import type { ModelPortfolio } from "@/lib/model-portfolios";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -34,6 +35,7 @@ type Props = {
   compare: PersonalizationCompare;
   overlay: ClientOverlay | null;
   anchorPortfolio: ModelPortfolio;
+  client?: DemoClient | null;
   result: BacktestResult;
   narrative: string;
   request: BacktestRequest;
@@ -66,6 +68,7 @@ export function RmReportView({
   compare,
   overlay,
   anchorPortfolio,
+  client = null,
   result,
   narrative,
   request,
@@ -499,6 +502,7 @@ export function RmReportView({
         compare={compare}
         overlay={overlay}
         anchorPortfolio={anchorPortfolio}
+        client={client}
       />
     </div>
   );

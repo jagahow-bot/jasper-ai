@@ -316,3 +316,21 @@
 input[type="range"] {
   accent-color: var(--primary);
 }
+
+/* Investment Proposal print: isolate the draft document */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .proposal-print,
+  .proposal-print * {
+    visibility: visible !important;
+  }
+  .proposal-print {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: white !important;
+  }
+}
