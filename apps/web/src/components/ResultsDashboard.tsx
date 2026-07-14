@@ -52,6 +52,8 @@ import {
   buildPerformanceCompareRows,
   candidateModelKey,
   candidateRowKey,
+  championObjectiveScore,
+  championSelectionHorizon,
   performanceCompareRowsByChartKey,
   performanceCompareTickLabel,
   pickCatalogChampionModelKey,
@@ -61,6 +63,9 @@ import {
   resolveHorizonMetrics,
   resolveOutOfSampleMetrics,
 } from "@/lib/performance-compare-chart";
+import {
+  resolveChampionEquityCurve,
+} from "@/lib/rm-report-utils";
 import {
   buildCompareEffectKey,
   computeAllCandidatesBelowBenchmark,
@@ -179,6 +184,13 @@ type Props = {
   anchorBenchmarkTicker?: string;
   /** Selected model portfolio (for localized benchmark labels). */
   anchorPortfolio?: ModelPortfolio | null;
+  /**
+   * When personalization dual-track exists, use this static-replay result as the
+   * Quant Analysis baseline (LinkedEquity + performance bars) instead of SPY/ticker.
+   */
+  anchorBaselineResult?: BacktestResult | null;
+  /** Display label for the anchor model portfolio baseline series. */
+  anchorBaselineLabel?: string | null;
   /** Controlled candidate row key (sync with parent, e.g. RmReportView). */
   selectedRowKey?: string;
   onSelectedRowKeyChange?: (rowKey: string) => void;
@@ -199,6 +211,8 @@ export function ResultsDashboard({
   variant = "default",
   anchorBenchmarkTicker,
   anchorPortfolio = null,
+  anchorBaselineResult = null,
+  anchorBaselineLabel = null,
   selectedRowKey: selectedRowKeyProp,
   onSelectedRowKeyChange,
 }: Props) {
@@ -349,6 +363,16 @@ export function ResultsDashboard({
     return null;
   }, [result.narrative_facts.pro_refinement]);
 
+  const selectionHorizon = useMemo(
+    () => championSelectionHorizon(championNarrativeFacts),
+    [championNarrativeFacts],
+  );
+
+  const championSelectionMetrics = useMemo(
+    () => resolveHorizonMetrics(championCandidate, selectionHorizon),
+    [championCandidate, selectionHorizon],
+  );
+
   const championFullMetrics = useMemo(
     () => resolveHorizonMetrics(championCandidate, "full_sample"),
     [championCandidate],
@@ -369,31 +393,65 @@ export function ResultsDashboard({
     const others = result.candidates.filter(
       (c) => candidateModelKey(c) !== championModelKey,
     );
-    const alt = others[0];
-    const altMetrics = alt ? resolveHorizonMetrics(alt, "full_sample") : null;
+    // True runner-up = best objective score on the same selection horizon.
+    let alt = others[0];
+    let bestAltScore = -Infinity;
+    for (const c of others) {
+      const score = championObjectiveScore(c, championNarrativeFacts);
+      if (score > bestAltScore) {
+        bestAltScore = score;
+        alt = c;
+      }
+    }
+    const altSelection = alt
+      ? resolveHorizonMetrics(alt, selectionHorizon)
+      : null;
+    const altFull = alt ? resolveHorizonMetrics(alt, "full_sample") : null;
+    const usesIs = selectionHorizon === "in_sample";
     const parts: string[] = [
-      t("results.championWhyFallbackLead", {
-        code,
-        objective,
-        sharpe: championFullMetrics.sharpe.toFixed(3),
-        cagr: `${(championFullMetrics.cagr * 100).toFixed(2)}%`,
-        mdd: `${(championFullMetrics.max_drawdown * 100).toFixed(2)}%`,
-      }),
+      usesIs
+        ? t("results.championWhyFallbackLead", {
+            code,
+            objective,
+            horizon: t("results.championHorizonInSample"),
+            sharpe: championSelectionMetrics.sharpe.toFixed(3),
+            cagr: `${(championSelectionMetrics.cagr * 100).toFixed(2)}%`,
+            mdd: `${(championSelectionMetrics.max_drawdown * 100).toFixed(2)}%`,
+            fullSharpe: championFullMetrics.sharpe.toFixed(3),
+            fullCagr: `${(championFullMetrics.cagr * 100).toFixed(2)}%`,
+          })
+        : t("results.championWhyFallbackLeadFull", {
+            code,
+            objective,
+            sharpe: championSelectionMetrics.sharpe.toFixed(3),
+            cagr: `${(championSelectionMetrics.cagr * 100).toFixed(2)}%`,
+            mdd: `${(championSelectionMetrics.max_drawdown * 100).toFixed(2)}%`,
+          }),
     ];
-    if (alt && altMetrics) {
+    if (alt && altSelection) {
       parts.push(
-        t("results.championWhyFallbackAlt", {
-          alt: alt.model_code ?? `M?${alt.rank}`,
-          altSharpe: altMetrics.sharpe.toFixed(3),
-          altCagr: `${(altMetrics.cagr * 100).toFixed(2)}%`,
-        }),
+        usesIs && altFull
+          ? t("results.championWhyFallbackAlt", {
+              alt: alt.model_code ?? `M?${alt.rank}`,
+              altSharpe: altSelection.sharpe.toFixed(3),
+              altCagr: `${(altSelection.cagr * 100).toFixed(2)}%`,
+              altFullSharpe: altFull.sharpe.toFixed(3),
+            })
+          : t("results.championWhyFallbackAltFull", {
+              alt: alt.model_code ?? `M?${alt.rank}`,
+              altSharpe: altSelection.sharpe.toFixed(3),
+              altCagr: `${(altSelection.cagr * 100).toFixed(2)}%`,
+            }),
       );
     }
     return { code, text: parts.join(" "), source: "rule" as const };
   }, [
     championCandidate,
     championModelKey,
+    championSelectionMetrics,
     championFullMetrics,
+    selectionHorizon,
+    championNarrativeFacts,
     result.candidates,
     result.narrative_facts.objective,
     result.narrative_facts.objective_label,
@@ -638,6 +696,42 @@ export function ResultsDashboard({
     anchorPortfolio,
     benchTicker,
   );
+  const useAnchorPortfolioBaseline = Boolean(anchorBaselineResult);
+  const anchorBaselineEquity = useMemo(
+    () =>
+      anchorBaselineResult
+        ? resolveChampionEquityCurve(anchorBaselineResult)
+        : [],
+    [anchorBaselineResult],
+  );
+  const anchorBaselineBarMetrics = useMemo(() => {
+    if (!anchorBaselineResult) return null;
+    const idx = resolveChampionCandidateIndex(
+      anchorBaselineResult.candidates,
+      anchorBaselineResult.narrative_facts,
+    );
+    const champ =
+      idx >= 0
+        ? anchorBaselineResult.candidates[idx]
+        : anchorBaselineResult.candidates[0];
+    if (!champ) return null;
+    const m = resolveHorizonMetrics(champ, "full_sample");
+    return {
+      sharpe: m.sharpe,
+      sortino: m.sortino,
+      cagr: m.cagr,
+      max_drawdown: m.max_drawdown,
+    };
+  }, [anchorBaselineResult]);
+  const anchorBaselineDisplayLabel =
+    (anchorBaselineLabel ?? "").trim() ||
+    (anchorPortfolio
+      ? formatBenchmarkDisplayLabel(
+          anchorPortfolio.benchmark || "ANCHOR",
+          lang,
+          { anchorPortfolio },
+        )
+      : t("compare.chart.anchor"));
   const jobBenchTicker = resolveJobBenchmarkTicker(result.narrative_facts);
   const benchMetricsStale =
     jobBenchTicker && benchTicker && jobBenchTicker !== benchTicker
@@ -661,6 +755,9 @@ export function ResultsDashboard({
     }
   }, [benchmarkRequest, result.narrative_facts, result.job_id]);
   const benchmarkEquity = useMemo(() => {
+    if (useAnchorPortfolioBaseline && anchorBaselineEquity.length > 0) {
+      return anchorBaselineEquity;
+    }
     const fromChart = chartCandidate?.analytics?.benchmark_equity_curve;
     if (fromChart?.length) return fromChart;
     for (const c of result.candidates) {
@@ -668,7 +765,16 @@ export function ResultsDashboard({
       if (curve?.length) return curve;
     }
     return [];
-  }, [chartCandidate?.analytics?.benchmark_equity_curve, result.candidates]);
+  }, [
+    useAnchorPortfolioBaseline,
+    anchorBaselineEquity,
+    chartCandidate?.analytics?.benchmark_equity_curve,
+    result.candidates,
+  ]);
+
+  const activeBenchLabel = useAnchorPortfolioBaseline
+    ? anchorBaselineDisplayLabel
+    : benchLabel;
 
   const compareEffectKey = useMemo(
     () =>
@@ -773,11 +879,18 @@ export function ResultsDashboard({
   }, [compareEffectKey, lang]);
 
   const benchmarkBarMetrics = useMemo(() => {
+    if (useAnchorPortfolioBaseline && anchorBaselineBarMetrics) {
+      return anchorBaselineBarMetrics;
+    }
     const spec = result.narrative_facts.backtest_spec as
       | { benchmark_metrics?: Record<string, number> | null }
       | undefined;
     return spec?.benchmark_metrics ?? null;
-  }, [result.narrative_facts.backtest_spec]);
+  }, [
+    useAnchorPortfolioBaseline,
+    anchorBaselineBarMetrics,
+    result.narrative_facts.backtest_spec,
+  ]);
 
   const allBelowBenchmark = useMemo(
     () =>
@@ -884,8 +997,10 @@ export function ResultsDashboard({
         championRowKey: defaultSelectedRowKey,
         sortByModelCode,
         benchmarkBarMetrics,
-        benchTicker,
-        benchDisplayName: benchLabel,
+        benchTicker: useAnchorPortfolioBaseline
+          ? "ANCHOR"
+          : benchTicker,
+        benchDisplayName: activeBenchLabel,
         selectedChartKey,
       }),
     [
@@ -894,7 +1009,8 @@ export function ResultsDashboard({
       defaultSelectedRowKey,
       benchmarkBarMetrics,
       benchTicker,
-      benchLabel,
+      activeBenchLabel,
+      useAnchorPortfolioBaseline,
       sortByModelCode,
       selectedChartKey,
     ],
@@ -1414,9 +1530,12 @@ export function ResultsDashboard({
             {!isRmCompact ? (
               <p className="ui-hint mt-1 text-dim">{t("results.championWhyHorizonNote")}</p>
             ) : (
-              <p className="ui-hint mt-1 text-dim">
-                {t("rm.quant.championWhyCode", { code: displayChampionRationale.code })}
-              </p>
+              <>
+                <p className="ui-hint mt-1 text-dim">
+                  {t("rm.quant.championWhyCode", { code: displayChampionRationale.code })}
+                </p>
+                <p className="ui-hint mt-1 text-dim">{t("results.championWhyHorizonNote")}</p>
+              </>
             )}
             <div className="mt-2 grid grid-cols-3 gap-2 text-center ui-body">
               <div>
@@ -1713,7 +1832,13 @@ export function ResultsDashboard({
         subtitle={t("report.group.performanceHint")}
       >
       <ChartCard title={t("results.chart.performanceComparison")} subtitle={t("results.fullPeriod")}>
-        {showAnchorBenchmarkNote ? (
+        {useAnchorPortfolioBaseline ? (
+          <p className="ui-hint mb-3 text-dim">
+            {t("results.anchorPortfolioBaselineNote", {
+              anchor: anchorBaselineDisplayLabel,
+            })}
+          </p>
+        ) : showAnchorBenchmarkNote ? (
           <p className="ui-hint mb-3 text-dim">
             {t("results.anchorBenchmarkNote", {
               anchor: benchLabel,
@@ -1993,7 +2118,7 @@ export function ResultsDashboard({
           <LinkedEquityWeightChart
             equityCurve={equity}
             benchmarkCurve={benchmarkEquity}
-            benchmarkLabel={benchLabel}
+            benchmarkLabel={activeBenchLabel}
             weightHistory={historySeries}
             weightTickers={weightHistoryTickers}
             colors={COLORS}

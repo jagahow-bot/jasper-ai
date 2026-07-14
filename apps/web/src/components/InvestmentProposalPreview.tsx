@@ -29,6 +29,8 @@ type Props = {
   overlay: ClientOverlay | null;
   anchorPortfolio: ModelPortfolio;
   client?: DemoClient | null;
+  /** Selected trial on the RM report; defaults to champion. */
+  customizedModelCode?: string | null;
 };
 
 function SectionHeading({
@@ -374,6 +376,7 @@ export function InvestmentProposalPreview({
   overlay,
   anchorPortfolio,
   client = null,
+  customizedModelCode = null,
 }: Props) {
   const { t, lang } = useI18n();
   const doc = useMemo(
@@ -385,8 +388,9 @@ export function InvestmentProposalPreview({
         client,
         lang,
         t,
+        customizedModelCode,
       }),
-    [compare, overlay, anchorPortfolio, client, lang, t],
+    [compare, overlay, anchorPortfolio, client, lang, t, customizedModelCode],
   );
 
   if (!open) return null;

@@ -89,13 +89,24 @@ function championTieThreshold(objective: string): number {
   return ROUND_CHAMPION_TIE_THRESHOLDS[objective] ?? 0.005;
 }
 
-function championSelectionHorizon(
+/** Horizon used for ★ selection: in-sample when OOS holdout is on, else full-sample. */
+export function championSelectionHorizon(
   narrativeFacts?: Record<string, unknown> | null,
 ): PerformanceCompareHorizon {
   const oos =
     narrativeFacts?.enable_oos === true ||
     narrativeFacts?.oos_enabled === true;
   return oos ? "in_sample" : "full_sample";
+}
+
+/** Primary objective score on the champion selection horizon (IS when OOS). */
+export function championObjectiveScore(
+  c: PerformanceCompareCandidate,
+  narrativeFacts?: Record<string, unknown> | null,
+): number {
+  const objective = String(narrativeFacts?.objective ?? "max_sharpe");
+  const horizon = championSelectionHorizon(narrativeFacts);
+  return championPrimaryScore(c, objective, horizon);
 }
 
 function championPrimaryScore(

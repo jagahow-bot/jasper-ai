@@ -188,18 +188,41 @@ def _extract_json(text: str) -> dict[str, Any] | None:
     return None
 
 
-def resolve_ai_param_seed_plan(requested_n: int) -> dict[str, Any]:
+def resolve_ai_param_seed_plan(
+    requested_n: int,
+    *,
+    all_ai: bool = False,
+) -> dict[str, Any]:
     """How many Gemini param seeds to request vs Optuna-only trials.
 
-    When requested_n exceeds the batch threshold, cap AI seeds and use batched
-    generateContent calls instead of one HTTP request per seed.
+    When ``all_ai`` is True (standard / non-Pro mode), request AI seeds for
+    every trial up to the hard cap and rely on batched generateContent — do not
+    leave a leftover Optuna-random tail.
+
+    When ``all_ai`` is False (legacy / hybrid), once requested_n exceeds the
+    batch threshold, cap AI seeds at ``ai_param_seed_max_count`` and fill the
+    rest with the Optuna sampler.
     """
     requested = int(max(1, requested_n))
     hard_cap = 40
     threshold = max(1, int(settings.ai_param_seed_batch_threshold))
     max_ai = max(1, min(int(settings.ai_param_seed_max_count), hard_cap))
-    batch_size = max(1, min(int(settings.ai_param_seed_batch_size), max_ai))
+    batch_size = max(1, min(int(settings.ai_param_seed_batch_size), hard_cap))
     bounded = min(requested, hard_cap)
+    if all_ai:
+        target = bounded
+        use_batch = target > threshold
+        return {
+            "requested": requested,
+            "bounded": bounded,
+            "target": target,
+            "use_batch": use_batch,
+            "batch_size": min(batch_size, target),
+            "capped": requested > hard_cap,
+            "threshold": threshold,
+            "max_ai": hard_cap,
+            "all_ai": True,
+        }
     if bounded > threshold:
         target = min(bounded, max_ai)
         return {
@@ -207,10 +230,11 @@ def resolve_ai_param_seed_plan(requested_n: int) -> dict[str, Any]:
             "bounded": bounded,
             "target": target,
             "use_batch": True,
-            "batch_size": batch_size,
+            "batch_size": min(batch_size, max_ai),
             "capped": bounded > target,
             "threshold": threshold,
             "max_ai": max_ai,
+            "all_ai": False,
         }
     return {
         "requested": requested,
@@ -221,6 +245,7 @@ def resolve_ai_param_seed_plan(requested_n: int) -> dict[str, Any]:
         "capped": False,
         "threshold": threshold,
         "max_ai": max_ai,
+        "all_ai": False,
     }
 
 
@@ -759,6 +784,7 @@ def generate_ai_param_sets(
     param_controls: dict[str, dict] | None = None,
     progress_cb: Callable[[int, int, str], None] | None = None,
     learning_context: dict[str, Any] | None = None,
+    all_ai_seeds: bool = False,
 ) -> dict[str, Any]:
     """Generate candidate parameter sets via Gemini.
 
@@ -768,6 +794,10 @@ def generate_ai_param_sets(
     - param_sets: list[dict]
     - model: str
     - error: optional str
+
+    When ``all_ai_seeds`` is True, request one AI seed per trial (up to the
+    hard cap) instead of capping at ``ai_param_seed_max_count`` and leaving an
+    Optuna-random remainder.
     """
     key = settings.gemini_api_key
     if not key:
@@ -781,7 +811,7 @@ def generate_ai_param_sets(
 
     model = settings.gemini_model
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-    seed_plan = resolve_ai_param_seed_plan(n)
+    seed_plan = resolve_ai_param_seed_plan(n, all_ai=all_ai_seeds)
     requested_n = int(seed_plan["requested"])
     n = int(seed_plan["target"])
     blueprint = RunBlueprint(
@@ -1255,6 +1285,7 @@ Return STRICT JSON only:
             "seeds_target": n,
             "generation_mode": "batched" if use_batch else "per_seed",
             "seeds_capped": bool(seed_plan.get("capped")),
+            "all_ai_seeds": bool(seed_plan.get("all_ai")),
         }
     except Exception as exc:  # noqa: BLE001
         if str(exc) == "gemini_max_tokens":

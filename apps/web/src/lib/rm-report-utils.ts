@@ -84,12 +84,42 @@ function pickChampionEquityCurve(result: BacktestResult) {
   return champ?.equity_curve ?? result.equity_curve ?? [];
 }
 
+/**
+ * Equity for the customized (selected) trial.
+ * When a specific model is requested, do NOT fall back to the job-level
+ * champion curve — slim payloads omit non-champion equity_curve until
+ * lazy charts are merged. Returning [] lets the panel show loading/empty
+ * instead of a misleading stuck champion line.
+ */
 function pickCustomizedEquityCurve(
   result: BacktestResult,
   pick?: RmCandidatePick,
 ) {
   const candidate = pickCandidate(result, pick?.customizedModelCode);
+  const curve = candidate?.equity_curve;
+  if (Array.isArray(curve) && curve.length > 0) return curve;
+  if (pick?.customizedModelCode) {
+    const code = pick.customizedModelCode.toUpperCase();
+    const champ = pickChampion(result);
+    const isChamp =
+      (champ?.model_code ?? "").toUpperCase() === code;
+    if (isChamp) return result.equity_curve ?? [];
+    return [];
+  }
   return candidate?.equity_curve ?? result.equity_curve ?? [];
+}
+
+/** Exported for BenchmarkComparePanel / tests — resolve customized equity only. */
+export function resolveCustomizedEquityCurve(
+  result: BacktestResult,
+  pick?: RmCandidatePick,
+) {
+  return pickCustomizedEquityCurve(result, pick);
+}
+
+/** Exported for Quant baseline — anchor (champion) equity from a result. */
+export function resolveChampionEquityCurve(result: BacktestResult) {
+  return pickChampionEquityCurve(result);
 }
 
 /**

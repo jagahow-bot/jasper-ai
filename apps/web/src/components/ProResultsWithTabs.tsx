@@ -34,6 +34,9 @@ type Props = {
   variant?: "default" | "rm";
   anchorBenchmarkTicker?: string;
   anchorPortfolio?: ModelPortfolio | null;
+  /** Dual-track anchor static replay — Quant baseline when set. */
+  anchorBaselineResult?: BacktestResult | null;
+  anchorBaselineLabel?: string | null;
   selectedRowKey?: string;
   onSelectedRowKeyChange?: (rowKey: string) => void;
 };

@@ -572,18 +572,26 @@ const en: Dict = {
     "In dynamic mode, strategies aren't ranked by Sharpe or return alone. They are ranked by one composite score that blends risk-adjusted return, growth, drawdown and trading cost. That's why the champion (★) can win overall without topping any single column below.",
   "results.championWhyTitle": "Why ★ {code} is the champion",
   "results.championWhyHorizonNote":
-    "Full-period metrics below match the report grid. The AI rationale may cite in-sample (IS) or out-of-sample (OOS) horizons from optimization rounds.",
+    "★ is chosen on the selection horizon (in-sample when OOS holdout is on; otherwise full-sample). Full-period metrics in the report grid can differ — a higher Full Sharpe does not demote the IS objective winner. Overfitting / IS–OOS gap is diagnostic only.",
   "results.championWhyFallbackLead":
-    "{code} was selected as champion under objective “{objective}” (full sample: Sharpe {sharpe}, CAGR {cagr}, max DD {mdd}).",
+    "{code} won under objective “{objective}” on the {horizon} selection horizon (IS Sharpe {sharpe}, CAGR {cagr}, max DD {mdd}). Full-period: Sharpe {fullSharpe}, CAGR {fullCagr}.",
+  "results.championWhyFallbackLeadFull":
+    "{code} won under objective “{objective}” on the full-sample horizon (Sharpe {sharpe}, CAGR {cagr}, max DD {mdd}).",
   "results.championWhyFallbackAlt":
+    "Runner-up {alt} scored lower on that same selection horizon (IS Sharpe {altSharpe}, CAGR {altCagr}) even if its full-period Sharpe ({altFullSharpe}) looks higher.",
+  "results.championWhyFallbackAltFull":
     "Compared with runner-up {alt} (Sharpe {altSharpe}, CAGR {altCagr}).",
+  "results.championHorizonInSample": "in-sample",
+  "results.championHorizonFullSample": "full-sample",
   "results.anchorBenchmarkNote":
     "Anchor model portfolio: {anchor}. Performance benchmark ticker (price series): {ticker} — the chart compares strategies to this ticker’s returns, not a replica of every anchor holding.",
+  "results.anchorPortfolioBaselineNote":
+    "Baseline for comparison: static replay of the anchor model portfolio ({anchor}), not the market ticker alone.",
   "results.championFullSharpe": "Full Sharpe",
   "results.championFullMaxDd": "Full max DD",
   "results.championFullCagr": "Full CAGR",
   "results.leaderboardDynamicNote":
-    "Values are the dynamic composite score for each period (higher is better). The champion (★) is chosen by AI on the In-Sample composite plus out-of-sample robustness, so it may not lead any single column.",
+    "Values are the dynamic composite score for each period (higher is better). The champion (★) is ranked by the objective on the selection horizon (in-sample when OOS is on). OOS / overfitting metrics are informational and do not demote the objective winner.",
   "results.selectTrialHint": "Select a strategy above to see its performance and holdings.",
   "results.efficientFrontierHint":
     "Blue dots are strategies Jasper tried; orange dots are the top picks shown in your report.",
@@ -679,7 +687,7 @@ const en: Dict = {
   "config.trialsHint.pro":
     "Pro mode manages this for you using the round settings above.",
   "config.trialsHint.standard":
-    "How many strategies to test. The first few start from AI suggestions; the rest are explored automatically. Set the report size below.",
+    "How many strategies to test. In standard mode every trial uses an AI-generated seed (no random filler). Set the report size below.",
   "config.benchmarkLine": "Benchmark: {benchmark} · Risk-free rate: 4%",
 
   // Constraints — advanced controls
@@ -935,6 +943,12 @@ const en: Dict = {
   "rm.run.whatWillRun": "What will run",
   "rm.run.period": "Period: {start} → {end}",
   "rm.run.dualTrack": "Dual track: anchor replay + customized optimization",
+  "rm.run.proSearchTitle": "Jasper Pro Search",
+  "rm.run.proSearchHint":
+    "Turning on Pro Search runs AI multi-round parameter optimization (champion–challenger). It usually takes longer.",
+  "rm.run.proSearchOn": "Jasper Pro Search: ON (multi-round AI optimization)",
+  "rm.run.proSearchOff":
+    "Jasper Pro Search: OFF (single pass — all trials use AI-generated seeds)",
   "rm.run.execute": "Run backtest",
   "rm.run.showAdvanced": "Advanced settings",
   "rm.run.hideAdvanced": "Hide advanced settings",
@@ -1754,18 +1768,26 @@ const zh: Dict = {
     "在動態模式下，策略不是只看夏普或報酬來排名，而是用一個綜合分數排名，該分數同時衡量風險調整後報酬、成長、回撤與交易成本。因此冠軍（★）可能整體勝出，卻不一定在下方任一欄位都最高。",
   "results.championWhyTitle": "為什麼 ★ {code} 是冠軍",
   "results.championWhyHorizonNote":
-    "下方完整期間指標與報告格一致。AI 說明可能引用優化回合的樣本內（IS）或樣本外（OOS）指標。",
+    "★ 依挑選期間選定（啟用 OOS 保留段時為樣本內；否則為完整樣本）。報告格的完整期間指標可能不同——更高的完整期間夏普不會讓樣本內目標勝出者落敗。過擬合／IS–OOS 差距僅供診斷。",
   "results.championWhyFallbackLead":
-    "在目標「{objective}」下選出 {code} 為冠軍（完整樣本：夏普 {sharpe}、年化 {cagr}、最大回撤 {mdd}）。",
+    "在目標「{objective}」下，{code} 於「{horizon}」挑選期間勝出（樣本內夏普 {sharpe}、年化 {cagr}、最大回撤 {mdd}）。完整期間：夏普 {fullSharpe}、年化 {fullCagr}。",
+  "results.championWhyFallbackLeadFull":
+    "在目標「{objective}」下，{code} 於完整樣本期間勝出（夏普 {sharpe}、年化 {cagr}、最大回撤 {mdd}）。",
   "results.championWhyFallbackAlt":
+    "次優 {alt} 在同一挑選期間分數較低（樣本內夏普 {altSharpe}、年化 {altCagr}），即使其完整期間夏普（{altFullSharpe}）看起來更高。",
+  "results.championWhyFallbackAltFull":
     "相對於次優 {alt}（夏普 {altSharpe}、年化 {altCagr}）。",
+  "results.championHorizonInSample": "樣本內",
+  "results.championHorizonFullSample": "完整樣本",
   "results.anchorBenchmarkNote":
     "錨點模型組合：{anchor}。績效基準代碼（價格序列）：{ticker} — 圖表是與該代碼報酬比較，並非複製錨點的每一檔持股。",
+  "results.anchorPortfolioBaselineNote":
+    "比較基準：錨點模型組合（{anchor}）的靜態重播績效，而非僅市場代碼。",
   "results.championFullSharpe": "完整期間夏普",
   "results.championFullMaxDd": "完整期間最大回撤",
   "results.championFullCagr": "完整期間年化報酬",
   "results.leaderboardDynamicNote":
-    "數值為各期間的動態綜合分數（越高越好）。冠軍（★）由 AI 依樣本內綜合分數與樣本外穩健度挑選，因此不一定在單一欄位領先。",
+    "數值為各期間的動態綜合分數（越高越好）。冠軍（★）依挑選期間的目標排序（啟用 OOS 時為樣本內）。OOS／過擬合指標僅供參考，不會讓目標勝出者落敗。",
   "results.selectTrialHint": "選取上方的策略以查看其績效與持股。",
   "results.efficientFrontierHint":
     "藍點是 Jasper 嘗試過的策略；橘點是報告中列出的精選策略。",
@@ -1858,7 +1880,7 @@ const zh: Dict = {
   "config.customObjectiveHint": "Jasper 會把它轉化為可最佳化的目標。",
   "config.trialsHint.pro": "Pro 模式會依上方的輪次設定替你管理。",
   "config.trialsHint.standard":
-    "要測試多少種策略。前幾個從 AI 建議開始，其餘由系統自動探索。報告數量請在下方設定。",
+    "要測試多少種策略。標準模式下每個試驗都使用 AI 產生的種子（不混入隨機探索）。報告數量請在下方設定。",
   "config.benchmarkLine": "基準：{benchmark} · 無風險利率：4%",
 
   // Constraints — advanced controls
@@ -2102,6 +2124,12 @@ const zh: Dict = {
   "rm.run.whatWillRun": "即將執行",
   "rm.run.period": "回測區間：{start} → {end}",
   "rm.run.dualTrack": "雙軌：基準重播 ＋ 客製化最佳化",
+  "rm.run.proSearchTitle": "Jasper Pro Search",
+  "rm.run.proSearchHint":
+    "開啟 Pro Search 會進行 AI 多輪參數最佳化（冠軍–挑戰者），通常需要更長時間。",
+  "rm.run.proSearchOn": "Jasper Pro Search：開啟（多輪 AI 最佳化）",
+  "rm.run.proSearchOff":
+    "Jasper Pro Search：關閉（單次通過 — 所有試驗皆使用 AI 種子）",
   "rm.run.execute": "一鍵執行回測",
   "rm.run.showAdvanced": "進階設定",
   "rm.run.hideAdvanced": "收合進階設定",
@@ -2921,18 +2949,26 @@ const ko: Dict = {
     "동적 모드에서는 샤프나 수익률만으로 순위를 매기지 않습니다. 위험조정수익, 성장, 낙폭, 거래비용을 결합한 하나의 종합 점수로 순위를 매깁니다. 그래서 챔피언(★)은 아래의 어떤 단일 열에서도 1위가 아니면서 전체적으로 이길 수 있습니다.",
   "results.championWhyTitle": "★ {code}가 챔피언인 이유",
   "results.championWhyHorizonNote":
-    "아래 전체 기간 지표는 보고서 표와 일치합니다. AI 설명은 최적화 라운드의 인샘플(IS) 또는 아웃오브샘플(OOS) 지표를 인용할 수 있습니다.",
+    "★는 선정 구간(OOS 홀드아웃이 켜져 있으면 인샘플, 아니면 전체 샘플)에서 골라집니다. 보고서 표의 전체 기간 지표는 다를 수 있으며, 더 높은 Full Sharpe가 IS 목표 승자를 밀어내지는 않습니다. 과적합/IS–OOS 격차는 진단용입니다.",
   "results.championWhyFallbackLead":
-    "목표 “{objective}” 기준으로 {code}가 챔피언으로 선정되었습니다(전체 샘플: 샤프 {sharpe}, CAGR {cagr}, 최대낙폭 {mdd}).",
+    "목표 “{objective}” 기준으로 {code}가 {horizon} 선정 구간에서 우승했습니다(IS 샤프 {sharpe}, CAGR {cagr}, 최대낙폭 {mdd}). 전체 기간: 샤프 {fullSharpe}, CAGR {fullCagr}.",
+  "results.championWhyFallbackLeadFull":
+    "목표 “{objective}” 기준으로 {code}가 전체 샘플 구간에서 우승했습니다(샤프 {sharpe}, CAGR {cagr}, 최대낙폭 {mdd}).",
   "results.championWhyFallbackAlt":
+    "차순위 {alt}는 같은 선정 구간에서 점수가 더 낮습니다(IS 샤프 {altSharpe}, CAGR {altCagr}). 전체 기간 샤프({altFullSharpe})가 더 높아 보여도 마찬가지입니다.",
+  "results.championWhyFallbackAltFull":
     "차순위 {alt} 대비(샤프 {altSharpe}, CAGR {altCagr}).",
+  "results.championHorizonInSample": "인샘플",
+  "results.championHorizonFullSample": "전체 샘플",
   "results.anchorBenchmarkNote":
     "앵커 모델 포트폴리오: {anchor}. 성과 벤치마크 티커(가격 시계열): {ticker} — 차트는 이 티커 수익률과 비교하며, 앵커 보유 종목을 그대로 복제하지는 않습니다.",
+  "results.anchorPortfolioBaselineNote":
+    "비교 기준선: 앵커 모델 포트폴리오({anchor})의 정적 리플레이 성과이며, 시장 티커만 쓰지 않습니다.",
   "results.championFullSharpe": "전체 기간 샤프",
   "results.championFullMaxDd": "전체 기간 최대 낙폭",
   "results.championFullCagr": "전체 기간 CAGR",
   "results.leaderboardDynamicNote":
-    "값은 각 기간의 동적 종합 점수입니다(높을수록 좋음). 챔피언(★)은 인샘플 종합 점수와 아웃오브샘플 견고성을 바탕으로 AI가 선택하므로 단일 열에서 선두가 아닐 수 있습니다.",
+    "값은 각 기간의 동적 종합 점수입니다(높을수록 좋음). 챔피언(★)은 선정 구간의 목표로 순위가 매겨집니다(OOS가 켜져 있으면 인샘플). OOS/과적합 지표는 참고용이며 목표 승자를 강등하지 않습니다.",
   "results.selectTrialHint": "위에서 전략을 선택하면 성과와 보유 종목을 볼 수 있습니다.",
   "results.efficientFrontierHint":
     "파란 점은 Jasper가 시도한 전략이고, 주황 점은 보고서에 표시된 추천 전략입니다.",
@@ -3026,7 +3062,7 @@ const ko: Dict = {
   "config.customObjectiveHint": "Jasper가 이를 최적화할 수 있는 목표로 바꿔 줍니다.",
   "config.trialsHint.pro": "Pro 모드가 위의 라운드 설정을 사용해 대신 관리합니다.",
   "config.trialsHint.standard":
-    "테스트할 전략 수. 처음 몇 개는 AI 제안에서 시작하고, 나머지는 자동으로 탐색됩니다. 보고서 크기는 아래에서 설정하세요.",
+    "테스트할 전략 수. 표준 모드에서는 모든 트라이얼이 AI 생성 시드를 사용합니다(랜덤 채우기 없음). 보고서 크기는 아래에서 설정하세요.",
   "config.benchmarkLine": "벤치마크: {benchmark} · 무위험 수익률: 4%",
 
   // Constraints — advanced controls
@@ -3272,6 +3308,12 @@ const ko: Dict = {
   "rm.run.whatWillRun": "실행 내용",
   "rm.run.period": "기간: {start} → {end}",
   "rm.run.dualTrack": "이중: 기준 재현 + 맞춤 최적화",
+  "rm.run.proSearchTitle": "Jasper Pro Search",
+  "rm.run.proSearchHint":
+    "Pro Search를 켜면 AI 다중 라운드 파라미터 최적화(챔피언–챌린저)가 실행되며, 보통 더 오래 걸립니다.",
+  "rm.run.proSearchOn": "Jasper Pro Search: ON (다중 라운드 AI 최적화)",
+  "rm.run.proSearchOff":
+    "Jasper Pro Search: OFF (단일 패스 — 모든 트라이얼이 AI 시드 사용)",
   "rm.run.execute": "백테스트 실행",
   "rm.run.showAdvanced": "고급 설정",
   "rm.run.hideAdvanced": "고급 설정 숨기기",

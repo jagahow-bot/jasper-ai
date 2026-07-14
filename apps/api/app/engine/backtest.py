@@ -2873,6 +2873,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             cont_msg,
         )
 
+    effective_trials = int(req.trials)
     if pro_mode:
         if not oos:
             report_progress(
@@ -2931,26 +2932,36 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             tradable_count=len(tickers),
             param_controls=param_controls_dict,
             progress_cb=ai_progress,
+            all_ai_seeds=True,
         )
         ai_param_sets = ai_generation.get("param_sets", []) if ai_generation else []
-        ai_used = min(len(ai_param_sets), req.trials)
+        # Standard mode: evaluate only AI-generated seeds (no Optuna-random filler).
+        # If AI fails, fall back to the requested trial count with Optuna search.
+        if ai_generation.get("enabled") and ai_param_sets:
+            effective_trials = max(1, len(ai_param_sets))
+        else:
+            effective_trials = req.trials
+        ai_used = min(len(ai_param_sets), effective_trials)
         if ai_generation.get("enabled"):
-            seed_msg = f"AI done: {ai_used} seed sets for {req.trials} Optuna trials"
+            seed_msg = (
+                f"AI done: {ai_used} AI seed sets — evaluating all as trials "
+                f"(no Optuna-random filler)"
+            )
             if ai_generation.get("seeds_capped"):
                 seed_msg += (
-                    f" (Gemini capped at {ai_generation.get('seeds_target', ai_used)}; "
-                    "extra trials are sampler-only)"
+                    f" (requested {req.trials}; hard-capped at "
+                    f"{ai_generation.get('seeds_target', ai_used)})"
                 )
             report_progress(
                 ai_used,
-                req.trials,
+                effective_trials,
                 f"{seed_msg} — starting backtests…",
             )
         else:
             err = ai_generation.get("error") or "unknown"
             report_progress(
                 0,
-                req.trials,
+                effective_trials,
                 f"AI off ({err}) — falling back to Optuna random search…",
             )
 
@@ -2977,7 +2988,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
             max_turnover=req.max_turnover,
             top_n=req.top_n,
             objective=trial_objective,
-            trials=req.trials,
+            trials=effective_trials,
             ai_seed_param_sets=ai_param_sets,
             param_controls=param_controls_dict,
             spec=spec,
@@ -3007,7 +3018,7 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     trials_completed = (
         int(refinement_meta.get("trials_total", 0))
         if pro_mode
-        else req.trials
+        else effective_trials
     )
     top_n_models = min(int(req.top_models), trials_feasible)
     all_record_catalog: list[dict[str, Any]] = []

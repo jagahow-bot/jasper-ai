@@ -34,6 +34,15 @@ export function RmRunPanel({
   const summary = formatOverlaySummary(overlay, lang);
   const customizedLabel = getCustomizedVsAnchorLabel(anchorPortfolio, lang);
   const universeCount = countUniverse(combinedUniverseFromRequest(request));
+  const isPro = request.optimization_mode === "pro_auto";
+
+  const setProSearch = (on: boolean) => {
+    onChange({
+      ...request,
+      optimization_mode: on ? "pro_auto" : "standard",
+      enable_iterative_refinement: on,
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -64,7 +73,43 @@ export function RmRunPanel({
               </li>
               <li>{t("rm.run.dualTrack")}</li>
               <li>{t("rm.universe.fixedCount", { n: universeCount })}</li>
+              <li>
+                {isPro
+                  ? t("rm.run.proSearchOn")
+                  : t("rm.run.proSearchOff")}
+              </li>
             </ul>
+          </div>
+        </div>
+
+        <div
+          className={`mt-4 rounded-lg border p-4 ${
+            isPro
+              ? "border-amber-200 bg-amber-50"
+              : "border-[var(--border)] bg-[var(--surface-2)]"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="ui-section-title text-[var(--amber)]">
+                {t("rm.run.proSearchTitle")}
+              </h3>
+              <p className="mt-1 text-sm text-dim">
+                {t("rm.run.proSearchHint")}
+              </p>
+            </div>
+            <label className="flex shrink-0 cursor-pointer items-center gap-2">
+              <span className="text-xs text-dim">
+                {isPro ? t("common.on") : t("common.off")}
+              </span>
+              <input
+                type="checkbox"
+                checked={isPro}
+                onChange={(e) => setProSearch(e.target.checked)}
+                className="h-4 w-4 accent-[var(--amber)]"
+                aria-label={t("rm.run.proSearchTitle")}
+              />
+            </label>
           </div>
         </div>
 

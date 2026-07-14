@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPerformanceCompareRows,
+  championSelectionHorizon,
   dedupeCandidatesForPerformanceChart,
   mapCandidatesToPerformanceHorizon,
   normalizeModelCode,
@@ -16,6 +17,12 @@ import {
 } from "./performance-compare-chart";
 
 describe("performance-compare-chart", () => {
+  it("selects in-sample horizon when OOS holdout is enabled", () => {
+    expect(championSelectionHorizon({ oos_enabled: true })).toBe("in_sample");
+    expect(championSelectionHorizon({ enable_oos: true })).toBe("in_sample");
+    expect(championSelectionHorizon({ oos_enabled: false })).toBe("full_sample");
+    expect(championSelectionHorizon({})).toBe("full_sample");
+  });
   it("normalizes blank model_code for axis labels", () => {
     expect(normalizeModelCode({ model_code: "  ", rank: 4 }, 3)).toBe("M?4");
     expect(normalizeModelCode({ model_code: "M0005", rank: 5 }, 0)).toBe("M0005");

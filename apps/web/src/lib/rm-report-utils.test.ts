@@ -8,6 +8,7 @@ import {
   buildHoldingsDiff,
   buildMetricCompareRows,
   buildTalkingPoints,
+  resolveCustomizedEquityCurve,
   type MetricCompareRow,
 } from "./rm-report-utils";
 
@@ -313,6 +314,95 @@ describe("rm-report-utils benchmark compare", () => {
     }).find((r) => r.key === "cagr")!;
     expect(cagr.anchorValue).toBeGreaterThan(cagr.customizedValue);
   });
+
+  it("does not fall back to champion equity when selected slim trial has no curve", () => {
+    const anchor = mockResult({
+      cagr: 0.1,
+      fullCagr: 0.1,
+      equity: [
+        { date: "2020-01-01", value: 100 },
+        { date: "2021-01-01", value: 110 },
+      ],
+    });
+    const customized: BacktestResult = {
+      ...mockResult({
+        cagr: 0.12,
+        fullCagr: 0.12,
+        equity: [
+          { date: "2020-01-01", value: 100 },
+          { date: "2021-01-01", value: 112 },
+        ],
+      }),
+      candidates: [
+        {
+          rank: 1,
+          model_code: "M0023",
+          is_champion: true,
+          weights: { SPY: 1 },
+          sharpe: 0.67,
+          max_drawdown: -0.2,
+          cagr: 0.15,
+          volatility: 0.15,
+          equity_curve: [
+            { date: "2020-01-01", value: 100 },
+            { date: "2021-01-01", value: 115 },
+          ],
+          analytics: {
+            sample_metrics: {
+              full_sample: {
+                sharpe: 0.67,
+                cagr: 0.157,
+                max_drawdown: -0.2,
+                volatility: 0.15,
+              },
+            },
+          },
+        },
+        {
+          rank: 2,
+          model_code: "M0003",
+          is_champion: false,
+          weights: { QQQ: 1 },
+          sharpe: 0.72,
+          max_drawdown: -0.18,
+          cagr: 0.18,
+          volatility: 0.16,
+          equity_curve: null as unknown as { date: string; value: number }[],
+          analytics: {
+            sample_metrics: {
+              full_sample: {
+                sharpe: 0.725,
+                cagr: 0.1812,
+                max_drawdown: -0.18,
+                volatility: 0.16,
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    expect(
+      resolveCustomizedEquityCurve(customized, {
+        customizedModelCode: "M0003",
+      }),
+    ).toEqual([]);
+    expect(
+      buildBenchmarkCompareChartData(anchor, customized, {
+        customizedModelCode: "M0003",
+      }),
+    ).toBeNull();
+
+    // After merging a lazy curve, chart should follow M0003.
+    customized.candidates[1].equity_curve = [
+      { date: "2020-01-01", value: 100 },
+      { date: "2021-01-01", value: 130 },
+    ];
+    const chart = buildBenchmarkCompareChartData(anchor, customized, {
+      customizedModelCode: "M0003",
+    })!;
+    expect(chart.at(-1)!.customized).toBeCloseTo(130, 5);
+  });
 });
 
 describe("buildTalkingPoints", () => {
@@ -446,5 +536,105 @@ describe("buildTalkingPoints", () => {
     expect(points.some((p) => p.includes("最小化最大回撤"))).toBe(true);
     expect(points.some((p) => p.includes("年化報酬略低於基準"))).toBe(true);
     expect(points.at(-1)).toContain("回測示意");
+  });
+
+  it("recomputes talking points when customizedModelCode changes", () => {
+    const anchor = mockResult({
+      cagr: 0.12,
+      fullCagr: 0.12,
+      equity: [
+        { date: "2020-01-01", value: 100 },
+        { date: "2021-01-01", value: 120 },
+      ],
+    });
+    anchor.candidates[0].weights = { SPY: 1 };
+
+    const customized: BacktestResult = {
+      ...mockResult({
+        cagr: 0.1,
+        fullCagr: 0.1,
+        equity: [
+          { date: "2020-01-01", value: 100 },
+          { date: "2021-01-01", value: 110 },
+        ],
+      }),
+      candidates: [
+        {
+          rank: 1,
+          model_code: "M0023",
+          is_champion: true,
+          weights: { SPY: 0.8, BND: 0.2 },
+          sharpe: 0.67,
+          max_drawdown: -0.2,
+          cagr: 0.15,
+          volatility: 0.15,
+          equity_curve: [],
+          analytics: {
+            exposure: { by_asset_class: { equity: 0.8, bond: 0.2 } },
+            sample_metrics: {
+              full_sample: {
+                sharpe: 0.67,
+                cagr: 0.157,
+                max_drawdown: -0.2,
+                volatility: 0.15,
+              },
+            },
+          },
+        },
+        {
+          rank: 2,
+          model_code: "M0003",
+          is_champion: false,
+          weights: { QQQ: 0.7, TLT: 0.3 },
+          sharpe: 0.72,
+          max_drawdown: -0.18,
+          cagr: 0.18,
+          volatility: 0.16,
+          equity_curve: [],
+          analytics: {
+            exposure: { by_asset_class: { equity: 0.7, bond: 0.3 } },
+            sample_metrics: {
+              full_sample: {
+                sharpe: 0.725,
+                cagr: 0.1812,
+                max_drawdown: -0.18,
+                volatility: 0.16,
+              },
+            },
+          },
+        },
+      ],
+    };
+
+    const champPoints = buildTalkingPoints({
+      metrics: mockMetrics(),
+      holdingsDiff: buildHoldingsDiff(anchor, customized, undefined, {
+        customizedModelCode: "M0023",
+      }),
+      overlay: mockOverlay(),
+      adjustedResult: customized,
+      anchorLabel: "US Large Cap",
+      objectiveKey: "max_sharpe",
+      lang: "zh",
+      t: mockZhT,
+      customizedModelCode: "M0023",
+    });
+    const trialPoints = buildTalkingPoints({
+      metrics: mockMetrics(),
+      holdingsDiff: buildHoldingsDiff(anchor, customized, undefined, {
+        customizedModelCode: "M0003",
+      }),
+      overlay: mockOverlay(),
+      adjustedResult: customized,
+      anchorLabel: "US Large Cap",
+      objectiveKey: "max_sharpe",
+      lang: "zh",
+      t: mockZhT,
+      customizedModelCode: "M0003",
+    });
+
+    expect(champPoints[0]).toContain("SPY");
+    expect(trialPoints[0]).toContain("QQQ");
+    expect(champPoints[0]).not.toEqual(trialPoints[0]);
   });
 });

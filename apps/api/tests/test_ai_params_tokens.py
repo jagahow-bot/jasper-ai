@@ -30,6 +30,7 @@ def test_resolve_ai_param_seed_plan_small_n_unchanged(monkeypatch):
     assert plan["target"] == 5
     assert plan["use_batch"] is False
     assert plan["capped"] is False
+    assert plan["all_ai"] is False
 
 
 def test_resolve_ai_param_seed_plan_caps_and_batches_high_n(monkeypatch):
@@ -40,6 +41,22 @@ def test_resolve_ai_param_seed_plan_caps_and_batches_high_n(monkeypatch):
     assert plan["use_batch"] is True
     assert plan["capped"] is True
     assert plan["requested"] == 50
+    assert plan["all_ai"] is False
+
+
+def test_resolve_ai_param_seed_plan_all_ai_uses_requested_up_to_hard_cap(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_param_seed_batch_threshold", 10)
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_param_seed_max_count", 8)
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_param_seed_batch_size", 8)
+    plan = resolve_ai_param_seed_plan(25, all_ai=True)
+    assert plan["target"] == 25
+    assert plan["use_batch"] is True
+    assert plan["capped"] is False
+    assert plan["all_ai"] is True
+    plan_over = resolve_ai_param_seed_plan(50, all_ai=True)
+    assert plan_over["target"] == 40
+    assert plan_over["capped"] is True
+    assert plan_over["all_ai"] is True
 
 
 def test_round_param_numbers_truncates_float_noise():

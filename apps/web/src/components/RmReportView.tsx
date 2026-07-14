@@ -239,6 +239,8 @@ export function RmReportView({
         variant="rm"
         anchorBenchmarkTicker={anchorPortfolio.benchmark}
         anchorPortfolio={anchorPortfolio}
+        anchorBaselineResult={compare.baseResult}
+        anchorBaselineLabel={compare.anchorLabel}
         selectedRowKey={selectedRowKey}
         onSelectedRowKeyChange={setSelectedRowKey}
       />
@@ -257,6 +259,8 @@ export function RmReportView({
         variant="rm"
         anchorBenchmarkTicker={anchorPortfolio.benchmark}
         anchorPortfolio={anchorPortfolio}
+        anchorBaselineResult={compare.baseResult}
+        anchorBaselineLabel={compare.anchorLabel}
         selectedRowKey={selectedRowKey}
         onSelectedRowKeyChange={setSelectedRowKey}
       />
@@ -448,9 +452,12 @@ export function RmReportView({
               {t("rm.report.talkingTitle")}
             </h3>
             <p className="ui-hint mt-1">{t("rm.report.talkingHint")}</p>
-            <ul className="ui-body mt-3 list-disc space-y-2 pl-5">
+            <ul
+              className="ui-body mt-3 list-disc space-y-2 pl-5"
+              key={`talking-${selectedRowKey || selectedModelCode || "champ"}`}
+            >
               {talkingPoints.map((point, i) => (
-                <li key={i}>{point}</li>
+                <li key={`${selectedRowKey}-${i}`}>{point}</li>
               ))}
             </ul>
           </section>
@@ -503,6 +510,7 @@ export function RmReportView({
         overlay={overlay}
         anchorPortfolio={anchorPortfolio}
         client={client}
+        customizedModelCode={selectedModelCode}
       />
     </div>
   );

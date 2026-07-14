@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { fetchCandidateCharts } from "@/lib/api";
 import {
   chartLegendFontSize,
   chartTickFontSize,
@@ -19,6 +20,10 @@ import {
   LAB_CHART_MARGIN,
   LAB_Y_AXIS_WIDTH,
 } from "@/lib/benchmark-chart-scale";
+import {
+  candidateHasFullCharts,
+  mergeCandidateCharts,
+} from "@/lib/candidate-charts-lazy";
 import { objectiveLabel, useI18n } from "@/lib/i18n";
 import { resolveRunObjective } from "@/lib/resolve-run-objective";
 import {
@@ -26,7 +31,11 @@ import {
   buildMetricCompareRows,
   type RmCandidatePick,
 } from "@/lib/rm-report-utils";
-import type { BacktestRequest, BacktestResult } from "@/lib/types";
+import type {
+  BacktestRequest,
+  BacktestResult,
+  CandidateChartsPayload,
+} from "@/lib/types";
 
 type Props = {
   anchorLabel: string;
@@ -51,20 +60,128 @@ export function BenchmarkComparePanel({
   const tickFont = chartTickFontSize();
   const legendFont = chartLegendFontSize();
 
+  const selectedModelCode = candidatePick?.customizedModelCode ?? null;
+  const selectedCandidate = useMemo(() => {
+    if (!selectedModelCode) return null;
+    return (
+      adjustedResult.candidates.find(
+        (c) =>
+          (c.model_code ?? "").toUpperCase() === selectedModelCode.toUpperCase(),
+      ) ?? null
+    );
+  }, [adjustedResult.candidates, selectedModelCode]);
+
+  const needsLazyCharts = Boolean(
+    selectedModelCode &&
+      selectedCandidate &&
+      !candidateHasFullCharts(selectedCandidate),
+  );
+
+  const [lazyChartsByCode, setLazyChartsByCode] = useState<
+    Record<string, CandidateChartsPayload>
+  >({});
+  const [chartsLoadingCode, setChartsLoadingCode] = useState<string | null>(
+    null,
+  );
+  const [chartsLoadError, setChartsLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLazyChartsByCode({});
+    setChartsLoadingCode(null);
+    setChartsLoadError(null);
+  }, [adjustedResult.job_id]);
+
+  useEffect(() => {
+    if (!selectedModelCode || !needsLazyCharts) return;
+    if (lazyChartsByCode[selectedModelCode]?.equity_curve?.length) return;
+
+    let cancelled = false;
+    setChartsLoadingCode(selectedModelCode);
+    setChartsLoadError(null);
+    void (async () => {
+      try {
+        const payload = await fetchCandidateCharts(
+          adjustedResult.job_id,
+          selectedModelCode,
+          { rank: selectedCandidate?.rank },
+        );
+        if (!cancelled) {
+          setLazyChartsByCode((prev) => ({
+            ...prev,
+            [selectedModelCode]: payload,
+          }));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setChartsLoadError(
+            err instanceof Error ? err.message : t("results.failedLoadTrajectory"),
+          );
+        }
+      } finally {
+        if (!cancelled) setChartsLoadingCode(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedModelCode,
+    selectedCandidate?.rank,
+    needsLazyCharts,
+    lazyChartsByCode,
+    adjustedResult.job_id,
+    t,
+  ]);
+
+  const enrichedAdjustedResult = useMemo(() => {
+    if (!selectedModelCode || !selectedCandidate) return adjustedResult;
+    const lazy = lazyChartsByCode[selectedModelCode];
+    if (!lazy?.equity_curve?.length && candidateHasFullCharts(selectedCandidate)) {
+      return adjustedResult;
+    }
+    if (!lazy?.equity_curve?.length) return adjustedResult;
+
+    const merged = mergeCandidateCharts(selectedCandidate, lazy);
+    return {
+      ...adjustedResult,
+      candidates: adjustedResult.candidates.map((c) =>
+        (c.model_code ?? "").toUpperCase() === selectedModelCode.toUpperCase()
+          ? merged
+          : c,
+      ),
+    };
+  }, [
+    adjustedResult,
+    selectedModelCode,
+    selectedCandidate,
+    lazyChartsByCode,
+  ]);
+
   const rows = useMemo(
     () =>
-      buildMetricCompareRows(baseResult, adjustedResult, {
+      buildMetricCompareRows(baseResult, enrichedAdjustedResult, {
         cagr: t("compare.metric.cagr"),
         sharpe: t("compare.metric.sharpe"),
         mdd: t("compare.metric.mdd"),
         vol: t("compare.metric.vol"),
       }, candidatePick),
-    [baseResult, adjustedResult, candidatePick, t],
+    [baseResult, enrichedAdjustedResult, candidatePick, t],
   );
 
   const chartData = useMemo(
-    () => buildBenchmarkCompareChartData(baseResult, adjustedResult, candidatePick),
-    [baseResult, adjustedResult, candidatePick],
+    () =>
+      buildBenchmarkCompareChartData(
+        baseResult,
+        enrichedAdjustedResult,
+        candidatePick,
+      ),
+    [baseResult, enrichedAdjustedResult, candidatePick],
+  );
+
+  const chartsLoading = Boolean(
+    needsLazyCharts &&
+      chartsLoadingCode === selectedModelCode &&
+      !chartData?.length,
   );
 
   if (!rows.length) return null;
@@ -83,6 +200,21 @@ export function BenchmarkComparePanel({
         ) : null}
         <p className="mt-2 ui-hint">{t("compare.subtitle")}</p>
       </div>
+
+      {chartsLoading ? (
+        <p className="ui-hint flex items-center gap-2 px-1">
+          <span
+            className="inline-block h-3 w-3 animate-spin rounded-full border border-[var(--amber)] border-t-transparent"
+            aria-hidden
+          />
+          {t("results.loadingTrajectory", {
+            model: selectedModelCode ?? "",
+          })}
+        </p>
+      ) : null}
+      {chartsLoadError && !chartData?.length ? (
+        <p className="ui-hint px-1 text-red-400">{chartsLoadError}</p>
+      ) : null}
 
       {chartData && chartData.length > 0 && (
         <div className="saas-inset p-2">

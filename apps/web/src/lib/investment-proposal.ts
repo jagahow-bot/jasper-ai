@@ -22,6 +22,7 @@ import {
 } from "@/lib/rm-report-utils";
 import { resolveRunObjective } from "@/lib/resolve-run-objective";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
+import type { RmCandidatePick } from "@/lib/rm-report-utils";
 import { resolveTickerDisplayName } from "@/lib/ticker-display-name";
 import type { PersonalizationCompare } from "@/lib/types";
 
@@ -165,15 +166,22 @@ function investmentNotional(client: DemoClient | null): number | null {
 function customizedWeightMap(
   compare: PersonalizationCompare,
   holdingsDiff: HoldingDiffRow[],
+  customizedModelCode?: string | null,
 ): Record<string, number> {
+  const candidates = compare.adjustedResult.candidates;
+  const picked = customizedModelCode
+    ? candidates.find(
+        (c) =>
+          (c.model_code ?? "").toUpperCase() ===
+          customizedModelCode.toUpperCase(),
+      )
+    : null;
   const idx = resolveChampionCandidateIndex(
-    compare.adjustedResult.candidates,
+    candidates,
     compare.adjustedResult.narrative_facts,
   );
   const champ =
-    idx >= 0
-      ? compare.adjustedResult.candidates[idx]
-      : compare.adjustedResult.candidates[0];
+    picked ?? (idx >= 0 ? candidates[idx] : candidates[0]);
   const fromChamp = champ?.weights;
   if (fromChamp && Object.keys(fromChamp).length) {
     const out: Record<string, number> = {};
@@ -194,8 +202,13 @@ function buildAllocationRows(
   holdingsDiff: HoldingDiffRow[],
   notional: number | null,
   lang: Lang,
+  customizedModelCode?: string | null,
 ): ProposalAllocationRow[] {
-  const weights = customizedWeightMap(compare, holdingsDiff);
+  const weights = customizedWeightMap(
+    compare,
+    holdingsDiff,
+    customizedModelCode,
+  );
   return Object.entries(weights)
     .filter(([, pct]) => pct > 0.05)
     .sort((a, b) => b[1] - a[1])
@@ -338,8 +351,20 @@ export function buildInvestmentProposalDocument(input: {
   client: DemoClient | null;
   lang: Lang;
   t: TFn;
+  customizedModelCode?: string | null;
 }): ProposalDocument {
-  const { compare, overlay, anchorPortfolio, client, lang, t } = input;
+  const {
+    compare,
+    overlay,
+    anchorPortfolio,
+    client,
+    lang,
+    t,
+    customizedModelCode,
+  } = input;
+  const pick: RmCandidatePick | undefined = customizedModelCode
+    ? { customizedModelCode }
+    : undefined;
 
   const metrics = buildMetricCompareRows(
     compare.baseResult,
@@ -350,15 +375,18 @@ export function buildInvestmentProposalDocument(input: {
       mdd: t("compare.metric.mdd"),
       vol: t("compare.metric.vol"),
     },
+    pick,
   );
   const holdingsDiff = buildHoldingsDiff(
     compare.baseResult,
     compare.adjustedResult,
     anchorPortfolio.holdings,
+    pick,
   );
   const chartData = buildBenchmarkCompareChartData(
     compare.baseResult,
     compare.adjustedResult,
+    pick,
   );
   const talkingPoints = buildTalkingPoints({
     metrics,
@@ -372,6 +400,7 @@ export function buildInvestmentProposalDocument(input: {
     ),
     lang,
     t,
+    customizedModelCode,
   });
 
   const amLabel = getAssetManagerLabel(anchorPortfolio, lang);
@@ -404,6 +433,7 @@ export function buildInvestmentProposalDocument(input: {
     holdingsDiff,
     notional,
     lang,
+    customizedModelCode,
   );
   const currentRows = clientHoldingRows(client, lang);
   const metricTable: ProposalMetricTableRow[] = metrics.map((m: MetricCompareRow) => ({
