@@ -204,7 +204,11 @@ export function buildMetricCompareRows(
   ];
 
   return specs.map((s) => {
-    const delta = s.customizedValue - s.anchorValue;
+    // Severity metrics (MDD): Δ = |customized| − |anchor| so a shallower
+    // drawdown shows negative (improved), not signed arithmetic (+0.8%).
+    const delta = s.lowerIsBetter
+      ? Math.abs(s.customizedValue) - Math.abs(s.anchorValue)
+      : s.customizedValue - s.anchorValue;
     const deltaPrefix = delta > 0 ? "+" : "";
     const deltaDisplay =
       s.key === "sharpe"

@@ -145,16 +145,13 @@ export function BenchmarkComparePanel({
           </thead>
           <tbody>
             {rows.map((row) => {
-              const improved =
-                row.key === "mdd" || row.key === "vol"
-                  ? row.customizedValue < row.anchorValue
-                  : row.customizedValue > row.anchorValue;
-              const delta = row.customizedValue - row.anchorValue;
-              const deltaClass = improved
-                ? "text-emerald-600"
-                : delta === 0
-                  ? "text-dim"
-                  : "text-red-600";
+              // Prefer utils trafficLight so MDD severity delta (|c|−|a|) colors correctly.
+              const deltaClass =
+                row.trafficLight === "better"
+                  ? "text-emerald-600"
+                  : row.trafficLight === "neutral"
+                    ? "text-dim"
+                    : "text-red-600";
 
               return (
                 <tr key={row.key} className="border-b border-[var(--border)]/50">

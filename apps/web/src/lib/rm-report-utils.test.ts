@@ -153,6 +153,40 @@ describe("rm-report-utils benchmark compare", () => {
     expect(cagr.trafficLight).toBe("worse");
   });
 
+  it("buildMetricCompareRows MDD delta uses severity (|c|−|a|), green when shallower", () => {
+    const anchor = mockResult({
+      cagr: 0.1,
+      fullCagr: 0.1,
+      equity: [
+        { date: "2020-01-01", value: 100 },
+        { date: "2021-01-01", value: 110 },
+      ],
+    });
+    const customized = mockResult({
+      cagr: 0.1,
+      fullCagr: 0.1,
+      equity: [
+        { date: "2020-01-01", value: 100 },
+        { date: "2021-01-01", value: 110 },
+      ],
+    });
+    // Anchor deeper MDD (−34.29%) vs customized shallower (−33.49%).
+    customized.candidates[0].analytics!.sample_metrics!.full_sample!.max_drawdown =
+      -0.3349;
+    anchor.candidates[0].analytics!.sample_metrics!.full_sample!.max_drawdown =
+      -0.3429;
+
+    const mdd = buildMetricCompareRows(anchor, customized, {
+      cagr: "CAGR",
+      sharpe: "Sharpe",
+      mdd: "MDD",
+      vol: "Vol",
+    }).find((r) => r.key === "mdd")!;
+
+    expect(mdd.deltaDisplay).toBe("-0.80%");
+    expect(mdd.trafficLight).toBe("better");
+  });
+
   it("buildMetricCompareRows uses selected trial when customizedModelCode is set", () => {
     const anchor = mockResult({
       cagr: 0.111,
@@ -302,7 +336,7 @@ describe("buildTalkingPoints", () => {
         customizedValue: -0.182,
         anchorDisplay: "-24.50%",
         customizedDisplay: "-18.20%",
-        deltaDisplay: "+6.30%",
+        deltaDisplay: "-6.30%",
         trafficLight: "better",
         lowerIsBetter: true,
       },
