@@ -7,6 +7,7 @@ import { AppNav } from "@/components/AppNav";
 import {
   formatUsd,
   getDemoClientById,
+  holdingDisplayName,
   localizedText,
 } from "@/lib/clients";
 import { getPortfolioLabel } from "@/lib/model-portfolios";
@@ -14,7 +15,12 @@ import {
   getManagedPortfolioById,
   resolveSuggestedAnchorId,
 } from "@/lib/model-portfolios-store";
-import { useI18n } from "@/lib/i18n";
+import {
+  assetClassLabel,
+  esgPreferenceLabel,
+  riskProfileLabel,
+  useI18n,
+} from "@/lib/i18n";
 
 export default function ClientDashboardPage() {
   const { t, lang } = useI18n();
@@ -84,11 +90,16 @@ export default function ClientDashboardPage() {
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-2">
                 <dt className="ui-hint">{t("clients.age")}</dt>
-                <dd className="font-medium">{client.age}</dd>
+                <dd className="font-medium">
+                  {client.age}
+                  {t("clients.ageUnit")}
+                </dd>
               </div>
               <div className="flex justify-between gap-2">
                 <dt className="ui-hint">{t("clients.risk")}</dt>
-                <dd className="font-medium">{client.risk_profile}</dd>
+                <dd className="font-medium">
+                  {riskProfileLabel(t, client.risk_profile)}
+                </dd>
               </div>
               <div className="flex justify-between gap-2">
                 <dt className="ui-hint">{t("clients.aum")}</dt>
@@ -100,11 +111,17 @@ export default function ClientDashboardPage() {
               </div>
               <div className="flex justify-between gap-2">
                 <dt className="ui-hint">{t("clients.horizon")}</dt>
-                <dd className="font-medium text-right">{client.investment_horizon}</dd>
+                <dd className="font-medium text-right">
+                  {localizedText(client.investment_horizon, lang)}
+                </dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt className="ui-hint">ESG</dt>
-                <dd className="font-medium">{client.preferences.esg ?? "—"}</dd>
+                <dt className="ui-hint">{t("clients.esg")}</dt>
+                <dd className="font-medium">
+                  {client.preferences.esg
+                    ? esgPreferenceLabel(t, client.preferences.esg)
+                    : "—"}
+                </dd>
               </div>
               <div className="flex justify-between gap-2">
                 <dt className="ui-hint">{t("clients.rm")}</dt>
@@ -125,9 +142,12 @@ export default function ClientDashboardPage() {
                 </p>
               </div>
             ) : null}
-            <p className="text-sm text-[var(--ui-color-body)]">
-              {localizedText(client.notes, lang)}
-            </p>
+            <div className="text-sm">
+              <p className="ui-hint">{t("clients.notes")}</p>
+              <p className="mt-1 text-[var(--ui-color-body)]">
+                {localizedText(client.notes, lang)}
+              </p>
+            </div>
           </section>
 
           <section className="pixel-panel lg:col-span-2">
@@ -153,9 +173,11 @@ export default function ClientDashboardPage() {
                     >
                       <td className="py-2.5 pr-3 font-medium">{h.ticker}</td>
                       <td className="py-2.5 pr-3 text-[var(--ui-color-body)]">
-                        {h.name}
+                        {holdingDisplayName(h, t)}
                       </td>
-                      <td className="py-2.5 pr-3">{h.asset_class}</td>
+                      <td className="py-2.5 pr-3">
+                        {assetClassLabel(t, h.asset_class)}
+                      </td>
                       <td className="py-2.5 pr-3 text-right tabular-nums">
                         {(h.weight * 100).toFixed(1)}%
                       </td>

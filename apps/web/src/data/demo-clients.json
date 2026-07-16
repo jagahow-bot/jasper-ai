@@ -16,7 +16,11 @@
       "age": 55,
       "aum_usd": 12000000,
       "cash_usd": 12000000,
-      "investment_horizon": "5–7 years",
+      "investment_horizon": {
+        "en": "5–7 years",
+        "zh": "5–7 年",
+        "ko": "5–7년"
+      },
       "liquidity_notes": {
         "en": "Needs ~USD 1.5M within 12 months for a residential purchase; remaining cash to be invested gradually.",
         "zh": "明年購屋需提領約 150 萬美元流動性；其餘現金擬分批投入。",
@@ -24,7 +28,11 @@
       },
       "preferences": {
         "esg": "light",
-        "tags": ["ESG", "capital_preservation", "liquidity"]
+        "tags": [
+          "ESG",
+          "capital_preservation",
+          "liquidity"
+        ]
       },
       "rm_owner": "RM Demo",
       "as_of_date": "2026-07-14",
@@ -34,7 +42,7 @@
           "ticker": "CASH",
           "name": "Cash / money market",
           "asset_class": "cash",
-          "weight": 1.0,
+          "weight": 1,
           "region": "us",
           "notes": "Fully in cash pending deployment"
         }
@@ -58,7 +66,11 @@
       "age": 38,
       "aum_usd": 4500000,
       "cash_usd": 350000,
-      "investment_horizon": "10+ years",
+      "investment_horizon": {
+        "en": "10+ years",
+        "zh": "10 年以上",
+        "ko": "10년 이상"
+      },
       "liquidity_notes": {
         "en": "No near-term withdrawal; open to growth / tech tilt.",
         "zh": "近期無提領需求；可接受成長／科技傾斜。",
@@ -66,7 +78,11 @@
       },
       "preferences": {
         "esg": "none",
-        "tags": ["growth", "tech", "US_equity"]
+        "tags": [
+          "growth",
+          "tech",
+          "US_equity"
+        ]
       },
       "rm_owner": "RM Demo",
       "as_of_date": "2026-07-14",
@@ -120,7 +136,11 @@
       "age": 62,
       "aum_usd": 6800000,
       "cash_usd": 800000,
-      "investment_horizon": "3–5 years",
+      "investment_horizon": {
+        "en": "3–5 years",
+        "zh": "3–5 年",
+        "ko": "3–5년"
+      },
       "liquidity_notes": {
         "en": "May need ~USD 400k for family medical / estate planning within 24 months.",
         "zh": "未來 24 個月內可能需約 40 萬美元作為醫療／遺產規劃。",
@@ -128,7 +148,11 @@
       },
       "preferences": {
         "esg": "moderate",
-        "tags": ["income", "drawdown_control", "bonds"]
+        "tags": [
+          "income",
+          "drawdown_control",
+          "bonds"
+        ]
       },
       "rm_owner": "RM Demo",
       "as_of_date": "2026-07-14",
@@ -189,7 +213,11 @@
       "age": 48,
       "aum_usd": 9200000,
       "cash_usd": 600000,
-      "investment_horizon": "7–10 years",
+      "investment_horizon": {
+        "en": "7–10 years",
+        "zh": "7–10 年",
+        "ko": "7–10년"
+      },
       "liquidity_notes": {
         "en": "Annual philanthropy ~USD 200k; otherwise fully invested horizon.",
         "zh": "每年慈善約 20 萬美元；其餘長期配置。",
@@ -197,7 +225,11 @@
       },
       "preferences": {
         "esg": "strong",
-        "tags": ["ESG", "global", "balanced"]
+        "tags": [
+          "ESG",
+          "global",
+          "balanced"
+        ]
       },
       "rm_owner": "RM Demo",
       "as_of_date": "2026-07-14",

@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppNav } from "@/components/AppNav";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, riskProfileLabel } from "@/lib/i18n";
 import {
   getAmThemeLabel,
   getAssetManagerLabel,
+  getPortfolioDescription,
   getPortfolioLabel,
 } from "@/lib/model-portfolios";
 import {
@@ -169,7 +170,9 @@ export default function ModelPortfoliosPage() {
                       <h2 className="text-base font-semibold text-[var(--foreground)]">
                         {label}
                       </h2>
-                      <span className="pixel-badge">{p.risk_level}</span>
+                      <span className="pixel-badge">
+                        {riskProfileLabel(t, p.risk_level)}
+                      </span>
                       {conflict ? (
                         <span className="pixel-badge pixel-badge-warn">
                           {t("models.conflictBadge")}
@@ -180,12 +183,19 @@ export default function ModelPortfoliosPage() {
                       ) : null}
                     </div>
                     <p className="mt-1 text-sm text-[var(--text-dim)]">
-                      {getAmThemeLabel(p, lang)} · {p.id} · BM {p.benchmark}
+                      {getAmThemeLabel(p, lang)} · {p.id} ·{" "}
+                      {t("models.benchmark")} {p.benchmark}
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--ui-color-body)]">
+                      {getPortfolioDescription(p, lang)}
                     </p>
                     <p className="mt-2 text-sm text-[var(--primary)]">
                       {p.holdings
                         .map((h) => `${h.ticker} ${(h.weight * 100).toFixed(0)}%`)
                         .join(" · ")}
+                    </p>
+                    <p className="mt-1 text-[11px] text-[var(--text-dim)]">
+                      {t("models.issuerHoldingsHint")}
                     </p>
                     {conflict ? (
                       <p className="mt-2 text-sm text-[var(--amber)]">

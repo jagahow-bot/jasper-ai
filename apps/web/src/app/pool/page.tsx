@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppNav } from "@/components/AppNav";
-import { useI18n } from "@/lib/i18n";
+import {
+  assetClassLabel,
+  productTypeLabel,
+  regionLabel,
+  useI18n,
+} from "@/lib/i18n";
 import {
   buildDemoPool,
   buildFullUniversePool,
@@ -178,7 +183,7 @@ export default function InvestmentPoolPage() {
               <option value="all">{t("pool.filter.allClasses")}</option>
               {assetClasses.map((c) => (
                 <option key={c} value={c}>
-                  {c}
+                  {assetClassLabel(t, c)}
                 </option>
               ))}
             </select>
@@ -190,7 +195,7 @@ export default function InvestmentPoolPage() {
               <option value="all">{t("pool.filter.allRegions")}</option>
               {regions.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {regionLabel(t, r)}
                 </option>
               ))}
             </select>
@@ -227,16 +232,18 @@ export default function InvestmentPoolPage() {
                         type="checkbox"
                         checked={i.enabled}
                         onChange={(e) => onToggle(i.ticker, e.target.checked)}
-                        aria-label={`${i.ticker} enabled`}
+                        aria-label={t("pool.toggleEnabled", { ticker: i.ticker })}
                       />
                     </td>
                     <td className="py-2 pr-2 font-medium">{i.ticker}</td>
                     <td className="py-2 pr-2 text-[var(--ui-color-body)]">
                       {i.name}
                     </td>
-                    <td className="py-2 pr-2">{i.asset_class}</td>
-                    <td className="py-2 pr-2">{i.region}</td>
-                    <td className="py-2 pr-2">{i.product_type}</td>
+                    <td className="py-2 pr-2">{assetClassLabel(t, i.asset_class)}</td>
+                    <td className="py-2 pr-2">{regionLabel(t, i.region)}</td>
+                    <td className="py-2 pr-2">
+                      {productTypeLabel(t, i.product_type)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -8,7 +8,7 @@ import {
   getDemoClients,
   localizedText,
 } from "@/lib/clients";
-import { useI18n } from "@/lib/i18n";
+import { riskProfileLabel, useI18n } from "@/lib/i18n";
 
 export default function ClientsPage() {
   const { t, lang } = useI18n();
@@ -39,10 +39,12 @@ export default function ClientsPage() {
                     </h2>
                     <p className="mt-1 text-sm text-[var(--text-dim)]">
                       {c.client_id} · {c.segment} · {c.age}
-                      {lang === "zh" ? " 歲" : lang === "ko" ? "세" : "yo"}
+                      {t("clients.ageUnit")}
                     </p>
                   </div>
-                  <span className="pixel-badge">{c.risk_profile}</span>
+                  <span className="pixel-badge">
+                    {riskProfileLabel(t, c.risk_profile)}
+                  </span>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
                   <div>

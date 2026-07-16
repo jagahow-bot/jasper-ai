@@ -3,7 +3,12 @@ import {
   localizedText,
   type DemoClient,
 } from "@/lib/clients";
-import type { Lang, TFn } from "@/lib/i18n";
+import {
+  esgPreferenceLabel,
+  riskProfileLabel,
+  type Lang,
+  type TFn,
+} from "@/lib/i18n";
 import {
   getAssetManagerLabel,
   getPortfolioLabel,
@@ -263,11 +268,11 @@ function profileRows(input: {
     });
     rows.push({
       label: t("proposal.field.risk"),
-      value: client.risk_profile,
+      value: riskProfileLabel(t, client.risk_profile),
     });
     rows.push({
       label: t("proposal.field.horizon"),
-      value: client.investment_horizon,
+      value: localizedText(client.investment_horizon, lang),
     });
     rows.push({
       label: t("proposal.field.aum"),
@@ -284,7 +289,7 @@ function profileRows(input: {
     if (client.preferences.esg) {
       rows.push({
         label: t("proposal.field.esg"),
-        value: client.preferences.esg,
+        value: esgPreferenceLabel(t, client.preferences.esg),
       });
     }
   }
@@ -293,7 +298,7 @@ function profileRows(input: {
   if (cp?.risk_tolerance && !client) {
     rows.push({
       label: t("proposal.field.risk"),
-      value: cp.risk_tolerance,
+      value: riskProfileLabel(t, cp.risk_tolerance),
     });
   }
   if (cp?.investment_horizon_years) {

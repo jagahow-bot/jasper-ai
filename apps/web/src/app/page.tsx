@@ -43,7 +43,7 @@ import {
 import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
 import { getUniverseMeta } from "@/lib/universe";
-import { useI18n } from "@/lib/i18n";
+import { riskProfileLabel, useI18n } from "@/lib/i18n";
 import { translateProgress } from "@/lib/progress-i18n";
 import {
   buildAnchorBacktestRequest,
@@ -825,7 +825,7 @@ export default function HomePage() {
               <p>
                 {t("clients.contextBanner", {
                   name: localizedText(activeClient.display_name, lang),
-                  risk: activeClient.risk_profile,
+                  risk: riskProfileLabel(t, activeClient.risk_profile),
                 })}
               </p>
               <Link

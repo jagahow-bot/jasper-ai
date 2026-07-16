@@ -1195,6 +1195,26 @@ const en: Dict = {
   "clients.launchBanner": "Loaded client context for {name}. Review the anchor, then describe needs in Overlay.",
   "clients.contextBanner": "Active client: {name} · risk {risk}",
   "clients.viewDashboard": "View dashboard",
+  "clients.esg": "ESG preference",
+  "clients.ageUnit": "yo",
+  "clients.holding.cash": "Cash",
+  "clients.holding.cashMoneyMarket": "Cash / money market",
+  "clients.notes": "Notes",
+
+  "enum.risk.conservative": "Conservative",
+  "enum.risk.moderate": "Moderate",
+  "enum.risk.aggressive": "Aggressive",
+  "enum.risk.moderate_conservative": "Moderately conservative",
+  "enum.risk.moderate_aggressive": "Moderately aggressive",
+
+  "enum.esg.none": "None",
+  "enum.esg.light": "Light",
+  "enum.esg.moderate": "Moderate",
+  "enum.esg.strong": "Strong",
+  "enum.esg.strict": "Strict",
+
+  "institutional.cash": "Cash",
+  "institutional.fixed_income": "Fixed income",
 
   "pool.title": "Investment Pool",
   "pool.subtitle": "Global product shelf",
@@ -1216,6 +1236,15 @@ const en: Dict = {
   "pool.col.region": "Region",
   "pool.col.productType": "Product type",
   "pool.empty": "No tickers match these filters.",
+  "pool.toggleEnabled": "Enable {ticker}",
+  "pool.region.us": "US",
+  "pool.region.intl": "International",
+  "pool.region.global": "Global",
+  "pool.product.etf": "ETF",
+  "pool.product.fund": "Fund",
+  "pool.product.structured": "Structured",
+  "pool.product.bond": "Bond",
+  "pool.product.other": "Other",
 
   "models.title": "Model Portfolios",
   "models.subtitle": "AM anchor catalog",
@@ -1234,6 +1263,9 @@ const en: Dict = {
   "models.hideHoldings": "Hide holdings",
   "models.col.am": "Asset Manager",
   "models.col.theme": "Theme",
+  "models.risk": "Risk",
+  "models.benchmark": "Benchmark",
+  "models.issuerHoldingsHint": "All constituents are ETFs from this Asset Manager",
 
   "anchor.poolConflicts": "{count} model(s) hidden due to Investment Pool conflicts — fix Pool or Models.",
   "anchor.empty": "No selectable anchors. Enable Model Portfolios whose holdings are in the enabled Investment Pool.",
@@ -2375,6 +2407,26 @@ const zh: Dict = {
   "clients.launchBanner": "已載入客戶「{name}」上下文。請確認錨點，再於 Overlay 描述需求。",
   "clients.contextBanner": "目前客戶：{name} · 風險 {risk}",
   "clients.viewDashboard": "查看儀表板",
+  "clients.esg": "ESG 偏好",
+  "clients.ageUnit": " 歲",
+  "clients.holding.cash": "現金",
+  "clients.holding.cashMoneyMarket": "現金／貨幣市場",
+  "clients.notes": "備註",
+
+  "enum.risk.conservative": "保守",
+  "enum.risk.moderate": "穩健",
+  "enum.risk.aggressive": "積極",
+  "enum.risk.moderate_conservative": "偏保守",
+  "enum.risk.moderate_aggressive": "偏積極",
+
+  "enum.esg.none": "無",
+  "enum.esg.light": "輕度",
+  "enum.esg.moderate": "中度",
+  "enum.esg.strong": "高度",
+  "enum.esg.strict": "嚴格",
+
+  "institutional.cash": "現金",
+  "institutional.fixed_income": "固定收益",
 
   "pool.title": "投資標的池",
   "pool.subtitle": "全局示範貨架",
@@ -2396,6 +2448,15 @@ const zh: Dict = {
   "pool.col.region": "區域",
   "pool.col.productType": "產品類型",
   "pool.empty": "沒有符合條件的標的。",
+  "pool.toggleEnabled": "啟用 {ticker}",
+  "pool.region.us": "美國",
+  "pool.region.intl": "國際",
+  "pool.region.global": "全球",
+  "pool.product.etf": "ETF",
+  "pool.product.fund": "基金",
+  "pool.product.structured": "結構型",
+  "pool.product.bond": "債券",
+  "pool.product.other": "其他",
 
   "models.title": "模型組合",
   "models.subtitle": "AM 錨點目錄",
@@ -2414,6 +2475,9 @@ const zh: Dict = {
   "models.hideHoldings": "收合持倉",
   "models.col.am": "資產管理人",
   "models.col.theme": "主題",
+  "models.risk": "風險",
+  "models.benchmark": "基準",
+  "models.issuerHoldingsHint": "成分均為該發行機構 ETF",
 
   "anchor.poolConflicts": "有 {count} 組模型因標的池衝突而隱藏 — 請修正標的池或模型組合。",
   "anchor.empty": "沒有可選錨點。請啟用成分皆在標的池中的模型組合。",
@@ -3559,6 +3623,26 @@ const ko: Dict = {
   "clients.launchBanner": "고객「{name}」컨텍스트를 불러왔습니다. 앵커를 확인한 뒤 Overlay에서 니즈를 설명하세요.",
   "clients.contextBanner": "활성 고객: {name} · 위험 {risk}",
   "clients.viewDashboard": "대시보드 보기",
+  "clients.esg": "ESG 선호",
+  "clients.ageUnit": "세",
+  "clients.holding.cash": "현금",
+  "clients.holding.cashMoneyMarket": "현금 / 단기금융",
+  "clients.notes": "메모",
+
+  "enum.risk.conservative": "보수적",
+  "enum.risk.moderate": "중립",
+  "enum.risk.aggressive": "공격적",
+  "enum.risk.moderate_conservative": "다소 보수적",
+  "enum.risk.moderate_aggressive": "다소 공격적",
+
+  "enum.esg.none": "없음",
+  "enum.esg.light": "약함",
+  "enum.esg.moderate": "보통",
+  "enum.esg.strong": "강함",
+  "enum.esg.strict": "엄격",
+
+  "institutional.cash": "현금",
+  "institutional.fixed_income": "채권",
 
   "pool.title": "투자 유니버스",
   "pool.subtitle": "전역 상품 선반",
@@ -3580,6 +3664,15 @@ const ko: Dict = {
   "pool.col.region": "지역",
   "pool.col.productType": "상품유형",
   "pool.empty": "조건에 맞는 종목이 없습니다.",
+  "pool.toggleEnabled": "{ticker} 활성화",
+  "pool.region.us": "미국",
+  "pool.region.intl": "해외",
+  "pool.region.global": "글로벌",
+  "pool.product.etf": "ETF",
+  "pool.product.fund": "펀드",
+  "pool.product.structured": "구조화",
+  "pool.product.bond": "채권",
+  "pool.product.other": "기타",
 
   "models.title": "모델 포트폴리오",
   "models.subtitle": "AM 앵커 카탈로그",
@@ -3598,6 +3691,9 @@ const ko: Dict = {
   "models.hideHoldings": "보유 접기",
   "models.col.am": "자산운용사",
   "models.col.theme": "테마",
+  "models.risk": "위험",
+  "models.benchmark": "벤치마크",
+  "models.issuerHoldingsHint": "구성은 모두 해당 운용사 ETF",
 
   "anchor.poolConflicts": "유니버스 충돌로 {count}개 모델이 숨겨졌습니다 — Pool 또는 Models를 수정하세요.",
   "anchor.empty": "선택 가능한 앵커가 없습니다. 활성 유니버스에 구성이 있는 모델을 활성화하세요.",
@@ -3619,14 +3715,50 @@ export function translate(lang: Lang, key: string, params?: Record<string, strin
   return interpolate(template, params);
 }
 
-/** Localized market-regime label (risk_off/neutral/risk_on) with safe fallback. */
-/** Localized top-level asset-class label (equity, bond, commodity, …). */
+/** Localized top-level asset-class label (equity, bond, commodity, cash, …). */
 export function assetClassLabel(t: TFn, key?: string | null): string {
   if (!key) return "";
-  const tk = `institutional.${key}`;
+  const normalized = key === "fixed_income" ? "fixed_income" : key;
+  const tk = `institutional.${normalized}`;
   const val = t(tk);
-  return val === tk ? String(key).replace(/_/g, " ") : val;
+  if (val !== tk) return val;
+  if (normalized === "fixed_income") return assetClassLabel(t, "bond");
+  return String(key).replace(/_/g, " ");
 }
+
+/** Client / model risk profile label (conservative, moderate, …). */
+export function riskProfileLabel(t: TFn, value?: string | null): string {
+  if (!value) return "";
+  const key = `enum.risk.${value}`;
+  const val = t(key);
+  return val === key ? value.replace(/_/g, " ") : val;
+}
+
+/** ESG preference label (none, light, moderate, strong, …). */
+export function esgPreferenceLabel(t: TFn, value?: string | null): string {
+  if (!value) return "";
+  const key = `enum.esg.${value}`;
+  const val = t(key);
+  return val === key ? value.replace(/_/g, " ") : val;
+}
+
+/** Investment Pool region label (us, intl, global, …). */
+export function regionLabel(t: TFn, value?: string | null): string {
+  if (!value) return "";
+  const key = `pool.region.${value}`;
+  const val = t(key);
+  return val === key ? value.replace(/_/g, " ") : val;
+}
+
+/** Investment Pool product type label (etf, fund, …). */
+export function productTypeLabel(t: TFn, value?: string | null): string {
+  if (!value) return "";
+  const key = `pool.product.${value}`;
+  const val = t(key);
+  return val === key ? value.replace(/_/g, " ") : val;
+}
+
+/** Localized market-regime label (risk_off/neutral/risk_on) with safe fallback. */
 
 export function regimeLabel(t: TFn, regime?: string | null): string {
   if (!regime) return "";
