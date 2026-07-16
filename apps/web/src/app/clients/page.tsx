@@ -32,18 +32,22 @@ export default function ClientsPage() {
                 href={`/clients/${c.client_id}`}
                 className="pixel-panel block transition hover:border-[var(--primary)]/40 hover:shadow-md"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h2 className="text-base font-semibold text-[var(--foreground)]">
-                      {name}
-                    </h2>
-                    <p className="mt-1 text-sm text-[var(--text-dim)]">
-                      {c.client_id} · {c.segment} · {c.age}
-                      {t("clients.ageUnit")}
-                    </p>
-                  </div>
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="text-base font-semibold text-[var(--foreground)]">
+                    {name}
+                  </h2>
+                  <p className="shrink-0 text-xs text-[var(--text-dim)]">
+                    {t("clients.clientId")}: {c.client_id}
+                  </p>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   <span className="pixel-badge">
                     {riskProfileLabel(t, c.risk_profile)}
+                  </span>
+                  <span className="pixel-badge">{c.segment}</span>
+                  <span className="pixel-badge">
+                    {c.age}
+                    {t("clients.ageUnit")}
                   </span>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
