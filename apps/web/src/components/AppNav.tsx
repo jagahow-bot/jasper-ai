@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FontSizeControl } from "@/components/FontSizeControl";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/lib/i18n";
 
@@ -40,8 +39,8 @@ export function AppNav({ subtitle, showLabLink = false, extraBadges }: Props) {
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)] shadow-sm">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div className="min-w-0">
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
+          <div className="min-w-0 max-w-full shrink-0 basis-full sm:basis-auto">
             <Link
               href="/clients"
               className="text-lg font-semibold tracking-tight text-[var(--foreground)] md:text-xl"
@@ -49,17 +48,18 @@ export function AppNav({ subtitle, showLabLink = false, extraBadges }: Props) {
               JASPER.AI
             </Link>
             {subtitle ? (
-              <p className="mt-0.5 text-sm text-[var(--text-dim)]">{subtitle}</p>
+              <p className="mt-0.5 truncate text-sm text-[var(--text-dim)]">
+                {subtitle}
+              </p>
             ) : null}
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="flex min-w-0 max-w-full flex-[1_1_14rem] flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
             <LanguageSwitcher />
-            <FontSizeControl />
             {extraBadges}
             {showLabLink ? (
               <Link
                 href="/lab/objective-switch"
-                className="pixel-badge pixel-badge-link"
+                className="pixel-badge pixel-badge-link shrink-0"
               >
                 {t("header.objectiveLab")}
               </Link>
@@ -67,7 +67,7 @@ export function AppNav({ subtitle, showLabLink = false, extraBadges }: Props) {
           </div>
         </div>
         <nav
-          className="flex flex-wrap gap-1.5"
+          className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:thin] sm:flex-wrap sm:overflow-visible sm:pb-0"
           aria-label={t("nav.aria")}
         >
           {NAV.map((item) => {
@@ -78,7 +78,7 @@ export function AppNav({ subtitle, showLabLink = false, extraBadges }: Props) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
+                className={`shrink-0 whitespace-nowrap rounded-lg border px-3 py-1.5 text-sm font-medium transition ${
                   active
                     ? "border-[var(--primary)] bg-[var(--primary-muted)] text-[var(--primary)]"
                     : "border-[var(--border)] bg-white text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"

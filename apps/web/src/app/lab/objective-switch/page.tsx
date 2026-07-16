@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { FontSizeControl } from "@/components/FontSizeControl";
 import { ObjectiveSwitchLabReport } from "@/components/ObjectiveSwitchLabReport";
 import { checkApiHealth, evaluateObjectiveSwitchLab } from "@/lib/api";
 import { ASSET_CLASSES, DEFAULT_ASSET_CLASSES } from "@/lib/constants";
@@ -98,7 +97,6 @@ export default function ObjectiveSwitchLabPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <FontSizeControl />
             {apiOnline === true && (
               <span className="pixel-badge pixel-badge-cyan">API linked</span>
             )}

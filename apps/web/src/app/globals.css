@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --font-size-root: 16px;
+  --font-size-root: 18px;
   --background: #f8fafc;
   --foreground: #0f172a;
   --surface: #ffffff;
@@ -68,18 +68,6 @@
 
   .pixel-panel-cyan::before {
     content: none;
-  }
-
-  html[data-font-lg="true"] .pixel-btn {
-    font-size: 0.875rem;
-  }
-
-  html[data-font-lg="true"] .pixel-badge {
-    font-size: 0.75rem;
-  }
-
-  html[data-font-lg="true"] .pixel-chip {
-    font-size: 0.8125rem;
   }
 
   .pixel-btn {
@@ -156,7 +144,8 @@
   }
 
   .pixel-chip {
-    @apply rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors;
+    @apply rounded-lg border px-3 py-1.5 font-medium transition-colors;
+    font-size: 0.8125rem;
     border-color: var(--border);
     color: var(--text-dim);
     background: var(--surface);

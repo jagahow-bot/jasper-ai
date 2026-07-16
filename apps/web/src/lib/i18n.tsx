@@ -45,13 +45,6 @@ const en: Dict = {
   "header.terminalLog": "Activity log",
   "lang.label": "LANG",
   "lang.aria": "Language",
-  "font.label": "FONT",
-  "font.aria": "Font size",
-  "font.decrease": "Decrease font size",
-  "font.increase": "Increase font size",
-  "font.reset": "Reset font size",
-  "font.resetShort": "RESET",
-
   // Backtest history panel
   "history.title": "Backtest history",
   "history.refresh": "Refresh",
@@ -1288,13 +1281,6 @@ const zh: Dict = {
   "header.terminalLog": "活動紀錄",
   "lang.label": "語言",
   "lang.aria": "語言",
-  "font.label": "字級",
-  "font.aria": "字級大小",
-  "font.decrease": "縮小字級",
-  "font.increase": "放大字級",
-  "font.reset": "重設字級",
-  "font.resetShort": "重設",
-
   // Backtest history panel
   "history.title": "回測紀錄",
   "history.refresh": "重新整理",
@@ -2500,13 +2486,6 @@ const ko: Dict = {
   "header.terminalLog": "활동 로그",
   "lang.label": "언어",
   "lang.aria": "언어",
-  "font.label": "글꼴",
-  "font.aria": "글꼴 크기",
-  "font.decrease": "글꼴 축소",
-  "font.increase": "글꼴 확대",
-  "font.reset": "글꼴 초기화",
-  "font.resetShort": "초기화",
-
   // Backtest history panel
   "history.title": "백테스트 기록",
   "history.refresh": "새로고침",

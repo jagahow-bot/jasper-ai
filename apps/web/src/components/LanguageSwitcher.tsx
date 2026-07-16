@@ -7,7 +7,7 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="flex h-8 items-center gap-1 rounded-lg border border-[var(--border)] bg-white px-1 py-0.5 shadow-sm"
+      className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-[var(--border)] bg-white px-1 py-0.5 shadow-sm"
       role="group"
       aria-label={t("lang.aria")}
       title={t("lang.aria")}
