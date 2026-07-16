@@ -5,8 +5,10 @@ import { useParams } from "next/navigation";
 import { useMemo } from "react";
 import { AppNav } from "@/components/AppNav";
 import {
+  formatUpcomingEvent,
   formatUsd,
   getDemoClientById,
+  getUpcomingEvents,
   holdingDisplayName,
   localizedText,
 } from "@/lib/clients";
@@ -60,6 +62,7 @@ export default function ClientDashboardPage() {
   }
 
   const name = localizedText(client.display_name, lang);
+  const upcomingEvents = getUpcomingEvents(client);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -131,6 +134,7 @@ export default function ClientDashboardPage() {
             <div className="saas-inset text-sm">
               <p className="ui-hint">{t("clients.liquidity")}</p>
               <p className="mt-1 text-[var(--ui-color-body)]">
+                <span className="text-[var(--text-dim)]">{t("clients.notePrefix")}</span>{" "}
                 {localizedText(client.liquidity_notes, lang)}
               </p>
             </div>
@@ -145,9 +149,23 @@ export default function ClientDashboardPage() {
             <div className="text-sm">
               <p className="ui-hint">{t("clients.notes")}</p>
               <p className="mt-1 text-[var(--ui-color-body)]">
+                <span className="text-[var(--text-dim)]">{t("clients.notePrefix")}</span>{" "}
                 {localizedText(client.notes, lang)}
               </p>
             </div>
+            {upcomingEvents.length > 0 ? (
+              <div className="saas-inset text-sm">
+                <p className="ui-hint">{t("clients.upcomingEvents")}</p>
+                <ul className="mt-1.5 space-y-1 text-[var(--ui-color-body)]">
+                  {upcomingEvents.map((ev) => (
+                    <li key={ev.id}>
+                      <span className="text-[var(--text-dim)]">• </span>
+                      {formatUpcomingEvent(ev, lang)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </section>
 
           <section className="pixel-panel lg:col-span-2">

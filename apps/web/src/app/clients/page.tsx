@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { AppNav } from "@/components/AppNav";
 import {
+  formatUpcomingEvent,
   formatUsd,
   getDemoClients,
+  getUpcomingEvents,
   localizedText,
 } from "@/lib/clients";
 import { riskProfileLabel, useI18n } from "@/lib/i18n";
@@ -20,12 +22,12 @@ export default function ClientsPage() {
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
         <div>
           <h1 className="ui-panel-title">{t("clients.listTitle")}</h1>
-          <p className="mt-2 ui-hint">{t("clients.listHint")}</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           {clients.map((c) => {
             const name = localizedText(c.display_name, lang);
+            const events = getUpcomingEvents(c);
             return (
               <Link
                 key={c.client_id}
@@ -61,8 +63,24 @@ export default function ClientsPage() {
                   </div>
                 </dl>
                 <p className="mt-3 line-clamp-2 text-sm text-[var(--ui-color-body)]">
+                  <span className="text-[var(--text-dim)]">{t("clients.notePrefix")}</span>{" "}
                   {localizedText(c.liquidity_notes, lang)}
                 </p>
+                {events.length > 0 ? (
+                  <div className="mt-2.5 border-t border-[var(--border)]/70 pt-2.5">
+                    <p className="text-xs font-medium text-[var(--text-dim)]">
+                      {t("clients.upcomingEvents")}
+                    </p>
+                    <ul className="mt-1 space-y-0.5 text-xs text-[var(--ui-color-body)]">
+                      {events.map((ev) => (
+                        <li key={ev.id} className="truncate">
+                          <span className="text-[var(--text-dim)]">• </span>
+                          {formatUpcomingEvent(ev, lang)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </Link>
             );
           })}

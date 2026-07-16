@@ -1194,6 +1194,8 @@ const en: Dict = {
   "clients.holding.cash": "Cash",
   "clients.holding.cashMoneyMarket": "Cash / money market",
   "clients.notes": "Notes",
+  "clients.notePrefix": "Note:",
+  "clients.upcomingEvents": "Upcoming events",
 
   "enum.risk.conservative": "Conservative",
   "enum.risk.moderate": "Moderate",
@@ -1212,7 +1214,6 @@ const en: Dict = {
 
   "pool.title": "Investment Pool",
   "pool.subtitle": "Global product shelf",
-  "pool.hint": "Enabled tickers form the demo universe and constrain Model Portfolio constituents. CSV columns: ticker, name, asset_class, region, product_type, enabled.",
   "pool.countBadge": "{enabled} / {total} enabled",
   "pool.loadDemo": "Load demo ETFs",
   "pool.loadFull": "Load full ETF universe",
@@ -1242,7 +1243,6 @@ const en: Dict = {
 
   "models.title": "Model Portfolios",
   "models.subtitle": "AM anchor catalog",
-  "models.hint": "Maintain Asset Manager model portfolios used as anchors in Benchmark Personalization. Each portfolio should use ETFs from a single issuer; constituents must be enabled in the Investment Pool. Flat CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
   "models.countBadge": "{ready} ready / {total} total",
   "models.resetBundled": "Reset to bundled",
   "models.importCsv": "Import CSV",
@@ -2400,6 +2400,8 @@ const zh: Dict = {
   "clients.holding.cash": "現金",
   "clients.holding.cashMoneyMarket": "現金／貨幣市場",
   "clients.notes": "備註",
+  "clients.notePrefix": "備註:",
+  "clients.upcomingEvents": "即將發生的事件提醒",
 
   "enum.risk.conservative": "保守",
   "enum.risk.moderate": "穩健",
@@ -2418,7 +2420,6 @@ const zh: Dict = {
 
   "pool.title": "投資標的池",
   "pool.subtitle": "全局示範貨架",
-  "pool.hint": "啟用中的標的構成示範 Universe，並約束模型組合成分。CSV 欄位：ticker, name, asset_class, region, product_type, enabled。",
   "pool.countBadge": "已啟用 {enabled} / {total}",
   "pool.loadDemo": "載入示範 ETF",
   "pool.loadFull": "載入完整 ETF Universe",
@@ -2448,7 +2449,6 @@ const zh: Dict = {
 
   "models.title": "模型組合",
   "models.subtitle": "AM 錨點目錄",
-  "models.hint": "維護基準客製化用的資產管理人（AM）模型組合；每個組合應僅使用單一發行機構的 ETF，且成分必須屬於已啟用的投資標的池。扁平 CSV：portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled。",
   "models.countBadge": "可用 {ready} / 共 {total}",
   "models.resetBundled": "重設為內建組合",
   "models.importCsv": "匯入 CSV",
@@ -3610,6 +3610,8 @@ const ko: Dict = {
   "clients.holding.cash": "현금",
   "clients.holding.cashMoneyMarket": "현금 / 단기금융",
   "clients.notes": "메모",
+  "clients.notePrefix": "메모:",
+  "clients.upcomingEvents": "다가오는 일정 알림",
 
   "enum.risk.conservative": "보수적",
   "enum.risk.moderate": "중립",
@@ -3628,7 +3630,6 @@ const ko: Dict = {
 
   "pool.title": "투자 유니버스",
   "pool.subtitle": "전역 상품 선반",
-  "pool.hint": "활성화된 티커가 데모 유니버스이며 모델 포트폴리오 구성 제약이 됩니다. CSV: ticker, name, asset_class, region, product_type, enabled.",
   "pool.countBadge": "활성 {enabled} / {total}",
   "pool.loadDemo": "데모 ETF 불러오기",
   "pool.loadFull": "전체 ETF 유니버스 불러오기",

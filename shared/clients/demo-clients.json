@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "updated": "2026-07-14",
+  "version": "1.1",
+  "updated": "2026-07-16",
   "description": "Demo private-banking clients for JASPER RM Copilot (Client Dashboard → Benchmark Personalization).",
   "clients": [
     {
@@ -51,7 +51,27 @@
         "en": "Prior overlay demo persona: 55yo, $12M cash, $1.5M house liquidity, light ESG preference.",
         "zh": "Overlay 示範情境：55 歲、現金約 1,200 萬美元、購屋流動性 150 萬、輕度 ESG 偏好。",
         "ko": "이전 오버레이 데모 페르소나: 55세, 현금 약 1,200만 달러, 주택 유동성 150만, ESG 경미 선호."
-      }
+      },
+      "upcoming_events": [
+        {
+          "id": "wang-house-liquidity",
+          "date": "2027-06-15",
+          "title": {
+            "en": "House purchase liquidity withdrawal (est.)",
+            "zh": "購屋資金提領預估",
+            "ko": "주택 구매 유동성 인출(예상)"
+          }
+        },
+        {
+          "id": "wang-phased-review",
+          "date": "2026-10-20",
+          "title": {
+            "en": "Phased investment deployment review",
+            "zh": "分批投資部署檢討",
+            "ko": "분할 투자 집행 점검"
+          }
+        }
+      ]
     },
     {
       "client_id": "JB-HNWI-002",
@@ -121,7 +141,27 @@
         "en": "Tech-heavy book; RM to discuss concentration vs model multi-cap anchor.",
         "zh": "持股偏科技；理專可對照多市值模型組合討論集中度。",
         "ko": "테크 비중 높음; 멀티캡 모델과 집중도 논의."
-      }
+      },
+      "upcoming_events": [
+        {
+          "id": "chen-annual-review",
+          "date": "2027-01-15",
+          "title": {
+            "en": "Annual portfolio review",
+            "zh": "年度投資組合檢討",
+            "ko": "연간 포트폴리오 리뷰"
+          }
+        },
+        {
+          "id": "chen-tlh-window",
+          "date": "2026-11-15",
+          "title": {
+            "en": "Tax-loss harvest window",
+            "zh": "稅損抵銷操作窗口",
+            "ko": "세금손실수확 창구"
+          }
+        }
+      ]
     },
     {
       "client_id": "JB-HNWI-003",
@@ -198,7 +238,27 @@
         "en": "Bond-heavy; prefers capital preservation and smoother path vs equities.",
         "zh": "債市比重高；偏好資本保全與較平穩走勢。",
         "ko": "채권 비중 높음; 자본 보전과 변동성 완화 선호."
-      }
+      },
+      "upcoming_events": [
+        {
+          "id": "lin-medical-liquidity",
+          "date": "2028-03-01",
+          "title": {
+            "en": "Medical / estate liquidity date",
+            "zh": "醫療／遺產規劃資金日",
+            "ko": "의료·상속 유동성 일정"
+          }
+        },
+        {
+          "id": "lin-bond-ladder",
+          "date": "2027-09-15",
+          "title": {
+            "en": "Bond ladder maturity tranche",
+            "zh": "債券階梯到期檔次",
+            "ko": "채권 래더 만기 구간"
+          }
+        }
+      ]
     },
     {
       "client_id": "JB-HNWI-004",
@@ -275,7 +335,27 @@
         "en": "Strong ESG preference; global equity + bonds; suggest three-fund as anchor.",
         "zh": "ESG 偏好強；全球股債配置；建議以三基金組合為錨點。",
         "ko": "ESG 선호 강함; 글로벌 주식·채권; 3-펀드를 앵커로 제안."
-      }
+      },
+      "upcoming_events": [
+        {
+          "id": "chang-esg-review",
+          "date": "2027-04-10",
+          "title": {
+            "en": "ESG mandate annual review",
+            "zh": "ESG 委託年度檢討",
+            "ko": "ESG 위임 연간 점검"
+          }
+        },
+        {
+          "id": "chang-donation-schedule",
+          "date": "2026-12-01",
+          "title": {
+            "en": "Donation / grant schedule",
+            "zh": "捐贈／獎助金排程",
+            "ko": "기부·보조금 일정"
+          }
+        }
+      ]
     }
   ]
 }

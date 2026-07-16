@@ -23,6 +23,13 @@ export type ClientHolding = {
   notes?: string;
 };
 
+export type ClientUpcomingEvent = {
+  id: string;
+  /** ISO date (YYYY-MM-DD) or year-month (YYYY-MM). */
+  date: string;
+  title: LocalizedText;
+};
+
 export type DemoClient = {
   client_id: string;
   display_name: LocalizedText;
@@ -43,6 +50,7 @@ export type DemoClient = {
   suggested_model_portfolio_id: string | null;
   holdings: ClientHolding[];
   notes: LocalizedText;
+  upcoming_events?: ClientUpcomingEvent[];
 };
 
 type DemoClientsFile = {
@@ -69,6 +77,29 @@ export function localizedText(
   if (text == null) return "";
   if (typeof text === "string") return text;
   return text[lang] ?? text.en;
+}
+
+/** Display month for an event date: "2027-06-15" → "2027-06". */
+export function formatEventMonth(date: string): string {
+  const trimmed = date.trim();
+  return trimmed.length >= 7 ? trimmed.slice(0, 7) : trimmed;
+}
+
+/** Chronological upcoming events (stable for empty / missing). */
+export function getUpcomingEvents(
+  client: Pick<DemoClient, "upcoming_events">,
+): ClientUpcomingEvent[] {
+  const events = client.upcoming_events;
+  if (!events?.length) return [];
+  return [...events].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Localized "YYYY-MM · title" line for a client event. */
+export function formatUpcomingEvent(
+  event: ClientUpcomingEvent,
+  lang: Lang,
+): string {
+  return `${formatEventMonth(event.date)} · ${localizedText(event.title, lang)}`;
 }
 
 export function formatUsd(amount: number, lang: Lang): string {
