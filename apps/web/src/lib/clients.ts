@@ -161,3 +161,28 @@ export function matchModelRiskLevels(riskProfile: string): string[] {
       return ["moderate", "moderate_aggressive", "moderate_conservative"];
   }
 }
+
+/** pixel-badge class for client risk tags (slate / amber / rose). */
+export function tagClassForRisk(risk: string): string {
+  switch (risk) {
+    case "conservative":
+      return "pixel-badge pixel-badge-slate";
+    case "aggressive":
+      return "pixel-badge pixel-badge-rose";
+    case "moderate":
+    default:
+      return "pixel-badge pixel-badge-warn";
+  }
+}
+
+/** pixel-badge class for wealth segment tags (indigo family; UHNW stronger). */
+export function tagClassForSegment(seg: string): string {
+  const key = seg.trim().toUpperCase();
+  if (key === "UHNW") return "pixel-badge pixel-badge-violet";
+  return "pixel-badge pixel-badge-indigo";
+}
+
+/** pixel-badge class for age tags (muted emerald). */
+export function tagClassForAge(): string {
+  return "pixel-badge pixel-badge-emerald";
+}

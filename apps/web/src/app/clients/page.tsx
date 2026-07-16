@@ -9,6 +9,9 @@ import {
   getDemoClients,
   getUpcomingEvents,
   localizedText,
+  tagClassForAge,
+  tagClassForRisk,
+  tagClassForSegment,
 } from "@/lib/clients";
 import { riskProfileLabel, useI18n } from "@/lib/i18n";
 
@@ -39,11 +42,13 @@ export default function ClientsPage() {
                   </p>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span className="pixel-badge">
+                  <span className={tagClassForRisk(c.risk_profile)}>
                     {riskProfileLabel(t, c.risk_profile)}
                   </span>
-                  <span className="pixel-badge">{c.segment}</span>
-                  <span className="pixel-badge">
+                  <span className={tagClassForSegment(c.segment)}>
+                    {c.segment}
+                  </span>
+                  <span className={tagClassForAge()}>
                     {c.age}
                     {t("clients.ageUnit")}
                   </span>

@@ -120,6 +120,39 @@
     background: #fffbeb;
   }
 
+  /* Client card tags: risk */
+  .pixel-badge-slate {
+    border-color: #cbd5e1;
+    color: #475569;
+    background: #f1f5f9;
+  }
+
+  .pixel-badge-rose {
+    border-color: #fecdd3;
+    color: #be123c;
+    background: #fff1f2;
+  }
+
+  /* Client card tags: wealth segment (indigo → violet) */
+  .pixel-badge-indigo {
+    border-color: #c7d2fe;
+    color: #4338ca;
+    background: #eef2ff;
+  }
+
+  .pixel-badge-violet {
+    border-color: #ddd6fe;
+    color: #6d28d9;
+    background: #f5f3ff;
+  }
+
+  /* Client card tags: age */
+  .pixel-badge-emerald {
+    border-color: #a7f3d0;
+    color: #047857;
+    background: #ecfdf5;
+  }
+
   .pixel-badge-link {
     @apply inline-flex items-center transition;
     text-decoration: none;
