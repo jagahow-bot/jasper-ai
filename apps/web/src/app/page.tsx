@@ -62,7 +62,6 @@ import {
   getManagedPortfolioById,
   getSelectableAnchorPortfolios,
 } from "@/lib/model-portfolios-store";
-import { resolveResultBenchmarkTicker } from "@/lib/resolve-result-benchmark";
 import {
   overlayToBacktestRequest,
   type ClientOverlay,
@@ -664,12 +663,12 @@ export default function HomePage() {
     setPhase("constraints");
   }, [anchorPortfolio, request, scopeHoldings]);
 
-  const onQuickTweak = useCallback((next: BacktestRequest, _label: string) => {
+  const onQuickTweak = useCallback((next: BacktestRequest) => {
     setRequest(next);
   }, []);
 
   const onQuickTweakAndRun = useCallback(
-    (next: BacktestRequest, _label: string) => {
+    (next: BacktestRequest) => {
       if (signedOverlay) {
         void runPersonalizationBacktest(next);
       } else {
