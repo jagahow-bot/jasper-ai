@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { enforceAllocControlsForClasses } from "@/lib/asset-class-policy";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/constants";
-import { MAINSTREAM_DEMO_TICKERS } from "@/lib/model-portfolios";
+import {
+  buildLockedCustomUniverse,
+  isLockedModelUniverse,
+  maxWeightForLockedUniverse,
+  resolveStrictLockedAdds,
+} from "@/lib/locked-universe";
 import type {
   BacktestRequest,
   ExperimentRequest,
@@ -354,8 +359,50 @@ export function overlayToBacktestRequest(
 
   const prompts = overlay.universe.prompts.filter(Boolean);
   const filterText = prompts.length ? prompts.join("; ") : base.universe_filter_text;
-  const fromAnchorReplay = Boolean(base.static_replay_holdings);
-  const demoUniverse = [...MAINSTREAM_DEMO_TICKERS];
+  const fromAnchor = isLockedModelUniverse(base);
+
+  // Target model portfolio present → lock searchable universe to
+  // (model holdings − excludes) ∪ explicit adds. Never open the fund pool.
+  if (fromAnchor) {
+    const adds = resolveStrictLockedAdds({
+      explicitSupplements: overlay.universe.supplement_tickers,
+      prompts,
+    });
+    const locked = buildLockedCustomUniverse(base, {
+      addTickers: adds,
+      excludeTickers: overlay.universe.exclude_tickers,
+    });
+    const preferredMax =
+      alloc.max_single_position_pct ?? base.max_weight ?? 0.25;
+    return {
+      ...base,
+      scenario_id: opts?.scenarioId ?? `overlay-${overlay.audit.session_id}`,
+      benchmark_ticker: base.benchmark_ticker ?? null,
+      asset_classes: assetClasses,
+      max_weight: maxWeightForLockedUniverse(locked.length, preferredMax),
+      objective: (opt.objective ?? base.objective) as Objective,
+      regime_adaptive: opt.regime_adaptive ?? base.regime_adaptive,
+      optimization_mode: (opt.optimization_mode ??
+        base.optimization_mode) as OptimizationMode,
+      trials: opt.trials ?? 25,
+      top_models: 5,
+      max_holdings: Math.max(locked.length, 1),
+      // Full eligible set on BOTH fields so API whitelist-early-return and
+      // supplement-pin agree (holdings stay eligible; unrelated pool never enters).
+      universe_tickers: locked,
+      universe_supplement_tickers: locked,
+      enforce_class_weights:
+        alloc.enforce_class_weights ?? base.enforce_class_weights ?? false,
+      universe_filter_prompts: prompts.length
+        ? prompts
+        : base.universe_filter_prompts,
+      universe_filter_text: filterText,
+      param_controls: enforcedControls,
+      experiment: inferExperiment(overlay) ?? base.experiment,
+      report_language: opts?.reportLanguage ?? base.report_language,
+      static_replay_holdings: null,
+    };
+  }
 
   return {
     ...base,
@@ -366,25 +413,17 @@ export function overlayToBacktestRequest(
     objective: (opt.objective ?? base.objective) as Objective,
     regime_adaptive: opt.regime_adaptive ?? base.regime_adaptive,
     optimization_mode: (opt.optimization_mode ?? base.optimization_mode) as OptimizationMode,
-    trials: opt.trials ?? (fromAnchorReplay ? 25 : base.trials),
-    top_models: fromAnchorReplay ? 5 : base.top_models,
-    max_holdings: fromAnchorReplay ? demoUniverse.length : base.max_holdings,
-    universe_tickers: fromAnchorReplay ? null : base.universe_tickers,
+    trials: opt.trials ?? base.trials,
+    top_models: base.top_models,
+    max_holdings: base.max_holdings,
+    universe_tickers: base.universe_tickers,
     enforce_class_weights:
       alloc.enforce_class_weights ?? base.enforce_class_weights ?? false,
     universe_filter_prompts: prompts.length ? prompts : base.universe_filter_prompts,
     universe_filter_text: filterText,
-    universe_supplement_tickers: fromAnchorReplay
-      ? [
-          ...new Set([
-            ...demoUniverse,
-            ...(overlay.universe.supplement_tickers ?? []),
-            ...(base.universe_supplement_tickers ?? []),
-          ]),
-        ]
-      : overlay.universe.supplement_tickers?.length
-        ? overlay.universe.supplement_tickers
-        : base.universe_supplement_tickers,
+    universe_supplement_tickers: overlay.universe.supplement_tickers?.length
+      ? overlay.universe.supplement_tickers
+      : base.universe_supplement_tickers,
     param_controls: enforcedControls,
     experiment: inferExperiment(overlay) ?? base.experiment,
     report_language: opts?.reportLanguage ?? base.report_language,
@@ -459,6 +498,12 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
     if (overlay.universe.prompts.length) {
       lines.push(`投資標的規則：${overlay.universe.prompts.join("；")}`);
     }
+    if (overlay.universe.supplement_tickers?.length) {
+      lines.push(`新增標的：${overlay.universe.supplement_tickers.join("、")}`);
+    }
+    if (overlay.universe.exclude_tickers?.length) {
+      lines.push(`排除標的：${overlay.universe.exclude_tickers.join("、")}`);
+    }
     lines.push(`信心度：${(overlay.confidence * 100).toFixed(0)}%`);
     return lines.join("\n");
   }
@@ -480,6 +525,12 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
     if (overlay.universe.prompts.length) {
       lines.push(`투자 유니버스 규칙: ${overlay.universe.prompts.join("; ")}`);
     }
+    if (overlay.universe.supplement_tickers?.length) {
+      lines.push(`추가 종목: ${overlay.universe.supplement_tickers.join(", ")}`);
+    }
+    if (overlay.universe.exclude_tickers?.length) {
+      lines.push(`제외 종목: ${overlay.universe.exclude_tickers.join(", ")}`);
+    }
     lines.push(`신뢰도: ${(overlay.confidence * 100).toFixed(0)}%`);
     return lines.join("\n");
   }
@@ -493,6 +544,12 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
   lines.push(`Objective: ${optimization.objective}`);
   if (overlay.universe.prompts.length) {
     lines.push(`Universe rules: ${overlay.universe.prompts.join("; ")}`);
+  }
+  if (overlay.universe.supplement_tickers?.length) {
+    lines.push(`Add tickers: ${overlay.universe.supplement_tickers.join(", ")}`);
+  }
+  if (overlay.universe.exclude_tickers?.length) {
+    lines.push(`Exclude tickers: ${overlay.universe.exclude_tickers.join(", ")}`);
   }
   lines.push(`Confidence: ${(overlay.confidence * 100).toFixed(0)}%`);
   return lines.join("\n");

@@ -89,11 +89,25 @@ export function baseUniverseFromRequest(req: { asset_classes: AssetClass[] }): U
   return { assetClasses: req.asset_classes };
 }
 
-/** Final backtest pool: base (asset classes) ∪ pinned/guaranteed AI supplement tickers. */
+/**
+ * Final backtest pool for UI counts.
+ * - Locked whitelist (`universe_tickers`): holdings ∪ supplements (no asset-class open).
+ * - Otherwise: asset-class base ∪ pinned AI supplement tickers.
+ */
 export function combinedUniverseFromRequest(req: {
   asset_classes: AssetClass[];
+  universe_tickers?: string[] | null;
   universe_supplement_tickers?: string[] | null;
 }): UniverseFilterOptions {
+  if (req.universe_tickers?.length) {
+    const merged = [
+      ...new Set([
+        ...req.universe_tickers.map((t) => t.toUpperCase()),
+        ...(req.universe_supplement_tickers ?? []).map((t) => t.toUpperCase()),
+      ]),
+    ];
+    return { tickers: merged };
+  }
   const base = getTickers({ assetClasses: req.asset_classes });
   const sup = (req.universe_supplement_tickers ?? []).filter(Boolean);
   if (!sup.length) return { assetClasses: req.asset_classes };
@@ -112,6 +126,9 @@ export function universeFilterFromRequest(req: {
   universe_tickers?: string[] | null;
   universe_supplement_tickers?: string[] | null;
 }): UniverseFilterOptions {
+  if (req.universe_tickers?.length) {
+    return combinedUniverseFromRequest(req);
+  }
   if (req.universe_supplement_tickers?.length) {
     return combinedUniverseFromRequest(req);
   }

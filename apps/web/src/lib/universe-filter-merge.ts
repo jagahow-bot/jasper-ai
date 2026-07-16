@@ -59,6 +59,28 @@ export function resolveRuleTickersFullUniverse(
   return [];
 }
 
+/**
+ * Strict resolution: only keep AI-suggested tickers that are also named as
+ * symbols in the rule text. Never expand categories / asset classes.
+ */
+export function resolveRuleTickersStrictExplicit(
+  output: UniverseFilterOutput,
+  ruleText: string,
+): string[] {
+  const named = new Set(
+    // Lazy import avoided — callers should prefer locked-universe extract;
+    // here we only intersect output.tickers with tokens in ruleText.
+    (ruleText.match(/\b[A-Za-z][A-Za-z0-9]{0,4}\b/g) ?? []).map((t) =>
+      t.toUpperCase(),
+    ),
+  );
+  if (!output.tickers?.length) return [];
+  const universeSet = new Set(getUniverseItems().map((u) => u.ticker.toUpperCase()));
+  return output.tickers
+    .map((t) => t.toUpperCase())
+    .filter((t) => named.has(t) && universeSet.has(t));
+}
+
 export function getBasePoolTickers(userAssetClasses: AssetClass[]): string[] {
   return getTickers({ assetClasses: userAssetClasses });
 }
@@ -91,12 +113,19 @@ export function pinGuaranteedSupplementTickers(
 export function mergeSupplementTickers(
   outputs: UniverseFilterOutput[],
   lang: Lang = "en",
+  opts?: { strictExplicitOnly?: boolean; prompts?: string[] },
 ): UniverseSupplementMerge {
   if (!outputs.length) {
     return { supplement_tickers: [], rationale: localizedNoRulesRationale(lang) };
   }
 
-  const perRule = outputs.map((o) => resolveRuleTickersFullUniverse(o));
+  const perRule = outputs.map((o, i) => {
+    if (opts?.strictExplicitOnly) {
+      const ruleText = opts.prompts?.[i] ?? "";
+      return resolveRuleTickersStrictExplicit(o, ruleText);
+    }
+    return resolveRuleTickersFullUniverse(o);
+  });
   const supplement_tickers = uniqueTickers(perRule);
 
   const rationale =

@@ -6,7 +6,6 @@ import {
   getAssetManagerLabel,
   getPortfolioDescription,
   getPortfolioLabel,
-  MAINSTREAM_DEMO_TICKERS,
   type ModelPortfolio,
 } from "@/lib/model-portfolios";
 import {
@@ -55,9 +54,6 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
       <div>
         <h2 className="ui-panel-title">{t("anchor.title")}</h2>
         <p className="mt-2 ui-hint">{t("anchor.subtitle")}</p>
-        <p className="mt-1 ui-hint">
-          {t("anchor.universeNote", { count: MAINSTREAM_DEMO_TICKERS.length })}
-        </p>
         {conflictCount > 0 ? (
           <p className="mt-1 text-sm text-[var(--amber)]">
             {t("anchor.poolConflicts", { count: conflictCount })}
@@ -98,9 +94,6 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
               </p>
               <div className="mt-3 border-t border-[var(--border)]/60 pt-2">
                 <p className="text-sm text-[var(--primary)]">{holdings}</p>
-                <p className="mt-1 text-[11px] text-[var(--text-dim)]">
-                  {t("anchor.placeholderHoldingsHint")}
-                </p>
               </div>
             </button>
           );

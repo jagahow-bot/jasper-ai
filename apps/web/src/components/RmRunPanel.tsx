@@ -34,6 +34,12 @@ export function RmRunPanel({
   const summary = formatOverlaySummary(overlay, lang);
   const customizedLabel = getCustomizedVsAnchorLabel(anchorPortfolio, lang);
   const universeCount = countUniverse(combinedUniverseFromRequest(request));
+  const lockedTickers = [
+    ...new Set([
+      ...(request.universe_tickers ?? []).map((t) => t.toUpperCase()),
+      ...(request.universe_supplement_tickers ?? []).map((t) => t.toUpperCase()),
+    ]),
+  ];
   const isPro = request.optimization_mode === "pro_auto";
 
   const setProSearch = (on: boolean) => {
@@ -72,7 +78,16 @@ export function RmRunPanel({
                 })}
               </li>
               <li>{t("rm.run.dualTrack")}</li>
-              <li>{t("rm.universe.fixedCount", { n: universeCount })}</li>
+              <li>
+                {lockedTickers.length
+                  ? t("rm.universe.lockedCount", { n: universeCount })
+                  : t("rm.universe.fixedCount", { n: universeCount })}
+              </li>
+              {lockedTickers.length > 0 ? (
+                <li className="list-none pl-0 text-xs text-dim">
+                  {lockedTickers.join(", ")}
+                </li>
+              ) : null}
               <li>
                 {isPro
                   ? t("rm.run.proSearchOn")
@@ -111,6 +126,33 @@ export function RmRunPanel({
               />
             </label>
           </div>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
+          <label className="block space-y-2">
+            <span className="ui-label">{t("config.notifyEmail")}</span>
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={request.notify_email ?? ""}
+              onChange={(e) =>
+                onChange({
+                  ...request,
+                  notify_email: e.target.value || null,
+                })
+              }
+              placeholder={t("config.notifyEmailPlaceholder")}
+              className="pixel-input"
+            />
+            <p className="ui-hint">{t("config.notifyEmailHint")}</p>
+            {request.notify_email?.trim() &&
+            emailNotificationsEnabled === false ? (
+              <p className="ui-hint text-[var(--amber)]">
+                {t("config.notifyEmailSmtpDisabled")}
+              </p>
+            ) : null}
+          </label>
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3">

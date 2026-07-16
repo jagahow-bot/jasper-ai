@@ -7,6 +7,10 @@ import {
 } from "@/lib/constants";
 import { categoryLabel } from "@/lib/etf-category-i18n";
 import {
+  resolveStrictLockedAdds,
+  uniqueTickers,
+} from "@/lib/locked-universe";
+import {
   baseUniverseFromRequest,
   combinedUniverseFromRequest,
   countUniverse,
@@ -47,6 +51,18 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
   const hasAiApplied =
     pendingRules.length > 0 ||
     Boolean(value.universe_supplement_tickers?.length);
+  const lockedTickers = (value.universe_tickers ?? []).map((t) =>
+    t.toUpperCase(),
+  );
+  const isLockedHoldings = lockedTickers.length > 0;
+  const lockedDisplayTickers = isLockedHoldings
+    ? uniqueTickers([
+        ...lockedTickers,
+        ...(value.universe_supplement_tickers ?? []),
+      ])
+    : [];
+  /** Full eligible set while locked (holdings ∪ prior adds). */
+  const lockedEligible = lockedDisplayTickers;
 
   useEffect(() => {
     if (!hasAiApplied) {
@@ -96,18 +112,34 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
 
   const removeRule = (index: number) => {
     const next = pendingRules.filter((_, i) => i !== index);
-    onChange({
-      ...value,
-      universe_filter_prompts: next.length ? next : null,
-      universe_filter_text: next.length ? next.join("; ") : null,
-      ...(next.length
-        ? {}
-        : {
-            universe_supplement_tickers: null,
-            universe_categories: null,
-            universe_tickers: null,
-          }),
-    });
+    if (isLockedHoldings) {
+      // Keep whitelist = current eligible ∪ explicit prompt symbols only.
+      const holdings = uniqueTickers(lockedEligible);
+      const adds = resolveStrictLockedAdds({ prompts: next });
+      const locked = uniqueTickers([...holdings, ...adds]);
+      onChange({
+        ...value,
+        universe_filter_prompts: next.length ? next : null,
+        universe_filter_text: next.length ? next.join("; ") : null,
+        universe_tickers: locked,
+        universe_supplement_tickers: locked,
+        universe_categories: null,
+        max_holdings: Math.max(locked.length, 1),
+      });
+    } else {
+      onChange({
+        ...value,
+        universe_filter_prompts: next.length ? next : null,
+        universe_filter_text: next.length ? next.join("; ") : null,
+        ...(next.length
+          ? {}
+          : {
+              universe_supplement_tickers: null,
+              universe_categories: null,
+              universe_tickers: null,
+            }),
+      });
+    }
     if (!next.length) {
       setRationale(null);
       setPerRuleResults(null);
@@ -123,6 +155,42 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
     setLoading(true);
     setError(null);
     try {
+      if (isLockedHoldings) {
+        // Strict: only symbols literally named in rules (no full-universe expand).
+        const holdings = uniqueTickers(lockedEligible);
+        const adds = resolveStrictLockedAdds({ prompts });
+        const locked = uniqueTickers([...holdings, ...adds]);
+        onChange({
+          ...value,
+          universe_tickers: locked,
+          universe_supplement_tickers: locked,
+          universe_categories: null,
+          max_holdings: Math.max(locked.length, 1),
+          universe_filter_prompts: prompts,
+          universe_filter_text: prompts.join("; "),
+        });
+        setRationale(
+          adds.length
+            ? `Locked model universe: kept holdings and added ${adds.join(", ")} (explicit symbols only).`
+            : "Locked model universe unchanged — name ticker symbols (e.g. GLD) to add, or use overlay supplements.",
+        );
+        setPerRuleResults(
+          prompts.map((rule_text, rule_index) => {
+            const matched = resolveStrictLockedAdds({ prompts: [rule_text] });
+            return {
+              rule_index,
+              rule_text,
+              matched_tickers: matched,
+              added_tickers: matched.filter((t) => !holdings.includes(t)),
+            };
+          }),
+        );
+        setExpandedRules(
+          Object.fromEntries(prompts.map((_, i) => [i, prompts.length <= 2])),
+        );
+        return;
+      }
+
       const res = await fetch("/api/universe/filter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,6 +241,20 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
     setError(null);
     setPerRuleResults(null);
     setExpandedRules({});
+    if (isLockedHoldings) {
+      // Restore to current locked eligible set (drop filter prompts only).
+      const holdings = uniqueTickers(lockedEligible);
+      onChange({
+        ...value,
+        universe_tickers: holdings,
+        universe_supplement_tickers: holdings,
+        universe_categories: null,
+        universe_filter_text: null,
+        universe_filter_prompts: null,
+        max_holdings: Math.max(holdings.length, 1),
+      });
+      return;
+    }
     onChange({
       ...value,
       universe_supplement_tickers: null,
@@ -189,13 +271,37 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
 
   return (
     <div className="space-y-4">
+      {readOnly && isLockedHoldings ? (
+        <div className="rounded border border-[var(--border)] bg-[var(--panel)] p-3">
+          <p className="text-sm font-medium text-[var(--foreground)]">
+            {t("rm.universe.lockedTitle")}
+          </p>
+          <p className="mt-1 text-xs text-dim">{t("rm.universe.lockedHint")}</p>
+          <p className="mt-2 text-xs text-[var(--cyan)]">
+            {t("rm.universe.fixedCount", { n: combinedCount })}
+          </p>
+          <p className="mt-2 break-words text-xs text-dim">
+            {lockedDisplayTickers.join(", ")}
+          </p>
+          {pendingRules.length > 0 && (
+            <ul className="mt-2 space-y-1 text-xs text-dim">
+              {pendingRules.map((rule, index) => (
+                <li key={ruleKey(index, rule)}>
+                  {index + 1}. {rule}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <>
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-[var(--foreground)]">
             {t("assetFilter.assetClasses")}
           </span>
           <span className="text-xs text-dim">
-            {hasAiApplied ? (
+            {hasAiApplied || isLockedHoldings ? (
               t("assetFilter.selectedCombined", { combined: combinedCount, total })
             ) : (
               t("assetFilter.selectedBase", { base: baseCount, total })
@@ -226,8 +332,9 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
           })}
         </div>
         <p className="text-xs text-dim">
-          {t("assetFilter.layer1Intro", { base: baseCount })}{" "}
-          {t("assetFilter.layer1Hint")}
+          {isLockedHoldings
+            ? t("rm.universe.lockedHint")
+            : `${t("assetFilter.layer1Intro", { base: baseCount })} ${t("assetFilter.layer1Hint")}`}
         </p>
       </div>
 
@@ -273,7 +380,9 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
           )}
         </div>
         <p className="text-xs text-dim">
-          {t("assetFilter.layer2Hint", { total })}
+          {isLockedHoldings
+            ? t("rm.universe.lockedHint")
+            : t("assetFilter.layer2Hint", { total })}
         </p>
 
         <textarea
@@ -341,7 +450,9 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
               <p className="text-xs text-[var(--cyan)]">{rationale}</p>
             )}
             <p className="text-xs text-dim">
-              {supplementCount > 0 ? (
+              {isLockedHoldings ? (
+                t("rm.universe.fixedCount", { n: combinedCount })
+              ) : supplementCount > 0 ? (
                 t("assetFilter.resultsPoolWithSupplement", {
                   base: baseCount,
                   supplement: supplementCount,
@@ -417,6 +528,8 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
           </>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }

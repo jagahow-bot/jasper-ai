@@ -2,6 +2,7 @@ import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import { languageDirective } from "@/lib/ai-language";
 import { interpretOverlayFallback } from "@/lib/overlay-fallback";
 import {
   allowOverlayRulesFallback,
@@ -61,6 +62,8 @@ function buildConversationPrompt(
 function overlaySystemPrompt(lang: Lang): string {
   return `Private banking quant copilot. Extract client needs from RM conversation into structured overlay JSON.
 
+${languageDirective(lang)}
+
 Output MUST be a single JSON object matching this schema exactly. Do not wrap in markdown.
 
 Required top-level keys (always present):
@@ -92,8 +95,10 @@ Field rules:
 - allocation.sub_sleeve_targets: optional regional weights (0–1). Omit if unknown; never emit {}.
 - allocation.max_single_position_pct: 0–1 FRACTION in [0.05, 0.25]. Prefer 0.35→0.25 (schema cap). Accept 35 only if you must; prefer 0.25.
 - allocation.enforce_class_weights: boolean when RM wants hard sleeve enforcement.
-- universe.prompts: natural-language ETF filter rules (not trade orders), each 4–200 chars, max 6.
-- universe.supplement_tickers / exclude_tickers: optional ticker arrays.
+- universe.prompts: optional short notes for RM display only. Do NOT use prompts to invent broad ETF baskets — locked model runs ignore thematic/category matching.
+- universe.supplement_tickers: REQUIRED for any ticker the client wants to ADD beyond the target model portfolio (explicit symbols only, e.g. "GLD", "BTAL").
+- universe.exclude_tickers: tickers to REMOVE from the target model holdings (explicit symbols only).
+- Never invent large thematic lists (ARK*, sector sprays, country ETFs) unless the client named those tickers.
 - optimization.objective: max_sharpe for risk-on/growth; min_max_drawdown for defensive/liquidity.
 - optimization.regime_adaptive: true when RM mentions regime/market switching.
 - clarification_questions: array of STRINGS only (not objects), each 4–200 chars, max 5.
@@ -126,9 +131,9 @@ Example (aggressive growth HNWI, US multi-cap anchor, reduce QQQ concentration, 
   },
   "universe": {
     "prompts": [
-      "US multi-cap equity ETFs as core anchor",
-      "Broad market equity ETFs to diversify away from Nasdaq-100 concentration"
+      "Keep US multi-cap core; reduce Nasdaq-100 concentration"
     ],
+    "supplement_tickers": ["IVV", "VTI"],
     "exclude_tickers": ["QQQ"]
   },
   "optimization": {

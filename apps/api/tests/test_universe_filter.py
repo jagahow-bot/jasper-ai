@@ -56,6 +56,124 @@ def test_get_universe_supplement_dedupes_existing_base():
     assert len(combined) == len(base)
 
 
+def test_get_universe_whitelist_plus_supplements_stays_locked():
+    """When tickers + supplements are both set, do not open the asset-class pool."""
+    locked = get_universe(
+        asset_classes=["equity", "bond"],
+        tickers=["IVV", "AGG"],
+        supplement_tickers=["IVV", "AGG", "GLD"],
+    )
+    tickers = {u["ticker"] for u in locked}
+    assert tickers == {"IVV", "AGG", "GLD"}
+    # Must not expand to the full equity+bond asset-class catalog.
+    open_pool = get_universe(asset_classes=["equity", "bond"])
+    assert len(locked) < len(open_pool)
+    assert len(locked) == 3
+
+
+def test_chen_us_large_cap_overlay_does_not_open_equity_pool():
+    """Reproduce Ms Chen leak: locked request with supplements must stay closed.
+
+    Prior bug: whenever universe_supplement_tickers was set, get_universe
+    unioned onto the full asset-class base and ignored universe_tickers —
+    so EPI/ITA/IYW (and ~200 other equity ETFs) entered the optimizer.
+    """
+    model = ["SPY", "XLF", "XLV"]
+    adds = ["SMH", "SOXX", "BOTZ", "EWT", "EWY"]
+    locked = get_universe(
+        asset_classes=["equity"],
+        tickers=model,
+        supplement_tickers=[*model, *adds],
+    )
+    tickers = {u["ticker"] for u in locked}
+    assert tickers == set(model) | set(adds)
+    assert len(locked) == 8
+
+    open_equity = get_universe(asset_classes=["equity"])
+    assert len(locked) < len(open_equity)
+    for leak in (
+        "EPI",
+        "ITA",
+        "IYW",
+        "ARKW",
+        "ACWI",
+        "QQQ",
+        "XWEB",
+        "IDU",
+        "VPU",
+        "XLU",
+    ):
+        assert leak not in tickers
+
+    from app.profiles import assert_locked_universe, clamp_universe_to_whitelist
+
+    # Even if refine somehow drifted, clamp must drop pool names.
+    drifted = list(locked) + [
+        {"ticker": "EPI", "asset_class": "equity"},
+        {"ticker": "ITA", "asset_class": "equity"},
+        {"ticker": "IYW", "asset_class": "equity"},
+        {"ticker": "XWEB", "asset_class": "equity"},
+        {"ticker": "IDU", "asset_class": "equity"},
+        {"ticker": "VPU", "asset_class": "equity"},
+        {"ticker": "XLU", "asset_class": "equity"},
+    ]
+    clamped = clamp_universe_to_whitelist(drifted, model, [*model, *adds])
+    assert {u["ticker"] for u in clamped} == set(model) | set(adds)
+    assert_locked_universe(clamped, model, [*model, *adds], context="chen")
+
+    # Fail-safe must refuse a blown-open pool.
+    try:
+        assert_locked_universe(
+            drifted, model, [*model, *adds], context="chen-leak"
+        )
+        raised = False
+    except ValueError as exc:
+        raised = True
+        assert "Locked universe leak" in str(exc)
+        assert "XWEB" in str(exc) or "IDU" in str(exc)
+    assert raised
+
+
+def test_assert_locked_universe_allows_exact_whitelist():
+    from app.profiles import assert_locked_universe
+
+    assert_locked_universe(
+        [{"ticker": "SPY"}, {"ticker": "SMH"}],
+        ["SPY"],
+        ["SMH"],
+        context="exact",
+    )
+    assert_locked_universe(
+        ["SPY", "SMH"],
+        ["SPY", "SMH"],
+        context="ticker-list",
+    )
+
+
+def test_get_universe_whitelist_ignores_asset_class_ceiling():
+    """Locked holdings stay available even if outside selected asset classes."""
+    locked = get_universe(
+        asset_classes=["equity"],
+        tickers=["IVV", "AGG"],
+    )
+    assert {u["ticker"] for u in locked} == {"IVV", "AGG"}
+
+
+def test_clamp_universe_to_whitelist_drops_drift():
+    from app.profiles import clamp_universe_to_whitelist
+
+    universe = [
+        {"ticker": "IVV", "asset_class": "equity"},
+        {"ticker": "AGG", "asset_class": "bond"},
+        {"ticker": "ARKW", "asset_class": "equity"},
+        {"ticker": "ACWI", "asset_class": "equity"},
+    ]
+    clamped = clamp_universe_to_whitelist(
+        universe, ["IVV", "AGG"], supplement_tickers=["IVV", "AGG"]
+    )
+    assert {u["ticker"] for u in clamped} == {"IVV", "AGG"}
+
+
 def test_resolve_universe_filter_prompts_merges_legacy_text():
     from app.models import BacktestRequest, BacktestMode, Objective
 

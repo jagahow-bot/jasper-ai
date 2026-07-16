@@ -152,7 +152,12 @@ class TrialReportCache:
             self._by_key[f"sig:{sig}"] = bundle
 
     def drop_model_codes(self, codes: set[str] | frozenset[str]) -> None:
-        """Release cache entries for retired Pro model codes (frees RAM, avoids stale aliases)."""
+        """Release cache entries for model codes (frees RAM, avoids stale aliases).
+
+        Do not call this for Pro pool codes before deferred round/final report
+        packaging — those assemblies look up by model_code and will otherwise
+        miss (``bundle is None`` → "no search cache" progress).
+        """
         if not codes:
             return
         drop = {str(c) for c in codes if c}

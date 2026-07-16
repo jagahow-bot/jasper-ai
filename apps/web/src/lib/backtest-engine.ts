@@ -62,28 +62,39 @@ export function runBacktestEngine(
   req: BacktestRequest,
   jobId: string,
 ): BacktestResult {
-  // Base = asset classes; supplements are pinned/guaranteed (union, never dropped).
+  // Locked whitelist: universe_tickers ∪ supplements (do not open asset-class pool).
+  // Open pool: asset classes ∪ pinned/guaranteed AI supplement tickers.
   const guaranteed = (req.universe_supplement_tickers ?? []).filter(Boolean);
+  const locked = (req.universe_tickers ?? []).filter(Boolean);
   const tickers = getTickers(
-    guaranteed.length
+    locked.length
       ? {
-          tickers: [
-            ...new Set([
-              ...getTickers({ assetClasses: req.asset_classes }),
-              ...guaranteed,
-            ]),
-          ],
+          tickers: [...new Set([...locked, ...guaranteed])],
         }
-      : {
-          assetClasses: req.asset_classes,
-          categories: req.universe_categories,
-          tickers: req.universe_tickers,
-        },
+      : guaranteed.length
+        ? {
+            tickers: [
+              ...new Set([
+                ...getTickers({ assetClasses: req.asset_classes }),
+                ...guaranteed,
+              ]),
+            ],
+          }
+        : {
+            assetClasses: req.asset_classes,
+            categories: req.universe_categories,
+            tickers: req.universe_tickers,
+          },
   );
   const meta = getUniverseMeta();
   const n = tickers.length;
-  if (n < 5) {
-    throw new Error(`Too few tickers after filter (${n}) — widen asset classes`);
+  const minUniverse = locked.length ? 1 : 5;
+  if (n < minUniverse) {
+    throw new Error(
+      locked.length
+        ? `Too few tickers after filter (${n})`
+        : `Too few tickers after filter (${n}) — widen asset classes`,
+    );
   }
 
   const returns = syntheticReturns(252 * 6, n);

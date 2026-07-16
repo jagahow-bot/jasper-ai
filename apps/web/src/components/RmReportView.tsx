@@ -273,8 +273,8 @@ export function RmReportView({
           <h3 className="ui-panel-title">{t("rm.report.candidateTitle")}</h3>
           <p className="ui-hint mt-1">{t("rm.report.candidateHint")}</p>
         </div>
-        <label className="ui-body flex items-center gap-2 text-dim">
-          {t("results.model")}
+        <label className="ui-body flex shrink-0 items-center gap-2 whitespace-nowrap text-dim">
+          {t("rm.report.candidateLabel")}
           <select
             value={selectedRowKey}
             onChange={(e) => setSelectedRowKey(e.target.value)}
@@ -451,7 +451,6 @@ export function RmReportView({
             <h3 className="ui-panel-title text-[var(--amber)]">
               {t("rm.report.talkingTitle")}
             </h3>
-            <p className="ui-hint mt-1">{t("rm.report.talkingHint")}</p>
             <ul
               className="ui-body mt-3 list-disc space-y-2 pl-5"
               key={`talking-${selectedRowKey || selectedModelCode || "champ"}`}
@@ -479,10 +478,6 @@ export function RmReportView({
           <section className="saas-inset">
             <p className="ui-section-title text-dim">{t("rm.report.disclaimerTitle")}</p>
             <p className="ui-hint mt-2">{t("rm.report.disclaimerBody")}</p>
-            <p className="ui-hint mt-2 opacity-70">
-              {t("results.disclaimer")}{" "}
-              {String(result.narrative_facts.data_source ?? t("common.unknown"))}.
-            </p>
           </section>
 
           <div className="flex flex-wrap gap-3">

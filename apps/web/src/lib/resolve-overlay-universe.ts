@@ -1,4 +1,9 @@
-import { MAINSTREAM_DEMO_TICKERS } from "@/lib/model-portfolios";
+import {
+  buildLockedCustomUniverse,
+  isLockedModelUniverse,
+  resolveStrictLockedAdds,
+  uniqueTickers,
+} from "@/lib/locked-universe";
 import {
   overlayToBacktestRequest,
   type ClientOverlay,
@@ -11,39 +16,6 @@ type UniverseFilterResponse = {
   supplement_tickers?: string[];
   error?: string;
 };
-
-function uniqueTickers(tickers: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const t of tickers) {
-    const key = t.toUpperCase();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(key);
-  }
-  return out;
-}
-
-function mergeSupplements(
-  fromAnchorReplay: boolean,
-  filterSupplements: string[],
-  overlay: ClientOverlay,
-  base: BacktestRequest,
-): string[] {
-  if (fromAnchorReplay) {
-    return uniqueTickers([
-      ...MAINSTREAM_DEMO_TICKERS,
-      ...filterSupplements,
-      ...(overlay.universe.supplement_tickers ?? []),
-      ...(base.universe_supplement_tickers ?? []),
-    ]);
-  }
-  return uniqueTickers([
-    ...filterSupplements,
-    ...(overlay.universe.supplement_tickers ?? []),
-    ...(base.universe_supplement_tickers ?? []),
-  ]);
-}
 
 async function fetchUniverseSupplements(
   prompts: string[],
@@ -70,6 +42,11 @@ async function fetchUniverseSupplements(
 /**
  * Map overlay → BacktestRequest and resolve universe filter prompts via
  * /api/universe/filter so RM sign-off does not require manual RUN SEARCH.
+ *
+ * When the base is an anchor/model portfolio, the usable universe is strictly
+ * (model holdings − excludes) ∪ explicit adds (supplement_tickers + tickers
+ * literally named in prompts). NL filter / fund-pool matching is NOT used to
+ * expand the locked set.
  */
 export async function resolveOverlayUniverse(
   base: BacktestRequest,
@@ -79,7 +56,27 @@ export async function resolveOverlayUniverse(
   const reportLanguage = opts?.reportLanguage ?? "en";
   let req = overlayToBacktestRequest(base, overlay, opts);
   const prompts = overlay.universe.prompts.filter(Boolean);
-  const fromAnchorReplay = Boolean(base.static_replay_holdings);
+  const lockedMode = isLockedModelUniverse(base);
+
+  if (lockedMode) {
+    // Rebuild from base so prompt-named tickers are included without AI expand.
+    const adds = resolveStrictLockedAdds({
+      explicitSupplements: overlay.universe.supplement_tickers,
+      prompts,
+    });
+    const locked = buildLockedCustomUniverse(base, {
+      addTickers: adds,
+      excludeTickers: overlay.universe.exclude_tickers,
+    });
+    return {
+      ...req,
+      universe_tickers: locked,
+      universe_supplement_tickers: locked,
+      max_holdings: Math.max(locked.length, 1),
+      universe_filter_prompts: prompts.length ? prompts : req.universe_filter_prompts,
+      universe_filter_text: prompts.length ? prompts.join("; ") : req.universe_filter_text,
+    };
+  }
 
   if (!prompts.length) {
     return req;
@@ -91,21 +88,22 @@ export async function resolveOverlayUniverse(
       req.asset_classes,
       reportLanguage,
     );
-    if (filterSupplements.length) {
-      req = {
-        ...req,
-        universe_supplement_tickers: mergeSupplements(
-          fromAnchorReplay,
-          filterSupplements,
-          overlay,
-          base,
-        ),
-        universe_filter_prompts: prompts,
-        universe_filter_text: prompts.join("; "),
-      };
+    if (!filterSupplements.length) {
+      return req;
     }
+
+    req = {
+      ...req,
+      universe_supplement_tickers: uniqueTickers([
+        ...filterSupplements,
+        ...(overlay.universe.supplement_tickers ?? []),
+        ...(base.universe_supplement_tickers ?? []),
+      ]),
+      universe_filter_prompts: prompts,
+      universe_filter_text: prompts.join("; "),
+    };
   } catch {
-    // Keep overlayToBacktestRequest defaults (demo pool + overlay supplements).
+    // Keep overlayToBacktestRequest defaults (open-pool path).
   }
 
   return req;

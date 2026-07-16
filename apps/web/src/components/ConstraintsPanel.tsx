@@ -667,26 +667,29 @@ export function ConstraintsPanel({
         </div>
       </details>
 
-      <label className="block space-y-2">
-        <span className="ui-label">{t("config.notifyEmail")}</span>
-        <input
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          value={value.notify_email ?? ""}
-          onChange={(e) =>
-            onChange({ ...value, notify_email: e.target.value || null })
-          }
-          placeholder={t("config.notifyEmailPlaceholder")}
-          className="pixel-input"
-        />
-        <p className="ui-hint">{t("config.notifyEmailHint")}</p>
-        {value.notify_email?.trim() && emailNotificationsEnabled === false ? (
-          <p className="ui-hint text-[var(--amber)]">
-            {t("config.notifyEmailSmtpDisabled")}
-          </p>
-        ) : null}
-      </label>
+      {!universeReadOnly ? (
+        <label className="block space-y-2">
+          <span className="ui-label">{t("config.notifyEmail")}</span>
+          <input
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            value={value.notify_email ?? ""}
+            onChange={(e) =>
+              onChange({ ...value, notify_email: e.target.value || null })
+            }
+            placeholder={t("config.notifyEmailPlaceholder")}
+            className="pixel-input"
+          />
+          <p className="ui-hint">{t("config.notifyEmailHint")}</p>
+          {value.notify_email?.trim() &&
+          emailNotificationsEnabled === false ? (
+            <p className="ui-hint text-[var(--amber)]">
+              {t("config.notifyEmailSmtpDisabled")}
+            </p>
+          ) : null}
+        </label>
+      ) : null}
 
       <button
         type="button"

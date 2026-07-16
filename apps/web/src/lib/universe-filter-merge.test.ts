@@ -71,6 +71,29 @@ function run() {
   const pinned = pinGuaranteedSupplementTickers(refined, ["GLD", "SPY"]);
   assert.deepEqual(pinned, ["SPY", "AGG", "GLD"]);
 
+  // Strict explicit mode: thematic AI output must not expand without named symbols.
+  const thematic = analyzeUniverseFilterFallback("add utilities and emerging markets");
+  const strictMerged = mergeSupplementTickers([thematic], "en", {
+    strictExplicitOnly: true,
+    prompts: ["add utilities and emerging markets"],
+  });
+  assert.ok(
+    !strictMerged.supplement_tickers.includes("VPU"),
+    "strict mode must not pull VPU from utilities keyword",
+  );
+  assert.ok(
+    !strictMerged.supplement_tickers.includes("EIDO"),
+    "strict mode must not pull country ETFs from thematic text",
+  );
+
+  const named = mergeSupplementTickers(
+    [{ tickers: ["GLD", "ARKW"], rationale: "test" }],
+    "en",
+    { strictExplicitOnly: true, prompts: ["Please add GLD for inflation hedge"] },
+  );
+  assert.deepEqual(named.supplement_tickers, ["GLD"]);
+  assert.ok(!named.supplement_tickers.includes("ARKW"));
+
   console.log("universe-filter-merge: ok");
 }
 

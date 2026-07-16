@@ -31,6 +31,26 @@ def get_universe(
     supplement_tickers: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     all_items = load_universe_file()["universe"]
+
+    # Explicit ticker whitelist (model/anchor lock): never open the asset-class
+    # pool; union optional supplements from the full catalog.
+    if tickers:
+        tick_set = {str(t).upper() for t in tickers}
+        locked_base = [
+            u
+            for u in all_items
+            if str(u.get("ticker", "")).upper() in tick_set
+        ]
+        if supplement_tickers:
+            return _union_supplement_items(
+                locked_base,
+                all_items,
+                supplement_tickers,
+                allowed_asset_classes=None,
+                bypass_asset_class_filter=True,
+            )
+        return locked_base
+
     base: list[dict[str, Any]] = list(all_items)
     if asset_classes:
         allowed = set(asset_classes)
@@ -46,9 +66,6 @@ def get_universe(
     if categories:
         cat_set = set(categories)
         items = [u for u in items if u.get("category") in cat_set]
-    if tickers:
-        tick_set = {str(t).upper() for t in tickers}
-        items = [u for u in items if str(u.get("ticker", "")).upper() in tick_set]
     return items
 
 
@@ -102,6 +119,72 @@ def pin_guaranteed_supplements(
         allowed_asset_classes=allowed,
         bypass_asset_class_filter=True,
     )
+
+
+def locked_universe_allowed_set(
+    tickers: list[str] | None,
+    supplement_tickers: list[str] | None = None,
+) -> set[str] | None:
+    """Return the allowed ticker set for locked mode, or None when unlocked."""
+    if not tickers:
+        return None
+    allowed = {str(t).upper() for t in tickers if str(t).strip()}
+    if not allowed:
+        return None
+    if supplement_tickers:
+        allowed |= {str(t).upper() for t in supplement_tickers if str(t).strip()}
+    return allowed
+
+
+def clamp_universe_to_whitelist(
+    universe: list[dict[str, Any]],
+    tickers: list[str] | None,
+    supplement_tickers: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """When an explicit ticker whitelist is set, drop anything outside whitelist ∪ supplements."""
+    allowed = locked_universe_allowed_set(tickers, supplement_tickers)
+    if allowed is None:
+        return universe
+    return [
+        u
+        for u in universe
+        if str(u.get("ticker", "")).upper() in allowed
+    ]
+
+
+def assert_locked_universe(
+    universe: list[dict[str, Any]] | list[str],
+    tickers: list[str] | None,
+    supplement_tickers: list[str] | None = None,
+    *,
+    context: str = "universe",
+) -> None:
+    """Hard fail-safe: refuse to silently expand past whitelist ∪ supplements.
+
+    Raises ValueError when locked mode is active and any ticker is outside the
+    allowed set, or when the pool is larger than the allowed set (open-pool leak).
+    """
+    allowed = locked_universe_allowed_set(tickers, supplement_tickers)
+    if allowed is None:
+        return
+
+    got: set[str] = set()
+    for item in universe:
+        if isinstance(item, str):
+            t = item.strip().upper()
+        else:
+            t = str(item.get("ticker", "")).strip().upper()
+        if t:
+            got.add(t)
+
+    leaked = sorted(got - allowed)
+    if leaked or len(got) > len(allowed):
+        raise ValueError(
+            f"Locked universe leak in {context}: got {len(got)} tickers "
+            f"(allowed {len(allowed)}); "
+            f"outside whitelist∪supplements: {leaked[:20]}"
+            + ("…" if len(leaked) > 20 else "")
+        )
 
 
 def _count_field(items: list[dict[str, Any]], key: str) -> dict[str, int]:

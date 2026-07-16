@@ -113,13 +113,18 @@ class BacktestRequest(BaseModel):
     )
     universe_tickers: list[str] | None = Field(
         default=None,
-        description="Legacy optional ticker whitelist (prefer universe_supplement_tickers)",
+        description=(
+            "Optional ticker whitelist (locked searchable universe). When set, "
+            "the pool is NEVER the full asset-class catalog — only "
+            "whitelist ∪ universe_supplement_tickers (model holdings ∪ explicit adds)."
+        ),
     )
     universe_supplement_tickers: list[str] | None = Field(
         default=None,
         description=(
-            "AI-discovered tickers unioned onto the asset-class base pool; "
-            "pinned/guaranteed after refine_universe_with_ai (cannot be dropped)"
+            "Tickers unioned onto the base pool and pinned after refine_universe_with_ai. "
+            "Without universe_tickers: union onto the asset-class base (open-pool mode). "
+            "With universe_tickers: union onto that whitelist only (locked mode)."
         ),
     )
     universe_filter_text: str | None = Field(

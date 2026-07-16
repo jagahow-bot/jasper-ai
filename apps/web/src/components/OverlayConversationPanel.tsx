@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -19,10 +19,21 @@ type Props = {
   rmId?: string;
   clientRef?: string;
   baseScenarioId?: string;
-  /** Prefill the input when launching from Client Dashboard. */
-  initialDraft?: string;
   onConfirm?: (overlay: ClientOverlay) => void;
 };
+
+function detectOverlayInputLang(text: string): "en" | "zh" | "ko" {
+  const s = text.trim();
+  if (!s) return "en";
+
+  // Deterministic heuristic:
+  // - Korean uses Hangul syllables.
+  // - Chinese uses common Han character ranges (covers both simplified/traditional).
+  // - Default to English.
+  if (/[\uAC00-\uD7AF]/.test(s)) return "ko";
+  if (/[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]/.test(s)) return "zh";
+  return "en";
+}
 
 function toChatMessages(messages: OverlayConversationMessage[]): ChatMessage[] {
   return messages.map((m, i) => ({
@@ -36,24 +47,35 @@ export function OverlayConversationPanel({
   rmId = "rm-demo",
   clientRef,
   baseScenarioId,
-  initialDraft,
   onConfirm,
 }: Props) {
   const { lang, t } = useI18n();
-  const reportLanguage = lang === "zh" ? "zh-TW" : lang;
 
-  const [input, setInput] = useState(initialDraft ?? "");
+  const [input, setInput] = useState("");
   const [messages, setMessages] = useState<OverlayConversationMessage[]>([]);
   const [overlay, setOverlay] = useState<ClientOverlay | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [overlayLang, setOverlayLang] = useState<typeof lang>(lang);
+
+  // If no overlay has been generated yet, keep the overlay language aligned with
+  // the current UI locale. Once we generate an overlay, we keep the detected
+  // language stable for that response.
+  useEffect(() => {
+    if (!overlay) setOverlayLang(lang);
+  }, [lang, overlay]);
 
   const interpret = useCallback(
     async (nextMessages: OverlayConversationMessage[]) => {
       setLoading(true);
       setError(null);
       try {
+        const latestUserText =
+          [...nextMessages].reverse().find((m) => m.role === "user")?.content ?? "";
+        const detectedLang = detectOverlayInputLang(latestUserText);
+        const reportLanguage = detectedLang === "zh" ? "zh-TW" : detectedLang;
+
         const res = await fetch("/api/overlay/interpret", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -100,10 +122,14 @@ export function OverlayConversationPanel({
         }
 
         setOverlay(interpretedOverlay);
+        setOverlayLang(detectedLang);
 
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: formatOverlayAssistantReply(interpretedOverlay, lang) },
+          {
+            role: "assistant",
+            content: formatOverlayAssistantReply(interpretedOverlay, detectedLang),
+          },
         ]);
       } catch {
         const message = t("overlay.interpret.error.generic");
@@ -113,7 +139,7 @@ export function OverlayConversationPanel({
         setLoading(false);
       }
     },
-    [overlay, rmId, clientRef, baseScenarioId, reportLanguage, lang, t],
+    [overlay, rmId, clientRef, baseScenarioId, t],
   );
 
   const send = async () => {
@@ -137,7 +163,7 @@ export function OverlayConversationPanel({
 
   const phaseLabel =
     overlay?.audit.phase ??
-    (lang === "zh" ? "探索" : "discovery");
+    (overlayLang === "zh" ? "探索" : "discovery");
 
   return (
     <div className="pixel-panel flex min-h-0 flex-col gap-4">
@@ -151,8 +177,10 @@ export function OverlayConversationPanel({
         </h3>
         <p className="mt-2 text-sm text-dim">
           {lang === "zh"
-            ? "以自然語言描述客戶需求，AI 結構化為可回測 overlay；確認後方可執行。"
-            : "Describe client needs in natural language; AI structures an overlay for backtest after RM sign-off."}
+            ? "輸入客戶投資需求，Japser AI會引導釐清需求，並著手設計模型參數"
+            : lang === "ko"
+              ? "고객 투자 니즈를 입력하세요. Japser AI가 니즈를 명확히 하고 모델 파라미터 설계를 시작합니다."
+              : "Enter the client's investment needs; Japser AI will guide requirement clarification and begin designing model parameters."}
         </p>
       </div>
 
@@ -167,8 +195,10 @@ export function OverlayConversationPanel({
           rows={6}
           placeholder={
             lang === "zh"
-              ? "例：客戶明年需要 80 萬美元流動性，目前持股偏科技…"
-              : "e.g. Client needs $800k liquidity next year, overweight tech…"
+              ? "例如：客戶想要增加AI產業布局，未來5年內有資金動用需求，所以不希望投資風險過高。"
+              : lang === "ko"
+                ? "예: 고객은 AI 산업 비중을 늘리고 싶지만, 향후 5년 내 자금 사용 계획이 있어 투자 위험이 너무 높지 않기를 원합니다."
+                : "e.g. The client wants to increase AI sector exposure, but expects to use funds within the next 5 years, so they do not want investment risk to be too high."
           }
           className="pixel-input min-h-[160px] flex-1 resize-y"
           onKeyDown={(e) => {
@@ -207,7 +237,7 @@ export function OverlayConversationPanel({
             </span>
           </div>
           <pre className="ui-body whitespace-pre-wrap leading-snug">
-            {formatOverlaySummary(overlay, lang)}
+            {formatOverlaySummary(overlay, overlayLang)}
           </pre>
           {overlay.clarification_questions?.length ? (
             <ul className="list-inside list-disc text-sm text-dim">

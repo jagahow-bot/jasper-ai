@@ -7,6 +7,9 @@ import {
   type Lang,
   type TFn,
 } from "@/lib/i18n";
+import { getPortfolioLabel } from "@/lib/model-portfolios";
+import { getManagedPortfolioById } from "@/lib/model-portfolios-store";
+import type { BacktestRequest } from "@/lib/types";
 
 export type LocalizedText = {
   en: string;
@@ -18,9 +21,37 @@ export type ClientHolding = {
   ticker: string;
   name: string;
   asset_class: string;
+  /** Current portfolio weight after return drift (normalized across the book). */
   weight: number;
+  /**
+   * Model / sleeve target weight at investment (demo source).
+   * When set, `weight` is derived from initial_weight × (1 + total_return).
+   */
+  initial_weight?: number;
+  /** Year-to-date return in percent points (e.g. 12.3 → +12.3%). Null = N/A (e.g. cash). */
+  return_ytd?: number | null;
+  /**
+   * Cumulative holding-period return since invested_at, in percent points
+   * (e.g. 28.1 → +28.1%). Used with invested_at + as_of to compute CAGR.
+   * Null = N/A (e.g. cash).
+   */
+  total_return?: number | null;
+  /** Purchase / invested date (ISO YYYY-MM-DD). */
+  invested_at?: string | null;
   region?: string;
   notes?: string;
+};
+
+/** Sleeve of a client book: a model portfolio, standalone tickers, or cash. */
+export type ClientHoldingsGroup = {
+  id: string;
+  type: "model" | "individual" | "cash";
+  /** When type is "model", links to a catalog model portfolio id. */
+  model_id?: string;
+  /** Optional display override; model groups usually resolve via getPortfolioLabel. */
+  label?: LocalizedText;
+  /** Portfolio-level weights (sum across all groups ≈ 1). */
+  holdings: ClientHolding[];
 };
 
 export type ClientUpcomingEvent = {
@@ -48,7 +79,10 @@ export type DemoClient = {
   rm_owner: string;
   as_of_date: string;
   suggested_model_portfolio_id: string | null;
+  /** Flat holdings (derived from holdings_groups when present). */
   holdings: ClientHolding[];
+  /** Optional grouped sleeves; when set, preferred source for dashboard display. */
+  holdings_groups?: ClientHoldingsGroup[];
   notes: LocalizedText;
   upcoming_events?: ClientUpcomingEvent[];
 };
@@ -57,17 +91,465 @@ type DemoClientsFile = {
   version: string;
   updated: string;
   description?: string;
-  clients: DemoClient[];
+  clients: RawDemoClient[];
 };
+
+/** Holdings as stored in demo-clients.json (model weights + returns; weight computed at load). */
+type RawClientHolding = Omit<ClientHolding, "weight"> & {
+  weight?: number;
+  initial_weight: number;
+};
+
+type RawClientHoldingsGroup = Omit<ClientHoldingsGroup, "holdings"> & {
+  holdings: RawClientHolding[];
+};
+
+type RawDemoClient = Omit<DemoClient, "holdings" | "holdings_groups"> & {
+  holdings: RawClientHolding[];
+  holdings_groups?: RawClientHoldingsGroup[];
+};
+
+function flattenHoldingsGroups(groups: RawClientHoldingsGroup[]): RawClientHolding[] {
+  return groups.flatMap((g) => g.holdings);
+}
+
+/** Growth multiplier from cumulative holding-period return (cash → 1). */
+export function holdingGrowthFactor(
+  holding: Pick<ClientHolding, "total_return" | "ticker" | "asset_class">,
+): number {
+  if (isCashHolding(holding)) return 1;
+  if (
+    typeof holding.total_return === "number" &&
+    !Number.isNaN(holding.total_return)
+  ) {
+    return 1 + holding.total_return / 100;
+  }
+  return 1;
+}
+
+/**
+ * Drift current weights from model initial_weight × (1 + total_return).
+ * Weights renormalize to sum to 1 across the full book.
+ */
+export function applyDriftedHoldingsWeights(
+  holdings: RawClientHolding[],
+): ClientHolding[] {
+  if (!holdings.length) return [];
+  const hasInitial = holdings.some((h) => typeof h.initial_weight === "number");
+  if (!hasInitial) {
+    return holdings.map((h) => ({
+      ...h,
+      weight: h.weight ?? 0,
+    }));
+  }
+
+  const valueFactors = holdings.map((h) => {
+    const initial = h.initial_weight ?? h.weight ?? 0;
+    return initial * holdingGrowthFactor(h);
+  });
+  const total = valueFactors.reduce((sum, value) => sum + value, 0) || 1;
+  return holdings.map((h, i) => ({
+    ...h,
+    weight: valueFactors[i] / total,
+  }));
+}
+
+function remapDriftedHoldingsToGroups(
+  groups: ClientHoldingsGroup[],
+  drifted: ClientHolding[],
+): ClientHoldingsGroup[] {
+  let idx = 0;
+  return groups.map((group) => ({
+    ...group,
+    holdings: group.holdings.map(() => {
+      const holding = drifted[idx];
+      idx += 1;
+      return holding;
+    }),
+  }));
+}
+
+function syncCashUsd(
+  client: Pick<DemoClient, "aum_usd" | "cash_usd">,
+  holdings: ClientHolding[],
+): number {
+  const cashHolding = holdings.find(isCashHolding);
+  if (!cashHolding) return client.cash_usd;
+  return Math.round(client.aum_usd * cashHolding.weight);
+}
+
+function normalizeDemoClient(raw: RawDemoClient): DemoClient {
+  if (raw.holdings_groups?.length) {
+    const flat = flattenHoldingsGroups(raw.holdings_groups);
+    const drifted = applyDriftedHoldingsWeights(flat);
+    const holdings_groups = remapDriftedHoldingsToGroups(
+      raw.holdings_groups as ClientHoldingsGroup[],
+      drifted,
+    );
+    return {
+      ...raw,
+      cash_usd: syncCashUsd(raw, drifted),
+      holdings_groups,
+      holdings: drifted,
+    } as DemoClient;
+  }
+  const holdings = applyDriftedHoldingsWeights(raw.holdings);
+  return {
+    ...raw,
+    cash_usd: syncCashUsd(raw, holdings),
+    holdings,
+  } as DemoClient;
+}
 
 const file = demoClientsFile as DemoClientsFile;
 
 export function getDemoClients(): DemoClient[] {
-  return file.clients;
+  return file.clients.map(normalizeDemoClient);
 }
 
 export function getDemoClientById(id: string): DemoClient | undefined {
-  return file.clients.find((c) => c.client_id === id);
+  const raw = file.clients.find((c) => c.client_id === id);
+  return raw ? normalizeDemoClient(raw) : undefined;
+}
+
+/** Groups for UI; falls back to a single individual sleeve from flat holdings. */
+export function getClientHoldingsGroups(
+  client: Pick<DemoClient, "holdings" | "holdings_groups">,
+): ClientHoldingsGroup[] {
+  if (client.holdings_groups?.length) return client.holdings_groups;
+  return [
+    {
+      id: "all",
+      type: "individual",
+      holdings: client.holdings,
+    },
+  ];
+}
+
+export function holdingsGroupWeight(group: ClientHoldingsGroup): number {
+  return group.holdings.reduce((sum, h) => sum + h.weight, 0);
+}
+
+/** Localized label for a holdings sleeve (model, individual, or cash). */
+export function holdingsGroupLabel(
+  group: ClientHoldingsGroup,
+  lang: Lang,
+  t: TFn,
+): string {
+  if (group.type === "individual") {
+    if (group.label) return localizedText(group.label, lang);
+    return t("clients.holdings.individual");
+  }
+  if (group.type === "cash") {
+    if (group.label) return localizedText(group.label, lang);
+    return t("clients.holdings.cash");
+  }
+  if (group.model_id) {
+    const model = getManagedPortfolioById(group.model_id);
+    if (model) return getPortfolioLabel(model, lang);
+  }
+  if (group.label) return localizedText(group.label, lang);
+  return group.model_id ?? group.id;
+}
+
+/** True for cash / 現金 holdings (ticker CASH or cash asset class). */
+export function isCashHolding(
+  holding: Pick<ClientHolding, "ticker" | "asset_class">,
+): boolean {
+  const t = holding.ticker.toUpperCase();
+  const c = holding.asset_class.toLowerCase();
+  return (
+    t === "CASH" ||
+    c === "cash" ||
+    c.includes("現金") ||
+    c.includes("cash")
+  );
+}
+
+const MS_PER_DAY = 86_400_000;
+const DAYS_PER_YEAR = 365.25;
+
+/**
+ * Standard CAGR from cumulative holding-period return R (decimal) and years t:
+ * CAGR = (1 + R)^(1/t) − 1. Returns percent points (e.g. 11.2 → +11.2%).
+ * t ≤ 0, missing inputs, or non-finite results → undefined (UI shows "—").
+ */
+export function computeCagr(
+  investedAt: string | null | undefined,
+  asOfDate: string | null | undefined,
+  cumulativeReturn: number | null | undefined,
+): number | undefined {
+  if (
+    !investedAt ||
+    !asOfDate ||
+    typeof cumulativeReturn !== "number" ||
+    Number.isNaN(cumulativeReturn)
+  ) {
+    return undefined;
+  }
+  const start = new Date(`${investedAt}T12:00:00Z`);
+  const end = new Date(`${asOfDate}T12:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return undefined;
+  }
+  const t = (end.getTime() - start.getTime()) / MS_PER_DAY / DAYS_PER_YEAR;
+  if (!(t > 0)) return undefined;
+  const R = cumulativeReturn; // already decimal
+  const base = 1 + R;
+  if (base <= 0) {
+    // Negative wealth not annualizable via this power formula.
+    return undefined;
+  }
+  const cagr = base ** (1 / t) - 1;
+  if (!Number.isFinite(cagr)) return undefined;
+  return cagr * 100;
+}
+
+/**
+ * Resolve cumulative holding-period return as a decimal for CAGR.
+ * Prefers total_return (percent points → decimal). If missing and the
+ * invest date is in the same calendar year as as_of, falls back to return_ytd.
+ */
+export function holdingCumulativeReturnDecimal(
+  holding: Pick<ClientHolding, "total_return" | "return_ytd" | "invested_at">,
+  asOfDate: string | null | undefined,
+): number | undefined {
+  if (typeof holding.total_return === "number") {
+    return holding.total_return / 100;
+  }
+  if (
+    typeof holding.return_ytd === "number" &&
+    holding.invested_at &&
+    asOfDate &&
+    holding.invested_at.slice(0, 4) === asOfDate.slice(0, 4)
+  ) {
+    return holding.return_ytd / 100;
+  }
+  return undefined;
+}
+
+/** Per-holding CAGR in percent points from invested_at, as_of, and R. */
+export function holdingCagr(
+  holding: Pick<
+    ClientHolding,
+    "total_return" | "return_ytd" | "invested_at" | "ticker" | "asset_class"
+  >,
+  asOfDate: string | null | undefined,
+): number | undefined {
+  if (isCashHolding(holding)) return undefined;
+  const R = holdingCumulativeReturnDecimal(holding, asOfDate);
+  return computeCagr(holding.invested_at, asOfDate, R);
+}
+
+/**
+ * Weight-weighted average of constituent return_ytd (percent points).
+ * Cash is included at 0% (weight in denominator, 0 in numerator) so cash
+ * dilutes mixed group/total; the cash row UI still shows "—".
+ * Cash-only groups (no invested holdings with values) return undefined → "—".
+ * Holdings with missing values (non-cash) are skipped.
+ */
+export function holdingsGroupReturnYtd(
+  group: ClientHoldingsGroup,
+): number | undefined {
+  let wSum = 0;
+  let retSum = 0;
+  let investedWeight = 0;
+  for (const h of group.holdings) {
+    if (isCashHolding(h)) {
+      wSum += h.weight;
+      continue;
+    }
+    if (typeof h.return_ytd !== "number") continue;
+    wSum += h.weight;
+    investedWeight += h.weight;
+    retSum += h.weight * h.return_ytd;
+  }
+  if (investedWeight <= 0 || wSum <= 0) return undefined;
+  return retSum / wSum;
+}
+
+/**
+ * Weight-weighted average of computed constituent CAGRs (percent points).
+ * Same cash-dilution rules as holdingsGroupReturnYtd.
+ */
+export function holdingsGroupCagr(
+  group: ClientHoldingsGroup,
+  asOfDate: string | null | undefined,
+): number | undefined {
+  let wSum = 0;
+  let retSum = 0;
+  let investedWeight = 0;
+  for (const h of group.holdings) {
+    if (isCashHolding(h)) {
+      wSum += h.weight;
+      continue;
+    }
+    const value = holdingCagr(h, asOfDate);
+    if (typeof value !== "number") continue;
+    wSum += h.weight;
+    investedWeight += h.weight;
+    retSum += h.weight * value;
+  }
+  if (investedWeight <= 0 || wSum <= 0) return undefined;
+  return retSum / wSum;
+}
+
+/** Earliest invested_at (ISO date) among holdings that have one. */
+export function holdingsGroupInvestedAt(
+  group: ClientHoldingsGroup,
+): string | undefined {
+  let earliest: string | undefined;
+  for (const h of group.holdings) {
+    if (!h.invested_at) continue;
+    if (!earliest || h.invested_at < earliest) earliest = h.invested_at;
+  }
+  return earliest;
+}
+
+/** Holdings from the selected group ids (empty selection → empty list). */
+export function holdingsFromSelectedGroups(
+  groups: ClientHoldingsGroup[],
+  selectedIds: ReadonlySet<string> | readonly string[],
+): ClientHolding[] {
+  const selected =
+    selectedIds instanceof Set ? selectedIds : new Set(selectedIds);
+  return groups
+    .filter((g) => selected.has(g.id))
+    .flatMap((g) => g.holdings);
+}
+
+/**
+ * Scale so selected groups' portfolio weights sum to 1.
+ * Returns 1 when nothing is selected or the selected weight sum is 0.
+ */
+export function selectedGroupsWeightScale(
+  groups: ClientHoldingsGroup[],
+  selectedIds: ReadonlySet<string> | readonly string[],
+): number {
+  const selected =
+    selectedIds instanceof Set ? selectedIds : new Set(selectedIds);
+  const sum = groups
+    .filter((g) => selected.has(g.id))
+    .reduce((acc, g) => acc + holdingsGroupWeight(g), 0);
+  return sum > 0 ? 1 / sum : 1;
+}
+
+/** Merge selected groups' holdings with portfolio-level weights renormalized to 100%. */
+export function buildScopeHoldings(
+  groups: ClientHoldingsGroup[],
+  selectedIds: readonly string[],
+): ClientHolding[] {
+  if (!selectedIds.length) return [];
+  const selected = new Set(selectedIds);
+  const scale = selectedGroupsWeightScale(groups, selectedIds);
+  const byTicker = new Map<string, ClientHolding>();
+  for (const group of groups) {
+    if (!selected.has(group.id)) continue;
+    for (const h of group.holdings) {
+      const ticker = h.ticker.toUpperCase();
+      const w = h.weight * scale;
+      const existing = byTicker.get(ticker);
+      if (existing) {
+        existing.weight += w;
+      } else {
+        byTicker.set(ticker, { ...h, weight: w });
+      }
+    }
+  }
+  return Array.from(byTicker.values());
+}
+
+/** Default anchor from selected scope: one model → that id; none → fallback; many → first model. */
+export function resolveAnchorIdFromScope(
+  groups: ClientHoldingsGroup[],
+  selectedIds: readonly string[],
+  fallbackAnchorId: string,
+): string {
+  const selected = new Set(selectedIds);
+  const modelGroups = groups.filter(
+    (g) => g.type === "model" && g.model_id && selected.has(g.id),
+  );
+  if (modelGroups.length >= 1) {
+    return modelGroups[0].model_id!;
+  }
+  return fallbackAnchorId;
+}
+
+export function countSelectedModelGroups(
+  groups: ClientHoldingsGroup[],
+  selectedIds: readonly string[],
+): number {
+  const selected = new Set(selectedIds);
+  return groups.filter(
+    (g) => g.type === "model" && g.model_id && selected.has(g.id),
+  ).length;
+}
+
+export function defaultCustomizationPortfolioName(
+  client: Pick<DemoClient, "display_name">,
+  lang: Lang,
+): string {
+  const name = localizedText(client.display_name, lang);
+  if (lang === "zh") return `${name} 客製化投組`;
+  if (lang === "ko") return `${name} 맞춤 포트폴리오`;
+  return `${name} customized portfolio`;
+}
+
+export function holdingsToStaticReplay(
+  holdings: ClientHolding[],
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const h of holdings) {
+    out[h.ticker.toUpperCase()] = h.weight;
+  }
+  return out;
+}
+
+/**
+ * Apply scope holdings to the backtest universe.
+ *
+ * When the request already has a locked whitelist (model/anchor holdings),
+ * scope tickers are unioned into that whitelist — never used to open the
+ * full asset-class fund pool via supplement-union semantics.
+ */
+export function applyScopeToBacktestRequest(
+  req: BacktestRequest,
+  scopeHoldings: ClientHolding[],
+): BacktestRequest {
+  if (!scopeHoldings.length) return req;
+  const scopeTickers = scopeHoldings.map((h) => h.ticker.toUpperCase());
+  const existingWhitelist = (req.universe_tickers ?? []).map((t) =>
+    t.toUpperCase(),
+  );
+  const fromStatic = Object.keys(req.static_replay_holdings ?? {}).map((t) =>
+    t.toUpperCase(),
+  );
+  const lockedBase =
+    existingWhitelist.length > 0
+      ? existingWhitelist
+      : fromStatic.length > 0
+        ? fromStatic
+        : [];
+
+  if (lockedBase.length > 0) {
+    const uniq = [...new Set([...lockedBase, ...scopeTickers])];
+    return {
+      ...req,
+      universe_tickers: uniq,
+      universe_supplement_tickers: uniq,
+      max_holdings: Math.max(req.max_holdings ?? uniq.length, uniq.length),
+    };
+  }
+
+  const uniq = [...new Set(scopeTickers)];
+  return {
+    ...req,
+    universe_tickers: uniq,
+    universe_supplement_tickers: [
+      ...new Set([...(req.universe_supplement_tickers ?? []), ...uniq]),
+    ],
+    max_holdings: Math.max(req.max_holdings ?? 30, uniq.length),
+  };
 }
 
 export function localizedText(
@@ -127,8 +609,130 @@ export function holdingDisplayName(
   return etfDisplayName(holding.ticker, lang);
 }
 
+export type ClientPieSlice = { name: string; value: number };
+export type ClientNavPoint = { date: string; nav: number };
+
+/**
+ * Pie slices from holdings weights (ticker labels).
+ * When renormalize is true, weights are scaled to sum to 1 (for filtered groups).
+ */
+export function buildClientHoldingsPie(
+  holdings: ClientHolding[],
+  opts?: { renormalize?: boolean },
+): ClientPieSlice[] {
+  const slices = holdings
+    .filter((h) => h.weight > 0)
+    .map((h) => ({ name: h.ticker, value: h.weight }))
+    .sort((a, b) => b.value - a.value);
+  if (!opts?.renormalize || slices.length === 0) return slices;
+  const total = slices.reduce((s, x) => s + x.value, 0) || 1;
+  return slices.map((x) => ({ ...x, value: x.value / total }));
+}
+
+function hashSeed(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function isGrowthClass(assetClass: string): boolean {
+  const c = assetClass.toLowerCase();
+  return (
+    c.includes("equity") ||
+    c.includes("stock") ||
+    c.includes("commodity") ||
+    c.includes("real_estate") ||
+    c.includes("alternative")
+  );
+}
+
+function isDefensiveClass(assetClass: string, ticker: string): boolean {
+  const c = assetClass.toLowerCase();
+  const t = ticker.toUpperCase();
+  return (
+    t === "CASH" ||
+    c.includes("cash") ||
+    c.includes("bond") ||
+    c.includes("fixed")
+  );
+}
+
+/**
+ * Illustrative monthly NAV series ending at as_of_date, shaped by holdings mix
+ * and risk profile (deterministic per client_id + holdings fingerprint).
+ */
+export function buildClientPerformanceSeries(
+  client: Pick<DemoClient, "client_id" | "as_of_date" | "risk_profile"> & {
+    holdings: ClientHolding[];
+  },
+  months = 18,
+): ClientNavPoint[] {
+  const holdingsKey = client.holdings
+    .map((h) => `${h.ticker}:${h.weight.toFixed(4)}`)
+    .join("|");
+  const rand = mulberry32(hashSeed(`${client.client_id}|${holdingsKey}`));
+  let growthW = 0;
+  let defensiveW = 0;
+  for (const h of client.holdings) {
+    if (isDefensiveClass(h.asset_class, h.ticker)) defensiveW += h.weight;
+    else if (isGrowthClass(h.asset_class)) growthW += h.weight;
+    else growthW += h.weight * 0.5;
+  }
+  const total = growthW + defensiveW || 1;
+  const growthShare = growthW / total;
+
+  const riskBoost =
+    client.risk_profile === "aggressive"
+      ? 1.25
+      : client.risk_profile === "conservative"
+        ? 0.7
+        : 1;
+  const monthlyDrift = (0.002 + growthShare * 0.005) * riskBoost;
+  const monthlyVol = (0.008 + growthShare * 0.028) * riskBoost;
+
+  const end = new Date(`${client.as_of_date}T12:00:00Z`);
+  if (Number.isNaN(end.getTime())) return [];
+
+  const points: ClientNavPoint[] = [];
+  let nav = 100;
+  for (let i = months; i >= 0; i--) {
+    const d = new Date(end);
+    d.setUTCMonth(d.getUTCMonth() - i);
+    const date = d.toISOString().slice(0, 10);
+    if (i < months) {
+      const shock = (rand() * 2 - 1) * monthlyVol;
+      nav = Math.max(40, nav * (1 + monthlyDrift + shock));
+    }
+    points.push({ date, nav: Math.round(nav * 100) / 100 });
+  }
+  return points;
+}
+
 /** Prefill prompt for Overlay conversation from client profile. */
 export function buildClientOverlayPrefill(client: DemoClient, lang: Lang): string {
+  return buildClientOverlayPrefillFromHoldings(client, client.holdings, lang);
+}
+
+/** Prefill using a scoped holdings subset (selected groups). */
+export function buildClientOverlayPrefillFromHoldings(
+  client: DemoClient,
+  scopeHoldings: ClientHolding[],
+  lang: Lang,
+): string {
   const t: TFn = (key, params) => translate(lang, key, params);
   const name = localizedText(client.display_name, lang);
   const liquidity = localizedText(client.liquidity_notes, lang);
@@ -136,18 +740,18 @@ export function buildClientOverlayPrefill(client: DemoClient, lang: Lang): strin
   const horizon = localizedText(client.investment_horizon, lang);
   const risk = riskProfileLabel(t, client.risk_profile);
   const esg = esgPreferenceLabel(t, client.preferences.esg ?? "none");
-  const holdingsSummary = client.holdings
+  const holdingsSummary = scopeHoldings
     .filter((h) => h.ticker !== "CASH" || h.weight >= 0.5)
     .map((h) => `${h.ticker} ${(h.weight * 100).toFixed(0)}%`)
     .join(", ");
 
   if (lang === "zh") {
-    return `${name}，${client.age} 歲，風險屬性 ${risk}，投資年期 ${horizon}，AUM 約 ${formatUsd(client.aum_usd, lang)}（現金約 ${formatUsd(client.cash_usd, lang)}）。流動性：${liquidity} ESG：${esg}。現況持倉：${holdingsSummary}。${notes}`;
+    return `${name}，${client.age} 歲，風險屬性 ${risk}，投資年期 ${horizon}，AUM 約 ${formatUsd(client.aum_usd, lang)}（現金約 ${formatUsd(client.cash_usd, lang)}）。流動性：${liquidity} ESG：${esg}。本次優化持倉：${holdingsSummary}。${notes}`;
   }
   if (lang === "ko") {
-    return `${name}, ${client.age}세, 위험성향 ${risk}, 투자기간 ${horizon}, AUM 약 ${formatUsd(client.aum_usd, lang)} (현금 약 ${formatUsd(client.cash_usd, lang)}). 유동성: ${liquidity} ESG: ${esg}. 현재 보유: ${holdingsSummary}. ${notes}`;
+    return `${name}, ${client.age}세, 위험성향 ${risk}, 투자기간 ${horizon}, AUM 약 ${formatUsd(client.aum_usd, lang)} (현금 약 ${formatUsd(client.cash_usd, lang)}). 유동성: ${liquidity} ESG: ${esg}. 이번 최적화 보유: ${holdingsSummary}. ${notes}`;
   }
-  return `${name}, age ${client.age}, risk ${risk}, horizon ${horizon}, AUM ~${formatUsd(client.aum_usd, lang)} (cash ~${formatUsd(client.cash_usd, lang)}). Liquidity: ${liquidity} ESG: ${esg}. Holdings: ${holdingsSummary}. ${notes}`;
+  return `${name}, age ${client.age}, risk ${risk}, horizon ${horizon}, AUM ~${formatUsd(client.aum_usd, lang)} (cash ~${formatUsd(client.cash_usd, lang)}). Liquidity: ${liquidity} ESG: ${esg}. Scope holdings: ${holdingsSummary}. ${notes}`;
 }
 
 /** Map client risk_profile to model risk_level strings used in catalogs. */

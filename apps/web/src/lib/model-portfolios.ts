@@ -345,7 +345,7 @@ function mixToSleeveControls(
 
 /**
  * Build a base (anchor) BacktestRequest from a model portfolio.
- * Universe is limited to mainstream demo ETFs plus anchor holdings.
+ * Universe is locked to the model holdings (static replay + whitelist).
  */
 export function buildAnchorBacktestRequest(
   portfolio: ModelPortfolio,
@@ -365,6 +365,8 @@ export function buildAnchorBacktestRequest(
     benchmark_ticker: portfolio.benchmark,
     asset_classes: assetClasses,
     universe_tickers: holdingTickers,
+    // Same list as whitelist so customized/API paths can pin holdings without
+    // opening the full asset-class fund pool.
     universe_supplement_tickers: holdingTickers,
     max_holdings: holdingTickers.length,
     trials: 5,

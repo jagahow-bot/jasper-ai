@@ -54,7 +54,13 @@ from app.models import (
     PortfolioCandidate,
     ProRoundSnapshot,
 )
-from app.profiles import get_universe, get_universe_meta, pin_guaranteed_supplements
+from app.profiles import (
+    assert_locked_universe,
+    clamp_universe_to_whitelist,
+    get_universe,
+    get_universe_meta,
+    pin_guaranteed_supplements,
+)
 from app.engine.allocator import AllocatorParams
 from app.engine.analytics import (
     build_full_analytics,
@@ -1213,9 +1219,10 @@ def _run_iterative_search(
             retired_model_codes,
             prior_signatures=prior_challenger_signatures,
         )
-        if trial_report_cache is not None and retired_model_codes:
-            trial_report_cache.drop_model_codes(retired_model_codes)
-            maybe_collect_garbage(1, round_idx + 1)
+        # Keep TrialReportCache entries for retired pool codes. Round/final report
+        # packaging runs after all Pro rounds and must reuse Optuna sims; dropping
+        # here forced "no search cache — running backtest(s) for charts" rebuilds.
+        # The in-memory cache is discarded when the job finishes (after stash).
         if ai_round_champion_code:
             carry_champion_model_code = ai_round_champion_code
         elif round_winner_model_code:
@@ -2660,15 +2667,59 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         guaranteed_supplements or None,
         asset_classes=req.asset_classes,
     )
+    # Defense: never let refine/cap leak tickers outside locked whitelist ∪ supplements.
+    universe = clamp_universe_to_whitelist(
+        universe,
+        req.universe_tickers,
+        guaranteed_supplements or None,
+    )
     universe = cap_universe_for_runtime(
         universe,
         pinned_tickers=guaranteed_supplements or None,
     )
+    # Hard fail-safe: locked mode must not silently open the asset-class pool
+    # (e.g. stale API process without the get_universe whitelist fix).
+    assert_locked_universe(
+        universe,
+        req.universe_tickers,
+        guaranteed_supplements or None,
+        context="post-clamp tradable pool",
+    )
+    # Narrative must reflect the clamped pool, not the pre-clamp refine snapshot.
+    if req.universe_tickers:
+        grouped: dict[str, list[str]] = {}
+        for u in universe:
+            cat = str(u.get("category") or u.get("asset_class") or "other")
+            t = str(u.get("ticker") or "")
+            if not t:
+                continue
+            bucket = grouped.setdefault(cat, [])
+            if t not in bucket:
+                bucket.append(t)
+        universe_plan = {
+            **universe_plan,
+            "grouped_categories": grouped,
+        }
+        logger.info(
+            "Locked universe active: whitelist=%d supplements=%d pool=%d tickers=%s",
+            len(req.universe_tickers),
+            len(guaranteed_supplements),
+            len(universe),
+            sorted(str(u.get("ticker", "")).upper() for u in universe),
+        )
     universe_pool_count = len(universe)
     universe_meta = get_universe_meta()
-    if len(universe) < 5:
+    # Locked model-portfolio whitelists may be smaller than the open-pool floor.
+    min_universe = 1 if req.universe_tickers else 5
+    if len(universe) < min_universe:
         raise ValueError(
-            f"Too few tickers after filter ({len(universe)}); need at least 5 or wider asset classes"
+            f"Too few tickers after filter ({len(universe)}); "
+            f"need at least {min_universe}"
+            + (
+                ""
+                if req.universe_tickers
+                else " or wider asset classes"
+            )
         )
 
     tickers = [u["ticker"] for u in universe]
@@ -2700,8 +2751,23 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         ) from exc
 
     tickers = [t for t in tickers if t in prices.columns]
-    if len(tickers) < 5:
-        raise ValueError("Too few tradable tickers after filter; widen asset classes or extend dates")
+    assert_locked_universe(
+        tickers,
+        req.universe_tickers,
+        guaranteed_supplements or None,
+        context="post-price tradable tickers",
+    )
+    min_tradable = 1 if req.universe_tickers else 5
+    if len(tickers) < min_tradable:
+        raise ValueError(
+            f"Too few tradable tickers after filter ({len(tickers)}); "
+            f"need at least {min_tradable}"
+            + (
+                ""
+                if req.universe_tickers
+                else " — widen asset classes or extend dates"
+            )
+        )
     prices_full = prices
     prices_sim_panel = prices_full[tickers]
     prices = trim_prices_to_report_window(prices_full[tickers].copy(), req.start_date)

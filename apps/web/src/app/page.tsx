@@ -4,12 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnchorPortfolioSelector } from "@/components/AnchorPortfolioSelector";
 import { AppNav } from "@/components/AppNav";
-import { BacktestHistoryPanel } from "@/components/BacktestHistoryPanel";
-import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
+import { CustomizationScopePanel } from "@/components/CustomizationScopePanel";
 import { RmRunPanel } from "@/components/RmRunPanel";
 import { RmReportView } from "@/components/RmReportView";
-import { LiveStatusCard } from "@/components/LiveStatusCard";
 import { OptimizationObjectiveBanner } from "@/components/OptimizationObjectiveBanner";
 import { OverlayConversationPanel } from "@/components/OverlayConversationPanel";
 import { DualProgressPanel } from "@/components/DualProgressPanel";
@@ -30,9 +28,16 @@ import {
   recordCompletedBacktest,
 } from "@/lib/backtest-history";
 import {
-  buildClientOverlayPrefill,
+  applyScopeToBacktestRequest,
+  buildScopeHoldings,
+  defaultCustomizationPortfolioName,
   getDemoClientById,
+  getClientHoldingsGroups,
+  holdingDisplayName,
+  holdingsGroupLabel,
+  holdingsGroupWeight,
   localizedText,
+  resolveAnchorIdFromScope,
   type DemoClient,
 } from "@/lib/clients";
 import { DEFAULT_ASSET_CLASSES } from "@/lib/constants";
@@ -42,9 +47,8 @@ import {
 } from "@/lib/default-backtest-dates";
 import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
-import { getUniverseMeta } from "@/lib/universe";
-import { riskProfileLabel, useI18n } from "@/lib/i18n";
-import { translateProgress } from "@/lib/progress-i18n";
+import { etfDisplayName } from "@/lib/etf-display-name";
+import { useI18n } from "@/lib/i18n";
 import {
   buildAnchorBacktestRequest,
   getAnchorPortfolioById,
@@ -54,7 +58,10 @@ import {
   SPY_ANCHOR_ID,
   type ModelPortfolio,
 } from "@/lib/model-portfolios";
-import { getManagedPortfolioById } from "@/lib/model-portfolios-store";
+import {
+  getManagedPortfolioById,
+  getSelectableAnchorPortfolios,
+} from "@/lib/model-portfolios-store";
 import { resolveResultBenchmarkTicker } from "@/lib/resolve-result-benchmark";
 import {
   overlayToBacktestRequest,
@@ -78,15 +85,45 @@ function asModelPortfolio(
   return rest as ModelPortfolio;
 }
 
-function pushMessage(
-  set: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
-  role: ChatMessage["role"],
-  content: string,
-) {
-  set((prev) => [
-    ...prev,
-    { id: crypto.randomUUID(), role, content },
-  ]);
+const OVERLAY_CONTEXT_SECTION_LABEL_CLASS =
+  "text-xs font-semibold uppercase tracking-[0.18em] text-dim";
+const OVERLAY_CONTEXT_CARD_CLASS =
+  "rounded-md border border-[var(--border)] bg-white px-2 py-1.5";
+const OVERLAY_CONTEXT_NAME_CLASS =
+  "text-xs font-semibold text-[var(--ui-color-body)]";
+const OVERLAY_CONTEXT_CHIP_CLASS =
+  "rounded border border-[var(--border)]/70 bg-[var(--surface-2)] px-1.5 py-0.5 text-xs leading-4";
+
+type OverlayContextHolding = {
+  id: string;
+  ticker: string;
+  label: string;
+  weightLabel: string;
+};
+
+function renderOverlayContextHoldingChip(holding: OverlayContextHolding) {
+  return (
+    <div key={holding.id} className={OVERLAY_CONTEXT_CHIP_CLASS}>
+      <span className="font-semibold text-[var(--ui-color-body)]">
+        {holding.ticker}
+      </span>
+      <span className="ml-1 text-dim">{holding.label}</span>
+      <span className="ml-2 tabular-nums text-dim">{holding.weightLabel}</span>
+    </div>
+  );
+}
+
+function renderOverlayContextCard(name: string, holdings: OverlayContextHolding[]) {
+  return (
+    <div className={OVERLAY_CONTEXT_CARD_CLASS}>
+      <p className={OVERLAY_CONTEXT_NAME_CLASS}>{name}</p>
+      {holdings.length > 0 ? (
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {holdings.map((holding) => renderOverlayContextHoldingChip(holding))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function buildDefaultRequest(): BacktestRequest {
@@ -125,7 +162,8 @@ export default function HomePage() {
   const [phase, setPhase] = useState<WizardPhase>("anchor");
   const [anchorPortfolioId, setAnchorPortfolioId] = useState(SPY_ANCHOR_ID);
   const [activeClient, setActiveClient] = useState<DemoClient | null>(null);
-  const [overlayPrefill, setOverlayPrefill] = useState<string | undefined>();
+  const [scopeGroupIds, setScopeGroupIds] = useState<string[]>([]);
+  const [portfolioName, setPortfolioName] = useState("");
   const [signedOverlay, setSignedOverlay] = useState<ClientOverlay | null>(null);
   const [personalizationCompare, setPersonalizationCompare] =
     useState<PersonalizationCompare | null>(null);
@@ -133,11 +171,8 @@ export default function HomePage() {
     buildDefaultRequest(),
   );
   const [, setJobId] = useState<string | null>(null);
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
-  const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [anchorProgress, setAnchorProgress] = useState<JobProgress | null>(null);
-  const [statusFeed, setStatusFeed] = useState<string[]>([]);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [narrative, setNarrative] = useState("");
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
@@ -145,8 +180,18 @@ export default function HomePage() {
     boolean | null
   >(null);
   const [continueLoading, setContinueLoading] = useState(false);
-  const universeMeta = useMemo(() => getUniverseMeta(), []);
   const clientLaunchApplied = useRef(false);
+  const scopeGroups = useMemo(
+    () => (activeClient ? getClientHoldingsGroups(activeClient) : []),
+    [activeClient],
+  );
+
+  const scopeHoldings = useMemo(() => {
+    if (!activeClient) return [];
+    const ids =
+      scopeGroupIds.length > 0 ? scopeGroupIds : scopeGroups.map((g) => g.id);
+    return buildScopeHoldings(scopeGroups, ids);
+  }, [activeClient, scopeGroupIds, scopeGroups]);
 
   const anchorPortfolio = useMemo(() => {
     const managed = getManagedPortfolioById(anchorPortfolioId);
@@ -156,22 +201,66 @@ export default function HomePage() {
     return getAnchorPortfolioById(anchorPortfolioId) ?? SPY_ANCHOR;
   }, [anchorPortfolioId]);
 
+  const customizedLabel = useMemo(() => {
+    const trimmed = portfolioName.trim();
+    if (trimmed) return trimmed;
+    return getCustomizedVsAnchorLabel(anchorPortfolio, lang);
+  }, [portfolioName, anchorPortfolio, lang]);
+
+  const selectedScopeGroups = useMemo(() => {
+    const ids =
+      scopeGroupIds.length > 0 ? scopeGroupIds : scopeGroups.map((g) => g.id);
+    const selected = new Set(ids);
+    return scopeGroups
+      .filter((group) => selected.has(group.id))
+      .map((group) => {
+        const groupTotal = holdingsGroupWeight(group);
+        const holdings = group.holdings
+          .filter((holding) => holding.weight > 0)
+          .sort((a, b) => b.weight - a.weight)
+          .map((holding) => ({
+            id: `${group.id}-${holding.ticker}`,
+            ticker: holding.ticker.toUpperCase(),
+            label: holdingDisplayName(holding, t, lang),
+            weightLabel:
+              groupTotal > 0
+                ? `${((holding.weight / groupTotal) * 100).toFixed(1)}%`
+                : "0.0%",
+          }));
+        return {
+          id: group.id,
+          name: holdingsGroupLabel(group, lang, t),
+          holdings,
+        };
+      })
+      .filter((group) => group.holdings.length > 0);
+  }, [scopeGroups, scopeGroupIds, t, lang]);
+
+  const anchorLabel = useMemo(
+    () => getPortfolioLabel(anchorPortfolio, lang),
+    [anchorPortfolio, lang],
+  );
+
+  const anchorPositions = useMemo(
+    () =>
+      anchorPortfolio.holdings
+        .filter((holding) => holding.weight > 0)
+        .sort((a, b) => b.weight - a.weight)
+        .map((holding) => ({
+          id: `${holding.ticker}-${holding.name}`,
+          ticker: holding.ticker.toUpperCase(),
+          label: etfDisplayName(holding.ticker, lang),
+          weightLabel: `${(holding.weight * 100).toFixed(1)}%`,
+        })),
+    [anchorPortfolio, lang],
+  );
+
   const syncRequestFromAnchor = useCallback(
     (portfolio: ModelPortfolio = anchorPortfolio) => {
       setRequest(buildAnchorBacktestRequest(portfolio, buildDefaultRequest()));
     },
     [anchorPortfolio],
   );
-
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: t("chat.welcome", { count: universeMeta.count }),
-    },
-  ]);
-  const lastProgressMsg = useRef("");
-  const lastRoundRef = useRef(0);
 
   useEffect(() => {
     void fetchApiHealth().then((health) => {
@@ -181,19 +270,6 @@ export default function HomePage() {
       );
     });
   }, []);
-
-  // Keep the initial welcome line in the active language. The messages state is
-  // seeded once (before the stored locale loads), so re-localize it whenever the
-  // language changes while it's still the untouched welcome message.
-  useEffect(() => {
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === "welcome"
-          ? { ...msg, content: t("chat.welcome", { count: universeMeta.count }) }
-          : msg,
-      ),
-    );
-  }, [lang, t, universeMeta.count]);
 
   const presentResult = useCallback(
     async (
@@ -212,36 +288,16 @@ export default function HomePage() {
           }
         : req;
       recordCompletedBacktest(id, effectiveReq, res);
-      setActiveJobId(id);
       setJobId(id);
       setRequest(effectiveReq);
       setResult(res);
       setPersonalizationCompare(compare ?? null);
-      const championIdx = resolveChampionCandidateIndex(
-        res.candidates,
-        res.narrative_facts,
-      );
-      const champion =
-        championIdx >= 0 ? res.candidates[championIdx] : res.candidates[0];
       // Job-level narrative is generated reactively (see effect below) so it
       // regenerates in the active language when the user switches locale.
       setNarrative("");
       setPhase("results");
-      const best = champion ?? res.candidates[0];
-      const bm = resolveResultBenchmarkTicker(effectiveReq, res.narrative_facts);
-      pushMessage(
-        setMessages,
-        "assistant",
-        t("chat.complete", {
-          model: best.model_code ?? "M?",
-          benchmark: bm,
-          sharpe: best.sharpe,
-          mdd: (best.max_drawdown * 100).toFixed(2),
-          cagr: (best.cagr * 100).toFixed(2),
-        }),
-      );
     },
-    [t],
+    [],
   );
 
   // Regenerate the job-level AI narrative whenever the result or the active
@@ -283,22 +339,6 @@ export default function HomePage() {
     async (id: string) => {
       const prog = await getJobProgress(id);
       setProgress(prog);
-      // Live progress goes to the prominent status card (not the chat log) so
-      // long runs don't flood the conversation with one line per trial. Only
-      // round transitions are surfaced as chat milestones.
-      if (prog.status === "running" && prog.message) {
-        if (prog.message !== lastProgressMsg.current) {
-          lastProgressMsg.current = prog.message;
-          setStatusFeed((prev) => [prog.message, ...prev].slice(0, 12));
-        }
-        const round = prog.refinement_round ?? 0;
-        if (round > lastRoundRef.current) {
-          lastRoundRef.current = round;
-          if (round > 1) {
-            pushMessage(setMessages, "assistant", translateProgress(prog.message, t));
-          }
-        }
-      }
       if (prog.status === "completed") {
         const res = await getJobResult(id);
         const req = (await getJobRequest(id).catch(() => null)) ?? request;
@@ -311,22 +351,19 @@ export default function HomePage() {
         return true;
       }
       if (prog.status === "failed") {
-        pushMessage(setMessages, "system", prog.message);
         setPhase("constraints");
         return true;
       }
       return false;
     },
-    [presentResult, request, t],
+    [presentResult, request],
   );
 
   const loadHistoricalJob = useCallback(
     async (id: string) => {
-      setHistoryLoadingId(id);
       try {
         const local = findLocalHistoryEntry(id);
         if (local?.result && local.request) {
-          pushMessage(setMessages, "user", t("chat.loadHistory", { id: id.slice(0, 8) }));
           await presentResult(id, local.result, local.request);
           return;
         }
@@ -334,39 +371,21 @@ export default function HomePage() {
         try {
           const prog = await getJobProgress(id);
           if (prog.status !== "completed") {
-            pushMessage(
-              setMessages,
-              "system",
-              t("chat.jobNotCompleted", { id: id.slice(0, 8), status: prog.status }),
-            );
             return;
           }
           const [res, req] = await Promise.all([getJobResult(id), getJobRequest(id)]);
-          pushMessage(setMessages, "user", t("chat.loadHistory", { id: id.slice(0, 8) }));
           await presentResult(id, res, req);
         } catch {
           if (local?.result && local.request) {
-            pushMessage(
-              setMessages,
-              "user",
-              t("chat.loadHistoryLocal", { id: id.slice(0, 8) }),
-            );
             await presentResult(id, local.result, local.request);
             return;
           }
-          throw new Error(t("chat.jobNotFound"));
         }
-      } catch (e) {
-        pushMessage(
-          setMessages,
-          "system",
-          e instanceof Error ? e.message : t("chat.historyLoadFailed"),
-        );
-      } finally {
-        setHistoryLoadingId(null);
+      } catch {
+        /* deep-link load is best-effort */
       }
     },
-    [presentResult, t],
+    [presentResult],
   );
 
   // Deep link from notification emails: /?job=<id> auto-loads that job's
@@ -387,30 +406,39 @@ export default function HomePage() {
     if (clientLaunchApplied.current) return;
     const clientId = params.get("client");
     const anchorParam = params.get("anchor");
+    const groupsParam = params.get("groups");
+    const portfolioNameParam = params.get("portfolioName");
     if (!clientId && !anchorParam) return;
     clientLaunchApplied.current = true;
 
     const client = clientId ? getDemoClientById(clientId) : null;
     if (client) {
       setActiveClient(client);
-      setOverlayPrefill(buildClientOverlayPrefill(client, lang));
+      const groups = getClientHoldingsGroups(client);
+      const parsedGroups = groupsParam
+        ? groupsParam
+            .split(",")
+            .map((s) => s.trim())
+            .filter((id) => groups.some((g) => g.id === id))
+        : [];
+      const initialScopeIds =
+        parsedGroups.length > 0 ? parsedGroups : groups.map((g) => g.id);
+      setScopeGroupIds(initialScopeIds);
+      setPortfolioName(
+        portfolioNameParam?.trim() ||
+          defaultCustomizationPortfolioName(client, lang),
+      );
+      const fallbackAnchor =
+        getSelectableAnchorPortfolios()[0]?.id ?? SPY_ANCHOR_ID;
       const anchorId =
         anchorParam ||
-        client.suggested_model_portfolio_id ||
-        SPY_ANCHOR_ID;
+        resolveAnchorIdFromScope(groups, initialScopeIds, fallbackAnchor);
       const portfolio =
         getManagedPortfolioById(anchorId) ??
         getAnchorPortfolioById(anchorId) ??
         SPY_ANCHOR;
       setAnchorPortfolioId(portfolio.id);
       syncRequestFromAnchor(asModelPortfolio(portfolio));
-      pushMessage(
-        setMessages,
-        "assistant",
-        t("clients.launchBanner", {
-          name: localizedText(client.display_name, lang),
-        }),
-      );
     } else if (anchorParam) {
       const portfolio =
         getManagedPortfolioById(anchorParam) ??
@@ -420,7 +448,7 @@ export default function HomePage() {
         syncRequestFromAnchor(asModelPortfolio(portfolio));
       }
     }
-  }, [loadHistoricalJob, lang, t, syncRequestFromAnchor]);
+  }, [loadHistoricalJob, lang, syncRequestFromAnchor]);
 
   const runBacktest = useCallback(
     async (reqOverride?: BacktestRequest) => {
@@ -432,10 +460,7 @@ export default function HomePage() {
       setResult(null);
       setNarrative("");
       setPersonalizationCompare(null);
-      setStatusFeed([]);
       setAnchorProgress(null);
-      lastProgressMsg.current = "";
-      lastRoundRef.current = 0;
 
       try {
         const { job_id } = await createJob({
@@ -444,23 +469,17 @@ export default function HomePage() {
           report_language: lang,
         });
         setJobId(job_id);
-        setActiveJobId(job_id);
 
         let done = false;
         while (!done) {
           done = await pollJob(job_id);
           if (!done) await new Promise((r) => setTimeout(r, 400));
         }
-      } catch (e) {
-        pushMessage(
-          setMessages,
-          "system",
-          e instanceof Error ? e.message : t("chat.runFailed"),
-        );
+      } catch {
         setPhase("constraints");
       }
     },
-    [pollJob, request, t, lang],
+    [pollJob, request, lang],
   );
 
   const runPersonalizationBacktest = useCallback(
@@ -470,39 +489,37 @@ export default function HomePage() {
         anchor,
         reqOverride ?? request ?? buildDefaultRequest(),
       );
+      // Lock scope into holdings before overlay add/exclude (do not re-apply
+      // scope after overlay — that would reintroduce excluded tickers).
+      const scopedBase = applyScopeToBacktestRequest(baseReq, scopeHoldings);
+      // Always re-derive the locked universe from the signed overlay so a
+      // mutated constraints request cannot reopen the full fund pool.
+      const lockedOverlayReq = signedOverlay
+        ? overlayToBacktestRequest(scopedBase, signedOverlay, {
+            scenarioId: `customized-${signedOverlay.audit.session_id}`,
+            reportLanguage: lang,
+          })
+        : null;
       const adjustedReq = signedOverlay
         ? {
-            ...(reqOverride ??
-              request ??
-              overlayToBacktestRequest(baseReq, signedOverlay, {
-                scenarioId: `customized-${signedOverlay.audit.session_id}`,
-                reportLanguage: lang,
-              })),
+            ...(reqOverride ?? request ?? lockedOverlayReq!),
+            universe_tickers: lockedOverlayReq!.universe_tickers,
+            universe_supplement_tickers:
+              lockedOverlayReq!.universe_supplement_tickers,
+            max_holdings: lockedOverlayReq!.max_holdings,
+            max_weight: lockedOverlayReq!.max_weight,
             benchmark_ticker: anchor.benchmark,
           }
-        : baseReq;
+        : scopedBase;
 
       setRequest(adjustedReq);
       setPhase("running");
       setResult(null);
       setNarrative("");
       setPersonalizationCompare(null);
-      setStatusFeed([]);
       setAnchorProgress(null);
-      lastProgressMsg.current = "";
-      lastRoundRef.current = 0;
 
-      const anchorLabel = getPortfolioLabel(anchor, lang);
-      const customizedLabel = getCustomizedVsAnchorLabel(anchor, lang);
-      pushMessage(
-        setMessages,
-        "assistant",
-        lang === "zh"
-          ? `執行雙軌回測：基準「${anchorLabel}」vs「${customizedLabel}」。`
-          : lang === "ko"
-            ? `이중 백테스트 실행: 기준「${anchorLabel}」vs「${customizedLabel}」.`
-            : `Running dual backtest: anchor "${anchorLabel}" vs "${customizedLabel}".`,
-      );
+      const anchorLabelForRun = getPortfolioLabel(anchor, lang);
 
       try {
         // Run anchor (static replay) first so customized Optuna does not overlap peak RAM on API.
@@ -534,7 +551,6 @@ export default function HomePage() {
         const initialCustomProg = await getJobProgress(adjustedJob.job_id);
         setProgress(initialCustomProg);
         setJobId(adjustedJob.job_id);
-        setActiveJobId(adjustedJob.job_id);
 
         let adjustedDone = false;
         let adjustedFailed = false;
@@ -542,17 +558,10 @@ export default function HomePage() {
         while (!adjustedDone) {
           const prog = await getJobProgress(adjustedJob.job_id);
           setProgress(prog);
-          if (prog.status === "running" && prog.message) {
-            if (prog.message !== lastProgressMsg.current) {
-              lastProgressMsg.current = prog.message;
-              setStatusFeed((prev) => [prog.message, ...prev].slice(0, 12));
-            }
-          }
           if (prog.status === "completed") adjustedDone = true;
           if (prog.status === "failed") {
             adjustedFailed = true;
             adjustedDone = true;
-            pushMessage(setMessages, "system", prog.message);
           }
           if (!adjustedDone) await new Promise((r) => setTimeout(r, 400));
         }
@@ -572,7 +581,7 @@ export default function HomePage() {
 
         const compare: PersonalizationCompare = {
           anchorPortfolioId: anchor.id,
-          anchorLabel,
+          anchorLabel: anchorLabelForRun,
           customizedLabel,
           baseResult: baseRes,
           baseRequest: baseReqStored,
@@ -581,13 +590,6 @@ export default function HomePage() {
         };
 
         if (baseFailed) {
-          pushMessage(
-            setMessages,
-            "system",
-            lang === "zh"
-              ? "基準回測失敗，僅顯示客製化結果。"
-              : "Anchor backtest failed; showing customized result only.",
-          );
           await presentResult(adjustedJob.job_id, adjustedRes, adjustedReqStored, null);
           return;
         }
@@ -599,12 +601,7 @@ export default function HomePage() {
           adjustedReqStored,
           compare,
         );
-      } catch (e) {
-        pushMessage(
-          setMessages,
-          "system",
-          e instanceof Error ? e.message : t("chat.runFailed"),
-        );
+      } catch {
         setPhase("constraints");
       }
     },
@@ -614,28 +611,18 @@ export default function HomePage() {
       request,
       lang,
       presentResult,
-      t,
+      scopeHoldings,
+      customizedLabel,
     ],
   );
 
   const onRun = useCallback(() => {
-    const isPro = request?.optimization_mode === "pro_auto";
-    pushMessage(
-      setMessages,
-      "user",
-      isPro ? t("chat.userRunPro") : t("chat.userRunStandard"),
-    );
-    pushMessage(
-      setMessages,
-      "assistant",
-      isPro ? t("chat.ackPro") : t("chat.ackStandard"),
-    );
     if (signedOverlay) {
       void runPersonalizationBacktest();
     } else {
       void runBacktest();
     }
-  }, [runBacktest, runPersonalizationBacktest, request?.optimization_mode, signedOverlay, t]);
+  }, [runBacktest, runPersonalizationBacktest, signedOverlay]);
 
   const onAnchorSelect = useCallback((portfolio: ModelPortfolio) => {
     setAnchorPortfolioId(portfolio.id);
@@ -643,28 +630,9 @@ export default function HomePage() {
   }, [syncRequestFromAnchor]);
 
   const onAnchorContinue = useCallback(() => {
-    const label = getPortfolioLabel(anchorPortfolio, lang);
-    pushMessage(
-      setMessages,
-      "user",
-      lang === "zh"
-        ? `選擇基準配置：${label}`
-        : lang === "ko"
-          ? `기준 구성 선택: ${label}`
-          : `Selected anchor: ${label}`,
-    );
-    pushMessage(
-      setMessages,
-      "assistant",
-      lang === "zh"
-        ? "請以自然語言描述客戶需求，JASPER 將產出客製化配置草案。"
-        : lang === "ko"
-          ? "고객 니즈를 자연어로 설명해 주세요. JASPER가 맞춤 구성 초안을 만듭니다."
-          : "Describe client needs in natural language; JASPER will draft a customized configuration.",
-    );
     syncRequestFromAnchor();
     setPhase("overlay");
-  }, [anchorPortfolio, lang, syncRequestFromAnchor]);
+  }, [syncRequestFromAnchor]);
 
   const onOverlayConfirm = useCallback(
     async (overlay: ClientOverlay) => {
@@ -673,49 +641,42 @@ export default function HomePage() {
         anchorPortfolio,
         request ?? buildDefaultRequest(),
       );
+      // Scope first so overlay add/exclude applies on top of locked holdings.
+      const scoped = applyScopeToBacktestRequest(base, scopeHoldings);
       const reportLanguage = lang === "zh" ? "zh-TW" : lang;
-      pushMessage(setMessages, "assistant", t("rm.universe.resolving"));
-      const resolved = await resolveOverlayUniverse(base, overlay, {
+      const resolved = await resolveOverlayUniverse(scoped, overlay, {
         scenarioId: `customized-${overlay.audit.session_id}`,
         reportLanguage,
       });
       setRequest(resolved);
-      pushMessage(
-        setMessages,
-        "assistant",
-        t("rm.overlay.signed"),
-      );
       setPhase("constraints");
     },
-    [anchorPortfolio, request, lang, t],
+    [anchorPortfolio, request, lang, scopeHoldings],
   );
 
   const onSkipOverlay = useCallback(() => {
     setSignedOverlay(null);
-    syncRequestFromAnchor();
+    const base = buildAnchorBacktestRequest(
+      anchorPortfolio,
+      request ?? buildDefaultRequest(),
+    );
+    setRequest(applyScopeToBacktestRequest(base, scopeHoldings));
     setPhase("constraints");
-  }, [syncRequestFromAnchor]);
+  }, [anchorPortfolio, request, scopeHoldings]);
 
-  const onQuickTweak = useCallback(
-    (next: BacktestRequest, label: string) => {
-      setRequest(next);
-      pushMessage(setMessages, "user", t("chat.tweak", { label }));
-      pushMessage(setMessages, "assistant", t("chat.tweakApplied"));
-    },
-    [t],
-  );
+  const onQuickTweak = useCallback((next: BacktestRequest, _label: string) => {
+    setRequest(next);
+  }, []);
 
   const onQuickTweakAndRun = useCallback(
-    (next: BacktestRequest, label: string) => {
-      pushMessage(setMessages, "user", t("chat.tweakRerun", { label }));
-      pushMessage(setMessages, "assistant", t("chat.ackRerun"));
+    (next: BacktestRequest, _label: string) => {
       if (signedOverlay) {
         void runPersonalizationBacktest(next);
       } else {
         void runBacktest(next);
       }
     },
-    [runBacktest, runPersonalizationBacktest, signedOverlay, t],
+    [runBacktest, runPersonalizationBacktest, signedOverlay],
   );
 
   const onContinueRefinement = useCallback(
@@ -726,14 +687,9 @@ export default function HomePage() {
     }) => {
       if (!result?.job_id) return;
       setContinueLoading(true);
-      pushMessage(setMessages, "user", t("chat.continueRefinementUser"));
-      pushMessage(setMessages, "assistant", t("chat.continueRefinementAck"));
       setPhase("running");
       setResult(null);
       setNarrative("");
-      setStatusFeed([]);
-      lastProgressMsg.current = "";
-      lastRoundRef.current = 0;
       try {
         const { job_id, continued_from } = await continueJob(result.job_id, {
           extra_refinement_rounds: options.extraRefinementRounds,
@@ -743,24 +699,18 @@ export default function HomePage() {
         const priorReq = await getJobRequest(continued_from);
         setRequest(priorReq);
         setJobId(job_id);
-        setActiveJobId(job_id);
         let done = false;
         while (!done) {
           done = await pollJob(job_id);
           if (!done) await new Promise((r) => setTimeout(r, 400));
         }
-      } catch (e) {
-        pushMessage(
-          setMessages,
-          "system",
-          e instanceof Error ? e.message : t("chat.runFailed"),
-        );
+      } catch {
         setPhase("constraints");
       } finally {
         setContinueLoading(false);
       }
     },
-    [pollJob, result?.job_id, t],
+    [pollJob, result?.job_id],
   );
 
   const header = useMemo(() => {
@@ -780,7 +730,6 @@ export default function HomePage() {
     <div className="min-h-screen bg-background text-foreground">
       <AppNav
         subtitle={header}
-        showLabLink
         extraBadges={
           <>
             {apiOnline === false && (
@@ -794,169 +743,191 @@ export default function HomePage() {
             {apiOnline === true && (
               <span className="pixel-badge pixel-badge-cyan">{t("header.apiLinked")}</span>
             )}
-            <span className="pixel-badge">
-              {t("header.etfs", { count: universeMeta.count })}
-            </span>
           </>
         }
       />
 
-      <main className="mx-auto grid max-w-7xl gap-6 px-6 py-6 lg:grid-cols-[360px_1fr]">
-        <aside className="pixel-panel flex h-[calc(100vh-160px)] flex-col">
-          <h2 className="mb-3 shrink-0 ui-section-title">
-            {t("header.terminalLog")}
-          </h2>
-          {phase === "running" && progress && (
-            <LiveStatusCard progress={progress} feed={statusFeed} />
-          )}
-          <div className="min-h-0 flex-1">
-            <ChatLog messages={messages} />
+      <main className="mx-auto max-w-7xl space-y-5 px-6 py-6">
+        {activeClient ? (
+          <div className="saas-inset flex flex-wrap items-center justify-between gap-2 text-sm">
+            <p>
+              {t("clients.contextBanner", {
+                name: localizedText(activeClient.display_name, lang),
+              })}
+            </p>
+            <Link
+              href={`/clients/${activeClient.client_id}`}
+              className="text-[var(--primary)] hover:underline"
+            >
+              {t("clients.viewDashboard")}
+            </Link>
           </div>
-          <BacktestHistoryPanel
-            activeJobId={activeJobId}
-            loadingJobId={historyLoadingId}
-            onLoad={(id) => void loadHistoricalJob(id)}
+        ) : null}
+
+        {activeClient && phase === "anchor" ? (
+          <CustomizationScopePanel
+            client={activeClient}
+            selectedGroupIds={scopeGroupIds}
+            onSelectedGroupIdsChange={setScopeGroupIds}
+            portfolioName={portfolioName}
+            onPortfolioNameChange={setPortfolioName}
           />
-        </aside>
+        ) : null}
 
-        <section className="space-y-5">
-          {activeClient ? (
-            <div className="saas-inset flex flex-wrap items-center justify-between gap-2 text-sm">
-              <p>
-                {t("clients.contextBanner", {
-                  name: localizedText(activeClient.display_name, lang),
-                  risk: riskProfileLabel(t, activeClient.risk_profile),
-                })}
-              </p>
-              <Link
-                href={`/clients/${activeClient.client_id}`}
-                className="text-[var(--primary)] hover:underline"
-              >
-                {t("clients.viewDashboard")}
-              </Link>
+        {phase === "anchor" && (
+          <AnchorPortfolioSelector
+            selectedId={anchorPortfolioId}
+            onSelect={onAnchorSelect}
+            onContinue={onAnchorContinue}
+          />
+        )}
+
+        {phase === "overlay" && (
+          <div className="space-y-3">
+            <div className="saas-inset space-y-3 p-3 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="ui-section-title text-[var(--cyan)]">
+                    {t("overlay.contextSummaryTitle")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="min-w-0">
+                  <p className={OVERLAY_CONTEXT_SECTION_LABEL_CLASS}>
+                    {t("overlay.contextGroups")}
+                  </p>
+                  {selectedScopeGroups.length > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      {selectedScopeGroups.map((group) => (
+                        <div key={group.id}>
+                          {renderOverlayContextCard(group.name, group.holdings)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-[var(--ui-color-body)]">
+                      {t("overlay.contextGroupsFallback")}
+                    </p>
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <p className={OVERLAY_CONTEXT_SECTION_LABEL_CLASS}>
+                    {t("overlay.contextAnchor")}
+                  </p>
+                  <div className="mt-2">
+                    {renderOverlayContextCard(anchorLabel, anchorPositions)}
+                  </div>
+                </div>
+              </div>
             </div>
-          ) : null}
-
-          {phase === "anchor" && (
-            <AnchorPortfolioSelector
-              selectedId={anchorPortfolioId}
-              onSelect={onAnchorSelect}
-              onContinue={onAnchorContinue}
+            <OverlayConversationPanel
+              baseScenarioId={`anchor-${anchorPortfolioId}`}
+              clientRef={activeClient?.client_id}
+              onConfirm={onOverlayConfirm}
             />
-          )}
+            <button
+              type="button"
+              onClick={onSkipOverlay}
+              className="pixel-btn w-full border border-[var(--border)] bg-white text-sm text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
+            >
+              {t("overlay.skipToConfig")}
+            </button>
+          </div>
+        )}
 
-          {phase === "overlay" && (
-            <div className="space-y-3">
-              <OverlayConversationPanel
-                baseScenarioId={`anchor-${anchorPortfolioId}`}
-                clientRef={activeClient?.client_id}
-                initialDraft={overlayPrefill}
-                onConfirm={onOverlayConfirm}
-              />
-              <button
-                type="button"
-                onClick={onSkipOverlay}
-                className="pixel-btn w-full border border-[var(--border)] bg-white text-sm text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
-              >
-                {t("overlay.skipToConfig")}
-              </button>
-            </div>
-          )}
-
-          {phase === "constraints" && request && (
-            signedOverlay ? (
-              <RmRunPanel
-                overlay={signedOverlay}
-                anchorPortfolio={anchorPortfolio}
-                request={request}
-                onChange={setRequest}
-                onRun={onRun}
-                apiOnline={apiOnline}
-                emailNotificationsEnabled={emailNotificationsEnabled}
-              />
-            ) : (
-              <ConstraintsPanel
-                value={request}
-                onChange={setRequest}
-                onRun={onRun}
-                apiOnline={apiOnline}
-                emailNotificationsEnabled={emailNotificationsEnabled}
-              />
-            )
-          )}
-
-          {phase === "running" && signedOverlay && anchorProgress && progress ? (
-            <DualProgressPanel
-              anchorProgress={anchorProgress}
-              customizedProgress={progress}
+        {phase === "constraints" && request && (
+          signedOverlay ? (
+            <RmRunPanel
+              overlay={signedOverlay}
+              anchorPortfolio={anchorPortfolio}
+              request={request}
+              onChange={setRequest}
+              onRun={onRun}
+              apiOnline={apiOnline}
+              emailNotificationsEnabled={emailNotificationsEnabled}
             />
           ) : (
-            phase === "running" && progress && <ProgressPanel progress={progress} />
-          )}
+            <ConstraintsPanel
+              value={request}
+              onChange={setRequest}
+              onRun={onRun}
+              apiOnline={apiOnline}
+              emailNotificationsEnabled={emailNotificationsEnabled}
+            />
+          )
+        )}
 
-          {phase === "results" && result && request && (
-            personalizationCompare ? (
-              <RmReportView
-                compare={personalizationCompare}
-                overlay={signedOverlay}
-                anchorPortfolio={anchorPortfolio}
-                client={activeClient}
-                result={result}
-                narrative={narrative}
-                request={request}
-                onRerun={() => {
-                  setPhase("overlay");
-                  pushMessage(setMessages, "user", t("rm.report.revise"));
-                }}
-                onExport={() => downloadCsv(result, "portfolio")}
-                onQuickTweak={onQuickTweak}
-                onQuickTweakAndRun={onQuickTweakAndRun}
-                onContinueRefinement={onContinueRefinement}
-                continueLoading={continueLoading}
-              />
-            ) : (
-            <>
-              <OptimizationObjectiveBanner
-                request={request}
-                narrativeFacts={result.narrative_facts}
-              />
-              {result.pro_rounds && result.pro_rounds.length > 0 ? (
-              <ProResultsWithTabs
-                result={result}
-                narrative={narrative}
-                request={request}
-                onRerun={() => {
-                  setPhase("constraints");
-                  pushMessage(setMessages, "user", t("chat.backToConfig"));
-                }}
-                onExport={() => downloadCsv(result, "portfolio")}
-                onQuickTweak={onQuickTweak}
-                onQuickTweakAndRun={onQuickTweakAndRun}
-                onContinueRefinement={onContinueRefinement}
-                continueLoading={continueLoading}
-                showRunObjectiveBanner={false}
-              />
-            ) : (
-              <ResultsDashboard
-                result={result}
-                narrative={narrative}
-                request={request}
-                onRerun={() => {
-                  setPhase("constraints");
-                  pushMessage(setMessages, "user", t("chat.backToConfig"));
-                }}
-                onExport={() => downloadCsv(result, "portfolio")}
-                onQuickTweak={onQuickTweak}
-                onQuickTweakAndRun={onQuickTweakAndRun}
-                onContinueRefinement={onContinueRefinement}
-                continueLoading={continueLoading}
-                showRunObjectiveBanner={false}
-              />
-            )}
-            </>
-            )
+        {phase === "running" && signedOverlay && anchorProgress && progress ? (
+          <DualProgressPanel
+            anchorProgress={anchorProgress}
+            customizedProgress={progress}
+          />
+        ) : (
+          phase === "running" && progress && <ProgressPanel progress={progress} />
+        )}
+
+        {phase === "results" && result && request && (
+          personalizationCompare ? (
+            <RmReportView
+              compare={personalizationCompare}
+              overlay={signedOverlay}
+              anchorPortfolio={anchorPortfolio}
+              client={activeClient}
+              result={result}
+              narrative={narrative}
+              request={request}
+              onRerun={() => {
+                setPhase("overlay");
+              }}
+              onExport={() => downloadCsv(result, "portfolio")}
+              onQuickTweak={onQuickTweak}
+              onQuickTweakAndRun={onQuickTweakAndRun}
+              onContinueRefinement={onContinueRefinement}
+              continueLoading={continueLoading}
+            />
+          ) : (
+          <>
+            <OptimizationObjectiveBanner
+              request={request}
+              narrativeFacts={result.narrative_facts}
+            />
+            {result.pro_rounds && result.pro_rounds.length > 0 ? (
+            <ProResultsWithTabs
+              result={result}
+              narrative={narrative}
+              request={request}
+              onRerun={() => {
+                setPhase("constraints");
+              }}
+              onExport={() => downloadCsv(result, "portfolio")}
+              onQuickTweak={onQuickTweak}
+              onQuickTweakAndRun={onQuickTweakAndRun}
+              onContinueRefinement={onContinueRefinement}
+              continueLoading={continueLoading}
+              showRunObjectiveBanner={false}
+            />
+          ) : (
+            <ResultsDashboard
+              result={result}
+              narrative={narrative}
+              request={request}
+              onRerun={() => {
+                setPhase("constraints");
+              }}
+              onExport={() => downloadCsv(result, "portfolio")}
+              onQuickTweak={onQuickTweak}
+              onQuickTweakAndRun={onQuickTweakAndRun}
+              onContinueRefinement={onContinueRefinement}
+              continueLoading={continueLoading}
+              showRunObjectiveBanner={false}
+            />
           )}
-        </section>
+          </>
+          )
+        )}
       </main>
     </div>
   );

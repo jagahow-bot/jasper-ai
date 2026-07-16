@@ -39,7 +39,12 @@ from app.engine.portfolio import (
 from app.engine.report_sim_cache import TrialReportCache
 from app.engine.spec import BacktestSpec
 from app.models import BacktestRequest, BacktestResult, CandidateChartsPayload, PortfolioCandidate
-from app.profiles import get_universe, pin_guaranteed_supplements
+from app.profiles import (
+    assert_locked_universe,
+    clamp_universe_to_whitelist,
+    get_universe,
+    pin_guaranteed_supplements,
+)
 
 _INSTITUTIONAL_KEYS = (
     "benchmark_relative",
@@ -305,6 +310,17 @@ def _load_price_panel(
         universe_plan["universe"],
         guaranteed_supplements or None,
         asset_classes=req.asset_classes,
+    )
+    universe = clamp_universe_to_whitelist(
+        universe,
+        req.universe_tickers,
+        guaranteed_supplements or None,
+    )
+    assert_locked_universe(
+        universe,
+        req.universe_tickers,
+        guaranteed_supplements or None,
+        context="candidate-chart tradable pool",
     )
     tickers = [u["ticker"] for u in universe]
     rebalance_rule = _normalize_rebalance_rule(req.rebalance_freq)

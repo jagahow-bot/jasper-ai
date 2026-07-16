@@ -22,6 +22,8 @@ type FilterBody = {
   texts?: string[];
   asset_classes?: AssetClass[];
   search_full_universe?: boolean;
+  /** When true, only return tickers literally named in the prompt text. */
+  strict_explicit_only?: boolean;
   report_language?: string;
 };
 
@@ -93,10 +95,14 @@ export async function POST(req: Request) {
 
   const meta = getUniverseMeta();
   const lang = parseReportLanguage(body.report_language);
+  const strictExplicitOnly = Boolean(body.strict_explicit_only);
 
   const runFallback = () => {
     const outputs = prompts.map((p) => analyzeUniverseFilterFallback(p, lang));
-    const { supplement_tickers, rationale } = mergeSupplementTickers(outputs, lang);
+    const { supplement_tickers, rationale } = mergeSupplementTickers(outputs, lang, {
+      strictExplicitOnly,
+      prompts,
+    });
     const per_rule = buildPerRuleSupplementResults(prompts, outputs, userClasses);
     return {
       asset_classes: userClasses,
@@ -115,7 +121,10 @@ export async function POST(req: Request) {
     const outputs = await Promise.all(
       prompts.map((p) => analyzeRuleWithGemini(p, userClasses, meta, lang)),
     );
-    const { supplement_tickers, rationale } = mergeSupplementTickers(outputs, lang);
+    const { supplement_tickers, rationale } = mergeSupplementTickers(outputs, lang, {
+      strictExplicitOnly,
+      prompts,
+    });
     const per_rule = buildPerRuleSupplementResults(prompts, outputs, userClasses);
     return NextResponse.json({
       asset_classes: userClasses,

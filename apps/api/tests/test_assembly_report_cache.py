@@ -262,6 +262,68 @@ def test_drop_model_codes_removes_stale_code_alias():
     assert "code:M0006" not in cache._by_key
 
 
+def test_early_drop_of_retired_pool_code_forces_assembly_resim():
+    """Regression: dropping retired Pro pool codes before packaging → cache miss.
+
+    Round reports assemble after all rounds; early drop made packaging show
+    'no search cache — running backtest(s) for charts' for non-winners.
+    """
+    tickers, prices, prices_train, prices_val = _price_panel()
+    params = {
+        "model_code": "M0003",
+        "mode": "min_var",
+        "lookback_days": 60,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 3,
+        "rebalance_freq": "M",
+        "w_mom": 0.9,
+    }
+    cache = TrialReportCache()
+    full_m = _minimal_sim(1.2, with_weights=True)
+    cache.stash_from_trial(
+        params,
+        train_m=_minimal_sim(1.2, with_weights=False),
+        val_m=None,
+        full_m=full_m,
+        retain_weight_history=True,
+    )
+    cache.drop_model_codes({"M0003"})
+    assert cache.get_bundle(params) is None
+
+    sim_mock = MagicMock(return_value=_minimal_sim(1.2, with_weights=True))
+    with patch("app.engine.backtest.simulate_dynamic_portfolio", sim_mock):
+        _assemble_candidates_from_records(
+            [(1.2, params, {})],
+            req=_req(),
+            top_n_models=1,
+            tickers=tickers,
+            prices=prices,
+            prices_sim_panel=prices,
+            prices_train=prices_train,
+            prices_val=prices_val,
+            oos=False,
+            rebalance_rule="M",
+            spec=MagicMock(
+                benchmark_ticker="SPY",
+                risk_free_rate=0.0,
+                fee_bps=0.0,
+                rebalance_rule="M",
+                min_holdings=2,
+                max_holdings=30,
+            ),
+            universe_by_ticker={},
+            objective_effective="max_sharpe",
+            train_start="2020-01-01",
+            train_end="2020-04-01",
+            val_start="2020-04-02",
+            train_ratio=0.7,
+            trial_report_cache=cache,
+        )
+    assert sim_mock.call_count >= 1
+
+
 def test_get_bundle_rejects_stale_code_alias_for_different_signature():
     """code: keys must not serve a different parameter signature."""
     params_old = {

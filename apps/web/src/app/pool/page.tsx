@@ -57,19 +57,20 @@ export default function InvestmentPoolPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AppNav
-        subtitle={t("pool.subtitle")}
-        extraBadges={
-          <span className="pixel-badge pixel-badge-cyan shrink-0">
-            {t("pool.countBadge", {
-              enabled: enabledCount,
-              total: items.length,
-            })}
-          </span>
-        }
-      />
+      <AppNav subtitle={t("pool.subtitle")} />
       <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
         <div className="pixel-panel space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-[var(--foreground)]">
+              {t("pool.title")}
+            </h2>
+            <span className="pixel-badge pixel-badge-cyan shrink-0">
+              {t("pool.countBadge", {
+                enabled: enabledCount,
+                total: items.length,
+              })}
+            </span>
+          </div>
           <div className="flex flex-wrap gap-2">
             <input
               type="search"
