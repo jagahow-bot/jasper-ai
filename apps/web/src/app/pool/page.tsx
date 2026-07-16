@@ -10,12 +10,9 @@ import {
 } from "@/lib/i18n";
 import { etfDisplayName, etfSearchText } from "@/lib/etf-display-name";
 import {
-  buildDemoPool,
-  buildFullUniversePool,
   importPoolFromCsv,
   poolToCsv,
   readInvestmentPool,
-  replaceInvestmentPool,
   setPoolItemEnabled,
   type PoolImportReport,
   type PoolItem,
@@ -65,16 +62,6 @@ export default function InvestmentPoolPage() {
     setItems(setPoolItemEnabled(ticker, enabled));
   }, []);
 
-  const onLoadDemo = () => {
-    setItems(replaceInvestmentPool(buildDemoPool()));
-    setReport(null);
-  };
-
-  const onLoadFull = () => {
-    setItems(replaceInvestmentPool(buildFullUniversePool()));
-    setReport(null);
-  };
-
   const onImportFile = async (file: File) => {
     const text = await file.text();
     const { items: next, report: r } = importPoolFromCsv(text, items);
@@ -111,19 +98,9 @@ export default function InvestmentPoolPage() {
         </div>
 
         <div className="pixel-panel flex flex-wrap gap-2">
-          <button type="button" className="pixel-btn" onClick={onLoadDemo}>
-            {t("pool.loadDemo")}
-          </button>
           <button
             type="button"
-            className="pixel-btn border border-[var(--border)] bg-white text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
-            onClick={onLoadFull}
-          >
-            {t("pool.loadFull")}
-          </button>
-          <button
-            type="button"
-            className="pixel-btn border border-[var(--border)] bg-white text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
+            className="pixel-btn"
             onClick={() => fileRef.current?.click()}
           >
             {t("pool.importCsv")}
