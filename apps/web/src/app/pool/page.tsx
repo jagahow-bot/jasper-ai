@@ -84,20 +84,7 @@ export default function InvestmentPoolPage() {
     <div className="min-h-screen bg-background text-foreground">
       <AppNav subtitle={t("pool.subtitle")} />
       <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="ui-panel-title">{t("pool.title")}</h1>
-            <p className="mt-2 ui-hint">{t("pool.hint")}</p>
-          </div>
-          <span className="pixel-badge pixel-badge-cyan shrink-0">
-            {t("pool.countBadge", {
-              enabled: enabledCount,
-              total: items.length,
-            })}
-          </span>
-        </div>
-
-        <div className="pixel-panel flex flex-wrap gap-2">
+        <div className="pixel-panel flex flex-wrap items-center gap-2">
           <button
             type="button"
             className="pixel-btn"
@@ -123,6 +110,12 @@ export default function InvestmentPoolPage() {
           >
             {t("pool.exportCsv")}
           </button>
+          <span className="pixel-badge pixel-badge-cyan ml-auto shrink-0">
+            {t("pool.countBadge", {
+              enabled: enabledCount,
+              total: items.length,
+            })}
+          </span>
         </div>
 
         {report ? (

@@ -14,7 +14,6 @@ import {
   importModelsFromCsv,
   modelsToCsv,
   readManagedPortfolios,
-  resetManagedPortfoliosToBundled,
   setModelPortfolioEnabled,
   type ManagedModelPortfolio,
   type ModelImportReport,
@@ -45,11 +44,6 @@ export default function ModelPortfoliosPage() {
 
   const onToggle = (id: string, enabled: boolean) => {
     setPortfolios(setModelPortfolioEnabled(id, enabled, readInvestmentPool()));
-  };
-
-  const onReset = () => {
-    setPortfolios(resetManagedPortfoliosToBundled(readInvestmentPool()));
-    setReport(null);
   };
 
   const onImportFile = async (file: File) => {
@@ -87,18 +81,10 @@ export default function ModelPortfoliosPage() {
         }
       />
       <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
-        <div>
-          <h1 className="ui-panel-title">{t("models.title")}</h1>
-          <p className="mt-2 ui-hint">{t("models.hint")}</p>
-        </div>
-
         <div className="pixel-panel flex flex-wrap gap-2">
-          <button type="button" className="pixel-btn" onClick={onReset}>
-            {t("models.resetBundled")}
-          </button>
           <button
             type="button"
-            className="pixel-btn border border-[var(--border)] bg-white text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
+            className="pixel-btn"
             onClick={() => fileRef.current?.click()}
           >
             {t("models.importCsv")}
