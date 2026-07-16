@@ -418,7 +418,7 @@ export function RmReportView({
                       <tr key={row.ticker} className="border-t border-[var(--border)]">
                         <td className="py-2 pr-3 font-medium">{row.ticker}</td>
                         <td className="py-2 pr-3 text-dim">
-                          {resolveTickerDisplayName(row.ticker)}
+                          {resolveTickerDisplayName(row.ticker, lang)}
                         </td>
                         <td className="py-2 pr-3 text-right text-dim">
                           {row.anchorPct > 0.1 ? `${row.anchorPct.toFixed(1)}%` : "—"}

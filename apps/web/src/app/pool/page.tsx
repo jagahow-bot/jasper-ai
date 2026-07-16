@@ -8,6 +8,7 @@ import {
   regionLabel,
   useI18n,
 } from "@/lib/i18n";
+import { etfDisplayName, etfSearchText } from "@/lib/etf-display-name";
 import {
   buildDemoPool,
   buildFullUniversePool,
@@ -21,7 +22,7 @@ import {
 } from "@/lib/investment-pool";
 
 export default function InvestmentPoolPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [items, setItems] = useState<PoolItem[]>([]);
   const [q, setQ] = useState("");
   const [assetClass, setAssetClass] = useState("all");
@@ -52,6 +53,7 @@ export default function InvestmentPoolPage() {
       if (!query) return true;
       return (
         i.ticker.toLowerCase().includes(query) ||
+        etfSearchText(i.ticker).toLowerCase().includes(query) ||
         i.name.toLowerCase().includes(query)
       );
     });
@@ -237,7 +239,7 @@ export default function InvestmentPoolPage() {
                     </td>
                     <td className="py-2 pr-2 font-medium">{i.ticker}</td>
                     <td className="py-2 pr-2 text-[var(--ui-color-body)]">
-                      {i.name}
+                      {etfDisplayName(i.ticker, lang)}
                     </td>
                     <td className="py-2 pr-2">{assetClassLabel(t, i.asset_class)}</td>
                     <td className="py-2 pr-2">{regionLabel(t, i.region)}</td>

@@ -15,6 +15,7 @@ import {
   type ManagedModelPortfolio,
 } from "@/lib/model-portfolios-store";
 import { readInvestmentPool } from "@/lib/investment-pool";
+import { etfDisplayName } from "@/lib/etf-display-name";
 import { useI18n } from "@/lib/i18n";
 
 type Props = {
@@ -70,7 +71,10 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
           const am = getAssetManagerLabel(p, lang);
           const theme = getPortfolioLabel(p, lang);
           const holdings = p.holdings
-            .map((h) => `${h.ticker} ${(h.weight * 100).toFixed(0)}%`)
+            .map(
+              (h) =>
+                `${h.ticker} ${(h.weight * 100).toFixed(0)}% (${etfDisplayName(h.ticker, lang)})`,
+            )
             .join(" · ");
           return (
             <button

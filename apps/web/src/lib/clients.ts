@@ -1,4 +1,5 @@
 import demoClientsFile from "@/data/demo-clients.json";
+import { etfDisplayName } from "@/lib/etf-display-name";
 import {
   esgPreferenceLabel,
   riskProfileLabel,
@@ -79,10 +80,11 @@ export function formatUsd(amount: number, lang: Lang): string {
   }).format(amount);
 }
 
-/** Localized display name for a holding (ETF names stay English; cash is translated). */
+/** Localized display name for a holding (ETFs via name map; cash is translated). */
 export function holdingDisplayName(
   holding: Pick<ClientHolding, "ticker" | "name">,
   t: TFn,
+  lang: Lang = "en",
 ): string {
   if (holding.ticker.toUpperCase() === "CASH") {
     const lower = holding.name.toLowerCase();
@@ -91,7 +93,7 @@ export function holdingDisplayName(
     }
     return t("clients.holding.cash");
   }
-  return holding.name;
+  return etfDisplayName(holding.ticker, lang);
 }
 
 /** Prefill prompt for Overlay conversation from client profile. */

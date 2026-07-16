@@ -1,5 +1,6 @@
 import {
   formatUsd,
+  holdingDisplayName,
   localizedText,
   type DemoClient,
 } from "@/lib/clients";
@@ -218,7 +219,7 @@ function buildAllocationRows(
     .filter(([, pct]) => pct > 0.05)
     .sort((a, b) => b[1] - a[1])
     .map(([ticker, weightPct]) => {
-      const name = resolveTickerDisplayName(ticker);
+      const name = resolveTickerDisplayName(ticker, lang);
       const monetaryLabel =
         notional != null
           ? formatUsd((notional * weightPct) / 100, lang)
@@ -230,12 +231,13 @@ function buildAllocationRows(
 function clientHoldingRows(
   client: DemoClient | null,
   lang: Lang,
+  t: TFn,
 ): ProposalAllocationRow[] {
   if (!client?.holdings?.length) return [];
   const notional = investmentNotional(client);
   return client.holdings.map((h) => ({
     ticker: h.ticker,
-    name: h.name || resolveTickerDisplayName(h.ticker),
+    name: holdingDisplayName(h, t, lang),
     weightPct: h.weight * 100,
     monetaryLabel:
       notional != null
@@ -440,7 +442,7 @@ export function buildInvestmentProposalDocument(input: {
     lang,
     customizedModelCode,
   );
-  const currentRows = clientHoldingRows(client, lang);
+  const currentRows = clientHoldingRows(client, lang, t);
   const metricTable: ProposalMetricTableRow[] = metrics.map((m: MetricCompareRow) => ({
     label: m.label,
     anchor: m.anchorDisplay,
@@ -503,7 +505,7 @@ export function buildInvestmentProposalDocument(input: {
     .slice(0, 8)
     .map((h) => ({
       ticker: h.ticker,
-      name: resolveTickerDisplayName(h.ticker),
+      name: resolveTickerDisplayName(h.ticker, lang),
       anchorPct: h.anchorPct,
       customizedPct: h.customizedPct,
       deltaPct: h.deltaPct,

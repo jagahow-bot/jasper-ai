@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppNav } from "@/components/AppNav";
 import { useI18n, riskProfileLabel } from "@/lib/i18n";
+import { etfDisplayName } from "@/lib/etf-display-name";
 import {
   getAmThemeLabel,
   getAssetManagerLabel,
@@ -239,7 +240,7 @@ export default function ModelPortfoliosPage() {
                       {p.holdings.map((h) => (
                         <tr key={h.ticker} className="border-b border-[var(--border)]/50">
                           <td className="py-1.5 font-medium">{h.ticker}</td>
-                          <td className="py-1.5">{h.name}</td>
+                          <td className="py-1.5">{etfDisplayName(h.ticker, lang)}</td>
                           <td className="py-1.5 text-right tabular-nums">
                             {(h.weight * 100).toFixed(1)}%
                           </td>

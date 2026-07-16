@@ -173,7 +173,7 @@ export default function ClientDashboardPage() {
                     >
                       <td className="py-2.5 pr-3 font-medium">{h.ticker}</td>
                       <td className="py-2.5 pr-3 text-[var(--ui-color-body)]">
-                        {holdingDisplayName(h, t)}
+                        {holdingDisplayName(h, t, lang)}
                       </td>
                       <td className="py-2.5 pr-3">
                         {assetClassLabel(t, h.asset_class)}

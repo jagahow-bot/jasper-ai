@@ -97,7 +97,7 @@ import {
   chartTickFontSize,
   chartTooltipFontSize,
 } from "@/lib/benchmark-chart-scale";
-import { getUniverseItems } from "@/lib/universe";
+import { etfDisplayName } from "@/lib/etf-display-name";
 import { rebalanceFreqLabel, regimeLabel, objectiveLabel, useI18n } from "@/lib/i18n";
 import { resolveRunObjective } from "@/lib/resolve-run-objective";
 import {
@@ -142,23 +142,6 @@ const COLORS = [
 ];
 
 const SELECTED_STROKE = "#f97316";
-
-/**
- * Prefer ticker when catalog name is CJK (legacy universe labels), except when
- * the UI is in a CJK language where the localized name is the better label.
- */
-function holdingDisplayName(
-  ticker: string,
-  catalogName?: string,
-  lang?: string,
-): string {
-  if (!catalogName || catalogName === ticker) return ticker;
-  const preferLocalized = lang === "zh" || lang === "ko";
-  if (!preferLocalized && /[\u4e00-\u9fff\u3040-\u30ff]/.test(catalogName)) {
-    return ticker;
-  }
-  return catalogName;
-}
 
 type Props = {
   result: BacktestResult;
@@ -624,14 +607,6 @@ export function ResultsDashboard({
     });
   }, [weightHistory, weightHistoryTickers, equity]);
 
-  const tickerNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const item of getUniverseItems()) {
-      map.set(item.ticker, item.name);
-    }
-    return map;
-  }, []);
-
   const latestAllocationDate = useMemo(() => {
     if (weightHistory.length > 0) {
       const last = weightHistory[weightHistory.length - 1];
@@ -669,10 +644,10 @@ export function ResultsDashboard({
       .sort(([, a], [, b]) => b - a)
       .map(([ticker, weight]) => ({
         ticker,
-        name: holdingDisplayName(ticker, tickerNameMap.get(ticker), lang),
+        name: etfDisplayName(ticker, lang),
         weight,
       }));
-  }, [selected?.weights, tickerNameMap, lang]);
+  }, [selected?.weights, lang]);
 
   const benchmarkRequest = useMemo(
     () =>
