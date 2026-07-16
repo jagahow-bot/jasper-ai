@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppNav } from "@/components/AppNav";
 import { useI18n, riskProfileLabel } from "@/lib/i18n";
 import { etfDisplayName } from "@/lib/etf-display-name";
@@ -11,21 +11,16 @@ import {
   getPortfolioLabel,
 } from "@/lib/model-portfolios";
 import {
-  importModelsFromCsv,
-  modelsToCsv,
   readManagedPortfolios,
   setModelPortfolioEnabled,
   type ManagedModelPortfolio,
-  type ModelImportReport,
 } from "@/lib/model-portfolios-store";
 import { readInvestmentPool } from "@/lib/investment-pool";
 
 export default function ModelPortfoliosPage() {
   const { t, lang } = useI18n();
   const [portfolios, setPortfolios] = useState<ManagedModelPortfolio[]>([]);
-  const [report, setReport] = useState<ModelImportReport | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(() => {
     setPortfolios(readManagedPortfolios(readInvestmentPool()));
@@ -46,27 +41,6 @@ export default function ModelPortfoliosPage() {
     setPortfolios(setModelPortfolioEnabled(id, enabled, readInvestmentPool()));
   };
 
-  const onImportFile = async (file: File) => {
-    const text = await file.text();
-    const { portfolios: next, report: r } = importModelsFromCsv(
-      text,
-      readInvestmentPool(),
-    );
-    setPortfolios(next);
-    setReport(r);
-  };
-
-  const onExport = () => {
-    const csv = modelsToCsv(portfolios);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "model-portfolios.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AppNav
@@ -81,61 +55,6 @@ export default function ModelPortfoliosPage() {
         }
       />
       <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
-        <div className="pixel-panel flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="pixel-btn"
-            onClick={() => fileRef.current?.click()}
-          >
-            {t("models.importCsv")}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onImportFile(f);
-              e.target.value = "";
-            }}
-          />
-          <button
-            type="button"
-            className="pixel-btn border border-[var(--border)] bg-white text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
-            onClick={onExport}
-          >
-            {t("models.exportCsv")}
-          </button>
-        </div>
-
-        {report ? (
-          <div className="saas-inset text-sm">
-            <p>
-              {t("models.importReport", {
-                count: report.portfolios,
-                skipped: report.skipped,
-              })}
-            </p>
-            {report.conflicts.length > 0 ? (
-              <ul className="mt-2 list-inside list-disc text-[var(--amber)]">
-                {report.conflicts.map((c) => (
-                  <li key={c}>
-                    {t("models.conflict")}: {c}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {report.errors.length > 0 ? (
-              <ul className="mt-2 list-inside list-disc text-[var(--magenta)]">
-                {report.errors.slice(0, 8).map((err) => (
-                  <li key={err}>{err}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-
         <div className="grid gap-3">
           {portfolios.map((p) => {
             const conflict = p.conflict_tickers.length > 0;

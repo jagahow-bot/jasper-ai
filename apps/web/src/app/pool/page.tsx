@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppNav } from "@/components/AppNav";
 import {
   assetClassLabel,
@@ -10,11 +10,8 @@ import {
 } from "@/lib/i18n";
 import { etfDisplayName, etfSearchText } from "@/lib/etf-display-name";
 import {
-  importPoolFromCsv,
-  poolToCsv,
   readInvestmentPool,
   setPoolItemEnabled,
-  type PoolImportReport,
   type PoolItem,
 } from "@/lib/investment-pool";
 
@@ -24,9 +21,6 @@ export default function InvestmentPoolPage() {
   const [q, setQ] = useState("");
   const [assetClass, setAssetClass] = useState("all");
   const [region, setRegion] = useState("all");
-  const [enabledOnly, setEnabledOnly] = useState(false);
-  const [report, setReport] = useState<PoolImportReport | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setItems(readInvestmentPool());
@@ -44,7 +38,6 @@ export default function InvestmentPoolPage() {
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return items.filter((i) => {
-      if (enabledOnly && !i.enabled) return false;
       if (assetClass !== "all" && i.asset_class !== assetClass) return false;
       if (region !== "all" && i.region !== region) return false;
       if (!query) return true;
@@ -54,7 +47,7 @@ export default function InvestmentPoolPage() {
         i.name.toLowerCase().includes(query)
       );
     });
-  }, [items, q, assetClass, region, enabledOnly]);
+  }, [items, q, assetClass, region]);
 
   const enabledCount = items.filter((i) => i.enabled).length;
 
@@ -62,80 +55,20 @@ export default function InvestmentPoolPage() {
     setItems(setPoolItemEnabled(ticker, enabled));
   }, []);
 
-  const onImportFile = async (file: File) => {
-    const text = await file.text();
-    const { items: next, report: r } = importPoolFromCsv(text, items);
-    setItems(next);
-    setReport(r);
-  };
-
-  const onExport = () => {
-    const csv = poolToCsv(items);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "investment-pool.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AppNav subtitle={t("pool.subtitle")} />
-      <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
-        <div className="pixel-panel flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="pixel-btn"
-            onClick={() => fileRef.current?.click()}
-          >
-            {t("pool.importCsv")}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void onImportFile(f);
-              e.target.value = "";
-            }}
-          />
-          <button
-            type="button"
-            className="pixel-btn border border-[var(--border)] bg-white text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
-            onClick={onExport}
-          >
-            {t("pool.exportCsv")}
-          </button>
-          <span className="pixel-badge pixel-badge-cyan ml-auto shrink-0">
+      <AppNav
+        subtitle={t("pool.subtitle")}
+        extraBadges={
+          <span className="pixel-badge pixel-badge-cyan shrink-0">
             {t("pool.countBadge", {
               enabled: enabledCount,
               total: items.length,
             })}
           </span>
-        </div>
-
-        {report ? (
-          <div className="saas-inset text-sm">
-            <p>
-              {t("pool.importReport", {
-                upserted: report.upserted,
-                skipped: report.skipped,
-              })}
-            </p>
-            {report.errors.length > 0 ? (
-              <ul className="mt-2 list-inside list-disc text-[var(--magenta)]">
-                {report.errors.slice(0, 8).map((err) => (
-                  <li key={err}>{err}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-
+        }
+      />
+      <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
         <div className="pixel-panel space-y-3">
           <div className="flex flex-wrap gap-2">
             <input
@@ -169,14 +102,6 @@ export default function InvestmentPoolPage() {
                 </option>
               ))}
             </select>
-            <label className="flex items-center gap-2 text-sm text-[var(--ui-color-body)]">
-              <input
-                type="checkbox"
-                checked={enabledOnly}
-                onChange={(e) => setEnabledOnly(e.target.checked)}
-              />
-              {t("pool.filter.enabledOnly")}
-            </label>
           </div>
 
           <div className="overflow-x-auto">

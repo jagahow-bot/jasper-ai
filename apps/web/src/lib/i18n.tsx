@@ -1163,6 +1163,14 @@ const en: Dict = {
   "nav.pool": "Investment Pool",
   "nav.models": "Model Portfolios",
   "nav.personalization": "Portfolio Customization",
+  "nav.settings": "Admin Settings",
+
+  "settings.subtitle": "Import & export",
+  "settings.hint": "Manage Investment Pool and Model Portfolios CSV data here. Browse and enable items on their own pages.",
+  "settings.poolTitle": "Investment Pool",
+  "settings.poolHint": "Import or export the global product shelf CSV.",
+  "settings.modelsTitle": "Model Portfolios",
+  "settings.modelsHint": "Import or export AM model portfolio CSV (flat rows per holding).",
 
   "clients.listTitle": "Client Dashboard",
   "clients.listSubtitle": "Demo clients",
@@ -2369,6 +2377,14 @@ const zh: Dict = {
   "nav.pool": "投資標的池",
   "nav.models": "模型組合",
   "nav.personalization": "投資組合客製化",
+  "nav.settings": "後台設定",
+
+  "settings.subtitle": "匯入與匯出",
+  "settings.hint": "在此管理投資標的池與模型組合的 CSV。瀏覽與啟用請至各功能頁。",
+  "settings.poolTitle": "投資標的池",
+  "settings.poolHint": "匯入或匯出全局貨架 CSV。",
+  "settings.modelsTitle": "模型組合",
+  "settings.modelsHint": "匯入或匯出 AM 模型組合 CSV（每列一筆持倉）。",
 
   "clients.listTitle": "客戶儀表板",
   "clients.listSubtitle": "示範客戶",
@@ -3579,6 +3595,14 @@ const ko: Dict = {
   "nav.pool": "투자 유니버스",
   "nav.models": "모델 포트폴리오",
   "nav.personalization": "포트폴리오 맞춤화",
+  "nav.settings": "관리자 설정",
+
+  "settings.subtitle": "가져오기 · 내보내기",
+  "settings.hint": "투자 유니버스와 모델 포트폴리오 CSV는 여기서 관리합니다. 목록·활성 설정은 각 페이지에서 하세요.",
+  "settings.poolTitle": "투자 유니버스",
+  "settings.poolHint": "전역 상품 선반 CSV를 가져오거나 내보냅니다.",
+  "settings.modelsTitle": "모델 포트폴리오",
+  "settings.modelsHint": "AM 모델 포트폴리오 CSV를 가져오거나 내보냅니다(보유 1행).",
 
   "clients.listTitle": "고객 대시보드",
   "clients.listSubtitle": "데모 고객",

@@ -24,6 +24,11 @@ const NAV: NavItem[] = [
     labelKey: "nav.personalization",
     match: (p) => p === "/",
   },
+  {
+    href: "/settings",
+    labelKey: "nav.settings",
+    match: (p) => p === "/settings" || p.startsWith("/settings/"),
+  },
 ];
 
 type Props = {
