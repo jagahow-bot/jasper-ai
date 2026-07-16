@@ -1,7 +1,8 @@
 import { getUniverseItems } from "@/lib/universe";
 import { MAINSTREAM_DEMO_TICKERS } from "@/lib/model-portfolios";
 
-export const INVESTMENT_POOL_STORAGE_KEY = "jasper_investment_pool_v1";
+/** v2: default is full etf-universe (not demo-sized). Bump invalidates stale v1 localStorage. */
+export const INVESTMENT_POOL_STORAGE_KEY = "jasper_investment_pool_v2";
 
 export type PoolProductType = "etf" | "fund" | "structured" | "bond" | "other";
 
@@ -84,18 +85,18 @@ function normalizeItem(raw: Record<string, unknown>): PoolItem | null {
 }
 
 export function readInvestmentPool(): PoolItem[] {
-  if (typeof window === "undefined") return buildDemoPool();
+  if (typeof window === "undefined") return buildFullUniversePool();
   try {
     const raw = localStorage.getItem(INVESTMENT_POOL_STORAGE_KEY);
-    if (!raw) return buildDemoPool();
+    if (!raw) return buildFullUniversePool();
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return buildDemoPool();
+    if (!Array.isArray(parsed)) return buildFullUniversePool();
     const items = parsed
       .map((row) => normalizeItem((row ?? {}) as Record<string, unknown>))
       .filter((x): x is PoolItem => x != null);
-    return items.length ? items : buildDemoPool();
+    return items.length ? items : buildFullUniversePool();
   } catch {
-    return buildDemoPool();
+    return buildFullUniversePool();
   }
 }
 

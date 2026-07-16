@@ -95,21 +95,19 @@ export default function InvestmentPoolPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AppNav
-        subtitle={t("pool.subtitle")}
-        extraBadges={
-          <span className="pixel-badge pixel-badge-cyan">
+      <AppNav subtitle={t("pool.subtitle")} />
+      <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="ui-panel-title">{t("pool.title")}</h1>
+            <p className="mt-2 ui-hint">{t("pool.hint")}</p>
+          </div>
+          <span className="pixel-badge pixel-badge-cyan shrink-0">
             {t("pool.countBadge", {
               enabled: enabledCount,
               total: items.length,
             })}
           </span>
-        }
-      />
-      <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
-        <div>
-          <h1 className="ui-panel-title">{t("pool.title")}</h1>
-          <p className="mt-2 ui-hint">{t("pool.hint")}</p>
         </div>
 
         <div className="pixel-panel flex flex-wrap gap-2">
