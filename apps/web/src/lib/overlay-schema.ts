@@ -74,7 +74,7 @@ export const overlaySessionAuditSchema = z.object({
   updated_at: z.string(),
   phase: z.enum(OVERLAY_PHASES),
   conversation_turns: z.number().int().min(0),
-  source: z.enum(["gemini", "rules", "manual"]),
+  source: z.enum(["gemini", "kimi", "rules", "manual"]),
   rm_sign_off: z
     .object({
       signed_at: z.string(),
@@ -205,7 +205,7 @@ export function wrapExtractAsOverlay(
   extract: OverlayExtractOutput,
   sessionId: string,
   turns: number,
-  source: "gemini" | "rules",
+  source: "gemini" | "kimi" | "rules",
   prior?: ClientOverlay | null,
 ): ClientOverlay {
   const now = new Date().toISOString();

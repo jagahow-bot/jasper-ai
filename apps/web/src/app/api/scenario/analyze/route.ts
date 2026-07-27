@@ -1,7 +1,11 @@
-import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { NextResponse } from "next/server";
-import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import {
+  defaultFlashModel,
+  FLASH_MAX_OUTPUT_TOKENS,
+  isProviderConfigured,
+  DEFAULT_FLASH_MODEL_ID,
+} from "@/lib/ai-provider";
 import { analyzeScenarioFallback } from "@/lib/scenario-fallback";
 import {
   scenarioAnalyzeSchema,
@@ -17,7 +21,7 @@ export async function POST(req: Request) {
 
   const customId = `custom-${Date.now()}`;
 
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!isProviderConfigured(DEFAULT_FLASH_MODEL_ID)) {
     const output = analyzeScenarioFallback(text);
     return NextResponse.json({
       scenario: toScenarioCard(output, customId),
@@ -27,8 +31,8 @@ export async function POST(req: Request) {
 
   try {
     const { object } = await generateObject({
-      model: google(GEMINI_MODEL),
-      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      model: defaultFlashModel(),
+      maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
       schema: scenarioAnalyzeSchema,
       system: `Senior quant strategist. From the user's macro view, output a structured scenario in English.
 Rules:

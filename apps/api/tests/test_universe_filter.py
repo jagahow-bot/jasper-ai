@@ -215,3 +215,20 @@ def test_resolve_universe_filter_prompts_ignores_joined_duplicate_text():
         universe_filter_prompts=["rule a", "rule b"],
     )
     assert req.resolved_universe_filter_prompts() == ["rule a", "rule b"]
+
+
+def test_min_valid_tickers_for_universe():
+    from app.profiles import min_valid_tickers_for_universe
+
+    # Open-pool floor stays at 5 regardless of requested count.
+    assert min_valid_tickers_for_universe(3, locked_mode=False) == 5
+    assert min_valid_tickers_for_universe(10, locked_mode=False) == 5
+
+    # Locked universes shrink to the user-confirmed pool size.
+    assert min_valid_tickers_for_universe(1, locked_mode=True) == 1
+    assert min_valid_tickers_for_universe(2, locked_mode=True) == 2
+    assert min_valid_tickers_for_universe(3, locked_mode=True) == 3
+
+    # Large locked pools still keep the open-pool diversification ceiling.
+    assert min_valid_tickers_for_universe(10, locked_mode=True) == 5
+    assert min_valid_tickers_for_universe(5, locked_mode=True) == 5

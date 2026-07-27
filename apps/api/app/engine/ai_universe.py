@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from app.config import settings
+from app.engine.ai_client import generate_ai_json, model_has_api_key
 
 _cache_lock = threading.Lock()
 _refine_cache: dict[str, dict[str, Any]] = {}
@@ -135,8 +136,8 @@ def refine_universe_with_ai(
             "pick_representatives_per_category": pick_reps,
         }
 
-    key = settings.gemini_api_key
-    if not key:
+    model = settings.gemini_model
+    if not model_has_api_key(model):
         u, b = _deterministic_refine(universe, pick_representatives=pick_reps)
         if fixed_bench:
             b = fixed_bench
@@ -228,31 +229,16 @@ def refine_universe_with_ai(
     try:
         print(
             f"[ai_universe] cache miss: calling AI for {log_action}"
-            f" (objective={objective}, categories={len(grouped)}, tickers={len(universe)})"
+            f" (model={model}, objective={objective}, categories={len(grouped)}, tickers={len(universe)})"
         )
-        res = httpx.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models"
-            f"/{settings.gemini_model}:generateContent?key={key}",
-            json={
-                "contents": [{"parts": [{"text": json.dumps(prompt, ensure_ascii=False)}]}],
-                "generationConfig": {
-                    "responseMimeType": "application/json",
-                    "temperature": 0.1,
-                    "maxOutputTokens": max(1024, int(settings.gemini_max_output_tokens)),
-                    "responseSchema": schema,
-                },
-            },
+        obj = generate_ai_json(
+            model=model,
+            prompt=json.dumps(prompt, ensure_ascii=False),
+            temperature=0.1,
+            max_output_tokens=max(1024, int(settings.gemini_max_output_tokens)),
+            response_schema=schema,
             timeout=25.0,
         )
-        res.raise_for_status()
-        body = res.json()
-        text = (
-            body.get("candidates", [{}])[0]
-            .get("content", {})
-            .get("parts", [{}])[0]
-            .get("text", "")
-        )
-        obj = json.loads(text)
         if fixed_bench:
             bench = fixed_bench
         else:

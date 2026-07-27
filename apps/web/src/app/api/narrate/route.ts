@@ -1,9 +1,14 @@
-import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { type AiLang, languageDirective, normalizeAiLang } from "@/lib/ai-language";
 import { AI_METRIC_FORMAT_RULES, formatPctDecimal } from "@/lib/ai-metric-format";
-import { GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import {
+  isProviderConfigured,
+  KIMI_K3_MODEL_ID,
+  providerOptionsFor,
+  reasoningModel,
+  REASONING_MAX_OUTPUT_TOKENS,
+} from "@/lib/ai-provider";
 import { slimNarrativeFacts } from "@/lib/narrative-slim";
 import { validateNarrative } from "@/lib/narrative-validate";
 
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
   };
   const lang = normalizeAiLang(rawLang);
 
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!isProviderConfigured(KIMI_K3_MODEL_ID)) {
     return NextResponse.json({
       narrative: buildFallbackNarrative(facts),
       source: "template",
@@ -46,7 +51,7 @@ export async function POST(req: Request) {
 
   try {
     const text = await generateWithValidation(facts, lang);
-    return NextResponse.json({ narrative: text, source: "gemini", validated: true });
+    return NextResponse.json({ narrative: text, source: "kimi", validated: true });
   } catch {
     return NextResponse.json({
       narrative: buildFallbackNarrative(facts),
@@ -65,16 +70,9 @@ async function generateWithValidation(facts: Record<string, unknown>, lang: AiLa
         ? ""
         : "\nPrior draft had unauthorized numbers or wrong % scaling. Use only facts values; rates are decimals → multiply by 100 for %.";
     const result = await generateText({
-      model: google(GEMINI_MODEL),
-      maxOutputTokens:
-        GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS + attempt * 2048,
-      providerOptions: {
-        google: {
-          thinkingConfig: {
-            thinkingLevel: "minimal" as const,
-          },
-        },
-      },
+      model: reasoningModel(),
+      maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS + attempt * 2048,
+      providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID),
       system: buildSystem(lang),
       prompt: `Write 3-5 paragraphs interpreting this backtest for a retail investor:\n${JSON.stringify(slim, null, 2)}${extra}`,
     });

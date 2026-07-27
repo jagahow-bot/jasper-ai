@@ -43,6 +43,7 @@ from app.profiles import (
     assert_locked_universe,
     clamp_universe_to_whitelist,
     get_universe,
+    min_valid_tickers_for_universe,
     pin_guaranteed_supplements,
 )
 
@@ -336,7 +337,13 @@ def _load_price_panel(
         max_holdings=int(req.max_holdings),
     )
     prices, _meta = fetch_prices(
-        tickers, req.start_date, req.end_date, spec.benchmark_ticker
+        tickers,
+        req.start_date,
+        req.end_date,
+        spec.benchmark_ticker,
+        min_valid_tickers=min_valid_tickers_for_universe(
+            len(tickers), bool(req.universe_tickers)
+        ),
     )
     tickers = [t for t in tickers if t in prices.columns]
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}

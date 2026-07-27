@@ -22,7 +22,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002"
     )
     gemini_model: str = Field(
-        default="gemini-3.5-flash",
+        default="gemini-3.6-flash",
         validation_alias=AliasChoices("gemini_model", "GEMINI_MODEL"),
     )
     gemini_api_key: str | None = Field(
@@ -32,6 +32,23 @@ class Settings(BaseSettings):
             "GEMINI_API_KEY",
             "GOOGLE_GENERATIVE_AI_API_KEY",
         ),
+    )
+    ai_reasoning_model: str = Field(
+        default="kimi-k3",
+        validation_alias=AliasChoices(
+            "ai_reasoning_model",
+            "AI_REASONING_MODEL",
+            "moonshot_model",
+            "MOONSHOT_MODEL",
+        ),
+    )
+    moonshot_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("moonshot_api_key", "MOONSHOT_API_KEY"),
+    )
+    moonshot_base_url: str = Field(
+        default="https://api.moonshot.ai/v1",
+        validation_alias=AliasChoices("moonshot_base_url", "MOONSHOT_BASE_URL"),
     )
     gemini_max_output_tokens: int = Field(
         default=6144,

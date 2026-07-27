@@ -1,7 +1,11 @@
-import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { NextResponse } from "next/server";
-import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import {
+  defaultFlashModel,
+  FLASH_MAX_OUTPUT_TOKENS,
+  isProviderConfigured,
+  DEFAULT_FLASH_MODEL_ID,
+} from "@/lib/ai-provider";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/constants";
 import { getUniverseMeta } from "@/lib/universe";
 import { analyzeUniverseFilterFallback } from "@/lib/universe-filter-fallback";
@@ -68,15 +72,15 @@ Rules:
 - For sector/thematic rules, list specific sector ETFs (XLK, SMH, etc.), not every equity fund.
 - rationale: 1-2 sentences explaining which tickers you picked and why they match the rule intent (${rationaleLanguageDirective(lang)}); mention trade-offs if the rule is ambiguous.`;
 
-async function analyzeRuleWithGemini(
+async function analyzeRuleWithAi(
   ruleText: string,
   userClasses: AssetClass[],
   meta: ReturnType<typeof getUniverseMeta>,
   lang: Lang,
 ) {
   const { object } = await generateObject({
-    model: google(GEMINI_MODEL),
-    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+    model: defaultFlashModel(),
+    maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
     schema: universeFilterSchema,
     system: supplementSystem(meta, userClasses, lang),
     prompt: buildSingleRulePrompt(ruleText, userClasses),
@@ -112,14 +116,14 @@ export async function POST(req: Request) {
     };
   };
 
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!isProviderConfigured(DEFAULT_FLASH_MODEL_ID)) {
     const output = runFallback();
     return NextResponse.json({ ...output, source: "rules" });
   }
 
   try {
     const outputs = await Promise.all(
-      prompts.map((p) => analyzeRuleWithGemini(p, userClasses, meta, lang)),
+      prompts.map((p) => analyzeRuleWithAi(p, userClasses, meta, lang)),
     );
     const { supplement_tickers, rationale } = mergeSupplementTickers(outputs, lang, {
       strictExplicitOnly,

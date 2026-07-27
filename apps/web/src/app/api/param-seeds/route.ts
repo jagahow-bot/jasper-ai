@@ -1,7 +1,11 @@
-import { google } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
-import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import {
+  defaultFlashModel,
+  FLASH_MAX_OUTPUT_TOKENS,
+  isProviderConfigured,
+  DEFAULT_FLASH_MODEL_ID,
+} from "@/lib/ai-provider";
 
 const ParamSetSchema = z.object({
   mode: z
@@ -81,7 +85,7 @@ export async function POST(req: Request) {
     existing_sets?: Record<string, unknown>[];
   };
 
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!isProviderConfigured(DEFAULT_FLASH_MODEL_ID)) {
     return Response.json(
       { error: "missing_api_key", rationale: "", param_sets: [] },
       { status: 400 },
@@ -97,8 +101,8 @@ export async function POST(req: Request) {
       : "";
 
   const { object } = await generateObject({
-    model: google(GEMINI_MODEL),
-    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+    model: defaultFlashModel(),
+    maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
     schema: ResponseSchema,
     system:
       "你是機構量化研究助理。輸出嚴格 JSON。數值最多 4 位小數；只輸出必要與有實質變化的欄位。每次請求產生的參數必須與既有組合在 lookback、因子權重、top_n、風險厭惡度上明顯不同。在 rationale 中簡述每組參數的因子選擇與配置邏輯，並對照既有組合說明差異原因。",

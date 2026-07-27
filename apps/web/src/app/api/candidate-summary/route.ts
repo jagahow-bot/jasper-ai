@@ -1,9 +1,14 @@
-import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { type AiLang, languageDirective, normalizeAiLang } from "@/lib/ai-language";
 import { AI_METRIC_FORMAT_RULES, formatAlpha, formatPctDecimal } from "@/lib/ai-metric-format";
-import { GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import {
+  isProviderConfigured,
+  KIMI_K3_MODEL_ID,
+  providerOptionsFor,
+  reasoningModel,
+  REASONING_MAX_OUTPUT_TOKENS,
+} from "@/lib/ai-provider";
 
 function buildSystem(lang: AiLang): string {
   return `Institutional quant analyst writing for a retail investor. ${languageDirective(lang)}
@@ -78,18 +83,19 @@ export async function POST(req: Request) {
   const lang = normalizeAiLang(body.lang);
   const payload = body;
 
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!isProviderConfigured(KIMI_K3_MODEL_ID)) {
     return NextResponse.json({ summary: buildFallback(payload), source: "template" });
   }
 
   try {
     const { text } = await generateText({
-      model: google(GEMINI_MODEL),
-      maxOutputTokens: GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS,
+      model: reasoningModel(),
+      maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS,
+      providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID),
       system: buildSystem(lang),
       prompt: `Summarize model ${payload.model_code ?? `M?`} vs ${payload.benchmark}. Objective: "${payload.objective_label ?? payload.objective ?? "n/a"}". Use model_code in prose. Compare horizons and benchmark honestly.\n${JSON.stringify(payload, null, 2)}`,
     });
-    return NextResponse.json({ summary: text.trim(), source: "gemini" });
+    return NextResponse.json({ summary: text.trim(), source: "kimi" });
   } catch {
     return NextResponse.json({ summary: buildFallback(payload), source: "template" });
   }

@@ -1,6 +1,6 @@
 /** Default Gemini model for AI SDK routes (override via GEMINI_MODEL). */
 export const GEMINI_MODEL =
-  process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash";
+  process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
 
 /** Max output tokens for structured / shorter Gemini calls (override via GEMINI_MAX_OUTPUT_TOKENS). */
 export const GEMINI_MAX_OUTPUT_TOKENS = (() => {

@@ -187,6 +187,20 @@ def assert_locked_universe(
         )
 
 
+def min_valid_tickers_for_universe(ticker_count: int, locked_mode: bool) -> int:
+    """Return the minimum number of valid price columns required for a universe.
+
+    Open-pool searches keep the diversification floor of 5 so optimizers have
+    enough instruments to build a diversified portfolio.
+
+    Locked universes (explicit whitelist/supplements) are allowed to shrink to
+    the size of the user-confirmed pool, capped at the open-pool floor.
+    """
+    if not locked_mode:
+        return 5
+    return min(max(ticker_count, 1), 5)
+
+
 def _count_field(items: list[dict[str, Any]], key: str) -> dict[str, int]:
     out: dict[str, int] = {}
     for item in items:

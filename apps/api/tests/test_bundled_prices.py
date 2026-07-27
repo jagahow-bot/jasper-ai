@@ -55,3 +55,19 @@ def test_pin_guaranteed_supplements_includes_outside_asset_class():
     assert "SPY" in tickers
     assert "GLD" in tickers
     assert "AGG" in tickers
+
+
+@patch("app.engine.data._download_yfinance_closes")
+def test_fetch_prices_locked_three_tickers_uses_custom_min(mock_yf):
+    """A locked 3-ticker universe must not be blocked by the open-pool floor of 5."""
+    mock_yf.return_value = pd.DataFrame()
+    tickers = ["SPY", "QQQ", "AGG"]
+    prices, meta = fetch_prices(
+        tickers,
+        "2018-01-01",
+        "2024-12-31",
+        "SPY",
+        min_valid_tickers=3,
+    )
+    assert len(prices.columns) >= 3
+    assert meta["data_source"] in {"bundled_parquet", "bundled_parquet+yfinance", "yfinance_cache"}

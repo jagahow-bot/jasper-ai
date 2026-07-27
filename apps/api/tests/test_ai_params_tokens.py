@@ -300,7 +300,7 @@ def test_generate_ai_round_seed_posts_thinking_config(monkeypatch):
         captured["json"] = json
         return _FakeResp()
 
-    monkeypatch.setattr("app.engine.ai_params.httpx.post", _fake_post)
+    monkeypatch.setattr("app.engine.ai_client.httpx.post", _fake_post)
     out = generate_ai_round_seed(
         objective="max_sharpe",
         rebalance_freq="monthly",
@@ -388,7 +388,7 @@ def test_generate_ai_round_seed_inherits_thinking_from_global(monkeypatch):
         captured["json"] = json
         return _FakeResp()
 
-    monkeypatch.setattr("app.engine.ai_params.httpx.post", _fake_post)
+    monkeypatch.setattr("app.engine.ai_client.httpx.post", _fake_post)
     out = generate_ai_round_seed(
         objective="max_sharpe",
         rebalance_freq="monthly",
@@ -425,7 +425,7 @@ def test_generate_ai_round_seed_max_tokens_returns_disabled(monkeypatch):
                 ]
             }
 
-    monkeypatch.setattr("app.engine.ai_params.httpx.post", lambda *_a, **_k: _FakeResp())
+    monkeypatch.setattr("app.engine.ai_client.httpx.post", lambda *_a, **_k: _FakeResp())
     out = generate_ai_round_seed(
         objective="max_sharpe",
         rebalance_freq="monthly",
@@ -507,7 +507,7 @@ def test_generate_ai_round_seed_max_tokens_salvages_bloated_shrinkage(monkeypatc
             )
         return _FakeResp(finish="MAX_TOKENS", text=truncated)
 
-    monkeypatch.setattr("app.engine.ai_params.httpx.post", _fake_post)
+    monkeypatch.setattr("app.engine.ai_client.httpx.post", _fake_post)
     out = generate_ai_round_seed(
         objective="dynamic",
         rebalance_freq="monthly",
@@ -632,7 +632,7 @@ def test_generate_ai_round_seed_dynamic_split_regime_factors(monkeypatch):
             return _FakeResp(factors_payload)
         return _FakeResp(core_payload)
 
-    monkeypatch.setattr("app.engine.ai_params.httpx.post", _fake_post)
+    monkeypatch.setattr("app.engine.ai_client.httpx.post", _fake_post)
     out = generate_ai_round_seed(
         objective="dynamic",
         rebalance_freq="W-FRI",

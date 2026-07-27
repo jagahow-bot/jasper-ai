@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.79",
+    "@ai-sdk/moonshotai": "^3.0.17",
     "@ai-sdk/react": "^3.0.193",
     "ai": "^6.0.191",
     "next": "15.1.0",

@@ -1,7 +1,12 @@
-import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
-import { GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import {
+  FLASH_MAX_OUTPUT_TOKENS,
+  isProviderConfigured,
+  KIMI_K3_MODEL_ID,
+  providerOptionsFor,
+  reasoningModel,
+} from "@/lib/ai-provider";
 import { languageDirective } from "@/lib/ai-language";
 import { interpretOverlayFallback } from "@/lib/overlay-fallback";
 import {
@@ -160,13 +165,13 @@ function parseMessages(body: InterpretBody): OverlayConversationMessage[] {
 }
 
 function logInterpretResult(
-  source: "gemini" | "rules",
+  source: "kimi" | "rules",
   overlay: ClientOverlay,
   turns: number,
 ): void {
   if (process.env.NODE_ENV === "production") return;
   console.info("[overlay/interpret]", {
-    source: source === "rules" ? "fallback" : "gemini",
+    source: source === "rules" ? "fallback" : "kimi",
     session_id: overlay.audit.session_id,
     turns,
     confidence: overlay.confidence,
@@ -213,31 +218,26 @@ export async function POST(req: Request) {
     return overlay;
   };
 
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!isProviderConfigured(KIMI_K3_MODEL_ID)) {
     if (useRulesFallback) {
       const overlay = runFallback();
       return NextResponse.json({ overlay, source: "rules" });
     }
     return buildOverlayInterpretError(
       OVERLAY_INTERPRET_ERROR_CODES.API_KEY_MISSING,
-      "Gemini API key is not configured",
-      "Set GOOGLE_GENERATIVE_AI_API_KEY or enable rules fallback for offline demos.",
+      "AI API key is not configured",
+      "Set MOONSHOT_API_KEY or enable rules fallback for offline demos.",
       503,
     );
   }
 
   try {
     const result = await generateText({
-      model: google(GEMINI_MODEL),
-      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      model: reasoningModel(),
+      maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
       system: overlaySystemPrompt(lang),
       prompt: buildConversationPrompt(messages, body.prior_overlay),
-      providerOptions: {
-        google: {
-          responseMimeType: "application/json",
-          thinkingConfig: { thinkingLevel: "minimal" as const },
-        },
-      },
+      providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID, { jsonMode: true }),
     });
 
     let extract;
@@ -260,11 +260,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const overlay = wrapExtractAsOverlay(extract, sessionId, turns, "gemini", body.prior_overlay);
+    const overlay = wrapExtractAsOverlay(extract, sessionId, turns, "kimi", body.prior_overlay);
     attachAuditFields(overlay, body);
-    logInterpretResult("gemini", overlay, turns);
+    logInterpretResult("kimi", overlay, turns);
 
-    return NextResponse.json({ overlay, source: "gemini" });
+    return NextResponse.json({ overlay, source: "kimi" });
   } catch (error) {
     if (useRulesFallback) {
       if (process.env.NODE_ENV !== "production") {

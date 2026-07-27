@@ -59,6 +59,7 @@ from app.profiles import (
     clamp_universe_to_whitelist,
     get_universe,
     get_universe_meta,
+    min_valid_tickers_for_universe,
     pin_guaranteed_supplements,
 )
 from app.engine.allocator import AllocatorParams
@@ -2736,7 +2737,13 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
 
     try:
         prices, data_meta = fetch_prices(
-            tickers, req.start_date, req.end_date, spec.benchmark_ticker
+            tickers,
+            req.start_date,
+            req.end_date,
+            spec.benchmark_ticker,
+            min_valid_tickers=min_valid_tickers_for_universe(
+                len(tickers), bool(req.universe_tickers)
+            ),
         )
     except Exception as exc:
         logger.error(

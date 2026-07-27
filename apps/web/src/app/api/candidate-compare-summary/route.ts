@@ -1,4 +1,3 @@
-import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { type AiLang, normalizeAiLang } from "@/lib/ai-language";
@@ -14,14 +13,20 @@ import {
   slimComparePayload,
   type CompareSummaryPayload,
 } from "@/lib/compare-summary";
-import { GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS, GEMINI_MODEL } from "@/lib/gemini";
+import {
+  isProviderConfigured,
+  KIMI_K3_MODEL_ID,
+  providerOptionsFor,
+  reasoningModel,
+  REASONING_MAX_OUTPUT_TOKENS,
+} from "@/lib/ai-provider";
 
 export async function POST(req: Request) {
   const body = (await req.json()) as CompareSummaryPayload & { lang?: string };
   const lang = normalizeAiLang(body.lang);
   const payload = body;
 
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!isProviderConfigured(KIMI_K3_MODEL_ID)) {
     const fallback = buildCompareFallback(payload);
     return NextResponse.json({
       summary: fallback,
@@ -53,7 +58,7 @@ export async function POST(req: Request) {
 type CompareSummaryOutcome = {
   summary: string;
   recommended_model_code: string | null;
-  source: "gemini" | "template";
+  source: "kimi" | "gemini" | "template";
   retried_due_to_token_limit?: boolean;
 };
 
@@ -66,16 +71,9 @@ async function generateCompareSummary(
   const prompt = buildCompareUserPrompt(slim, lang);
 
   const generateRequest = (attempt: number) => ({
-    model: google(GEMINI_MODEL),
-    maxOutputTokens:
-      GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS + attempt * 2048,
-    providerOptions: {
-      google: {
-        thinkingConfig: {
-          thinkingLevel: "minimal" as const,
-        },
-      },
-    },
+    model: reasoningModel(),
+    maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS + attempt * 2048,
+    providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID),
     system: buildCompareSystemPrompt(lang),
     prompt,
   });
@@ -105,7 +103,7 @@ async function generateCompareSummary(
       return {
         summary: parsed.summary,
         recommended_model_code: parsed.recommended_model_code,
-        source: "gemini",
+        source: "kimi",
         ...(retriedDueToTokenLimit
           ? { retried_due_to_token_limit: true }
           : {}),

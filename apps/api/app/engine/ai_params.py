@@ -12,6 +12,7 @@ from typing import Any
 import httpx
 
 from app.config import settings
+from app.engine.ai_client import generate_ai_text, model_has_api_key
 from app.engine.factors import (
     DRAWDOWN_INDICATOR_CHOICES,
     LOWVOL_INDICATOR_CHOICES,
@@ -339,7 +340,6 @@ def _default_direction_plan(
 
 def _get_direction_plan(
     *,
-    url: str,
     objective: str,
     rebalance_freq: str,
     max_weight_cap: float,
@@ -799,18 +799,16 @@ def generate_ai_param_sets(
     hard cap) instead of capping at ``ai_param_seed_max_count`` and leaving an
     Optuna-random remainder.
     """
-    key = settings.gemini_api_key
-    if not key:
+    model = settings.gemini_model
+    if not model_has_api_key(model):
         return {
             "enabled": False,
-            "model": settings.gemini_model,
+            "model": model,
             "rationale": "AI key not configured; fallback to Optuna search only.",
             "param_sets": [],
             "error": "missing_api_key",
         }
 
-    model = settings.gemini_model
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
     seed_plan = resolve_ai_param_seed_plan(n, all_ai=all_ai_seeds)
     requested_n = int(seed_plan["requested"])
     n = int(seed_plan["target"])
@@ -831,7 +829,6 @@ def generate_ai_param_sets(
         "full": "full (champion dossier)",
     }.get(learning_context_mode, learning_context_mode)
     direction_plan = _get_direction_plan(
-        url=url,
         objective=objective,
         rebalance_freq=rebalance_freq,
         max_weight_cap=max_weight_cap,
@@ -1058,38 +1055,24 @@ Return STRICT JSON only:
                     + (attempt * 1024)
                     + max(0, seed_count - 1) * 512,
                 )
-                generation_config: dict[str, Any] = {
-                    "temperature": 0.0,
-                    "maxOutputTokens": attempt_tokens,
-                    "responseMimeType": "application/json",
-                    "responseSchema": _param_response_schema(
-                        minimal=minimal_schema,
-                        require_rationale=not minimal_schema,
-                    ),
-                }
                 thinking_config = _thinking_config_for_model(
                     learning_context, model=model
                 )
-                if thinking_config is not None:
-                    generation_config["thinkingConfig"] = thinking_config
-                res = httpx.post(
-                    url,
-                    json={
-                        "contents": [{"parts": [{"text": req_prompt}]}],
-                        "generationConfig": generation_config,
-                    },
+                extra_config = (
+                    {"thinkingConfig": thinking_config} if thinking_config is not None else None
+                )
+                text, finish_reason = generate_ai_text(
+                    model=model,
+                    prompt=req_prompt,
+                    temperature=0.0,
+                    max_output_tokens=attempt_tokens,
+                    response_mime_type="application/json",
+                    response_schema=_param_response_schema(
+                        minimal=minimal_schema,
+                        require_rationale=not minimal_schema,
+                    ),
+                    extra_generation_config=extra_config,
                     timeout=45.0,
-                )
-                res.raise_for_status()
-                body = res.json()
-                parts = (
-                    body.get("candidates", [{}])[0]
-                    .get("content", {})
-                    .get("parts", [])
-                )
-                finish_reason = body.get("candidates", [{}])[0].get("finishReason", "")
-                text = "".join(
-                    p.get("text", "") for p in parts if isinstance(p, dict)
                 )
                 if finish_reason == "MAX_TOKENS":
                     last_error = "gemini_max_tokens"
@@ -2094,31 +2077,28 @@ def _build_pro_round_learning_block(learning_context: dict[str, Any]) -> str:
 
 def _gemini_round_seed_post(
     *,
-    url: str,
+    model: str,
     req_prompt: str,
     generation_config: dict[str, Any],
-    model: str,
     thinking_config: dict[str, Any] | None,
 ) -> tuple[str, str]:
-    if thinking_config is not None:
-        generation_config = {**generation_config, "thinkingConfig": thinking_config}
-    res = httpx.post(
-        url,
-        json={
-            "contents": [{"parts": [{"text": req_prompt}]}],
-            "generationConfig": generation_config,
-        },
+    """Call the unified AI client using a Gemini-style generation_config dict.
+
+    Returns (finish_reason, text) to preserve the original caller convention.
+    """
+    extra_config = (
+        {"thinkingConfig": thinking_config} if thinking_config is not None else None
+    )
+    text, finish_reason = generate_ai_text(
+        model=model,
+        prompt=req_prompt,
+        temperature=generation_config.get("temperature", 0.0),
+        max_output_tokens=generation_config["maxOutputTokens"],
+        response_mime_type=generation_config.get("responseMimeType"),
+        response_schema=generation_config.get("responseSchema"),
+        extra_generation_config=extra_config,
         timeout=45.0,
     )
-    res.raise_for_status()
-    body = res.json()
-    finish_reason = body.get("candidates", [{}])[0].get("finishReason", "")
-    parts = (
-        body.get("candidates", [{}])[0]
-        .get("content", {})
-        .get("parts", [])
-    )
-    text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
     return finish_reason, text
 
 
@@ -2166,7 +2146,6 @@ JSON shape:
 
 def _request_regime_factor_ranges_split(
     *,
-    url: str,
     model: str,
     round_setup: dict[str, Any],
     regime_setups: dict[str, Any],
@@ -2194,7 +2173,6 @@ def _request_regime_factor_ranges_split(
     }
     try:
         finish_reason, text = _gemini_round_seed_post(
-            url=url,
             req_prompt=req_prompt,
             generation_config=generation_config,
             model=model,
@@ -2248,11 +2226,11 @@ def generate_ai_round_seed(
     learning_context: dict[str, Any] | None = None,
     language: str | None = None,
 ) -> dict[str, Any]:
-    """One Gemini call per Pro round: fixed round_setup + factor_ranges + factor_choices."""
-    key = settings.gemini_api_key
+    """One AI call per Pro round: fixed round_setup + factor_ranges + factor_choices."""
+    model = settings.gemini_model
     empty = {
         "enabled": False,
-        "model": settings.gemini_model,
+        "model": model,
         "rationale": "",
         "round_setup": {},
         "regime_setups": {},
@@ -2262,12 +2240,10 @@ def generate_ai_round_seed(
         "factor_choices": {},
         "error": "missing_api_key",
     }
-    if not key:
+    if not model_has_api_key(model):
         empty["rationale"] = "AI key not configured; fallback to Optuna search only."
         return empty
 
-    model = settings.gemini_model
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
     blueprint = RunBlueprint(
         max_weight=float(max_weight_cap),
         max_turnover=float(max_turnover_cap),
@@ -2307,7 +2283,6 @@ def generate_ai_round_seed(
         else _resolve_learning_context_mode(learning_context)
     )
     direction_plan = _get_direction_plan(
-        url=url,
         objective=objective,
         rebalance_freq=rebalance_freq,
         max_weight_cap=max_weight_cap,
@@ -2477,7 +2452,6 @@ Return STRICT JSON only (omit empty factor_choices if none):
         thinking_config = _thinking_config_for_round_seed(model=model)
         try:
             finish_reason, text = _gemini_round_seed_post(
-                url=url,
                 req_prompt=req_prompt,
                 generation_config=generation_config,
                 model=model,
@@ -2513,7 +2487,6 @@ Return STRICT JSON only (omit empty factor_choices if none):
                         "Pro round: requesting regime_factor_ranges (split call)…",
                     )
                 factor_payload, factor_err = _request_regime_factor_ranges_split(
-                    url=url,
                     model=model,
                     round_setup=round_setup_raw,
                     regime_setups=regime_setups_raw,
@@ -2754,7 +2727,7 @@ def generate_ai_round_champion(
     language: str | None = None,
     selected_model_code: str | None = None,
 ) -> dict[str, Any]:
-    """One Gemini call after each Pro Optuna round: narrate deterministic round champion."""
+    """One AI call after each Pro Optuna round: narrate deterministic round champion."""
     model = settings.gemini_model
     fallback = selected_model_code or _round_champion_fallback_code(payload)
     empty: dict[str, Any] = {
@@ -2764,8 +2737,7 @@ def generate_ai_round_champion(
         "rationale": "",
         "error": "missing_api_key",
     }
-    key = settings.gemini_api_key
-    if not key:
+    if not model_has_api_key(model):
         return empty
 
     candidates = payload.get("candidates") or []
@@ -2779,7 +2751,6 @@ def generate_ai_round_champion(
         empty["round_champion_model_code"] = None
         return empty
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
     round_no = payload.get("round", "?")
     if progress_cb:
         progress_cb(f"Round {round_no}: AI narrating round champion…")
@@ -2864,7 +2835,6 @@ Payload:
         }
         try:
             finish_reason, text = _gemini_round_seed_post(
-                url=url,
                 req_prompt=prompt,
                 generation_config=generation_config,
                 model=model,

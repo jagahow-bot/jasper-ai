@@ -95,7 +95,7 @@ def test_refine_skips_ai_when_benchmark_fixed(monkeypatch: pytest.MonkeyPatch) -
     def _fail_post(*_args, **_kwargs):
         raise AssertionError("Gemini should not be called when benchmark_ticker is fixed")
 
-    monkeypatch.setattr("app.engine.ai_universe.httpx.post", _fail_post)
+    monkeypatch.setattr("app.engine.ai_client.httpx.post", _fail_post)
 
     plan = refine_universe_with_ai(
         universe=_sample_universe(),
@@ -142,7 +142,7 @@ def test_refine_legacy_omits_benchmark_pick_when_fixed(
         captured["prompt"] = json["contents"][0]["parts"][0]["text"]
         return _FakeResp()
 
-    monkeypatch.setattr("app.engine.ai_universe.httpx.post", _capture_post)
+    monkeypatch.setattr("app.engine.ai_client.httpx.post", _capture_post)
 
     plan = refine_universe_with_ai(
         universe=_sample_universe(),
