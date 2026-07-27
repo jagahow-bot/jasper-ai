@@ -55,7 +55,11 @@ export function OverlayConversationPanel({
   const [messages, setMessages] = useState<OverlayConversationMessage[]>([]);
   const [overlay, setOverlay] = useState<ClientOverlay | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    code?: string;
+    detail?: string;
+  } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [overlayLang, setOverlayLang] = useState<typeof lang>(lang);
 
@@ -96,16 +100,23 @@ export function OverlayConversationPanel({
             : undefined;
 
         if (!res.ok || !interpretedOverlay) {
-          const message = isOverlayInterpretErrorBody(data)
-            ? t(overlayInterpretErrorI18nKey(data.code))
+          if (process.env.NODE_ENV !== "production") {
+            console.error("[overlay/interpret] error response", data);
+          }
+          const err = isOverlayInterpretErrorBody(data)
+            ? {
+                message: t(overlayInterpretErrorI18nKey(data.code)),
+                code: data.code,
+                detail: data.detail,
+              }
             : data &&
                 typeof data === "object" &&
                 "error" in data &&
                 typeof (data as { error?: unknown }).error === "string"
-              ? (data as { error: string }).error
-              : t("overlay.interpret.error.generic");
-          setError(message);
-          setMessages((prev) => [...prev, { role: "assistant", content: message }]);
+              ? { message: (data as { error: string }).error }
+              : { message: t("overlay.interpret.error.generic") };
+          setError(err);
+          setMessages((prev) => [...prev, { role: "assistant", content: err.message }]);
           return;
         }
 
@@ -132,9 +143,9 @@ export function OverlayConversationPanel({
           },
         ]);
       } catch {
-        const message = t("overlay.interpret.error.generic");
-        setError(message);
-        setMessages((prev) => [...prev, { role: "assistant", content: message }]);
+        const err = { message: t("overlay.interpret.error.generic") };
+        setError(err);
+        setMessages((prev) => [...prev, { role: "assistant", content: err.message }]);
       } finally {
         setLoading(false);
       }
@@ -224,7 +235,22 @@ export function OverlayConversationPanel({
         </button>
       </div>
 
-      {error && <p className="text-sm text-[var(--magenta)]">{error}</p>}
+      {error && (
+        <div className="text-sm text-[var(--magenta)]">
+          <p>{error.message}</p>
+          {(error.code || error.detail) && (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-xs text-dim hover:text-[var(--foreground)]">
+                Error details
+              </summary>
+              <div className="mt-1 space-y-1 rounded-md border border-[var(--magenta)]/30 bg-[var(--magenta)]/5 p-2 font-mono text-xs">
+                {error.code && <p>Code: {error.code}</p>}
+                {error.detail && <p>{error.detail}</p>}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
 
       {overlay && (
         <div className="space-y-3 rounded-lg border border-[var(--primary-muted)] bg-[var(--primary-muted)]/40 p-3">
