@@ -41,7 +41,7 @@ def test_normalize_regime_class_quotas_sums_to_one() -> None:
 
 
 def test_normalize_round_seed_regime_class_quotas() -> None:
-    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10)
+    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10, max_holdings=30)
     seed = {
         "rationale": "test",
         "round_setup": {
@@ -216,7 +216,7 @@ def test_simulate_enforces_per_regime_class_budget() -> None:
 
 
 def test_pro_controls_fix_regime_quota_keys() -> None:
-    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10)
+    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10, max_holdings=30)
     round_setup = {
         "mode": "mean_variance",
         "lookback_days": 252,

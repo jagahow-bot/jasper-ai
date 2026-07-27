@@ -58,7 +58,7 @@ def test_taxonomy_helpers():
 
 
 def test_build_pro_round_param_controls_forces_setup_fixed():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20, max_holdings=30)
     controls = build_pro_round_param_controls(
         {"lookback_days": {"mode": "search", "min": 126, "max": 504}},
         blueprint=bp,
@@ -75,7 +75,7 @@ def test_build_pro_round_param_controls_forces_setup_fixed():
 
 
 def test_build_pro_round_param_controls_completes_sparse_factor_ranges():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20, max_holdings=30)
     controls = build_pro_round_param_controls(
         {},
         blueprint=bp,

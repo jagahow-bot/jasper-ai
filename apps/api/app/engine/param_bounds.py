@@ -12,11 +12,13 @@ RUN_CEILING_KEYS: dict[str, str] = {
     "max_weight_actual": "max_weight",
     "max_turnover_actual": "max_turnover",
     "top_n_actual": "top_n",
+    "max_holdings_actual": "max_holdings",
 }
 
 _NUMERIC_FLOOR: dict[str, float] = {
     "max_weight_actual": 0.05,
     "max_turnover_actual": 0.05,
+    "max_holdings_actual": 1.0,
 }
 
 
@@ -25,6 +27,7 @@ class RunBlueprint:
     max_weight: float
     max_turnover: float
     top_n: int | None
+    max_holdings: int
 
     @classmethod
     def from_request(cls, req: Any) -> RunBlueprint:
@@ -33,6 +36,7 @@ class RunBlueprint:
             max_weight=float(req.max_weight),
             max_turnover=float(req.max_turnover),
             top_n=top_n,
+            max_holdings=int(getattr(req, "max_holdings", 30)),
         )
 
     def ceiling(self, param_key: str) -> float | int | None:
@@ -45,11 +49,17 @@ class RunBlueprint:
             return float(self.max_turnover)
         if run_field == "top_n":
             return int(self.top_n) if self.top_n is not None else None
+        if run_field == "max_holdings":
+            return int(self.max_holdings)
         return None
 
     def off_default(self, param_key: str) -> float | int | None:
         """When param_controls mode is off, use run slider (not zero / full search)."""
         return self.ceiling(param_key)
+
+
+def _is_integer_ceiling_key(key: str) -> bool:
+    return key in {"top_n_actual", "max_holdings_actual"}
 
 
 def normalize_param_controls(
@@ -66,22 +76,22 @@ def normalize_param_controls(
             continue
         if mode == "off":
             c["mode"] = "fixed"
-            c["fixed"] = float(ceiling) if key != "top_n_actual" else int(ceiling)
+            c["fixed"] = int(ceiling) if _is_integer_ceiling_key(key) else float(ceiling)
         elif mode == "search":
             hi = c.get("max")
             if hi is None:
                 c["max"] = ceiling
             else:
-                if key == "top_n_actual":
+                if _is_integer_ceiling_key(key):
                     c["max"] = int(min(int(hi), int(ceiling)))
                 else:
                     c["max"] = float(min(float(hi), float(ceiling)))
             lo = c.get("min")
             floor = _NUMERIC_FLOOR.get(key, 0.0)
-            if lo is not None and key != "top_n_actual":
+            if lo is not None and not _is_integer_ceiling_key(key):
                 c["min"] = float(max(float(lo), floor))
         elif mode == "fixed" and c.get("fixed") is not None:
-            if key == "top_n_actual":
+            if _is_integer_ceiling_key(key):
                 c["fixed"] = int(min(int(float(c["fixed"])), int(ceiling)))
             else:
                 c["fixed"] = float(min(float(c["fixed"]), float(ceiling)))
@@ -103,7 +113,7 @@ def cap_search_high(
         if control.get("max") is not None:
             high = control["max"]
     if ceiling is not None:
-        if isinstance(ceiling, int):
+        if isinstance(ceiling, int) or _is_integer_ceiling_key(param_key):
             high = int(min(int(high), int(ceiling)))
         else:
             high = float(min(float(high), float(ceiling)))
@@ -119,7 +129,7 @@ def cap_search_low(
     if control and control.get("min") is not None:
         low = control["min"]
     floor = _NUMERIC_FLOOR.get(param_key)
-    if floor is not None and param_key != "top_n_actual":
+    if floor is not None and not _is_integer_ceiling_key(param_key):
         low = float(max(float(low), floor))
     return low
 
@@ -143,7 +153,7 @@ def resolve_off_value(
         return run_default
     if control and control.get("fixed") is not None:
         try:
-            if param_key == "top_n_actual":
+            if _is_integer_ceiling_key(param_key):
                 return int(control["fixed"])
             return float(control["fixed"])
         except (TypeError, ValueError):
@@ -172,7 +182,7 @@ def clamp_param_dict(
         if raw is None:
             continue
         try:
-            if key == "top_n_actual":
+            if _is_integer_ceiling_key(key):
                 val = int(raw)
                 capped = int(min(val, int(ceiling)))
                 floor = int(_NUMERIC_FLOOR.get(key, 1))
@@ -217,6 +227,7 @@ def blueprint_prompt_lines(blueprint: RunBlueprint) -> str:
     return (
         f"HARD CEILINGS (never exceed): max_weight_actual<={blueprint.max_weight:.4f}; "
         f"max_turnover_actual<={blueprint.max_turnover:.4f}; "
-        f"{top_n_line}. "
+        f"{top_n_line}; "
+        f"max_holdings_actual<={blueprint.max_holdings}. "
         "Run sliders are authoritative; search only within [floor, ceiling]."
     )

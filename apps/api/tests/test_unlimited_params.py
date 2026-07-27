@@ -57,7 +57,7 @@ def test_top_n_ai_range_hi_unlimited():
 
 
 def test_param_bounds_no_top_n_ceiling_when_unlimited():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=None)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=None, max_holdings=30)
     assert bp.ceiling("top_n_actual") is None
     clipped, violations = clamp_param_dict({"top_n_actual": 80}, bp)
     assert clipped["top_n_actual"] == 80

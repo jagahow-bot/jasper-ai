@@ -77,6 +77,7 @@ _PARAM_SET_REQUIRED = [
     "lookback_days",
     "risk_aversion",
     "top_n_actual",
+    "max_holdings_actual",
     "max_weight_actual",
     "max_turnover_actual",
     "w_mom",
@@ -90,6 +91,7 @@ _PARAM_SET_CORE_PROPS: dict[str, dict[str, str]] = {
     "lookback_days": {"type": "NUMBER"},
     "risk_aversion": {"type": "NUMBER"},
     "top_n_actual": {"type": "NUMBER"},
+    "max_holdings_actual": {"type": "NUMBER"},
     "max_weight_actual": {"type": "NUMBER"},
     "max_turnover_actual": {"type": "NUMBER"},
     "w_mom": {"type": "NUMBER"},
@@ -253,7 +255,8 @@ def resolve_ai_param_seed_plan(
 def _summarize_set(s: dict[str, Any]) -> str:
     return (
         f"mode={s.get('mode')}, lookback={s.get('lookback_days')}, "
-        f"top_n={s.get('top_n_actual')}, risk_aversion={s.get('risk_aversion')}, "
+        f"top_n={s.get('top_n_actual')}, max_holdings={s.get('max_holdings_actual')}, "
+        f"risk_aversion={s.get('risk_aversion')}, "
         f"w_mom={s.get('w_mom')}, w_lowvol={s.get('w_lowvol')}, "
         f"mom={s.get('mom_indicator')}, rev={s.get('reversal_indicator')}"
     )
@@ -843,6 +846,7 @@ def generate_ai_param_sets(
         f"cap[max_weight]=0.05..{max_weight_cap:.4f}; "
         f"cap[max_turnover]=0.05..{max_turnover_cap:.4f}; "
         f"top_n=5..{top_n_ai_range_hi(top_n_cap, tradable_count)}; "
+        f"max_holdings=1..{int(blueprint.max_holdings)}; "
         "lookback=126..504; factor_lb=126..504; rev_lb=63..252; val_lb=63..252; "
         "shrinkage=0..0.5; risk_aversion=0.5..12; no_trade_tol=0..0.02; turnover_penalty=0.5..3; "
         "factor_weights=0..2(trend/drawdown<=1.5); class_weights=0..1; "
@@ -891,8 +895,8 @@ Be concise and output the final JSON immediately without additional thinking tex
 Treat GLOBAL settings as immutable and only vary fields listed in MUTABLE_ONLY/MUT.
 Do not output objective_mode or rebalance_freq (run-level fixed).
 Include mode (allocator) plus any MUTABLE fields you change; omit unchanged optional fields.
-Required minimum: mode, lookback_days, risk_aversion, top_n_actual, max_weight_actual,
-max_turnover_actual, w_mom, w_lowvol, w_equity, w_bond.
+Required minimum: mode, lookback_days, risk_aversion, top_n_actual, max_holdings_actual,
+max_weight_actual, max_turnover_actual, w_mom, w_lowvol, w_equity, w_bond.
 Factor indicators (optional; materially different signals): mom_indicator cumulative_return|risk_adjusted_return|skip_month_12_1;
 reversal negative_return|off_peak|rsi_mean_reversion; value ma_price_ratio|price_percentile|inverse_long_momentum;
 lowvol negative_vol|negative_downside_dev|negative_beta_market; trend price_ma_ratio|ma_slope|dual_ma_crossover;
@@ -915,7 +919,7 @@ Optimization Direction Blueprint (GLOBAL for this batch):
 
 Compact constraints spec: {constraints_compact}
 
-MUST NOT exceed run ceilings in GLOBAL/constraints (max_weight_actual, max_turnover_actual, top_n_actual).
+MUST NOT exceed run ceilings in GLOBAL/constraints (max_weight_actual, max_turnover_actual, top_n_actual, max_holdings_actual).
 Note: server-side validation/clamping is authoritative; values above ceilings are rejected or clipped.
 
 Return STRICT JSON only:
@@ -1198,6 +1202,7 @@ Return STRICT JSON only:
                                 "max_weight_cap": max_weight_cap,
                                 "max_turnover_cap": max_turnover_cap,
                                 "top_n_cap": top_n_cap,
+                                "max_holdings_cap": int(blueprint.max_holdings),
                                 "tradable_count": tradable_count,
                                 "existing_sets": collected,
                             },
@@ -1238,6 +1243,7 @@ Return STRICT JSON only:
                             "max_weight_cap": max_weight_cap,
                             "max_turnover_cap": max_turnover_cap,
                             "top_n_cap": top_n_cap,
+                            "max_holdings_cap": int(blueprint.max_holdings),
                             "tradable_count": tradable_count,
                         },
                         timeout=20.0,
@@ -1292,6 +1298,7 @@ _ROUND_SETUP_SCHEMA_CORE: dict[str, dict[str, str]] = {
     "shrinkage": ai_number_schema(),
     "risk_aversion": ai_number_schema(),
     "top_n_actual": ai_number_schema(integer=True),
+    "max_holdings_actual": ai_number_schema(integer=True),
     "max_weight_actual": ai_number_schema(),
     "max_turnover_actual": ai_number_schema(),
     "no_trade_tol": ai_number_schema(),
@@ -2300,6 +2307,7 @@ def generate_ai_round_seed(
         f"cap[max_weight]=0.05..{max_weight_cap:.4f}; "
         f"cap[max_turnover]=0.05..{max_turnover_cap:.4f}; "
         f"top_n=5..{top_n_ai_range_hi(top_n_cap, tradable_count)}; "
+        f"max_holdings=1..{int(blueprint.max_holdings)}; "
         "lookback=126..504; factor_lb=126..504; rev_lb=63..252; val_lb=63..252; "
         "shrinkage=0..0.5; risk_aversion=0.5..12; no_trade_tol=0..0.02; turnover_penalty=0.5..3; "
         "factor_weights=0..2(trend/drawdown<=1.5); class_weights=0..1"
@@ -2319,7 +2327,7 @@ def generate_ai_round_seed(
    Align allocator mode/lookback with regime intent ({regime_objective_hint}).
    In rationale or optimization_strategy, briefly justify each regime's allocator choice vs market intent.
    Simulation applies the active regime's slice at each rebalance (V2 detector).
-   round_setup still holds shared caps (top_n, max_weight); do NOT duplicate factor keys
+   round_setup still holds shared caps (top_n, max_holdings, max_weight); do NOT duplicate factor keys
    inside regime_setups.
    Example (compact numerics only): {{"risk_off":{{"mode":"min_max_drawdown","lookback_days":252,"shrinkage":0.2,"risk_aversion":6.0}},"neutral":{{"mode":"mean_variance","lookback_days":126,"shrinkage":0.15,"risk_aversion":3.0}},"risk_on":{{"mode":"max_return","lookback_days":63,"shrinkage":0.05,"risk_aversion":1.5}}}}
 5) regime_class_quotas (REQUIRED for dynamic objective) — per-regime Top-N class sleeve quotas
@@ -2354,8 +2362,8 @@ Output the final JSON immediately; no markdown or commentary.
 
 Architecture (critical):
 1) round_setup — fixed for ALL Optuna trials this round (portfolio/model setup only).
-   Required keys: mode, lookback_days, shrinkage, risk_aversion, top_n_actual, max_weight_actual,
-   max_turnover_actual, no_trade_tol, turnover_penalty_mult.
+   Required keys: mode, lookback_days, shrinkage, risk_aversion, top_n_actual, max_holdings_actual,
+   max_weight_actual, max_turnover_actual, no_trade_tol, turnover_penalty_mult.
    Optional asset-class quotas ({alloc_keys}): include ONLY if you materially change them from defaults.
    Do NOT put factor weights or factor lookbacks in round_setup.
    {"For dynamic objective: round_setup mode/lookback are shared defaults; per-regime allocator lives in regime_setups." if dynamic_matrix else ""}

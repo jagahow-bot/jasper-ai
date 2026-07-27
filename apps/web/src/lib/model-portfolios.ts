@@ -378,6 +378,7 @@ export function buildAnchorBacktestRequest(
     param_controls: {
       ...(defaults.param_controls ?? {}),
       ...sleeveControls,
+      max_holdings_actual: { mode: "fixed", fixed: holdingTickers.length },
     },
     enforce_class_weights: Object.keys(sleeveControls).length > 0,
   };

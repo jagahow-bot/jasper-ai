@@ -80,6 +80,7 @@ export function ConstraintsPanel({
       step: 0.01,
     },
     { key: "top_n_actual", label: t("config.control.top_n_actual"), min: 5, max: Math.min(120, runTopN), step: 1 },
+    { key: "max_holdings_actual", label: t("config.control.max_holdings_actual"), min: 1, max: value.max_holdings ?? 30, step: 1 },
     { key: "factor_lookback_days", label: t("config.control.factor_lookback_days"), min: 126, max: 504, step: 21 },
     { key: "reversal_lookback_days", label: t("config.control.reversal_lookback_days"), min: 63, max: 252, step: 21 },
     { key: "value_lookback_days", label: t("config.control.value_lookback_days"), min: 63, max: 252, step: 21 },
@@ -106,7 +107,7 @@ export function ConstraintsPanel({
     ...subAssetControlSpecs,
   ];
     },
-    [runMaxWeight, runTopN, runMaxTurnover, t],
+    [runMaxWeight, runTopN, runMaxTurnover, value.max_holdings, t],
   );
   const controls = value.param_controls ?? {};
   const categoricalSpecs = [

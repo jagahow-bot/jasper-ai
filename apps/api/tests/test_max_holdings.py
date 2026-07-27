@@ -105,3 +105,73 @@ def test_backtest_request_max_holdings_range():
             raise AssertionError(f"expected ValidationError for max_holdings={invalid}")
         except ValidationError:
             pass
+
+
+def test_run_blueprint_max_holdings_ceiling():
+    from app.engine.param_bounds import RunBlueprint, clamp_param_dict
+
+    bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=50, max_holdings=10)
+    assert bp.ceiling("max_holdings_actual") == 10
+    clipped, violations = clamp_param_dict(
+        {"max_holdings_actual": 20}, bp
+    )
+    assert clipped["max_holdings_actual"] == 10
+    assert len(violations) == 1
+
+
+def test_sim_inputs_from_params_uses_max_holdings_actual():
+    from app.engine.backtest import _sim_inputs_from_params
+    from app.engine.spec import BacktestSpec
+    from app.models import BacktestRequest, Objective, BacktestMode
+
+    req = BacktestRequest(
+        scenario_id="custom",
+        max_weight=0.5,
+        objective=Objective.max_sharpe,
+        backtest_mode=BacktestMode.static,
+        max_holdings=12,
+    )
+    spec = BacktestSpec(max_holdings=12)
+    params = {
+        "mode": "min_var",
+        "lookback_days": 126,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 8,
+        "max_holdings_actual": 5,
+        "no_trade_tol": 0.0,
+        "turnover_penalty_mult": 1.0,
+        "max_turnover_actual": 0.5,
+    }
+    trial_spec, *_ = _sim_inputs_from_params(params, req, "QE", spec)
+    assert trial_spec.max_holdings == 5
+
+
+def test_sim_inputs_from_params_clamps_max_holdings_actual_to_run_cap():
+    from app.engine.backtest import _sim_inputs_from_params
+    from app.engine.spec import BacktestSpec
+    from app.models import BacktestRequest, Objective, BacktestMode
+
+    req = BacktestRequest(
+        scenario_id="custom",
+        max_weight=0.5,
+        objective=Objective.max_sharpe,
+        backtest_mode=BacktestMode.static,
+        max_holdings=8,
+    )
+    spec = BacktestSpec(max_holdings=8)
+    params = {
+        "mode": "min_var",
+        "lookback_days": 126,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 8,
+        "max_holdings_actual": 15,
+        "no_trade_tol": 0.0,
+        "turnover_penalty_mult": 1.0,
+        "max_turnover_actual": 0.5,
+    }
+    trial_spec, *_ = _sim_inputs_from_params(params, req, "QE", spec)
+    assert trial_spec.max_holdings == 8

@@ -15,7 +15,7 @@ import pandas as pd
 
 
 def test_normalize_off_max_weight_uses_run_slider():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=50)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=50, max_holdings=30)
     out = normalize_param_controls(
         {"max_weight_actual": {"mode": "off"}},
         bp,
@@ -25,7 +25,7 @@ def test_normalize_off_max_weight_uses_run_slider():
 
 
 def test_cap_search_high_never_above_run_max_weight():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=50)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=50, max_holdings=30)
     hi = cap_search_high(
         "max_weight_actual",
         1.0,
@@ -36,7 +36,7 @@ def test_cap_search_high_never_above_run_max_weight():
 
 
 def test_clamp_param_dict_records_violation():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=40)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=40, max_holdings=30)
     params = {"max_weight_actual": 0.95, "top_n_actual": 80}
     clipped, violations = clamp_param_dict(params, bp)
     assert clipped["max_weight_actual"] == 0.5
@@ -45,7 +45,7 @@ def test_clamp_param_dict_records_violation():
 
 
 def test_clamp_param_dict_unlimited_top_n_skips_ceiling():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=None)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=None, max_holdings=30)
     params = {"top_n_actual": 80}
     clipped, violations = clamp_param_dict(params, bp)
     assert clipped["top_n_actual"] == 80
@@ -53,7 +53,7 @@ def test_clamp_param_dict_unlimited_top_n_skips_ceiling():
 
 
 def test_ai_apply_controls_clamps_above_ceiling():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=50)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=1.0, top_n=50, max_holdings=30)
     controls = normalize_param_controls({}, bp)
 
     out = {

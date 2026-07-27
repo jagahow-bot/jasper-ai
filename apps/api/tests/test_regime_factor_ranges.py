@@ -32,7 +32,7 @@ def price_panel() -> pd.DataFrame:
 
 
 def test_normalize_round_seed_regime_factor_ranges() -> None:
-    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10)
+    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10, max_holdings=30)
     seed = {
         "rationale": "per-regime factors",
         "round_setup": {
@@ -69,7 +69,7 @@ def test_normalize_round_seed_regime_factor_ranges() -> None:
 
 
 def test_pro_controls_prefixed_regime_factor_keys() -> None:
-    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10)
+    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10, max_holdings=30)
     round_setup = {
         "mode": "mean_variance",
         "lookback_days": 252,

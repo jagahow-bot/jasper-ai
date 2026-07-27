@@ -85,7 +85,7 @@ def test_refresh_dynamic_ctx_swaps_resolver() -> None:
 
 
 def test_normalize_round_seed_regime_setups() -> None:
-    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10)
+    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10, max_holdings=30)
     seed = {
         "rationale": "test",
         "round_setup": {
@@ -112,7 +112,7 @@ def test_normalize_round_seed_regime_setups() -> None:
 
 
 def test_pro_controls_skip_allocator_keys_when_matrix() -> None:
-    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10)
+    blueprint = RunBlueprint(max_weight=0.25, max_turnover=0.5, top_n=10, max_holdings=30)
     round_setup = {
         "mode": "mean_variance",
         "lookback_days": 999,

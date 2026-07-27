@@ -142,6 +142,7 @@ def run_optuna_search(
         max_weight=float(max_weight),
         max_turnover=float(max_turnover),
         top_n=int(top_n) if top_n is not None else None,
+        max_holdings=int(spec.max_holdings),
     )
     if pro_round_mode:
         param_controls = build_pro_round_param_controls(
@@ -507,16 +508,25 @@ def run_optuna_search(
 
         # Institutional-ish knobs:
         # - pick top_n_actual assets (AI may be stricter than user cap)
+        # - max_holdings_actual: AI-tunable final position cap (<= run slider)
         # - no-trade band (reduce rebalancing churn)
         # - turnover penalty multiplier (extra cost pressure)
         top_n_actual = _seed_or_suggest_int(
             trial, seed, "top_n_actual", min_top, top_n_cap
+        )
+        max_holdings_actual = _seed_or_suggest_int(
+            trial, seed, "max_holdings_actual", 1, int(spec.max_holdings)
         )
         min_names_for_cap = min(
             min_holdings_for_cap(actual_cap, floor=2), n_assets
         )
         top_n_actual = int(
             np.clip(max(int(top_n_actual), min_names_for_cap), min_top, top_n_cap)
+        )
+        max_holdings_actual = int(
+            np.clip(
+                max_holdings_actual, 1, min(int(spec.max_holdings), n_assets)
+            )
         )
         no_trade_tol = _seed_or_suggest_float(trial, seed, "no_trade_tol", 0.0, 0.02)
         turnover_penalty_mult = _seed_or_suggest_float(
@@ -543,7 +553,7 @@ def run_optuna_search(
             fee_bps=spec.fee_bps,
             rebalance_rule=rebalance_freq,
             min_holdings=spec.min_holdings,
-            max_holdings=spec.max_holdings,
+            max_holdings=max_holdings_actual,
         )
         alloc = AllocatorParams(
             mode=mode,
@@ -659,6 +669,7 @@ def run_optuna_search(
             "risk_aversion": float(risk_aversion),
             "max_weight_actual": float(actual_cap),
             "top_n_actual": int(top_n_actual),
+            "max_holdings_actual": int(max_holdings_actual),
             "factor_lookback_days": int(factor_lb),
             "reversal_lookback_days": int(reversal_lb),
             "value_lookback_days": int(value_lb),

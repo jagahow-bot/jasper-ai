@@ -21,6 +21,7 @@ const ParamSetSchema = z.object({
   risk_aversion: z.number().min(0.5).max(12),
   max_weight_actual: z.number().min(0.05).max(1),
   top_n_actual: z.number().int().min(5).max(200),
+  max_holdings_actual: z.number().int().min(1).max(200),
   factor_lookback_days: z.number().int().min(126).max(504),
   reversal_lookback_days: z.number().int().min(63).max(252),
   value_lookback_days: z.number().int().min(63).max(252),
@@ -81,6 +82,7 @@ export async function POST(req: Request) {
     max_weight_cap: number;
     max_turnover_cap: number;
     top_n_cap: number;
+    max_holdings_cap: number;
     tradable_count: number;
     existing_sets?: Record<string, unknown>[];
   };
@@ -94,6 +96,10 @@ export async function POST(req: Request) {
 
   const n = Math.max(1, Math.min(Number(body.n ?? 1), 5));
   const topNBound = Math.min(Number(body.top_n_cap ?? 50), Number(body.tradable_count ?? 50));
+  const maxHoldingsBound = Math.max(
+    1,
+    Math.min(Number(body.max_holdings_cap ?? 50), Number(body.tradable_count ?? 50)),
+  );
   const existing = Array.isArray(body.existing_sets) ? body.existing_sets : [];
   const existingHint =
     existing.length > 0
@@ -112,6 +118,7 @@ export async function POST(req: Request) {
 - max_weight_actual in [0.05, ${body.max_weight_cap}]
 - max_turnover_actual in [0.05, ${body.max_turnover_cap}]
 - top_n_actual in [5, ${topNBound}]
+- max_holdings_actual in [1, ${maxHoldingsBound}]
 - asset-class preference weights: w_equity,w_bond,w_commodity,w_real_estate,w_alternative in [0,1]
 - finer sub-asset sleeves: w_equity_us,w_equity_intl,w_equity_em,w_bond_us,w_bond_intl,w_bond_credit,w_commodity_precious,w_commodity_broad,w_reit_us,w_reit_intl in [0,1]${existingHint}`,
   });

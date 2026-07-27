@@ -1793,13 +1793,17 @@ def _sim_inputs_from_params(
         params["bounds_violations"] = bounds_violations
     params = zero_disallowed_class_params(params, req.asset_classes)
     trial_rebalance = str(params.get("rebalance_freq", rebalance_rule))
+    max_holdings_actual = int(
+        params.get("max_holdings_actual", spec.max_holdings)
+    )
+    max_holdings_actual = max(1, min(max_holdings_actual, int(spec.max_holdings)))
     trial_spec = BacktestSpec(
         benchmark_ticker=spec.benchmark_ticker,
         risk_free_rate=spec.risk_free_rate,
         fee_bps=spec.fee_bps,
         rebalance_rule=trial_rebalance,
         min_holdings=spec.min_holdings,
-        max_holdings=spec.max_holdings,
+        max_holdings=max_holdings_actual,
     )
     alloc = AllocatorParams(
         mode=params["mode"],
@@ -3502,6 +3506,12 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         best_top_n_actual = min(int(req.top_n), int(spec.max_holdings))
     else:
         best_top_n_actual = int(spec.max_holdings)
+    best_max_holdings_actual = int(
+        best_params.get("max_holdings_actual", spec.max_holdings)
+    )
+    best_max_holdings_actual = max(
+        1, min(best_max_holdings_actual, int(spec.max_holdings))
+    )
     best_no_trade_tol = float(best_params.get("no_trade_tol", 0.0))
     best_turnover_penalty_mult = float(best_params.get("turnover_penalty_mult", 1.0))
     best_max_turnover = float(best_params.get("max_turnover_actual", req.max_turnover))
@@ -3520,7 +3530,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
                 fee_bps=spec.fee_bps,
                 rebalance_rule=str(best_params.get("rebalance_freq", rebalance_rule)),
                 min_holdings=spec.min_holdings,
-                max_holdings=spec.max_holdings,
+                max_holdings=best_max_holdings_actual,
             ),
             max_weight=best_cap,
             min_weight=req.min_weight,

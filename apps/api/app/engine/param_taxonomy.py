@@ -40,6 +40,7 @@ SETUP_PARAM_KEYS: tuple[str, ...] = (
     "risk_aversion",
     "max_weight_actual",
     "top_n_actual",
+    "max_holdings_actual",
     "no_trade_tol",
     "turnover_penalty_mult",
     "max_turnover_actual",
@@ -340,7 +341,7 @@ def build_pro_round_param_controls(
             continue
         if key in setup and setup[key] is not None:
             fixed = setup[key]
-            if key == "top_n_actual":
+            if key in {"top_n_actual", "max_holdings_actual"}:
                 fixed = int(fixed)
             elif key != ALLOCATOR_MODE_KEY:
                 try:
@@ -475,7 +476,7 @@ def summarize_prior_round_seed(
     ):
         setup[ALLOCATOR_MODE_KEY] = alloc_mode
     for key, val in list(setup.items()):
-        if key == "top_n_actual":
+        if key in {"top_n_actual", "max_holdings_actual"}:
             setup[key] = int(val)
         elif key != ALLOCATOR_MODE_KEY and isinstance(val, (int, float)) and not isinstance(
             val, bool
@@ -492,7 +493,7 @@ def summarize_prior_round_seed(
     )
     regime_factor_ranges = _normalize_regime_factor_ranges_seed(
         seed_dict.get("regime_factor_ranges"),
-        blueprint=RunBlueprint(max_weight=1.0, max_turnover=1.0, top_n=30),
+        blueprint=RunBlueprint(max_weight=1.0, max_turnover=1.0, top_n=30, max_holdings=30),
         param_controls=None,
     )
     if not regime_factor_ranges:
@@ -541,7 +542,7 @@ def normalize_round_seed(
         for key in SETUP_PARAM_KEYS:
             if key in raw_setup and raw_setup[key] is not None:
                 val = raw_setup[key]
-                if key == "top_n_actual":
+                if key in {"top_n_actual", "max_holdings_actual"}:
                     out["round_setup"][key] = int(val)
                 elif key == ALLOCATOR_MODE_KEY:
                     out["round_setup"][key] = str(val)

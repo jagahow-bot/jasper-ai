@@ -207,7 +207,7 @@ def test_normalize_round_seed_sanitizes_all_numeric_fields():
     }
     out = normalize_round_seed(
         sanitize_ai_response(seed),
-        blueprint=RunBlueprint(max_weight=0.2, max_turnover=1.0, top_n=50),
+        blueprint=RunBlueprint(max_weight=0.2, max_turnover=1.0, top_n=50, max_holdings=30),
         param_controls=None,
     )
     dumped = dumps_for_ai(out)
@@ -273,7 +273,7 @@ def test_dynamic_full_regime_seed_schema_and_compact_json_size():
         normalize_round_seed,
     )
 
-    blueprint = RunBlueprint(max_weight=0.15, max_turnover=0.5, top_n=20)
+    blueprint = RunBlueprint(max_weight=0.15, max_turnover=0.5, top_n=20, max_holdings=30)
     slice_full = _full_regime_factor_slice()
     full_ai = {
         "rationale": "Round 1 dynamic explore.",

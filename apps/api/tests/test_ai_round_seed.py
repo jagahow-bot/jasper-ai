@@ -76,7 +76,7 @@ def test_round_seed_regime_factor_range_guidance_requires_all_keys():
 
 
 def test_normalize_round_seed_clips_ranges():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20, max_holdings=30)
     raw = {
         "rationale": "Focus momentum band",
         "round_setup": {
@@ -173,7 +173,7 @@ def test_learning_block_uses_current_incumbent_model_code_from_narrative():
 
 
 def test_normalize_round_seed_keeps_optimization_strategy():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20, max_holdings=30)
     normalized = normalize_round_seed(
         {
             "rationale": "r",
@@ -189,7 +189,7 @@ def test_normalize_round_seed_keeps_optimization_strategy():
 
 
 def test_normalize_round_seed_keeps_performance_assessment():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20, max_holdings=30)
     normalized = normalize_round_seed(
         {
             "rationale": "r",
@@ -217,7 +217,7 @@ def test_round_seed_factor_range_guidance_explore_vs_narrow():
 
 
 def test_complete_factor_ranges_fills_sparse_ai_output():
-    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20)
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20, max_holdings=30)
     full = complete_factor_ranges(
         {"w_mom": [0.2, 1.8]},
         blueprint=bp,
