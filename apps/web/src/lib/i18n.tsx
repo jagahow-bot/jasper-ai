@@ -860,9 +860,9 @@ const en: Dict = {
   "overlay.contextGroupsFallback": "Current selection will use the active scope.",
   "overlay.contextAnchor": "Target model portfolio",
   "overlay.interpret.error.apiKeyMissing":
-    "Overlay interpretation is unavailable: Gemini API key is not configured.",
-  "overlay.interpret.error.geminiUnavailable":
-    "Overlay interpretation failed: Gemini is temporarily unavailable. Please try again.",
+    "Overlay interpretation is unavailable: AI API key is not configured.",
+  "overlay.interpret.error.aiUnavailable":
+    "Overlay interpretation failed: AI is temporarily unavailable. Please try again.",
   "overlay.interpret.error.parseFailed":
     "Overlay interpretation failed: AI response could not be parsed. Please try again.",
   "overlay.interpret.error.validationFailed":
@@ -2090,9 +2090,9 @@ const zh: Dict = {
   "overlay.contextGroupsFallback": "目前選擇會沿用現行客製化範圍。",
   "overlay.contextAnchor": "目標模型組合",
   "overlay.interpret.error.apiKeyMissing":
-    "無法解讀客戶需求：尚未設定 Gemini API 金鑰。",
-  "overlay.interpret.error.geminiUnavailable":
-    "解讀失敗：Gemini 暫時無法使用，請稍後再試。",
+    "無法解讀客戶需求：尚未設定 AI API 金鑰。",
+  "overlay.interpret.error.aiUnavailable":
+    "解讀失敗：AI 暫時無法使用，請稍後再試。",
   "overlay.interpret.error.parseFailed":
     "解讀失敗：AI 回應無法解析，請再試一次。",
   "overlay.interpret.error.validationFailed":
@@ -3321,9 +3321,9 @@ const ko: Dict = {
   "overlay.contextGroupsFallback": "현재 선택은 활성 범위를 그대로 사용합니다.",
   "overlay.contextAnchor": "목표 모델 포트폴리오",
   "overlay.interpret.error.apiKeyMissing":
-    "고객 니즈 해석 불가: Gemini API 키가 설정되지 않았습니다.",
-  "overlay.interpret.error.geminiUnavailable":
-    "해석 실패: Gemini를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
+    "고객 니즈 해석 불가: AI API 키가 설정되지 않았습니다.",
+  "overlay.interpret.error.aiUnavailable":
+    "해석 실패: AI를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
   "overlay.interpret.error.parseFailed":
     "해석 실패: AI 응답을 파싱할 수 없습니다. 다시 시도하세요.",
   "overlay.interpret.error.validationFailed":

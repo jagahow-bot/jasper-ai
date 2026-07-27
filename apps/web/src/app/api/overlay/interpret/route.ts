@@ -12,7 +12,7 @@ import { interpretOverlayFallback } from "@/lib/overlay-fallback";
 import {
   allowOverlayRulesFallback,
   buildOverlayInterpretError,
-  classifyOverlayGeminiFailure,
+  classifyOverlayAiFailure,
   OVERLAY_INTERPRET_ERROR_CODES,
 } from "@/lib/overlay-interpret-errors";
 import { parseOverlayExtractFromGemini } from "@/lib/overlay-gemini-parse";
@@ -220,6 +220,9 @@ export async function POST(req: Request) {
 
   if (!isProviderConfigured(KIMI_K3_MODEL_ID)) {
     if (useRulesFallback) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[overlay/interpret] AI provider not configured; using rules fallback");
+      }
       const overlay = runFallback();
       return NextResponse.json({ overlay, source: "rules" });
     }
@@ -246,12 +249,12 @@ export async function POST(req: Request) {
     } catch (parseError) {
       if (useRulesFallback) {
         if (process.env.NODE_ENV !== "production") {
-          console.warn("[overlay/interpret] Gemini response unusable; using rules fallback", parseError);
+          console.warn("[overlay/interpret] AI response unusable; using rules fallback", parseError);
         }
         const overlay = runFallback();
         return NextResponse.json({ overlay, source: "rules" });
       }
-      const classified = classifyOverlayGeminiFailure(parseError);
+      const classified = classifyOverlayAiFailure(parseError);
       return buildOverlayInterpretError(
         classified.code,
         classified.error,
@@ -268,12 +271,12 @@ export async function POST(req: Request) {
   } catch (error) {
     if (useRulesFallback) {
       if (process.env.NODE_ENV !== "production") {
-        console.warn("[overlay/interpret] Gemini failed; using rules fallback", error);
+        console.warn("[overlay/interpret] AI failed; using rules fallback", error);
       }
       const overlay = runFallback();
       return NextResponse.json({ overlay, source: "rules" });
     }
-    const classified = classifyOverlayGeminiFailure(error);
+    const classified = classifyOverlayAiFailure(error);
     return buildOverlayInterpretError(
       classified.code,
       classified.error,

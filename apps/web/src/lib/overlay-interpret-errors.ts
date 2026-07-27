@@ -3,7 +3,7 @@ import { ZodError } from "zod";
 
 export const OVERLAY_INTERPRET_ERROR_CODES = {
   API_KEY_MISSING: "API_KEY_MISSING",
-  GEMINI_UNAVAILABLE: "GEMINI_UNAVAILABLE",
+  AI_UNAVAILABLE: "AI_UNAVAILABLE",
   PARSE_FAILED: "PARSE_FAILED",
   VALIDATION_FAILED: "VALIDATION_FAILED",
   RESPONSE_INVALID: "RESPONSE_INVALID",
@@ -20,16 +20,18 @@ export type OverlayInterpretErrorBody = {
 
 const I18N_KEY_BY_CODE: Record<OverlayInterpretErrorCode, string> = {
   [OVERLAY_INTERPRET_ERROR_CODES.API_KEY_MISSING]: "overlay.interpret.error.apiKeyMissing",
-  [OVERLAY_INTERPRET_ERROR_CODES.GEMINI_UNAVAILABLE]: "overlay.interpret.error.geminiUnavailable",
+  [OVERLAY_INTERPRET_ERROR_CODES.AI_UNAVAILABLE]: "overlay.interpret.error.aiUnavailable",
   [OVERLAY_INTERPRET_ERROR_CODES.PARSE_FAILED]: "overlay.interpret.error.parseFailed",
   [OVERLAY_INTERPRET_ERROR_CODES.VALIDATION_FAILED]: "overlay.interpret.error.validationFailed",
   [OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID]: "overlay.interpret.error.responseInvalid",
 };
 
 export function allowOverlayRulesFallback(req: Request): boolean {
-  if (process.env.OVERLAY_ALLOW_RULES_FALLBACK === "true") return true;
+  if (process.env.OVERLAY_FORCE_AI_ONLY === "true") return false;
   const url = new URL(req.url);
-  return url.searchParams.get("fallback") === "1";
+  if (url.searchParams.get("fallback") === "0") return false;
+  if (url.searchParams.get("fallback") === "1") return true;
+  return process.env.OVERLAY_ALLOW_RULES_FALLBACK !== "false";
 }
 
 export function buildOverlayInterpretError(
@@ -52,7 +54,7 @@ export function formatZodIssueDetail(error: ZodError, limit = 5): string {
     .slice(0, 500);
 }
 
-export function classifyOverlayGeminiFailure(error: unknown): {
+export function classifyOverlayAiFailure(error: unknown): {
   code: OverlayInterpretErrorCode;
   error: string;
   detail?: string;
@@ -61,7 +63,7 @@ export function classifyOverlayGeminiFailure(error: unknown): {
   if (error instanceof ZodError) {
     return {
       code: OVERLAY_INTERPRET_ERROR_CODES.VALIDATION_FAILED,
-      error: "Gemini overlay response failed schema validation",
+      error: "AI overlay response failed schema validation",
       detail: formatZodIssueDetail(error),
       status: 422,
     };
@@ -69,22 +71,22 @@ export function classifyOverlayGeminiFailure(error: unknown): {
   if (error instanceof SyntaxError) {
     return {
       code: OVERLAY_INTERPRET_ERROR_CODES.PARSE_FAILED,
-      error: "Gemini overlay response was not valid JSON",
+      error: "AI overlay response was not valid JSON",
       detail: error.message.slice(0, 500),
       status: 422,
     };
   }
   if (error instanceof Error) {
     return {
-      code: OVERLAY_INTERPRET_ERROR_CODES.GEMINI_UNAVAILABLE,
-      error: "Gemini overlay interpretation is temporarily unavailable",
+      code: OVERLAY_INTERPRET_ERROR_CODES.AI_UNAVAILABLE,
+      error: "AI overlay interpretation is temporarily unavailable",
       detail: error.message.slice(0, 500),
       status: 502,
     };
   }
   return {
     code: OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID,
-    error: "Gemini overlay interpretation failed",
+    error: "AI overlay interpretation failed",
     status: 422,
   };
 }
@@ -103,3 +105,6 @@ export function isOverlayInterpretErrorBody(
   const body = value as OverlayInterpretErrorBody;
   return typeof body.error === "string" && typeof body.code === "string";
 }
+
+/** Backward-compatible alias for legacy call sites/tests. */
+export const classifyOverlayGeminiFailure = classifyOverlayAiFailure;
