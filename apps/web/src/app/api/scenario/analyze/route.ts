@@ -1,16 +1,19 @@
-import { generateObject } from "ai";
 import { NextResponse } from "next/server";
+import type { z } from "zod";
 import {
   defaultFlashModel,
   FLASH_MAX_OUTPUT_TOKENS,
   isProviderConfigured,
   DEFAULT_FLASH_MODEL_ID,
 } from "@/lib/ai-provider";
+import { generateObjectWithAudit } from "@/lib/llm-audit";
 import { analyzeScenarioFallback } from "@/lib/scenario-fallback";
 import {
   scenarioAnalyzeSchema,
   toScenarioCard,
 } from "@/lib/scenario-schema";
+
+type ScenarioAnalyzeOutput = z.infer<typeof scenarioAnalyzeSchema>;
 
 export async function POST(req: Request) {
   const { text } = (await req.json()) as { text: string };
@@ -29,8 +32,9 @@ export async function POST(req: Request) {
     });
   }
 
+  let llmLog: import("@/lib/llm-audit").LlmAuditEntry | undefined;
   try {
-    const { object } = await generateObject({
+    const { result, log } = await generateObjectWithAudit({
       model: defaultFlashModel(),
       maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
       schema: scenarioAnalyzeSchema,
@@ -44,16 +48,22 @@ Rules:
 - dates fixed start_date=2018-01-01, end_date=2024-12-31, backtest_mode=static`,
       prompt: `User market view:\n${text.trim()}`,
     });
+    llmLog = log;
 
     return NextResponse.json({
-      scenario: toScenarioCard(object, customId),
+      scenario: toScenarioCard(result.object as ScenarioAnalyzeOutput, customId),
       source: "gemini",
+      llm_log: log,
     });
-  } catch {
+  } catch (err) {
+    if (err && typeof err === "object" && "log" in err) {
+      llmLog = (err as { log: import("@/lib/llm-audit").LlmAuditEntry }).log;
+    }
     const output = analyzeScenarioFallback(text);
     return NextResponse.json({
       scenario: toScenarioCard(output, customId),
       source: "rules",
+      llm_log: llmLog,
     });
   }
 }

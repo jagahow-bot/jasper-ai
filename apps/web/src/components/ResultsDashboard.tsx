@@ -78,6 +78,7 @@ import {
 import { formatBenchmarkDisplayLabel, anchorDiffersFromBenchmarkTicker, type ModelPortfolio } from "@/lib/model-portfolios";
 import { ContinueRefinementCTA } from "@/components/ContinueRefinementCTA";
 import { fetchCandidateCharts } from "@/lib/api";
+import { flushLlmAuditLogs, pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import {
   candidateHasDeepAnalytics,
   candidateHasFullCharts,
@@ -829,7 +830,12 @@ export function ResultsDashboard({
         const json = (await res.json()) as {
           summary: string;
           retried_due_to_token_limit?: boolean;
+          llm_log?: LlmAuditEntry;
         };
+        pushLlmAuditLog(json.llm_log);
+        if (result.job_id) {
+          void flushLlmAuditLogs(result.job_id);
+        }
         if (!cancelled) {
           setCompareSummary(json.summary ?? "");
           setCompareRetryNote(

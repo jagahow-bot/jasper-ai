@@ -1,4 +1,3 @@
-import { generateObject } from "ai";
 import { z } from "zod";
 import {
   defaultFlashModel,
@@ -6,6 +5,7 @@ import {
   isProviderConfigured,
   DEFAULT_FLASH_MODEL_ID,
 } from "@/lib/ai-provider";
+import { generateObjectWithAudit } from "@/lib/llm-audit";
 
 const ParamSetSchema = z.object({
   mode: z
@@ -100,7 +100,7 @@ export async function POST(req: Request) {
       ? `\n已產生 ${existing.length} 組，請與下列明顯不同：\n${JSON.stringify(existing.slice(-8))}`
       : "";
 
-  const { object } = await generateObject({
+  const { result, log } = await generateObjectWithAudit({
     model: defaultFlashModel(),
     maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
     schema: ResponseSchema,
@@ -116,6 +116,6 @@ export async function POST(req: Request) {
 - finer sub-asset sleeves: w_equity_us,w_equity_intl,w_equity_em,w_bond_us,w_bond_intl,w_bond_credit,w_commodity_precious,w_commodity_broad,w_reit_us,w_reit_intl in [0,1]${existingHint}`,
   });
 
-  return Response.json(object);
+  return Response.json({ ...(result.object as Record<string, unknown>), llm_log: log });
 }
 

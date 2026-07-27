@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import time
 from typing import Any, Literal
 
 import httpx
 
 from app.config import settings
 from app.engine.ai_json import prepare_gemini_json_text
+from app.llm_audit import append_llm_audit_entry, build_audit_entry
 
 GOOGLE_GENERATE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
@@ -54,7 +56,7 @@ def _call_google(
     response_schema: dict[str, Any] | None,
     extra_generation_config: dict[str, Any] | None,
     timeout: float,
-) -> tuple[str, str]:
+) -> dict[str, Any]:
     key = settings.gemini_api_key
     if not key:
         raise RuntimeError("Google Generative AI API key is not configured")
@@ -85,7 +87,13 @@ def _call_google(
     finish_reason = candidate.get("finishReason", "")
     parts = candidate.get("content", {}).get("parts", [])
     text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
-    return text, finish_reason
+    usage_raw = data.get("usageMetadata") or {}
+    usage = {
+        "prompt_tokens": usage_raw.get("promptTokenCount"),
+        "completion_tokens": usage_raw.get("candidatesTokenCount"),
+        "total_tokens": usage_raw.get("totalTokenCount"),
+    }
+    return {"text": text, "finish_reason": finish_reason, "usage": usage}
 
 
 def _call_moonshot(
@@ -98,7 +106,7 @@ def _call_moonshot(
     response_mime_type: str | None,
     response_schema: dict[str, Any] | None,
     timeout: float,
-) -> tuple[str, str]:
+) -> dict[str, Any]:
     key = settings.moonshot_api_key
     if not key:
         raise RuntimeError("Moonshot API key is not configured")
@@ -149,7 +157,13 @@ def _call_moonshot(
         finish_reason = "MAX_TOKENS"
     message = choice.get("message", {})
     text = message.get("content", "") or ""
-    return text, finish_reason
+    usage_raw = data.get("usage") or {}
+    usage = {
+        "prompt_tokens": usage_raw.get("prompt_tokens"),
+        "completion_tokens": usage_raw.get("completion_tokens"),
+        "total_tokens": usage_raw.get("total_tokens"),
+    }
+    return {"text": text, "finish_reason": finish_reason, "usage": usage}
 
 
 def generate_ai_text(
@@ -163,35 +177,83 @@ def generate_ai_text(
     response_schema: dict[str, Any] | None = None,
     extra_generation_config: dict[str, Any] | None = None,
     timeout: float = 45.0,
+    _call_type: str = "text",
 ) -> tuple[str, str]:
-    """Call the selected provider and return (text, finish_reason)."""
+    """Call the selected provider and return (text, finish_reason).
+
+    Every call is logged to the active LLM audit buffer (job-bound) for later
+    inclusion in the backtest report. API keys are never logged.
+    """
     model_id = _model_id(model)
     if not model_has_api_key(model_id):
         raise RuntimeError(f"No API key configured for model {model_id}")
 
     provider = resolve_ai_provider(model_id)
-    if provider == "moonshot":
-        return _call_moonshot(
-            model_id=model_id,
-            prompt=prompt,
-            system=system,
-            temperature=temperature,
-            max_output_tokens=max_output_tokens,
-            response_mime_type=response_mime_type,
-            response_schema=response_schema,
-            timeout=timeout,
+    start = time.perf_counter()
+    try:
+        if provider == "moonshot":
+            result = _call_moonshot(
+                model_id=model_id,
+                prompt=prompt,
+                system=system,
+                temperature=temperature,
+                max_output_tokens=max_output_tokens,
+                response_mime_type=response_mime_type,
+                response_schema=response_schema,
+                timeout=timeout,
+            )
+        else:
+            result = _call_google(
+                model_id=model_id,
+                prompt=prompt,
+                system=system,
+                temperature=temperature,
+                max_output_tokens=max_output_tokens,
+                response_mime_type=response_mime_type,
+                response_schema=response_schema,
+                extra_generation_config=extra_generation_config,
+                timeout=timeout,
+            )
+        duration_ms = (time.perf_counter() - start) * 1000
+        text = str(result.get("text", ""))
+        finish_reason = str(result.get("finish_reason", ""))
+        append_llm_audit_entry(
+            build_audit_entry(
+                provider=provider,
+                model_id=model_id,
+                call_type=_call_type,
+                prompt=prompt,
+                system=system,
+                temperature=temperature,
+                max_output_tokens=max_output_tokens,
+                response_mime_type=response_mime_type,
+                raw_response=text,
+                finish_reason=finish_reason,
+                usage=result.get("usage"),
+                duration_ms=duration_ms,
+            )
         )
-    return _call_google(
-        model_id=model_id,
-        prompt=prompt,
-        system=system,
-        temperature=temperature,
-        max_output_tokens=max_output_tokens,
-        response_mime_type=response_mime_type,
-        response_schema=response_schema,
-        extra_generation_config=extra_generation_config,
-        timeout=timeout,
-    )
+        return text, finish_reason
+    except Exception as exc:
+        duration_ms = (time.perf_counter() - start) * 1000
+        append_llm_audit_entry(
+            build_audit_entry(
+                provider=provider,
+                model_id=model_id,
+                call_type=_call_type,
+                prompt=prompt,
+                system=system,
+                temperature=temperature,
+                max_output_tokens=max_output_tokens,
+                response_mime_type=response_mime_type,
+                raw_response="",
+                finish_reason="error",
+                usage=None,
+                duration_ms=duration_ms,
+                error=str(exc),
+            )
+        )
+        raise
 
 
 def generate_ai_json(
@@ -217,6 +279,7 @@ def generate_ai_json(
         response_schema=response_schema,
         extra_generation_config=extra_generation_config,
         timeout=timeout,
+        _call_type="json",
     )
     cleaned = prepare_gemini_json_text(text.strip())
     if not cleaned or cleaned in ("null", "None"):

@@ -49,6 +49,7 @@ import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
 import { etfDisplayName } from "@/lib/etf-display-name";
 import { useI18n } from "@/lib/i18n";
+import { flushLlmAuditLogs, pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import {
   buildAnchorBacktestRequest,
   getAnchorPortfolioById,
@@ -169,7 +170,7 @@ export default function HomePage() {
   const [request, setRequest] = useState<BacktestRequest | null>(
     buildDefaultRequest(),
   );
-  const [, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const [anchorProgress, setAnchorProgress] = useState<JobProgress | null>(null);
   const [result, setResult] = useState<BacktestResult | null>(null);
@@ -323,8 +324,13 @@ export default function HomePage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ facts: narrFacts, lang }),
         });
-        const narrJson = (await narrRes.json()) as { narrative: string };
+        const narrJson = (await narrRes.json()) as {
+          narrative: string;
+          llm_log?: LlmAuditEntry;
+        };
         if (!cancelled) setNarrative(narrJson.narrative);
+        pushLlmAuditLog(narrJson.llm_log);
+        if (jobId) await flushLlmAuditLogs(jobId);
       } catch {
         /* keep prior narrative on failure */
       }
@@ -332,7 +338,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [result, lang]);
+  }, [result, lang, jobId]);
 
   const pollJob = useCallback(
     async (id: string) => {
@@ -468,6 +474,7 @@ export default function HomePage() {
           report_language: lang,
         });
         setJobId(job_id);
+        void flushLlmAuditLogs(job_id);
 
         let done = false;
         while (!done) {
@@ -547,6 +554,7 @@ export default function HomePage() {
           experiment: undefined,
           report_language: lang,
         });
+        void flushLlmAuditLogs(adjustedJob.job_id);
         const initialCustomProg = await getJobProgress(adjustedJob.job_id);
         setProgress(initialCustomProg);
         setJobId(adjustedJob.job_id);
@@ -698,6 +706,7 @@ export default function HomePage() {
         const priorReq = await getJobRequest(continued_from);
         setRequest(priorReq);
         setJobId(job_id);
+        void flushLlmAuditLogs(job_id);
         let done = false;
         while (!done) {
           done = await pollJob(job_id);

@@ -1,11 +1,12 @@
-import { generateObject } from "ai";
 import { NextResponse } from "next/server";
+import type { z } from "zod";
 import {
   defaultFlashModel,
   FLASH_MAX_OUTPUT_TOKENS,
   isProviderConfigured,
   DEFAULT_FLASH_MODEL_ID,
 } from "@/lib/ai-provider";
+import { generateObjectWithAudit, type LlmAuditEntry } from "@/lib/llm-audit";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/constants";
 import { getUniverseMeta } from "@/lib/universe";
 import { analyzeUniverseFilterFallback } from "@/lib/universe-filter-fallback";
@@ -72,20 +73,22 @@ Rules:
 - For sector/thematic rules, list specific sector ETFs (XLK, SMH, etc.), not every equity fund.
 - rationale: 1-2 sentences explaining which tickers you picked and why they match the rule intent (${rationaleLanguageDirective(lang)}); mention trade-offs if the rule is ambiguous.`;
 
+type FilterOutput = z.infer<typeof universeFilterSchema>;
+
 async function analyzeRuleWithAi(
   ruleText: string,
   userClasses: AssetClass[],
   meta: ReturnType<typeof getUniverseMeta>,
   lang: Lang,
-) {
-  const { object } = await generateObject({
+): Promise<{ object: FilterOutput; log: LlmAuditEntry }> {
+  const { result, log } = await generateObjectWithAudit({
     model: defaultFlashModel(),
     maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
     schema: universeFilterSchema,
     system: supplementSystem(meta, userClasses, lang),
     prompt: buildSingleRulePrompt(ruleText, userClasses),
   });
-  return object;
+  return { object: result.object as FilterOutput, log };
 }
 
 export async function POST(req: Request) {
@@ -122,9 +125,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    const outputs = await Promise.all(
+    const results = await Promise.all(
       prompts.map((p) => analyzeRuleWithAi(p, userClasses, meta, lang)),
     );
+    const outputs = results.map((r) => r.object);
+    const llmLogs = results.map((r) => r.log);
     const { supplement_tickers, rationale } = mergeSupplementTickers(outputs, lang, {
       strictExplicitOnly,
       prompts,
@@ -135,10 +140,12 @@ export async function POST(req: Request) {
       supplement_tickers,
       rationale,
       per_rule,
+      per_rule_llm_logs: llmLogs,
       source: "gemini",
     });
-  } catch {
+  } catch (err) {
+    const logs = (err && typeof err === "object" && "log" in err) ? [(err as { log: LlmAuditEntry }).log] : undefined;
     const output = runFallback();
-    return NextResponse.json({ ...output, source: "rules" });
+    return NextResponse.json({ ...output, source: "rules", per_rule_llm_logs: logs });
   }
 }

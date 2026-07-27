@@ -1,4 +1,3 @@
-import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import { type AiLang, languageDirective, normalizeAiLang } from "@/lib/ai-language";
 import { AI_METRIC_FORMAT_RULES, formatAlpha, formatPctDecimal } from "@/lib/ai-metric-format";
@@ -9,6 +8,7 @@ import {
   reasoningModel,
   REASONING_MAX_OUTPUT_TOKENS,
 } from "@/lib/ai-provider";
+import { generateTextWithAudit } from "@/lib/llm-audit";
 
 function buildSystem(lang: AiLang): string {
   return `Institutional quant analyst writing for a retail investor. ${languageDirective(lang)}
@@ -88,15 +88,16 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { text } = await generateText({
+    const { result, log } = await generateTextWithAudit({
       model: reasoningModel(),
       maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS,
       providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID),
       system: buildSystem(lang),
       prompt: `Summarize model ${payload.model_code ?? `M?`} vs ${payload.benchmark}. Objective: "${payload.objective_label ?? payload.objective ?? "n/a"}". Use model_code in prose. Compare horizons and benchmark honestly.\n${JSON.stringify(payload, null, 2)}`,
     });
-    return NextResponse.json({ summary: text.trim(), source: "kimi" });
-  } catch {
-    return NextResponse.json({ summary: buildFallback(payload), source: "template" });
+    return NextResponse.json({ summary: result.text.trim(), source: "kimi", llm_log: log });
+  } catch (err) {
+    const log = (err && typeof err === "object" && "log" in err) ? (err as { log: unknown }).log : undefined;
+    return NextResponse.json({ summary: buildFallback(payload), source: "template", llm_log: log });
   }
 }

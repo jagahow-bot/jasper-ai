@@ -853,8 +853,11 @@ def generate_ai_param_sets(
         f"trend_indicator in {list(TREND_INDICATOR_CHOICES)}; "
         f"drawdown_indicator in {list(DRAWDOWN_INDICATOR_CHOICES)}"
     )
-    # Keep parallelism small to reduce noisy repeated token failures (per-seed mode only).
-    max_parallel = max(1, min(2, n))
+    # Sequential per-seed requests: each call must see the real previously generated
+    # sets so the model is forced to produce meaningfully different parameters.
+    # Parallel requests with identical context and low temperature used to emit the
+    # same seed repeatedly, causing near-identical model performance/holdings.
+    max_parallel = 1
     use_batch = bool(seed_plan["use_batch"])
     batch_chunk = int(seed_plan["batch_size"])
 
@@ -1064,7 +1067,7 @@ Return STRICT JSON only:
                 text, finish_reason = generate_ai_text(
                     model=model,
                     prompt=req_prompt,
-                    temperature=0.0,
+                    temperature=float(settings.gemini_param_seed_temperature),
                     max_output_tokens=attempt_tokens,
                     response_mime_type="application/json",
                     response_schema=_param_response_schema(
@@ -2439,7 +2442,7 @@ Return STRICT JSON only (omit empty factor_choices if none):
             + compact_tail
         )
         generation_config: dict[str, Any] = {
-            "temperature": 0.0,
+            "temperature": float(settings.gemini_round_seed_temperature),
             "maxOutputTokens": _round_seed_max_output_tokens(attempt=attempt),
             "responseMimeType": "application/json",
             "responseSchema": _round_seed_response_schema(

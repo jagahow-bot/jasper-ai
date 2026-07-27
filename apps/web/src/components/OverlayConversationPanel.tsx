@@ -7,6 +7,7 @@ import {
   isOverlayInterpretErrorBody,
   overlayInterpretErrorI18nKey,
 } from "@/lib/overlay-interpret-errors";
+import { pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import { uniqueTickers } from "@/lib/locked-universe";
 import {
   formatOverlayAssistantReply,
@@ -203,6 +204,11 @@ export function OverlayConversationPanel({
           data && typeof data === "object" && "overlay" in data
             ? (data as { overlay?: ClientOverlay }).overlay
             : undefined;
+        const llmLog =
+          data && typeof data === "object" && "llm_log" in data
+            ? (data as { llm_log?: LlmAuditEntry }).llm_log
+            : undefined;
+        pushLlmAuditLog(llmLog);
 
         if (!res.ok || !interpretedOverlay) {
           if (process.env.NODE_ENV !== "production") {

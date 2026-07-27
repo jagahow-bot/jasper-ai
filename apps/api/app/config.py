@@ -89,6 +89,24 @@ class Settings(BaseSettings):
             "GEMINI_PARAM_SEED_MAX_RETRIES",
         ),
     )
+    gemini_param_seed_temperature: float = Field(
+        default=0.65,
+        ge=0.0,
+        le=1.0,
+        validation_alias=AliasChoices(
+            "gemini_param_seed_temperature",
+            "GEMINI_PARAM_SEED_TEMPERATURE",
+        ),
+    )
+    gemini_round_seed_temperature: float = Field(
+        default=0.55,
+        ge=0.0,
+        le=1.0,
+        validation_alias=AliasChoices(
+            "gemini_round_seed_temperature",
+            "GEMINI_ROUND_SEED_TEMPERATURE",
+        ),
+    )
     ai_param_seed_batch_threshold: int = Field(
         default=10,
         ge=1,

@@ -1,5 +1,5 @@
-import { generateText } from "ai";
 import { NextResponse } from "next/server";
+import { generateTextWithAudit } from "@/lib/llm-audit";
 import {
   isProviderConfigured,
   KIMI_K3_MODEL_ID,
@@ -235,14 +235,16 @@ export async function POST(req: Request) {
     );
   }
 
+  let llmLog: import("@/lib/llm-audit").LlmAuditEntry | undefined;
   try {
-    const result = await generateText({
+    const { result, log } = await generateTextWithAudit({
       model: reasoningModel(),
       maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS,
       system: overlaySystemPrompt(lang),
       prompt: buildConversationPrompt(messages, body.prior_overlay),
       providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID, { jsonMode: true }),
     });
+    llmLog = log;
 
     let extract;
     try {
@@ -253,7 +255,7 @@ export async function POST(req: Request) {
           console.warn("[overlay/interpret] AI response unusable; using rules fallback", parseError);
         }
         const overlay = runFallback();
-        return NextResponse.json({ overlay, source: "rules" });
+        return NextResponse.json({ overlay, source: "rules", llm_log: llmLog });
       }
       const classified = classifyOverlayAiFailure(parseError);
       return buildOverlayInterpretError(
@@ -268,14 +270,17 @@ export async function POST(req: Request) {
     attachAuditFields(overlay, body);
     logInterpretResult("kimi", overlay, turns);
 
-    return NextResponse.json({ overlay, source: "kimi" });
+    return NextResponse.json({ overlay, source: "kimi", llm_log: llmLog });
   } catch (error) {
+    if (error && typeof error === "object" && "log" in error) {
+      llmLog = (error as { log: import("@/lib/llm-audit").LlmAuditEntry }).log;
+    }
     if (useRulesFallback) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("[overlay/interpret] AI failed; using rules fallback", error);
       }
       const overlay = runFallback();
-      return NextResponse.json({ overlay, source: "rules" });
+      return NextResponse.json({ overlay, source: "rules", llm_log: llmLog });
     }
     const classified = classifyOverlayAiFailure(error);
     return buildOverlayInterpretError(

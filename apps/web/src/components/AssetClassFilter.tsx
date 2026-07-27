@@ -5,6 +5,7 @@ import {
   ASSET_CLASSES,
   type AssetClass,
 } from "@/lib/constants";
+import { pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import { categoryLabel } from "@/lib/etf-category-i18n";
 import {
   resolveStrictLockedAdds,
@@ -206,8 +207,10 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
         supplement_tickers?: string[];
         rationale?: string;
         per_rule?: UniverseFilterRuleResult[];
+        per_rule_llm_logs?: LlmAuditEntry[];
         error?: string;
       };
+      pushLlmAuditLog(data.per_rule_llm_logs);
       if (!res.ok) {
         throw new Error(data.error ?? t("assetFilter.analysisFailed"));
       }

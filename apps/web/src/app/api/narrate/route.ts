@@ -1,5 +1,5 @@
-import { generateText } from "ai";
 import { NextResponse } from "next/server";
+import { generateTextWithAudit } from "@/lib/llm-audit";
 import { type AiLang, languageDirective, normalizeAiLang } from "@/lib/ai-language";
 import { AI_METRIC_FORMAT_RULES, formatPctDecimal } from "@/lib/ai-metric-format";
 import {
@@ -50,13 +50,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const text = await generateWithValidation(facts, lang);
-    return NextResponse.json({ narrative: text, source: "kimi", validated: true });
-  } catch {
+    const { text, log } = await generateWithValidation(facts, lang);
+    return NextResponse.json({ narrative: text, source: "kimi", validated: true, llm_log: log });
+  } catch (err) {
+    const log = (err && typeof err === "object" && "log" in err) ? (err as { log: unknown }).log : undefined;
     return NextResponse.json({
       narrative: buildFallbackNarrative(facts),
       source: "template",
       validated: true,
+      llm_log: log,
     });
   }
 }
@@ -64,12 +66,13 @@ export async function POST(req: Request) {
 async function generateWithValidation(facts: Record<string, unknown>, lang: AiLang) {
   const slim = slimNarrativeFacts(facts);
   let text = "";
+  let lastLog: import("@/lib/llm-audit").LlmAuditEntry | undefined;
   for (let attempt = 0; attempt < 2; attempt++) {
     const extra =
       attempt === 0
         ? ""
         : "\nPrior draft had unauthorized numbers or wrong % scaling. Use only facts values; rates are decimals → multiply by 100 for %.";
-    const result = await generateText({
+    const { result, log } = await generateTextWithAudit({
       model: reasoningModel(),
       maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS + attempt * 2048,
       providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID),
@@ -77,10 +80,11 @@ async function generateWithValidation(facts: Record<string, unknown>, lang: AiLa
       prompt: `Write 3-5 paragraphs interpreting this backtest for a retail investor:\n${JSON.stringify(slim, null, 2)}${extra}`,
     });
     text = result.text;
+    lastLog = log;
     const check = validateNarrative(text, facts);
-    if (check.ok) return text;
+    if (check.ok) return { text, log };
   }
-  return buildFallbackNarrative(facts);
+  return { text: buildFallbackNarrative(facts), log: lastLog };
 }
 
 function buildFallbackNarrative(facts: Record<string, unknown>) {

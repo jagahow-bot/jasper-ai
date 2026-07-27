@@ -76,6 +76,7 @@ from app.engine.ai_params import (
 )
 from app.engine.factors import FactorParams, factor_params_from_dict
 from app.engine.ai_universe import refine_universe_with_ai
+from app.llm_audit import pop_llm_audit_logs, set_llm_audit_job_id
 from app.engine.refinement import (
     assess_overfitting,
     assign_pro_round_model_codes,
@@ -2653,7 +2654,7 @@ def _run_static_replay_backtest(
     )
 
 
-def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> BacktestResult:
+def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) -> BacktestResult:
     if req.static_replay_holdings:
         result = _run_static_replay_backtest(req, job_id, progress_cb=progress_cb)
         maybe_collect_garbage(1, 1)
@@ -3910,4 +3911,12 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     import gc
 
     gc.collect()
+    return result
+
+
+def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> BacktestResult:
+    """Public entry point: run the backtest engine and attach the LLM audit trail."""
+    with set_llm_audit_job_id(job_id):
+        result = _run_backtest_engine(req, job_id, progress_cb=progress_cb)
+    result.llm_logs = pop_llm_audit_logs(job_id) or None
     return result

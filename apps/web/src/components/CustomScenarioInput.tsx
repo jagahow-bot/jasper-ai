@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import { useI18n } from "@/lib/i18n";
 import type { ScenarioCard } from "@/lib/types";
 
@@ -27,7 +28,9 @@ export function CustomScenarioInput({ onScenario }: Props) {
       const data = (await res.json()) as {
         scenario?: ScenarioCard;
         error?: string;
+        llm_log?: LlmAuditEntry;
       };
+      pushLlmAuditLog(data.llm_log);
       if (!res.ok) {
         throw new Error(data.error ?? t("customScenario.analysisFailed"));
       }

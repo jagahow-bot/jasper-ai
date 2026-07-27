@@ -9,11 +9,13 @@ import {
   type ClientOverlay,
   type OverlayToBacktestOptions,
 } from "@/lib/overlay-schema";
+import { pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import type { AssetClass } from "@/lib/constants";
 import type { BacktestRequest } from "@/lib/types";
 
 type UniverseFilterResponse = {
   supplement_tickers?: string[];
+  per_rule_llm_logs?: LlmAuditEntry[];
   error?: string;
 };
 
@@ -33,6 +35,7 @@ async function fetchUniverseSupplements(
     }),
   });
   const data = (await res.json()) as UniverseFilterResponse;
+  pushLlmAuditLog(data.per_rule_llm_logs);
   if (!res.ok) {
     throw new Error(data.error ?? "Universe filter failed");
   }

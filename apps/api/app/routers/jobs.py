@@ -17,6 +17,11 @@ from app.models import (
 class NarrativeFactsPatch(BaseModel):
     patch: dict[str, Any] = Field(default_factory=dict)
 
+
+class LlmLogsPatch(BaseModel):
+    entries: list[dict[str, Any]] = Field(default_factory=list)
+
+
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
@@ -120,3 +125,19 @@ def patch_job_narrative_facts(job_id: str, body: NarrativeFactsPatch) -> dict:
     if not ok:
         raise HTTPException(status_code=404, detail="Result not ready")
     return {"ok": True}
+
+
+@router.patch("/{job_id}/llm-logs")
+def patch_job_llm_logs(job_id: str, body: LlmLogsPatch) -> dict:
+    """Merge frontend-captured LLM I/O entries into the persisted job report."""
+    progress = job_service.get_progress(job_id)
+    if not progress:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if progress.status.value != "completed":
+        raise HTTPException(status_code=409, detail="Job not completed")
+    if not body.entries:
+        return {"ok": True, "merged": 0}
+    ok = job_service.merge_llm_logs(job_id, body.entries)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Result not ready")
+    return {"ok": True, "merged": len(body.entries)}

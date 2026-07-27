@@ -430,6 +430,8 @@ class BacktestResult(BaseModel):
     experimental: dict[str, Any] | None = None
     dynamic_objective_timeline: list[DynamicObjectiveTimelinePoint] | None = None
     dynamic_objective_benchmark_series: list[dict[str, Any]] | None = None
+    # Full LLM I/O audit trail captured during this job (backend + merged frontend).
+    llm_logs: list[dict[str, Any]] | None = None
 
 
 class ScenarioCard(BaseModel):

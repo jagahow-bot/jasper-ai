@@ -345,6 +345,46 @@ def patch_narrative_facts(job_id: str, patch: dict) -> bool:
         return True
 
 
+def merge_llm_logs(job_id: str, entries: list[dict]) -> bool:
+    """Append frontend-captured LLM I/O entries to a completed job's audit trail.
+
+    The merged trail is written back to the persisted job cache so the full
+    Gemini/Kimi conversation (backend + frontend) survives in the report.
+    """
+    if not entries:
+        return True
+    loaded = _load_completed_job(job_id)
+    if loaded is None:
+        return False
+    req, result = loaded
+    existing = list(result.llm_logs or [])
+    merged = existing + entries
+    # Deduplicate by timestamp+provider+model_id to avoid appending the same
+    # frontend upload twice if the client retries.
+    seen: set[str] = set()
+    deduped: list[dict] = []
+    for e in merged:
+        key = "|".join(
+            [
+                str(e.get("timestamp", "")),
+                str(e.get("provider", "")),
+                str(e.get("model_id", "")),
+                str(e.get("call_type", "")),
+                str(len(str(e.get("prompt", "")))),
+            ]
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(e)
+    result.llm_logs = deduped
+    try:
+        persist_completed_job(job_id, req, result)
+    except Exception:  # noqa: BLE001
+        return False
+    return True
+
+
 def stash_trial_report_cache(job_id: str, cache: TrialReportCache) -> None:
     """Retain per-trial sim bundles for lazy chart loads (in-memory, one job at a time)."""
     with _lock:
