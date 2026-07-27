@@ -2113,9 +2113,15 @@ def _assemble_candidates_from_records(
 
 
 def _leaderboard_is_better_row(a: dict[str, Any], b: dict[str, Any]) -> bool:
-    return float(a.get("in_sample_objective") or -1e9) > float(
-        b.get("in_sample_objective") or -1e9
-    )
+    """Prefer higher in-sample objective; on ties, prefer rows with more complete horizons."""
+    a_is = float(a.get("in_sample_objective") or -1e9)
+    b_is = float(b.get("in_sample_objective") or -1e9)
+    if a_is != b_is:
+        return a_is > b_is
+    horizon_keys = ("out_of_sample_objective", "full_sample_objective", "gap_objective")
+    a_complete = sum(1 for k in horizon_keys if a.get(k) is not None)
+    b_complete = sum(1 for k in horizon_keys if b.get(k) is not None)
+    return a_complete > b_complete
 
 
 def _leaderboard_row_from_candidate(
@@ -2198,38 +2204,65 @@ def _oos_leaderboard(
     records: list[tuple[float, dict, dict]] | None = None,
     objective_effective: str,
 ) -> list[dict[str, Any]]:
-    """Holdout ranking for all ranked trials (not capped by top_models)."""
+    """Holdout ranking for all ranked trials (not capped by top_models).
+
+    De-duplicate by the displayed numeric values so that duplicate trials (e.g.
+    the same AI seed evaluated under multiple model codes, or a champion
+    re-simulated in every round) do not appear as many identical rows in the UI
+    table. Candidate rows overwrite record rows for the same model_code because
+    they carry the full-sample enrichment from the packaged report payload.
+    """
     by_code: dict[str, dict[str, Any]] = {}
-    for _score, params, metrics in records or []:
-        if not isinstance(params, dict) or not isinstance(metrics, dict):
-            continue
-        row = _leaderboard_row_from_record(
-            params,
-            metrics,
-            objective_effective=objective_effective,
-        )
+
+    def _add(row: dict[str, Any] | None) -> None:
         if row is None or not row.get("model_code"):
-            continue
+            return
         code = str(row["model_code"])
         existing = by_code.get(code)
         if existing is None or _leaderboard_is_better_row(row, existing):
             by_code[code] = row
 
-    for c in candidates:
-        row = _leaderboard_row_from_candidate(
-            c,
-            objective_effective=objective_effective,
-        )
-        if row is None or not row.get("model_code"):
+    for _score, params, metrics in records or []:
+        if not isinstance(params, dict) or not isinstance(metrics, dict):
             continue
-        by_code[str(row["model_code"])] = row
+        _add(
+            _leaderboard_row_from_record(
+                params,
+                metrics,
+                objective_effective=objective_effective,
+            )
+        )
 
-    rows = list(by_code.values())
-    rows.sort(
+    for c in candidates:
+        _add(
+            _leaderboard_row_from_candidate(
+                c,
+                objective_effective=objective_effective,
+            )
+        )
+
+    # Collapse rows that would render the exact same numbers. This prevents a
+    # duplicate parameter set (e.g. repeated AI seed or champion re-sim) from
+    # filling the table with identical values while still keeping one entry.
+    seen_values: set[tuple[Any, ...]] = set()
+    deduped: list[dict[str, Any]] = []
+    for row in by_code.values():
+        value_key = (
+            row.get("in_sample_objective"),
+            row.get("out_of_sample_objective"),
+            row.get("full_sample_objective"),
+            row.get("gap_objective"),
+        )
+        if value_key in seen_values:
+            continue
+        seen_values.add(value_key)
+        deduped.append(row)
+
+    deduped.sort(
         key=lambda r: float(r.get("in_sample_objective") or -1e9),
         reverse=True,
     )
-    return rows
+    return deduped
 
 
 def _build_frontier_from_records(
