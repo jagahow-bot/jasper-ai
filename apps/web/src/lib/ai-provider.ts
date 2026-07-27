@@ -35,9 +35,9 @@ export function resolveProvider(modelId: string): AiProvider {
 export function createAiModel(modelId: string): LanguageModel {
   const provider = resolveProvider(modelId);
   if (provider === "moonshotai") {
-    return moonshotai(modelId) as unknown as LanguageModel;
+    return moonshotai(modelId);
   }
-  return google(modelId) as unknown as LanguageModel;
+  return google(modelId);
 }
 
 export function defaultFlashModel(): LanguageModel {

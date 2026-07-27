@@ -9,10 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.79",
+    "@ai-sdk/google": "^4.0.24",
     "@ai-sdk/moonshotai": "^3.0.17",
-    "@ai-sdk/react": "^3.0.193",
-    "ai": "^6.0.191",
+    "@ai-sdk/react": "^4.0.40",
+    "ai": "^7.0.37",
     "next": "15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
