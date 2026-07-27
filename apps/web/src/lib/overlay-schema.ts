@@ -122,11 +122,23 @@ export const allocationOverlaySchema = z
   })
   .strip();
 
+export const overlayProposedTickerSchema = z
+  .object({
+    ticker: z.string().min(1).max(8),
+    name: z.string().max(120).optional(),
+    category: z.string().max(60).optional(),
+    rationale: z.string().max(200).optional(),
+  })
+  .strip();
+
+export type OverlayProposedTicker = z.infer<typeof overlayProposedTickerSchema>;
+
 export const universeRuleOverlaySchema = z
   .object({
     prompts: z.array(z.string().min(4).max(200)).max(6),
     supplement_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
     exclude_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
+    proposed_tickers: z.array(overlayProposedTickerSchema).max(12).optional(),
   })
   .strip();
 
@@ -504,6 +516,12 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
     if (overlay.universe.exclude_tickers?.length) {
       lines.push(`排除標的：${overlay.universe.exclude_tickers.join("、")}`);
     }
+    if (overlay.universe.proposed_tickers?.length) {
+      const list = overlay.universe.proposed_tickers
+        .map((p) => (p.name ? `${p.ticker}（${p.name}）` : p.ticker))
+        .join("、");
+      lines.push(`建議參考標的：${list}`);
+    }
     lines.push(`信心度：${(overlay.confidence * 100).toFixed(0)}%`);
     return lines.join("\n");
   }
@@ -531,6 +549,12 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
     if (overlay.universe.exclude_tickers?.length) {
       lines.push(`제외 종목: ${overlay.universe.exclude_tickers.join(", ")}`);
     }
+    if (overlay.universe.proposed_tickers?.length) {
+      const list = overlay.universe.proposed_tickers
+        .map((p) => (p.name ? `${p.ticker} (${p.name})` : p.ticker))
+        .join(", ");
+      lines.push(`제안 종목: ${list}`);
+    }
     lines.push(`신뢰도: ${(overlay.confidence * 100).toFixed(0)}%`);
     return lines.join("\n");
   }
@@ -550,6 +574,12 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
   }
   if (overlay.universe.exclude_tickers?.length) {
     lines.push(`Exclude tickers: ${overlay.universe.exclude_tickers.join(", ")}`);
+  }
+  if (overlay.universe.proposed_tickers?.length) {
+    const list = overlay.universe.proposed_tickers
+      .map((p) => (p.name ? `${p.ticker} (${p.name})` : p.ticker))
+      .join(", ");
+    lines.push(`Suggested tickers: ${list}`);
   }
   lines.push(`Confidence: ${(overlay.confidence * 100).toFixed(0)}%`);
   return lines.join("\n");

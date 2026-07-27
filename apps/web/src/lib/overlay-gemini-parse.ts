@@ -360,6 +360,34 @@ function normalizeTickerList(raw: unknown): string[] | undefined {
   return out.length ? out : undefined;
 }
 
+type ProposedTicker = {
+  ticker: string;
+  name?: string;
+  category?: string;
+  rationale?: string;
+};
+
+function normalizeProposedTickers(raw: unknown): ProposedTicker[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: ProposedTicker[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const src = item as Record<string, unknown>;
+    const ticker =
+      typeof src.ticker === "string" ? src.ticker.trim().toUpperCase().slice(0, 8) : "";
+    if (!ticker) continue;
+    const name =
+      typeof src.name === "string" ? src.name.trim().slice(0, 120) : undefined;
+    const category =
+      typeof src.category === "string" ? src.category.trim().slice(0, 60) : undefined;
+    const rationale =
+      typeof src.rationale === "string" ? src.rationale.trim().slice(0, 200) : undefined;
+    out.push({ ticker, ...(name ? { name } : {}), ...(category ? { category } : {}), ...(rationale ? { rationale } : {}) });
+    if (out.length >= 12) break;
+  }
+  return out.length ? out : undefined;
+}
+
 function normalizeOptimization(
   raw: unknown,
   stance: "risk_on" | "neutral" | "risk_off",
@@ -440,7 +468,7 @@ const ALLOCATION_KEYS = new Set([
   "max_single_position_pct",
 ]);
 
-const UNIVERSE_KEYS = new Set(["prompts", "supplement_tickers", "exclude_tickers"]);
+const UNIVERSE_KEYS = new Set(["prompts", "supplement_tickers", "exclude_tickers", "proposed_tickers"]);
 
 const OPTIMIZATION_KEYS = new Set([
   "objective",
@@ -668,10 +696,12 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
     const prompts = normalizeUniversePrompts(universeRest.prompts);
     const supplement = normalizeTickerList(universeRest.supplement_tickers);
     const exclude = normalizeTickerList(universeRest.exclude_tickers);
+    const proposed = normalizeProposedTickers(universeRest.proposed_tickers);
     root.universe = {
       prompts,
       ...(supplement ? { supplement_tickers: supplement } : {}),
       ...(exclude ? { exclude_tickers: exclude } : {}),
+      ...(proposed ? { proposed_tickers: proposed } : {}),
     };
   } else {
     root.universe = { prompts: [] };

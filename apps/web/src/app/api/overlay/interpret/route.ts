@@ -1,11 +1,11 @@
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
 import {
-  FLASH_MAX_OUTPUT_TOKENS,
   isProviderConfigured,
   KIMI_K3_MODEL_ID,
   providerOptionsFor,
   reasoningModel,
+  REASONING_MAX_OUTPUT_TOKENS,
 } from "@/lib/ai-provider";
 import { languageDirective } from "@/lib/ai-language";
 import { interpretOverlayFallback } from "@/lib/overlay-fallback";
@@ -101,9 +101,10 @@ Field rules:
 - allocation.max_single_position_pct: 0–1 FRACTION in [0.05, 0.25]. Prefer 0.35→0.25 (schema cap). Accept 35 only if you must; prefer 0.25.
 - allocation.enforce_class_weights: boolean when RM wants hard sleeve enforcement.
 - universe.prompts: optional short notes for RM display only. Do NOT use prompts to invent broad ETF baskets — locked model runs ignore thematic/category matching.
-- universe.supplement_tickers: REQUIRED for any ticker the client wants to ADD beyond the target model portfolio (explicit symbols only, e.g. "GLD", "BTAL").
+- universe.supplement_tickers: explicit symbols the client (or RM) wants to ADD beyond the target model portfolio (e.g. "GLD", "BTAL"). Only add tickers here when the RM has explicitly confirmed them.
 - universe.exclude_tickers: tickers to REMOVE from the target model holdings (explicit symbols only).
-- Never invent large thematic lists (ARK*, sector sprays, country ETFs) unless the client named those tickers.
+- universe.proposed_tickers: when the client mentions a theme/sector but does NOT provide explicit ticker symbols, list 3–6 concrete, well-known ETF candidates here for RM review. Include name, category, and a one-line rationale when helpful. These candidates are NOT part of the fund pool until the RM confirms them.
+- Never add large thematic lists to supplement_tickers automatically; use proposed_tickers for suggestions and wait for RM confirmation.
 - optimization.objective: max_sharpe for risk-on/growth; min_max_drawdown for defensive/liquidity.
 - optimization.regime_adaptive: true when RM mentions regime/market switching.
 - clarification_questions: array of STRINGS only (not objects), each 4–200 chars, max 5.
@@ -237,7 +238,7 @@ export async function POST(req: Request) {
   try {
     const result = await generateText({
       model: reasoningModel(),
-      maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
+      maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS,
       system: overlaySystemPrompt(lang),
       prompt: buildConversationPrompt(messages, body.prior_overlay),
       providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID, { jsonMode: true }),

@@ -1,18 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { useI18n } from "@/lib/i18n";
 import {
   isOverlayInterpretErrorBody,
   overlayInterpretErrorI18nKey,
 } from "@/lib/overlay-interpret-errors";
+import { uniqueTickers } from "@/lib/locked-universe";
 import {
   formatOverlayAssistantReply,
   formatOverlaySummary,
   signOffOverlay,
   type ClientOverlay,
   type OverlayConversationMessage,
+  type OverlayProposedTicker,
 } from "@/lib/overlay-schema";
 
 type Props = {
@@ -41,6 +43,109 @@ function toChatMessages(messages: OverlayConversationMessage[]): ChatMessage[] {
     role: m.role,
     content: m.content,
   }));
+}
+
+function ThinkingSteps() {
+  const { t } = useI18n();
+  const steps = [
+    t("overlay.thinking.step1"),
+    t("overlay.thinking.step2"),
+    t("overlay.thinking.step3"),
+    t("overlay.thinking.step4"),
+  ];
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % steps.length);
+    }, 2500);
+    return () => clearInterval(id);
+  }, [steps.length]);
+
+  return (
+    <div className="flex items-center gap-3 text-sm text-dim">
+      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--primary)] border-t-transparent" />
+      <div className="flex flex-col">
+        <span>{t("overlay.thinking.label")}</span>
+        <span className="text-xs text-[var(--primary)]">{steps[index]}</span>
+      </div>
+    </div>
+  );
+}
+
+type ProposedTickersPanelProps = {
+  candidates: OverlayProposedTicker[];
+  onConfirm: (tickers: string[]) => void;
+};
+
+function ProposedTickersPanel({ candidates, onConfirm }: ProposedTickersPanelProps) {
+  const { t } = useI18n();
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(candidates.map((c) => c.ticker)),
+  );
+  const candidateIds = useMemo(() => candidates.map((c) => c.ticker), [candidates]);
+
+  useEffect(() => {
+    setSelected(new Set(candidateIds));
+  }, [candidateIds]);
+
+  const allSelected = selected.size === candidates.length && candidates.length > 0;
+
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(candidates.map((c) => c.ticker)));
+  };
+
+  const toggleOne = (ticker: string) => {
+    const next = new Set(selected);
+    if (next.has(ticker)) next.delete(ticker);
+    else next.add(ticker);
+    setSelected(next);
+  };
+
+  if (!candidates.length) return null;
+
+  return (
+    <div className="space-y-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-[var(--foreground)]">
+          {t("overlay.proposedTickers.title")}
+        </span>
+        <button
+          type="button"
+          onClick={toggleAll}
+          className="text-xs text-[var(--primary)] hover:underline"
+        >
+          {allSelected ? t("overlay.proposedTickers.none") : t("overlay.proposedTickers.all")}
+        </button>
+      </div>
+      <div className="space-y-2">
+        {candidates.map((c) => (
+          <label key={c.ticker} className="flex cursor-pointer items-start gap-2">
+            <input
+              type="checkbox"
+              checked={selected.has(c.ticker)}
+              onChange={() => toggleOne(c.ticker)}
+              className="mt-0.5"
+            />
+            <div className="text-sm leading-snug">
+              <span className="font-semibold">{c.ticker}</span>
+              {c.name && <span className="text-dim"> — {c.name}</span>}
+              {c.category && <span className="text-xs text-dim"> ({c.category})</span>}
+              {c.rationale && <p className="text-xs text-dim">{c.rationale}</p>}
+            </div>
+          </label>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => onConfirm([...selected])}
+        disabled={selected.size === 0}
+        className="pixel-btn w-full disabled:opacity-40"
+      >
+        {t("overlay.proposedTickers.addSelected", { count: selected.size })}
+      </button>
+    </div>
+  );
 }
 
 export function OverlayConversationPanel({
@@ -172,6 +277,44 @@ export function OverlayConversationPanel({
     onConfirm?.(signed);
   };
 
+  const confirmProposedTickers = (tickers: string[]) => {
+    if (!overlay || tickers.length === 0) return;
+    const normalized = uniqueTickers(tickers);
+    const updatedSupplements = uniqueTickers([
+      ...(overlay.universe.supplement_tickers ?? []),
+      ...normalized,
+    ]);
+    const remainingProposed = overlay.universe.proposed_tickers?.filter(
+      (p) => !normalized.includes(p.ticker),
+    );
+    const updatedOverlay: ClientOverlay = {
+      ...overlay,
+      universe: {
+        ...overlay.universe,
+        supplement_tickers: updatedSupplements,
+        proposed_tickers: remainingProposed?.length ? remainingProposed : undefined,
+      },
+    };
+    setOverlay(updatedOverlay);
+    setConfirmed(false);
+
+    const list = normalized.join(
+      overlayLang === "zh" ? "、" : ", ",
+    );
+    const userMsg =
+      overlayLang === "zh"
+        ? `確認加入 ${list}`
+        : overlayLang === "ko"
+          ? `${list} 추가 확인`
+          : `Confirm adding ${list}`;
+    const assistantMsg = t("overlay.proposedTickers.confirmMessage", { tickers: list });
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: userMsg },
+      { role: "assistant", content: assistantMsg },
+    ]);
+  };
+
   const phaseLabel =
     overlay?.audit.phase ??
     (overlayLang === "zh" ? "探索" : "discovery");
@@ -199,10 +342,17 @@ export function OverlayConversationPanel({
         <ChatLog variant="conversation" messages={toChatMessages(messages)} />
       </div>
 
+      {loading && (
+        <div className="rounded-lg border border-[var(--primary-muted)] bg-[var(--primary-muted)]/30 p-3">
+          <ThinkingSteps />
+        </div>
+      )}
+
       <div className="flex shrink-0 items-end gap-2">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          disabled={loading}
           rows={6}
           placeholder={
             lang === "zh"
@@ -273,6 +423,10 @@ export function OverlayConversationPanel({
             </ul>
           ) : null}
           <p className="text-xs text-dim">{overlay.rationale}</p>
+          <ProposedTickersPanel
+            candidates={overlay.universe.proposed_tickers ?? []}
+            onConfirm={confirmProposedTickers}
+          />
           <button
             type="button"
             onClick={handleConfirm}
