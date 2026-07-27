@@ -9,10 +9,10 @@ import {
 } from "./overlay-interpret-errors";
 
 describe("overlay-interpret-errors", () => {
-  it("allows rules fallback by default and can be disabled", () => {
+  it("disables rules fallback by default and can be enabled", () => {
     expect(
       allowOverlayRulesFallback(new Request("http://localhost/api/overlay/interpret")),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       allowOverlayRulesFallback(
         new Request("http://localhost/api/overlay/interpret?fallback=1"),
@@ -23,12 +23,33 @@ describe("overlay-interpret-errors", () => {
         new Request("http://localhost/api/overlay/interpret?fallback=0"),
       ),
     ).toBe(false);
-    const prev = process.env.OVERLAY_ALLOW_RULES_FALLBACK;
+
+    const prevAllow = process.env.OVERLAY_ALLOW_RULES_FALLBACK;
+    const prevForce = process.env.OVERLAY_FORCE_AI_ONLY;
+
+    process.env.OVERLAY_ALLOW_RULES_FALLBACK = "true";
+    expect(
+      allowOverlayRulesFallback(new Request("http://localhost/api/overlay/interpret")),
+    ).toBe(true);
+
     process.env.OVERLAY_ALLOW_RULES_FALLBACK = "false";
     expect(
       allowOverlayRulesFallback(new Request("http://localhost/api/overlay/interpret")),
     ).toBe(false);
-    process.env.OVERLAY_ALLOW_RULES_FALLBACK = prev;
+
+    process.env.OVERLAY_ALLOW_RULES_FALLBACK = "true";
+    process.env.OVERLAY_FORCE_AI_ONLY = "true";
+    expect(
+      allowOverlayRulesFallback(new Request("http://localhost/api/overlay/interpret")),
+    ).toBe(false);
+    expect(
+      allowOverlayRulesFallback(
+        new Request("http://localhost/api/overlay/interpret?fallback=1"),
+      ),
+    ).toBe(false);
+
+    process.env.OVERLAY_ALLOW_RULES_FALLBACK = prevAllow;
+    process.env.OVERLAY_FORCE_AI_ONLY = prevForce;
   });
 
   it("classifies Zod and SyntaxError failures", () => {

@@ -31,7 +31,7 @@ export function allowOverlayRulesFallback(req: Request): boolean {
   const url = new URL(req.url);
   if (url.searchParams.get("fallback") === "0") return false;
   if (url.searchParams.get("fallback") === "1") return true;
-  return process.env.OVERLAY_ALLOW_RULES_FALLBACK !== "false";
+  return process.env.OVERLAY_ALLOW_RULES_FALLBACK === "true";
 }
 
 export function buildOverlayInterpretError(
