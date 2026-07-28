@@ -1271,7 +1271,8 @@ const en: Dict = {
   "pool.product.other": "Other",
 
   "models.title": "Model Portfolios",
-  "models.subtitle": "AM anchor catalog",
+  "models.subtitle": "House model catalog",
+  "models.hint": "Manage model portfolios for Benchmark Personalization. Holdings may mix ETFs, mutual funds, and stocks from the Investment Pool. CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
   "models.countBadge": "{ready} ready / {total} total",
   "models.resetBundled": "Reset to bundled",
   "models.importCsv": "Import CSV",
@@ -2522,7 +2523,8 @@ const zh: Dict = {
   "pool.product.other": "其他",
 
   "models.title": "模型組合",
-  "models.subtitle": "AM 錨點目錄",
+  "models.subtitle": "自家模型目錄",
+  "models.hint": "管理投資組合客製化用的模型組合。持股可混搭 ETF、共同基金與個股，且須在啟用的投資標的池內。CSV：portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled。",
   "models.countBadge": "可用 {ready} / 共 {total}",
   "models.resetBundled": "重設為內建組合",
   "models.importCsv": "匯入 CSV",
@@ -3777,8 +3779,8 @@ const ko: Dict = {
   "pool.product.other": "기타",
 
   "models.title": "모델 포트폴리오",
-  "models.subtitle": "AM 앵커 카탈로그",
-  "models.hint": "포트폴리오 맞춤화용 자산운용사(AM) 모델 포트폴리오를 관리합니다. 각 포트폴리오는 단일 운용사 ETF만 사용해야 하며, 구성 종목은 활성 투자 유니버스에 있어야 합니다. CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
+  "models.subtitle": "하우스 모델 카탈로그",
+  "models.hint": "포트폴리오 맞춤화용 모델 포트폴리오를 관리합니다. ETF·뮤추얼펀드·개별주를 혼합할 수 있으며, 구성 종목은 활성 투자 유니버스에 있어야 합니다. CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
   "models.countBadge": "사용가능 {ready} / 전체 {total}",
   "models.resetBundled": "기본 모델로 재설정",
   "models.importCsv": "CSV 가져오기",

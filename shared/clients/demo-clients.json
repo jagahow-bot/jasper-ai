@@ -1,7 +1,7 @@
 {
-  "version": "1.1",
-  "updated": "2026-07-16",
-  "description": "Demo private-banking clients for JASPER RM Copilot (Client Dashboard → Benchmark Personalization).",
+  "version": "2.0",
+  "updated": "2026-07-28",
+  "description": "Demo private-banking clients for JASPER RM Copilot. Holdings mix ETF cores, mutual funds, and single stocks with drifted weights (initial_weight × total_return).",
   "clients": [
     {
       "client_id": "JB-HNWI-001",
@@ -28,29 +28,39 @@
       },
       "preferences": {
         "esg": "light",
-        "tags": [
-          "ESG",
-          "capital_preservation",
-          "liquidity"
-        ]
+        "tags": ["ESG", "capital_preservation", "liquidity"]
       },
       "rm_owner": "RM Demo",
-      "as_of_date": "2026-07-14",
+      "as_of_date": "2026-07-28",
       "suggested_model_portfolio_id": "classic-60-40",
-      "holdings": [
+      "holdings": [],
+      "holdings_groups": [
         {
-          "ticker": "CASH",
-          "name": "Cash / money market",
-          "asset_class": "cash",
-          "weight": 1,
-          "region": "us",
-          "notes": "Fully in cash pending deployment"
+          "id": "wang-cash",
+          "type": "cash",
+          "label": {
+            "en": "Cash pending deployment",
+            "zh": "待部署現金",
+            "ko": "대기 현금"
+          },
+          "holdings": [
+            {
+              "ticker": "CASH",
+              "name": "Cash / money market",
+              "asset_class": "cash",
+              "initial_weight": 1.0,
+              "return_ytd": null,
+              "total_return": null,
+              "region": "us",
+              "notes": "Fully in cash pending deployment"
+            }
+          ]
         }
       ],
       "notes": {
-        "en": "Prior overlay demo persona: 55yo, $12M cash, $1.5M house liquidity, light ESG preference.",
-        "zh": "Overlay 示範情境：55 歲、現金約 1,200 萬美元、購屋流動性 150 萬、輕度 ESG 偏好。",
-        "ko": "이전 오버레이 데모 페르소나: 55세, 현금 약 1,200만 달러, 주택 유동성 150만, ESG 경미 선호."
+        "en": "Overlay demo persona: 55yo, $12M cash, $1.5M house liquidity, light ESG preference. Ready to deploy into Balanced Core (ETF + fund + stock mix).",
+        "zh": "Overlay 示範情境：55 歲、現金約 1,200 萬美元、購屋流動性 150 萬、輕度 ESG。可對接「平衡核心」混搭模型（ETF+基金+個股）。",
+        "ko": "오버레이 데모: 55세, 현금 약 1,200만 달러, 주택 유동성 150만, ESG 경미. Balanced Core(ETF+펀드+주식) 배분 가능."
       },
       "upcoming_events": [
         {
@@ -98,49 +108,146 @@
       },
       "preferences": {
         "esg": "none",
-        "tags": [
-          "growth",
-          "tech",
-          "US_equity"
-        ]
+        "tags": ["growth", "tech", "US_equity", "AI"]
       },
       "rm_owner": "RM Demo",
-      "as_of_date": "2026-07-14",
+      "as_of_date": "2026-07-28",
       "suggested_model_portfolio_id": "us-multi-cap-equity",
-      "holdings": [
+      "holdings": [],
+      "holdings_groups": [
         {
-          "ticker": "QQQ",
-          "name": "Invesco QQQ Trust",
-          "asset_class": "equity",
-          "weight": 0.45,
-          "region": "us"
+          "id": "chen-us-multi-cap",
+          "type": "model",
+          "model_id": "us-multi-cap-equity",
+          "label": {
+            "en": "US Large Cap Core (model)",
+            "zh": "美國大型股核心（模型）",
+            "ko": "미국 대형주 코어(모델)"
+          },
+          "holdings": [
+            {
+              "ticker": "SPY",
+              "name": "SPDR S&P 500 ETF Trust",
+              "asset_class": "equity",
+              "initial_weight": 0.28,
+              "return_ytd": 9.2,
+              "total_return": 18.5,
+              "region": "us",
+              "invested_at": "2024-03-15"
+            },
+            {
+              "ticker": "FXAIX",
+              "name": "Fidelity 500 Index",
+              "asset_class": "equity",
+              "initial_weight": 0.12,
+              "return_ytd": 8.8,
+              "total_return": 17.2,
+              "region": "us",
+              "invested_at": "2024-03-15"
+            },
+            {
+              "ticker": "XLV",
+              "name": "Health Care Select Sector SPDR",
+              "asset_class": "equity",
+              "initial_weight": 0.08,
+              "return_ytd": 4.1,
+              "total_return": 9.5,
+              "region": "us",
+              "invested_at": "2024-03-15"
+            },
+            {
+              "ticker": "XLF",
+              "name": "Financial Select Sector SPDR",
+              "asset_class": "equity",
+              "initial_weight": 0.07,
+              "return_ytd": 11.0,
+              "total_return": 22.0,
+              "region": "us",
+              "invested_at": "2024-03-15"
+            }
+          ]
         },
         {
-          "ticker": "SPY",
-          "name": "SPDR S&P 500 ETF Trust",
-          "asset_class": "equity",
-          "weight": 0.3,
-          "region": "us"
+          "id": "chen-tech-satellite",
+          "type": "individual",
+          "label": {
+            "en": "AI / tech stock satellite",
+            "zh": "AI／科技個股衛星",
+            "ko": "AI·테크 개별주 위성"
+          },
+          "holdings": [
+            {
+              "ticker": "NVDA",
+              "name": "NVIDIA",
+              "asset_class": "equity",
+              "initial_weight": 0.12,
+              "return_ytd": 35.0,
+              "total_return": 95.0,
+              "region": "us",
+              "invested_at": "2024-01-10"
+            },
+            {
+              "ticker": "AAPL",
+              "name": "Apple",
+              "asset_class": "equity",
+              "initial_weight": 0.08,
+              "return_ytd": 6.5,
+              "total_return": 28.0,
+              "region": "us",
+              "invested_at": "2023-11-01"
+            },
+            {
+              "ticker": "MSFT",
+              "name": "Microsoft",
+              "asset_class": "equity",
+              "initial_weight": 0.07,
+              "return_ytd": 12.0,
+              "total_return": 42.0,
+              "region": "us",
+              "invested_at": "2023-11-01"
+            },
+            {
+              "ticker": "META",
+              "name": "Meta",
+              "asset_class": "equity",
+              "initial_weight": 0.06,
+              "return_ytd": 22.0,
+              "total_return": 68.0,
+              "region": "us",
+              "invested_at": "2024-02-20"
+            },
+            {
+              "ticker": "FDGRX",
+              "name": "Fidelity Growth Company",
+              "asset_class": "equity",
+              "initial_weight": 0.05,
+              "return_ytd": 14.5,
+              "total_return": 38.0,
+              "region": "us",
+              "invested_at": "2024-05-01"
+            }
+          ]
         },
         {
-          "ticker": "IWM",
-          "name": "iShares Russell 2000 ETF",
-          "asset_class": "equity",
-          "weight": 0.15,
-          "region": "us"
-        },
-        {
-          "ticker": "CASH",
-          "name": "Cash",
-          "asset_class": "cash",
-          "weight": 0.1,
-          "region": "us"
+          "id": "chen-cash",
+          "type": "cash",
+          "holdings": [
+            {
+              "ticker": "CASH",
+              "name": "Cash",
+              "asset_class": "cash",
+              "initial_weight": 0.07,
+              "return_ytd": null,
+              "total_return": null,
+              "region": "us"
+            }
+          ]
         }
       ],
       "notes": {
-        "en": "Tech-heavy book; RM to discuss concentration vs model multi-cap anchor.",
-        "zh": "持股偏科技；理專可對照多市值模型組合討論集中度。",
-        "ko": "테크 비중 높음; 멀티캡 모델과 집중도 논의."
+        "en": "Tech-heavy book mixing model ETF sleeves, growth mutual fund, and mega-cap stocks. RM to discuss concentration vs US Large Cap Core anchor.",
+        "zh": "科技偏重：模型 ETF 袖口 + 成長型基金 + 大型科技股。可對照「美國大型股核心」討論集中度。",
+        "ko": "테크 비중 높음: 모델 ETF + 성장 펀드 + 메가캡 주식. 미국 대형주 코어와 집중도 논의."
       },
       "upcoming_events": [
         {
@@ -188,56 +295,125 @@
       },
       "preferences": {
         "esg": "moderate",
-        "tags": [
-          "income",
-          "drawdown_control",
-          "bonds"
-        ]
+        "tags": ["income", "drawdown_control", "bonds"]
       },
       "rm_owner": "RM Demo",
-      "as_of_date": "2026-07-14",
+      "as_of_date": "2026-07-28",
       "suggested_model_portfolio_id": "all-weather-simplified",
-      "holdings": [
+      "holdings": [],
+      "holdings_groups": [
         {
-          "ticker": "AGG",
-          "name": "iShares Core U.S. Aggregate Bond ETF",
-          "asset_class": "fixed_income",
-          "weight": 0.4,
-          "region": "us"
+          "id": "lin-all-weather",
+          "type": "model",
+          "model_id": "all-weather-simplified",
+          "label": {
+            "en": "All Weather Defensive (model)",
+            "zh": "全天候防禦（模型）",
+            "ko": "올웨더 방어(모델)"
+          },
+          "holdings": [
+            {
+              "ticker": "IVV",
+              "name": "iShares Core S&P 500 ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.12,
+              "return_ytd": 8.5,
+              "total_return": 14.0,
+              "region": "us",
+              "invested_at": "2023-06-01"
+            },
+            {
+              "ticker": "VWELX",
+              "name": "Vanguard Wellington Investor",
+              "asset_class": "equity",
+              "initial_weight": 0.1,
+              "return_ytd": 6.2,
+              "total_return": 12.5,
+              "region": "us",
+              "invested_at": "2023-06-01"
+            },
+            {
+              "ticker": "PG",
+              "name": "Procter & Gamble",
+              "asset_class": "equity",
+              "initial_weight": 0.05,
+              "return_ytd": 3.5,
+              "total_return": 8.0,
+              "region": "us",
+              "invested_at": "2023-06-01"
+            },
+            {
+              "ticker": "TLT",
+              "name": "iShares 20+ Year Treasury Bond ETF",
+              "asset_class": "bond",
+              "initial_weight": 0.22,
+              "return_ytd": -2.5,
+              "total_return": -8.0,
+              "region": "us",
+              "invested_at": "2023-06-01"
+            },
+            {
+              "ticker": "AGG",
+              "name": "iShares Core U.S. Aggregate Bond ETF",
+              "asset_class": "bond",
+              "initial_weight": 0.15,
+              "return_ytd": 1.2,
+              "total_return": 2.5,
+              "region": "us",
+              "invested_at": "2023-06-01"
+            },
+            {
+              "ticker": "DODIX",
+              "name": "Dodge & Cox Income",
+              "asset_class": "bond",
+              "initial_weight": 0.1,
+              "return_ytd": 2.8,
+              "total_return": 5.5,
+              "region": "us",
+              "invested_at": "2024-01-15"
+            },
+            {
+              "ticker": "SHY",
+              "name": "iShares 1-3 Year Treasury Bond ETF",
+              "asset_class": "bond",
+              "initial_weight": 0.08,
+              "return_ytd": 2.0,
+              "total_return": 4.0,
+              "region": "us",
+              "invested_at": "2023-06-01"
+            },
+            {
+              "ticker": "GLD",
+              "name": "SPDR Gold Shares",
+              "asset_class": "commodity",
+              "initial_weight": 0.08,
+              "return_ytd": 18.0,
+              "total_return": 32.0,
+              "region": "global",
+              "invested_at": "2023-06-01"
+            }
+          ]
         },
         {
-          "ticker": "BND",
-          "name": "Vanguard Total Bond Market ETF",
-          "asset_class": "fixed_income",
-          "weight": 0.2,
-          "region": "us"
-        },
-        {
-          "ticker": "SPY",
-          "name": "SPDR S&P 500 ETF Trust",
-          "asset_class": "equity",
-          "weight": 0.25,
-          "region": "us"
-        },
-        {
-          "ticker": "GLD",
-          "name": "SPDR Gold Shares",
-          "asset_class": "commodity",
-          "weight": 0.05,
-          "region": "global"
-        },
-        {
-          "ticker": "CASH",
-          "name": "Cash",
-          "asset_class": "cash",
-          "weight": 0.1,
-          "region": "us"
+          "id": "lin-cash",
+          "type": "cash",
+          "holdings": [
+            {
+              "ticker": "CASH",
+              "name": "Cash",
+              "asset_class": "cash",
+              "initial_weight": 0.1,
+              "return_ytd": null,
+              "total_return": null,
+              "region": "us"
+            }
+          ]
         }
       ],
       "notes": {
-        "en": "Bond-heavy; prefers capital preservation and smoother path vs equities.",
-        "zh": "債市比重高；偏好資本保全與較平穩走勢。",
-        "ko": "채권 비중 높음; 자본 보전과 변동성 완화 선호."
+        "en": "Bond-heavy with active income fund and quality stock. Prefers capital preservation vs equities.",
+        "zh": "債市為主，搭配主動收益基金與優質個股；偏好資本保全。",
+        "ko": "채권 중심 + 액티브 인컴 펀드·우량주. 자본 보전 선호."
       },
       "upcoming_events": [
         {
@@ -285,56 +461,146 @@
       },
       "preferences": {
         "esg": "strong",
-        "tags": [
-          "ESG",
-          "global",
-          "balanced"
-        ]
+        "tags": ["ESG", "global", "balanced"]
       },
       "rm_owner": "RM Demo",
-      "as_of_date": "2026-07-14",
+      "as_of_date": "2026-07-28",
       "suggested_model_portfolio_id": "bogleheads-three-fund-80-20",
-      "holdings": [
+      "holdings": [],
+      "holdings_groups": [
         {
-          "ticker": "SPY",
-          "name": "SPDR S&P 500 ETF Trust",
-          "asset_class": "equity",
-          "weight": 0.35,
-          "region": "us"
+          "id": "chang-three-fund",
+          "type": "model",
+          "model_id": "bogleheads-three-fund-80-20",
+          "label": {
+            "en": "Three-Fund Plus (model)",
+            "zh": "三基金加強版（模型）",
+            "ko": "3펀드 플러스(모델)"
+          },
+          "holdings": [
+            {
+              "ticker": "VTI",
+              "name": "Vanguard Total Stock Market ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.28,
+              "return_ytd": 9.0,
+              "total_return": 21.0,
+              "region": "us",
+              "invested_at": "2023-09-01"
+            },
+            {
+              "ticker": "VTSAX",
+              "name": "Vanguard Total Stock Market Admiral",
+              "asset_class": "equity",
+              "initial_weight": 0.15,
+              "return_ytd": 8.8,
+              "total_return": 20.5,
+              "region": "us",
+              "invested_at": "2023-09-01"
+            },
+            {
+              "ticker": "VXUS",
+              "name": "Vanguard Total International Stock ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.14,
+              "return_ytd": 7.5,
+              "total_return": 16.0,
+              "region": "intl",
+              "invested_at": "2023-09-01"
+            },
+            {
+              "ticker": "BND",
+              "name": "Vanguard Total Bond Market ETF",
+              "asset_class": "bond",
+              "initial_weight": 0.12,
+              "return_ytd": 1.5,
+              "total_return": 3.0,
+              "region": "us",
+              "invested_at": "2023-09-01"
+            },
+            {
+              "ticker": "VBTLX",
+              "name": "Vanguard Total Bond Market Admiral",
+              "asset_class": "bond",
+              "initial_weight": 0.08,
+              "return_ytd": 1.4,
+              "total_return": 2.8,
+              "region": "us",
+              "invested_at": "2023-09-01"
+            }
+          ]
         },
         {
-          "ticker": "VXUS",
-          "name": "Vanguard Total International Stock ETF",
-          "asset_class": "equity",
-          "weight": 0.25,
-          "region": "intl"
+          "id": "chang-esg-sleeve",
+          "type": "individual",
+          "label": {
+            "en": "ESG / quality stock sleeve",
+            "zh": "ESG／優質個股袖口",
+            "ko": "ESG·우량주 슬리브"
+          },
+          "holdings": [
+            {
+              "ticker": "MSFT",
+              "name": "Microsoft",
+              "asset_class": "equity",
+              "initial_weight": 0.06,
+              "return_ytd": 12.0,
+              "total_return": 40.0,
+              "region": "us",
+              "invested_at": "2024-02-01"
+            },
+            {
+              "ticker": "COST",
+              "name": "Costco",
+              "asset_class": "equity",
+              "initial_weight": 0.04,
+              "return_ytd": 10.5,
+              "total_return": 35.0,
+              "region": "us",
+              "invested_at": "2024-02-01"
+            },
+            {
+              "ticker": "NEE",
+              "name": "NextEra Energy",
+              "asset_class": "equity",
+              "initial_weight": 0.03,
+              "return_ytd": 5.0,
+              "total_return": 11.0,
+              "region": "us",
+              "invested_at": "2024-04-01"
+            },
+            {
+              "ticker": "UNH",
+              "name": "UnitedHealth",
+              "asset_class": "equity",
+              "initial_weight": 0.04,
+              "return_ytd": -3.0,
+              "total_return": 6.0,
+              "region": "us",
+              "invested_at": "2024-04-01"
+            }
+          ]
         },
         {
-          "ticker": "BND",
-          "name": "Vanguard Total Bond Market ETF",
-          "asset_class": "fixed_income",
-          "weight": 0.25,
-          "region": "us"
-        },
-        {
-          "ticker": "XLV",
-          "name": "Health Care Select Sector SPDR",
-          "asset_class": "equity",
-          "weight": 0.08,
-          "region": "us"
-        },
-        {
-          "ticker": "CASH",
-          "name": "Cash",
-          "asset_class": "cash",
-          "weight": 0.07,
-          "region": "us"
+          "id": "chang-cash",
+          "type": "cash",
+          "holdings": [
+            {
+              "ticker": "CASH",
+              "name": "Cash",
+              "asset_class": "cash",
+              "initial_weight": 0.06,
+              "return_ytd": null,
+              "total_return": null,
+              "region": "us"
+            }
+          ]
         }
       ],
       "notes": {
-        "en": "Strong ESG preference; global equity + bonds; suggest three-fund as anchor.",
-        "zh": "ESG 偏好強；全球股債配置；建議以三基金組合為錨點。",
-        "ko": "ESG 선호 강함; 글로벌 주식·채권; 3-펀드를 앵커로 제안."
+        "en": "Strong ESG preference; global three-fund core plus quality/ESG stock sleeve. Suggest Three-Fund Plus as anchor.",
+        "zh": "ESG 偏好強；三基金核心 + ESG／優質個股袖口。建議以「三基金加強版」為錨點。",
+        "ko": "ESG 선호 강함; 3펀드 코어 + ESG·우량주. Three-Fund Plus를 앵커로 제안."
       },
       "upcoming_events": [
         {

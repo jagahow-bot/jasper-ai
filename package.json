@@ -14,6 +14,7 @@
     "lint": "npm run lint --prefix apps/web",
     "sync-universe": "node -e \"require('fs').copyFileSync('shared/etf-universe.json','apps/web/src/data/etf-universe.json')\"",
     "sync-model-portfolios": "node -e \"require('fs').copyFileSync('shared/model-portfolios/model-portfolios.json','apps/web/src/data/model-portfolios.json')\"",
+    "sync-demo-clients": "node -e \"require('fs').copyFileSync('shared/clients/demo-clients.json','apps/web/src/data/demo-clients.json')\"",
     "sync-etf-names": "node -e \"require('fs').copyFileSync('shared/etf-names.json','apps/web/src/data/etf-names.json')\"",
     "generate-etf-names": "node scripts/generate_etf_names.js"
   },

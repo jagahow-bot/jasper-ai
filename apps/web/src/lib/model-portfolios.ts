@@ -57,7 +57,7 @@ export function getModelPortfolioTickers(): string[] {
   return [...tickers].sort();
 }
 
-/** Mainstream ETF building blocks for JASPER demo (not full 346-ticker universe). */
+/** Mainstream building blocks for JASPER demo (ETF + stock + fund cores). */
 export const MAINSTREAM_DEMO_TICKERS = [
   "SPY",
   "QQQ",
@@ -78,6 +78,31 @@ export const MAINSTREAM_DEMO_TICKERS = [
   "PDBC",
   "XLV",
   "XLF",
+  // Stocks
+  "AAPL",
+  "MSFT",
+  "NVDA",
+  "GOOGL",
+  "AMZN",
+  "META",
+  "AVGO",
+  "AMD",
+  "JPM",
+  "JNJ",
+  "PG",
+  "BRK-B",
+  "COST",
+  "NEE",
+  "UNH",
+  // Mutual funds
+  "VFIAX",
+  "VTSAX",
+  "VBTLX",
+  "VWELX",
+  "FXAIX",
+  "FDGRX",
+  "FZILX",
+  "DODIX",
 ] as const;
 
 export const SPY_ANCHOR_ID = "spy-benchmark";

@@ -1,160 +1,189 @@
 {
-  "version": "2.0",
-  "updated": "2026-07-14",
-  "description": "JASPER Asset Manager model portfolios for Benchmark Personalization. Each portfolio is a themed product built only from ETFs of a single issuer family (BlackRock iShares, Vanguard, State Street SPDR, Invesco) so the UI can truthfully show the AM badge. Holdings are live US-listed ETFs in the demo/Investment Pool — not cross-issuer mixes under a fake brand.",
+  "version": "3.0",
+  "updated": "2026-07-28",
+  "description": "JASPER wealth-management model portfolios for Benchmark Personalization. Each model mixes ETF cores, mutual-fund active sleeves, and/or single-stock satellites — reflecting how private-banking books are actually built (not ETF-only).",
   "portfolios": [
     {
       "id": "classic-60-40",
-      "am_id": "blackrock-ishares",
-      "asset_manager": "BlackRock iShares",
+      "am_id": "jasper-house",
+      "asset_manager": "JASPER Model",
       "theme": "Balanced Core",
       "name": "Balanced Core",
-      "description": "BlackRock iShares balanced core: 60% US large-cap equity (IVV) and 40% US aggregate bonds (AGG). All constituents are iShares ETFs.",
+      "description": "60/40 balanced core for moderate clients: S&P 500 ETF + flagship mutual-fund equity sleeve, aggregate bond ETF + bond fund, with blue-chip stock satellites (JPM, JNJ).",
       "source": {
-        "name": "iShares — Core S&P 500 + Core U.S. Aggregate Bond",
-        "url": "https://www.ishares.com/"
+        "name": "JASPER house model — Balanced Core",
+        "url": ""
       },
       "asset_class_mix": {
         "equity": 0.6,
         "fixed_income": 0.4
       },
       "holdings": [
-        { "ticker": "IVV", "weight": 0.6, "name": "iShares Core S&P 500 ETF" },
-        { "ticker": "AGG", "weight": 0.4, "name": "iShares Core U.S. Aggregate Bond ETF" }
+        { "ticker": "IVV", "weight": 0.25, "name": "iShares Core S&P 500 ETF" },
+        { "ticker": "VFIAX", "weight": 0.2, "name": "Vanguard 500 Index Admiral" },
+        { "ticker": "JPM", "weight": 0.08, "name": "JPMorgan Chase" },
+        { "ticker": "JNJ", "weight": 0.07, "name": "Johnson & Johnson" },
+        { "ticker": "AGG", "weight": 0.25, "name": "iShares Core U.S. Aggregate Bond ETF" },
+        { "ticker": "VBTLX", "weight": 0.15, "name": "Vanguard Total Bond Market Admiral" }
       ],
       "benchmark": "IVV",
       "risk_level": "moderate"
     },
     {
       "id": "bogleheads-three-fund-80-20",
-      "am_id": "vanguard",
-      "asset_manager": "Vanguard",
-      "theme": "Three-Fund",
-      "name": "Three-Fund",
-      "description": "Vanguard three-fund sleeve: US total market, international equities, and US bonds at an 80/20 equity/bond mix. All constituents are Vanguard ETFs.",
+      "am_id": "jasper-house",
+      "asset_manager": "JASPER Model",
+      "theme": "Three-Fund Plus",
+      "name": "Three-Fund Plus",
+      "description": "Classic three-fund equity/bond mix enriched with a total-market mutual fund and two mega-cap stock satellites for client engagement conversations.",
       "source": {
-        "name": "Vanguard — Total Market / International / Bond building blocks",
-        "url": "https://investor.vanguard.com/"
+        "name": "JASPER house model — Three-Fund Plus",
+        "url": ""
       },
       "asset_class_mix": {
         "equity": 0.8,
         "fixed_income": 0.2
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.6, "name": "Vanguard Total Stock Market ETF" },
-        { "ticker": "VXUS", "weight": 0.2, "name": "Vanguard Total International Stock ETF" },
-        { "ticker": "BND", "weight": 0.2, "name": "Vanguard Total Bond Market ETF" }
+        { "ticker": "VTI", "weight": 0.35, "name": "Vanguard Total Stock Market ETF" },
+        { "ticker": "VTSAX", "weight": 0.2, "name": "Vanguard Total Stock Market Admiral" },
+        { "ticker": "VXUS", "weight": 0.15, "name": "Vanguard Total International Stock ETF" },
+        { "ticker": "AAPL", "weight": 0.05, "name": "Apple" },
+        { "ticker": "MSFT", "weight": 0.05, "name": "Microsoft" },
+        { "ticker": "BND", "weight": 0.12, "name": "Vanguard Total Bond Market ETF" },
+        { "ticker": "VBTLX", "weight": 0.08, "name": "Vanguard Total Bond Market Admiral" }
       ],
       "benchmark": "VTI",
       "risk_level": "moderate_aggressive"
     },
     {
       "id": "global-equity-market-cap",
-      "am_id": "vanguard",
-      "asset_manager": "Vanguard",
+      "am_id": "jasper-house",
+      "asset_manager": "JASPER Model",
       "theme": "Global Equity",
       "name": "Global Equity",
-      "description": "Vanguard global equity theme approximating world market-cap weights (~60% US / ~40% international) with VTI and VXUS only.",
+      "description": "Global equity market-cap theme: US/international ETF cores plus Fidelity ZERO international and a small basket of global-facing mega-caps.",
       "source": {
-        "name": "Vanguard — Total US + Total International equity",
-        "url": "https://investor.vanguard.com/"
+        "name": "JASPER house model — Global Equity",
+        "url": ""
       },
       "asset_class_mix": {
         "equity": 1.0
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.6, "name": "Vanguard Total Stock Market ETF" },
-        { "ticker": "VXUS", "weight": 0.4, "name": "Vanguard Total International Stock ETF" }
+        { "ticker": "VTI", "weight": 0.4, "name": "Vanguard Total Stock Market ETF" },
+        { "ticker": "VXUS", "weight": 0.25, "name": "Vanguard Total International Stock ETF" },
+        { "ticker": "FZILX", "weight": 0.15, "name": "Fidelity ZERO International Index" },
+        { "ticker": "GOOGL", "weight": 0.08, "name": "Alphabet A" },
+        { "ticker": "AVGO", "weight": 0.06, "name": "Broadcom" },
+        { "ticker": "AMD", "weight": 0.06, "name": "AMD" }
       ],
       "benchmark": "VTI",
       "risk_level": "aggressive"
     },
     {
       "id": "us-multi-cap-equity",
-      "am_id": "state-street-spdr",
-      "asset_manager": "State Street SPDR",
+      "am_id": "jasper-house",
+      "asset_manager": "JASPER Model",
       "theme": "US Large Cap Core",
       "name": "US Large Cap Core",
-      "description": "State Street SPDR US large-cap core with sector sleeves: S&P 500 (SPY) plus Health Care and Financials Select Sector SPDRs.",
+      "description": "US large-cap core with SPY/sector ETFs, an active growth mutual fund sleeve, and mega-cap tech stock satellites for thematic customization.",
       "source": {
-        "name": "SPDR — S&P 500 and Select Sector ETFs",
-        "url": "https://www.ssga.com/us/en/individual/etfs"
+        "name": "JASPER house model — US Large Cap Core",
+        "url": ""
       },
       "asset_class_mix": {
         "equity": 1.0
       },
       "holdings": [
-        { "ticker": "SPY", "weight": 0.7, "name": "SPDR S&P 500 ETF Trust" },
-        { "ticker": "XLV", "weight": 0.15, "name": "Health Care Select Sector SPDR Fund" },
-        { "ticker": "XLF", "weight": 0.15, "name": "Financial Select Sector SPDR Fund" }
+        { "ticker": "SPY", "weight": 0.4, "name": "SPDR S&P 500 ETF Trust" },
+        { "ticker": "FXAIX", "weight": 0.15, "name": "Fidelity 500 Index" },
+        { "ticker": "XLV", "weight": 0.1, "name": "Health Care Select Sector SPDR" },
+        { "ticker": "XLF", "weight": 0.1, "name": "Financial Select Sector SPDR" },
+        { "ticker": "NVDA", "weight": 0.1, "name": "NVIDIA" },
+        { "ticker": "AAPL", "weight": 0.08, "name": "Apple" },
+        { "ticker": "MSFT", "weight": 0.07, "name": "Microsoft" }
       ],
       "benchmark": "SPY",
       "risk_level": "aggressive"
     },
     {
       "id": "us-sector-growth-tilt",
-      "am_id": "invesco",
-      "asset_manager": "Invesco",
+      "am_id": "jasper-house",
+      "asset_manager": "JASPER Model",
       "theme": "Tech Growth",
       "name": "Tech Growth",
-      "description": "Invesco Nasdaq-100 growth theme: QQQ core with a small commodity satellite (PDBC) for diversification — both Invesco ETFs.",
+      "description": "Nasdaq-100 / growth tilt for aggressive clients: QQQ core, Fidelity Growth Company fund, AI mega-caps, and a small commodity diversifier.",
       "source": {
-        "name": "Invesco — QQQ Trust + Optimum Yield Commodity",
-        "url": "https://www.invesco.com/"
+        "name": "JASPER house model — Tech Growth",
+        "url": ""
       },
       "asset_class_mix": {
-        "equity": 0.85,
-        "commodity": 0.15
+        "equity": 0.9,
+        "commodity": 0.1
       },
       "holdings": [
-        { "ticker": "QQQ", "weight": 0.85, "name": "Invesco QQQ Trust" },
-        { "ticker": "PDBC", "weight": 0.15, "name": "Invesco Optimum Yield Diversified Commodity Strategy ETF" }
+        { "ticker": "QQQ", "weight": 0.4, "name": "Invesco QQQ Trust" },
+        { "ticker": "FDGRX", "weight": 0.15, "name": "Fidelity Growth Company" },
+        { "ticker": "NVDA", "weight": 0.15, "name": "NVIDIA" },
+        { "ticker": "META", "weight": 0.1, "name": "Meta" },
+        { "ticker": "AMZN", "weight": 0.08, "name": "Amazon" },
+        { "ticker": "AVGO", "weight": 0.07, "name": "Broadcom" },
+        { "ticker": "PDBC", "weight": 0.05, "name": "Invesco Optimum Yield Commodity ETF" }
       ],
       "benchmark": "QQQ",
       "risk_level": "aggressive"
     },
     {
       "id": "all-weather-simplified",
-      "am_id": "blackrock-ishares",
-      "asset_manager": "BlackRock iShares",
+      "am_id": "jasper-house",
+      "asset_manager": "JASPER Model",
       "theme": "All Weather Defensive",
       "name": "All Weather Defensive",
-      "description": "BlackRock iShares all-weather defensive mix: US large-cap equity, long and intermediate Treasuries, plus short Treasuries for ballast. All constituents are iShares ETFs.",
+      "description": "Defensive multi-asset book: equity ETF + quality mutual fund, Treasury/aggregate bond ETFs + bond fund, gold ETF, and a dividend aristocrat stock sleeve.",
       "source": {
-        "name": "iShares — Core equity + Treasury duration sleeves",
-        "url": "https://www.ishares.com/"
+        "name": "JASPER house model — All Weather Defensive",
+        "url": ""
       },
       "asset_class_mix": {
         "equity": 0.3,
-        "fixed_income": 0.7
+        "fixed_income": 0.6,
+        "commodity": 0.1
       },
       "holdings": [
-        { "ticker": "IVV", "weight": 0.3, "name": "iShares Core S&P 500 ETF" },
-        { "ticker": "TLT", "weight": 0.4, "name": "iShares 20+ Year Treasury Bond ETF" },
-        { "ticker": "IEF", "weight": 0.15, "name": "iShares 7-10 Year Treasury Bond ETF" },
-        { "ticker": "SHY", "weight": 0.15, "name": "iShares 1-3 Year Treasury Bond ETF" }
+        { "ticker": "IVV", "weight": 0.15, "name": "iShares Core S&P 500 ETF" },
+        { "ticker": "VWELX", "weight": 0.1, "name": "Vanguard Wellington Investor" },
+        { "ticker": "PG", "weight": 0.05, "name": "Procter & Gamble" },
+        { "ticker": "TLT", "weight": 0.25, "name": "iShares 20+ Year Treasury Bond ETF" },
+        { "ticker": "AGG", "weight": 0.15, "name": "iShares Core U.S. Aggregate Bond ETF" },
+        { "ticker": "DODIX", "weight": 0.1, "name": "Dodge & Cox Income" },
+        { "ticker": "SHY", "weight": 0.1, "name": "iShares 1-3 Year Treasury Bond ETF" },
+        { "ticker": "GLD", "weight": 0.1, "name": "SPDR Gold Shares" }
       ],
       "benchmark": "IVV",
       "risk_level": "moderate_conservative"
     },
     {
       "id": "vanguard-equity-tilt-80-20",
-      "am_id": "vanguard",
-      "asset_manager": "Vanguard",
+      "am_id": "jasper-house",
+      "asset_manager": "JASPER Model",
       "theme": "Equity Tilt 80/20",
       "name": "Equity Tilt 80/20",
-      "description": "Vanguard simple equity-tilt balanced sleeve: 80% US total market (VTI) and 20% US aggregate bonds (BND).",
+      "description": "Simple 80/20 equity-tilt sleeve using Vanguard ETF + mutual fund cores, with a small Berkshire stock satellite for long-term compounding narratives.",
       "source": {
-        "name": "Vanguard — Total Stock Market + Total Bond Market",
-        "url": "https://investor.vanguard.com/"
+        "name": "JASPER house model — Equity Tilt 80/20",
+        "url": ""
       },
       "asset_class_mix": {
         "equity": 0.8,
         "fixed_income": 0.2
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.8, "name": "Vanguard Total Stock Market ETF" },
-        { "ticker": "BND", "weight": 0.2, "name": "Vanguard Total Bond Market ETF" }
+        { "ticker": "VTI", "weight": 0.4, "name": "Vanguard Total Stock Market ETF" },
+        { "ticker": "VTSAX", "weight": 0.25, "name": "Vanguard Total Stock Market Admiral" },
+        { "ticker": "BRK-B", "weight": 0.15, "name": "Berkshire Hathaway B" },
+        { "ticker": "BND", "weight": 0.12, "name": "Vanguard Total Bond Market ETF" },
+        { "ticker": "VBTLX", "weight": 0.08, "name": "Vanguard Total Bond Market Admiral" }
       ],
       "benchmark": "VTI",
       "risk_level": "moderate_aggressive"
