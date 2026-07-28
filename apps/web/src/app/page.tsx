@@ -276,12 +276,21 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    void fetchApiHealth().then((health) => {
+    let cancelled = false;
+    const check = async () => {
+      const health = await fetchApiHealth();
+      if (cancelled) return;
       setApiOnline(health?.status === "ok");
       setEmailNotificationsEnabled(
         health?.email_notifications === "configured" ? true : health ? false : null,
       );
-    });
+    };
+    void check();
+    const interval = setInterval(() => void check(), 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   const presentResult = useCallback(
