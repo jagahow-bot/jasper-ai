@@ -60,6 +60,11 @@ export function classifyOverlayAiFailure(error: unknown): {
   detail?: string;
   status: number;
 } {
+  // Unwrap { error, log } thrown by generateTextWithAudit / generateObjectWithAudit
+  // so provider errors surface as AI_UNAVAILABLE instead of the generic RESPONSE_INVALID.
+  if (error && typeof error === "object" && "error" in error) {
+    return classifyOverlayAiFailure((error as { error: unknown }).error);
+  }
   if (error instanceof ZodError) {
     return {
       code: OVERLAY_INTERPRET_ERROR_CODES.VALIDATION_FAILED,
