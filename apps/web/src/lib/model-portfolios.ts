@@ -375,6 +375,8 @@ export function buildAnchorBacktestRequest(
     regime_adaptive: false,
     enable_iterative_refinement: false,
     static_replay_holdings: staticHoldings,
+    anchor_weights: staticHoldings,
+    customization_drift: defaults.customization_drift ?? 0.5,
     param_controls: {
       ...(defaults.param_controls ?? {}),
       ...sleeveControls,

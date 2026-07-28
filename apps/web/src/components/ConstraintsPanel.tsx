@@ -259,6 +259,26 @@ export function ConstraintsPanel({
         <p className="ui-hint">{t("config.maxTurnoverHint")}</p>
       </label>
 
+      <label className="block space-y-2">
+        <span className="ui-label">
+          {t("config.customizationDrift", {
+            pct: Math.round((value.customization_drift ?? 0.5) * 100),
+          })}
+        </span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={Math.round((value.customization_drift ?? 0.5) * 100)}
+          onChange={(e) =>
+            onChange({ ...value, customization_drift: Number(e.target.value) / 100 })
+          }
+          className="w-full"
+        />
+        <p className="ui-hint">{t("config.customizationDriftHint")}</p>
+      </label>
+
       <p className="ui-hint">{t("config.limitsHint")}</p>
 
       <label className="block space-y-2">

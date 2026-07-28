@@ -42,6 +42,8 @@ def solve_weights(
     max_weight: float,
     params: AllocatorParams,
     w0: np.ndarray | None = None,
+    anchor_weights: np.ndarray | None = None,
+    customization_drift: float | None = None,
 ) -> np.ndarray:
     """Solve a constrained allocation.
 
@@ -66,12 +68,24 @@ def solve_weights(
             w = np.ones(n) / n
         w = project_max_weight(np.maximum(w, 0.0), max_weight)
 
+    anchor = np.asarray(anchor_weights, dtype=float) if anchor_weights is not None else None
+    drift = float(customization_drift) if customization_drift is not None else None
+    if anchor is not None and anchor.shape != (n,):
+        anchor = None
+    # Zero drift means hold the anchor exactly.
+    if anchor is not None and drift == 0.0:
+        return project_max_weight(np.maximum(anchor, 0.0), max_weight)
+
     # Conservative step size based on trace as a cheap Lipschitz proxy.
     trace = float(np.trace(cov))
     lr = 0.25 / max(trace, 1e-6)
 
     lam = float(max(params.risk_aversion, 1e-6))
     mode = params.mode
+    # Penalty strength increases as drift shrinks so that low drift stays near anchor.
+    penalty_strength = 0.0
+    if anchor is not None and drift is not None and drift > 0.0 and drift < 1.0:
+        penalty_strength = 10.0 * (1.0 - drift) / max(drift, 0.01)
     for _ in range(int(params.max_iter)):
         if mode == "min_var":
             grad = 2.0 * (cov @ w)
@@ -92,11 +106,27 @@ def solve_weights(
         else:
             raise ValueError(f"Unknown allocator mode: {mode}")
 
+        if anchor is not None and penalty_strength > 0.0:
+            grad = grad + penalty_strength * (w - anchor)
+
         w_next = project_max_weight(w - lr * grad, max_weight)
         if float(np.max(np.abs(w_next - w))) < 1e-6:
             w = w_next
             break
         w = w_next
 
-    return project_max_weight(w, max_weight)
+    w = project_max_weight(w, max_weight)
+
+    # Hard projection onto the anchor-drift L1 ball. The anchor reference is first
+    # projected onto the feasible capped simplex so the constraint is attainable.
+    if anchor is not None and drift is not None and 0.0 < drift < 1.0:
+        anchor_ref = project_max_weight(np.maximum(anchor, 0.0), max_weight)
+        for _ in range(5):
+            dev = float(np.sum(np.abs(w - anchor_ref))) / 2.0
+            if dev <= drift + 1e-6:
+                break
+            scale = drift / max(dev, 1e-12)
+            w = anchor_ref + (w - anchor_ref) * scale
+            w = project_max_weight(w, max_weight)
+    return w
 

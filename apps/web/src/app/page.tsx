@@ -66,6 +66,7 @@ import {
 import {
   overlayToBacktestRequest,
   type ClientOverlay,
+  type OverlayConversationMessage,
 } from "@/lib/overlay-schema";
 import { resolveOverlayUniverse } from "@/lib/resolve-overlay-universe";
 import type {
@@ -145,6 +146,8 @@ function buildDefaultRequest(): BacktestRequest {
     rebalance_freq: "QE",
     max_holdings: 30,
     max_turnover: 1.0,
+    customization_drift: 0.5,
+    anchor_weights: null,
     objective_custom_text: "",
     param_controls: {},
     optimization_mode: "standard",
@@ -165,6 +168,16 @@ export default function HomePage() {
   const [scopeGroupIds, setScopeGroupIds] = useState<string[]>([]);
   const [portfolioName, setPortfolioName] = useState("");
   const [signedOverlay, setSignedOverlay] = useState<ClientOverlay | null>(null);
+  const [overlaySession, setOverlaySession] = useState<ClientOverlay | null>(null);
+  const [overlayMessages, setOverlayMessages] = useState<OverlayConversationMessage[]>([]);
+
+  // Reset the overlay conversation when the client or anchor model changes,
+  // so we do not carry a stale dialogue into a new customization.
+  useEffect(() => {
+    setOverlaySession(null);
+    setOverlayMessages([]);
+  }, [activeClient?.client_id, anchorPortfolioId]);
+
   const [personalizationCompare, setPersonalizationCompare] =
     useState<PersonalizationCompare | null>(null);
   const [request, setRequest] = useState<BacktestRequest | null>(
@@ -663,6 +676,8 @@ export default function HomePage() {
 
   const onSkipOverlay = useCallback(() => {
     setSignedOverlay(null);
+    setOverlaySession(null);
+    setOverlayMessages([]);
     const base = buildAnchorBacktestRequest(
       anchorPortfolio,
       request ?? buildDefaultRequest(),
@@ -838,6 +853,10 @@ export default function HomePage() {
               selectedGroups={selectedScopeGroups}
               anchorPositions={anchorPositions}
               anchorLabel={anchorLabel}
+              initialMessages={overlayMessages}
+              onMessagesChange={setOverlayMessages}
+              initialOverlay={overlaySession}
+              onOverlayChange={setOverlaySession}
             />
             <button
               type="button"

@@ -38,6 +38,10 @@ type Props = {
   selectedGroups?: ContextGroup[];
   anchorPositions?: ContextPosition[];
   anchorLabel?: string;
+  initialMessages?: OverlayConversationMessage[];
+  onMessagesChange?: (messages: OverlayConversationMessage[]) => void;
+  initialOverlay?: ClientOverlay | null;
+  onOverlayChange?: (overlay: ClientOverlay | null) => void;
 };
 
 function detectOverlayInputLang(text: string): "en" | "zh" | "ko" {
@@ -172,12 +176,16 @@ export function OverlayConversationPanel({
   selectedGroups = [],
   anchorPositions = [],
   anchorLabel,
+  initialMessages = [],
+  onMessagesChange,
+  initialOverlay = null,
+  onOverlayChange,
 }: Props) {
   const { lang, t } = useI18n();
 
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<OverlayConversationMessage[]>([]);
-  const [overlay, setOverlay] = useState<ClientOverlay | null>(null);
+  const [messages, setMessages] = useState<OverlayConversationMessage[]>(initialMessages);
+  const [overlay, setOverlay] = useState<ClientOverlay | null>(initialOverlay);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{
     message: string;
@@ -186,6 +194,26 @@ export function OverlayConversationPanel({
   } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [overlayLang, setOverlayLang] = useState<typeof lang>(lang);
+
+  // Sync local messages when the parent resets the conversation (e.g. new client).
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
+
+  // Sync local overlay when the parent restores a previous session.
+  useEffect(() => {
+    setOverlay(initialOverlay);
+  }, [initialOverlay]);
+
+  // Propagate conversation history and overlay state back to the parent so both
+  // survive phase changes.
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
+
+  useEffect(() => {
+    onOverlayChange?.(overlay);
+  }, [overlay, onOverlayChange]);
 
   // If no overlay has been generated yet, keep the overlay language aligned with
   // the current UI locale. Once we generate an overlay, we keep the detected

@@ -110,6 +110,13 @@ export interface BacktestRequest {
   static_replay_holdings?: Record<string, number> | null;
   /** Explicit benchmark for metrics and AI narratives; overrides AI universe pick. */
   benchmark_ticker?: string | null;
+  /**
+   * Maximum deviation from the anchor model portfolio weights.
+   * 0 = hold the anchor exactly, 1 = allow full customization.
+   */
+  customization_drift?: number;
+  /** Anchor model portfolio weights used by the drift constraint. */
+  anchor_weights?: Record<string, number> | null;
 }
 
 export interface ConvergencePreviewPoint {

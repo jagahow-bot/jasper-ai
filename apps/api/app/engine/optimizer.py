@@ -112,6 +112,8 @@ def run_optuna_search(
     active_regime_resolver: Callable[[pd.Timestamp], str] | None = None,
     param_controls: dict[str, dict] | None = None,
     spec: BacktestSpec = DEFAULT_SPEC,
+    anchor_weights: dict[str, float] | None = None,
+    customization_drift: float | None = None,
     progress_cb: (
         Callable[[int, int, float | None], None]
         | Callable[[int, int, float | None, tuple[float, dict, dict] | None], None]
@@ -648,6 +650,8 @@ def run_optuna_search(
             enforce_class_weights=enforce_class_weights,
             allocator_resolver=allocator_resolver,
             factor_params_resolver=factor_params_resolver,
+            anchor_weights=anchor_weights,
+            customization_drift=customization_drift,
         )
         try:
             metrics = simulate_dynamic_portfolio(

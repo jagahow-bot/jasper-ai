@@ -160,6 +160,23 @@ class BacktestRequest(BaseModel):
         le=2.0,
         description="Max one-way turnover per rebalance (AI may choose stricter)",
     )
+    customization_drift: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Maximum deviation from anchor weights (0 = hold anchor exactly, "
+            "1 = full customization)."
+        ),
+    )
+    anchor_weights: dict[str, float] | None = Field(
+        default=None,
+        description=(
+            "Target model portfolio weights for drift anchor. When provided, "
+            "the optimizer penalizes deviation from these weights according to "
+            "customization_drift."
+        ),
+    )
     objective_custom_text: str | None = Field(
         default=None,
         description="Optional natural-language objective when objective=custom",

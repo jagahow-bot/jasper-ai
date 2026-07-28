@@ -596,6 +596,8 @@ def _rebalance_schedule_dynamic(
     factor_params_resolver: Callable[[pd.Timestamp], FactorParams] | None = None,
     max_holdings: int | None = None,
     report_start: str | None = None,
+    anchor_weights: dict[str, float] | None = None,
+    customization_drift: float | None = None,
 ) -> tuple[
     pd.DataFrame,
     np.ndarray,
@@ -608,6 +610,16 @@ def _rebalance_schedule_dynamic(
     rets = _safe_returns(prices)
     n = len(prices.columns)
     cap_audit_rows: list[dict[str, Any]] = []
+
+    # Align anchor weights with simulation columns for the drift constraint.
+    anchor_w = np.zeros(n, dtype=float)
+    if anchor_weights:
+        for i, ticker in enumerate(prices.columns):
+            anchor_w[i] = float(anchor_weights.get(str(ticker), 0.0))
+        total = float(np.sum(anchor_w))
+        if total > 0:
+            anchor_w /= total
+    drift = float(customization_drift) if customization_drift is not None else None
 
     schedule = pd.DataFrame(
         index=prices.index, columns=prices.columns, dtype=float
@@ -709,15 +721,17 @@ def _rebalance_schedule_dynamic(
             mu, cov = _estimate_mu_sigma(
                 rets[chosen], lookback_days=alloc_step.lookback_days, end_loc=end_loc
             )
-            w_sub_prev = np.atleast_1d(
-                w[np.asarray([col_index[t] for t in chosen], dtype=int)]
-            )
+            chosen_indices = np.asarray([col_index[t] for t in chosen], dtype=int)
+            w_sub_prev = np.atleast_1d(w[chosen_indices])
+            w_sub_anchor = np.atleast_1d(anchor_w[chosen_indices])
             w_sub = solve_weights(
                 mu_annual=mu,
                 cov_annual=cov,
                 max_weight=max_weight,
                 params=alloc_step,
                 w0=w_sub_prev,
+                anchor_weights=w_sub_anchor,
+                customization_drift=drift,
             )
             w_sub_flat = np.asarray(w_sub, dtype=float).ravel()
             w = np.zeros(n, dtype=float)
@@ -1016,6 +1030,8 @@ def _simulate_pandas(
     class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
     enforce_class_weights: bool = True,
     report_start: str | None = None,
+    anchor_weights: dict[str, float] | None = None,
+    customization_drift: float | None = None,
 ) -> dict[str, Any]:
     holdings_top_n = effective_top_n(top_n, spec, n_assets=len(prices.columns))
     if dynamic:
@@ -1047,6 +1063,8 @@ def _simulate_pandas(
             class_budget_resolver=class_budget_resolver,
             enforce_class_weights=enforce_class_weights,
             report_start=report_start,
+            anchor_weights=anchor_weights,
+            customization_drift=customization_drift,
         )
     else:
         schedule = _rebalance_schedule(prices, weights, spec.rebalance_rule)
@@ -1169,6 +1187,8 @@ def simulate_dynamic_portfolio(
     class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
     enforce_class_weights: bool = True,
     report_start: str | None = None,
+    anchor_weights: dict[str, float] | None = None,
+    customization_drift: float | None = None,
 ) -> dict[str, Any]:
     w0 = np.ones(len(prices.columns), dtype=float) / max(len(prices.columns), 1)
     return _simulate_pandas(
@@ -1191,6 +1211,8 @@ def simulate_dynamic_portfolio(
         class_budget_resolver=class_budget_resolver,
         enforce_class_weights=enforce_class_weights,
         report_start=report_start,
+        anchor_weights=anchor_weights,
+        customization_drift=customization_drift,
     )
 
 

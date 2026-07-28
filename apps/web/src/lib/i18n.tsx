@@ -68,6 +68,9 @@ const en: Dict = {
   "config.maxTurnover": "Max turnover per review: {pct}%",
   "config.maxTurnoverHint":
     "Limits how much of the portfolio Jasper can trade at each review, helping keep trading costs in check.",
+  "config.customizationDrift": "Customization room: {pct}%",
+  "config.customizationDriftHint":
+    "0% keeps the portfolio identical to the anchor model. 100% lets Jasper fully reshape positions within the agreed universe.",
   "config.maxHoldings": "Max positions: {n}",
   "config.maxHoldingsHint":
     "The most positions your portfolio will hold at any one time.",
@@ -1340,6 +1343,9 @@ const zh: Dict = {
   "config.maxTurnover": "每次檢視最大換手率：{pct}%",
   "config.maxTurnoverHint":
     "限制 Jasper 每次組合檢視能調動的部位比例，有助於控制交易成本。",
+  "config.customizationDrift": "客製化空間：{pct}%",
+  "config.customizationDriftHint":
+    "0% 會讓投組與目標模型完全一致；100% 則允許 Jasper 在約定標的池中重新建構部位。",
   "config.maxHoldings": "最多持倉檔數：{n}",
   "config.maxHoldingsHint": "投資組合在任一時間最多持有的部位數。",
   "config.topN": "候選標的清單：{n}",
@@ -2586,6 +2592,9 @@ const ko: Dict = {
   "config.maxTurnover": "검토 시 최대 회전율: {pct}%",
   "config.maxTurnoverHint":
     "Jasper가 포트폴리오 검토 시 거래할 수 있는 비율을 제한해 거래 비용을 억제합니다.",
+  "config.customizationDrift": "맞춤화 여유: {pct}%",
+  "config.customizationDriftHint":
+    "0%는 기준 모델과 동일한 포트폴리오를 유지하고, 100%는 Jasper가 약속된 유니버스 안에서 포지션을 전면 재구성할 수 있습니다.",
   "config.maxHoldings": "최대 보유 종목 수: {n}",
   "config.maxHoldingsHint": "포트폴리오가 동시에 보유하는 최대 종목 수입니다.",
   "config.topN": "후보 종목 수: {n}",
