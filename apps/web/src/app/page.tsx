@@ -835,6 +835,9 @@ export default function HomePage() {
               baseScenarioId={`anchor-${anchorPortfolioId}`}
               clientRef={activeClient?.client_id}
               onConfirm={onOverlayConfirm}
+              selectedGroups={selectedScopeGroups}
+              anchorPositions={anchorPositions}
+              anchorLabel={anchorLabel}
             />
             <button
               type="button"

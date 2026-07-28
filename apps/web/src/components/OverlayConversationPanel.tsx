@@ -18,11 +18,26 @@ import {
   type OverlayProposedTicker,
 } from "@/lib/overlay-schema";
 
+type ContextPosition = {
+  ticker: string;
+  label?: string;
+  weightLabel?: string;
+};
+
+type ContextGroup = {
+  id: string;
+  name: string;
+  holdings: ContextPosition[];
+};
+
 type Props = {
   rmId?: string;
   clientRef?: string;
   baseScenarioId?: string;
   onConfirm?: (overlay: ClientOverlay) => void;
+  selectedGroups?: ContextGroup[];
+  anchorPositions?: ContextPosition[];
+  anchorLabel?: string;
 };
 
 function detectOverlayInputLang(text: string): "en" | "zh" | "ko" {
@@ -154,6 +169,9 @@ export function OverlayConversationPanel({
   clientRef,
   baseScenarioId,
   onConfirm,
+  selectedGroups = [],
+  anchorPositions = [],
+  anchorLabel,
 }: Props) {
   const { lang, t } = useI18n();
 
@@ -197,6 +215,9 @@ export function OverlayConversationPanel({
             client_ref: clientRef,
             base_scenario_id: baseScenarioId,
             report_language: reportLanguage,
+            selected_groups: selectedGroups,
+            anchor_positions: anchorPositions,
+            anchor_label: anchorLabel,
           }),
         });
         const data: unknown = await res.json();
@@ -261,7 +282,7 @@ export function OverlayConversationPanel({
         setLoading(false);
       }
     },
-    [overlay, rmId, clientRef, baseScenarioId, t],
+    [overlay, rmId, clientRef, baseScenarioId, selectedGroups, anchorPositions, anchorLabel, t],
   );
 
   const send = async () => {

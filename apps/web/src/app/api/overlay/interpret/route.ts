@@ -29,6 +29,18 @@ import {
   type Lang,
 } from "@/lib/universe-filter-locale";
 
+type ContextPosition = {
+  ticker: string;
+  label?: string;
+  weightLabel?: string;
+};
+
+type ContextGroup = {
+  id: string;
+  name: string;
+  holdings: ContextPosition[];
+};
+
 type InterpretBody = {
   messages?: OverlayConversationMessage[];
   /** Latest user utterance (shortcut when messages omitted). */
@@ -39,11 +51,40 @@ type InterpretBody = {
   client_ref?: string;
   base_scenario_id?: string;
   report_language?: string;
+  /** Holdings already selected for customization (display context for the AI). */
+  selected_groups?: ContextGroup[];
+  /** Target model portfolio anchor holdings (display context for the AI). */
+  anchor_positions?: ContextPosition[];
+  anchor_label?: string;
 };
+
+function formatPositions(positions?: ContextPosition[]): string {
+  if (!positions || positions.length === 0) return "none";
+  return positions
+    .map((p) => `${p.ticker}${p.weightLabel ? ` (${p.weightLabel})` : ""}`)
+    .join(", ");
+}
+
+function buildContextBlock(
+  selectedGroups?: ContextGroup[],
+  anchorPositions?: ContextPosition[],
+  anchorLabel?: string,
+): string {
+  const groupLines = (selectedGroups ?? []).map(
+    (g) => `- ${g.name}: ${formatPositions(g.holdings)}`,
+  );
+  const anchorLine = `Target model portfolio${anchorLabel ? ` (${anchorLabel})` : ""}: ${formatPositions(anchorPositions)}`;
+  return `Already-confirmed customization scope (do not ask the RM to repeat this):
+${anchorLine}
+${groupLines.length > 0 ? `Groups selected for customization:\n${groupLines.join("\n")}` : "No specific groups selected; the whole anchor portfolio is the customization scope."}`;
+}
 
 function buildConversationPrompt(
   messages: OverlayConversationMessage[],
   prior: ClientOverlay | null | undefined,
+  selectedGroups?: ContextGroup[],
+  anchorPositions?: ContextPosition[],
+  anchorLabel?: string,
 ): string {
   const transcript = messages
     .map((m) => `${m.role === "user" ? "RM" : "AI"}: ${m.content}`)
@@ -61,7 +102,8 @@ function buildConversationPrompt(
         2,
       )}`
     : "";
-  return `Conversation transcript:\n${transcript}${priorBlock}`;
+  const contextBlock = buildContextBlock(selectedGroups, anchorPositions, anchorLabel);
+  return `Conversation transcript:\n${transcript}\n\n${contextBlock}${priorBlock}`;
 }
 
 function overlaySystemPrompt(lang: Lang): string {
@@ -116,7 +158,9 @@ Soft guidance:
 - If uncertain about an optional field, OMIT it rather than inventing wrong types/keys.
 - You assist RM structuring — NEVER output trade orders ("buy/sell X shares") or fabricated performance.
 - confidence: 0–1 reflecting completeness of the structured overlay.
-- rationale: 2–4 sentences for RM confirmation (${rationaleLanguageDirective(lang)}).
+- rationale: 2–4 sentences for RM confirmation (${rationaleLanguageDirective(lang)}). Use plain wealth-management language; avoid internal JSON field names or enum values.
+- clarification_questions: ask only about information that is truly missing or ambiguous. Do NOT ask about the target model portfolio or current holdings listed in the "Already-confirmed customization scope" block; use that context to assess overlap yourself.
+- All RM-facing text (questions, rationale, prompts) must be in plain, professional wealth-management language. Do NOT use developer terms or JSON values such as "risk_on", "max_sharpe", "proposed_tickers", "supplement_tickers", "factor", "objective", etc. in the text the RM reads. Internal JSON schema values may still be used in the structured fields only.
 
 Example (aggressive growth HNWI, US multi-cap anchor, reduce QQQ concentration, no ESG, gradual cash invest, no liquidity withdrawal):
 {
@@ -241,7 +285,13 @@ export async function POST(req: Request) {
       model: reasoningModel(),
       maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS,
       system: overlaySystemPrompt(lang),
-      prompt: buildConversationPrompt(messages, body.prior_overlay),
+      prompt: buildConversationPrompt(
+        messages,
+        body.prior_overlay,
+        body.selected_groups,
+        body.anchor_positions,
+        body.anchor_label,
+      ),
       providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID, { jsonMode: true }),
     });
     llmLog = log;
