@@ -31,10 +31,10 @@ export function etfDisplayName(ticker: string, lang: Lang): string {
     if (item.ticker.toUpperCase() !== upper) continue;
     const name = item.name?.trim();
     if (!name) break;
-    // Prefer English-looking universe labels when map is missing.
-    if (!isCjk(name)) return name;
-    if (lang === "zh") return name;
-    break;
+    // Prefer English-looking universe labels when map is missing; otherwise use
+    // the catalog name (stocks/funds often only have a single display string).
+    if (!isCjk(name) || lang === "zh") return name;
+    return name;
   }
 
   return upper;

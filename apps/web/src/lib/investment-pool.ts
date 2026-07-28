@@ -1,10 +1,10 @@
 import { getUniverseItems } from "@/lib/universe";
 import { MAINSTREAM_DEMO_TICKERS } from "@/lib/model-portfolios";
 
-/** v2: default is full etf-universe (not demo-sized). Bump invalidates stale v1 localStorage. */
-export const INVESTMENT_POOL_STORAGE_KEY = "jasper_investment_pool_v2";
+/** v3: full universe includes stocks + mutual funds (product_type). Bump invalidates stale v2 localStorage. */
+export const INVESTMENT_POOL_STORAGE_KEY = "jasper_investment_pool_v3";
 
-export type PoolProductType = "etf" | "fund" | "structured" | "bond" | "other";
+export type PoolProductType = "etf" | "stock" | "fund" | "structured" | "bond" | "other";
 
 export type PoolItem = {
   ticker: string;
@@ -21,13 +21,20 @@ export type PoolImportReport = {
   errors: string[];
 };
 
-function universeLookup(): Map<string, { name: string; asset_class: string; region: string }> {
-  const map = new Map<string, { name: string; asset_class: string; region: string }>();
+function universeLookup(): Map<
+  string,
+  { name: string; asset_class: string; region: string; product_type?: string }
+> {
+  const map = new Map<
+    string,
+    { name: string; asset_class: string; region: string; product_type?: string }
+  >();
   for (const u of getUniverseItems()) {
     map.set(u.ticker.toUpperCase(), {
       name: u.name,
       asset_class: u.asset_class,
       region: u.region ?? "us",
+      product_type: u.product_type,
     });
   }
   return map;
@@ -43,20 +50,20 @@ export function buildDemoPool(): PoolItem[] {
       name: meta?.name ?? ticker,
       asset_class: meta?.asset_class ?? "equity",
       region: meta?.region ?? "us",
-      product_type: "etf",
+      product_type: meta?.product_type ?? "etf",
       enabled: true,
     };
   });
 }
 
-/** Full etf-universe as pool (all enabled). */
+/** Full universe as pool (ETFs + stocks + funds; all enabled). */
 export function buildFullUniversePool(): PoolItem[] {
   return getUniverseItems().map((u) => ({
     ticker: u.ticker.toUpperCase(),
     name: u.name,
     asset_class: u.asset_class,
     region: u.region ?? "us",
-    product_type: "etf",
+    product_type: u.product_type ?? "etf",
     enabled: true,
   }));
 }

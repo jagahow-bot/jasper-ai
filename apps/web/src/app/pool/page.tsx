@@ -21,6 +21,7 @@ export default function InvestmentPoolPage() {
   const [q, setQ] = useState("");
   const [assetClass, setAssetClass] = useState("all");
   const [region, setRegion] = useState("all");
+  const [productType, setProductType] = useState("all");
 
   useEffect(() => {
     setItems(readInvestmentPool());
@@ -34,12 +35,19 @@ export default function InvestmentPoolPage() {
     () => [...new Set(items.map((i) => i.region))].sort(),
     [items],
   );
+  const productTypes = useMemo(
+    () => [...new Set(items.map((i) => i.product_type || "etf"))].sort(),
+    [items],
+  );
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return items.filter((i) => {
       if (assetClass !== "all" && i.asset_class !== assetClass) return false;
       if (region !== "all" && i.region !== region) return false;
+      if (productType !== "all" && (i.product_type || "etf") !== productType) {
+        return false;
+      }
       if (!query) return true;
       return (
         i.ticker.toLowerCase().includes(query) ||
@@ -47,7 +55,7 @@ export default function InvestmentPoolPage() {
         i.name.toLowerCase().includes(query)
       );
     });
-  }, [items, q, assetClass, region]);
+  }, [items, q, assetClass, region, productType]);
 
   const enabledCount = items.filter((i) => i.enabled).length;
 
@@ -100,6 +108,18 @@ export default function InvestmentPoolPage() {
               {regions.map((r) => (
                 <option key={r} value={r}>
                   {regionLabel(t, r)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={productType}
+              onChange={(e) => setProductType(e.target.value)}
+              className="pixel-input"
+            >
+              <option value="all">{t("pool.filter.allProducts")}</option>
+              {productTypes.map((p) => (
+                <option key={p} value={p}>
+                  {productTypeLabel(t, p)}
                 </option>
               ))}
             </select>

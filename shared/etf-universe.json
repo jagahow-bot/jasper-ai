@@ -1,2429 +1,3951 @@
 {
-  "version": "1.1",
-  "updated": "2026-05-29",
-  "criteria": "US-listed, typically >$500M AUM, diversified across asset classes and sub-categories",
+  "version": "1.2",
+  "updated": "2026-07-28",
+  "criteria": "US-listed ETFs (typically >$500M AUM) plus popular mega/large-cap stocks and liquid mutual-fund share classes for wealth-management demos",
   "universe": [
     {
       "ticker": "ACWI",
       "name": "全球股票",
       "asset_class": "equity",
       "region": "global",
-      "category": "global_broad"
+      "category": "global_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "ARKG",
       "name": "Genomic revolution",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "ARKK",
       "name": "創新主動",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "ARKW",
       "name": "Next-gen internet",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "ASHR",
       "name": "China A-shares",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "AVUV",
       "name": "US small-cap value",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "BOTZ",
       "name": "機器人與 AI",
       "asset_class": "equity",
       "region": "global",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "CIBR",
       "name": "Cybersecurity",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "CLOU",
       "name": "Cloud computing (Global X)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "CQQQ",
       "name": "China tech",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_thematic"
+      "category": "intl_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "DBEF",
       "name": "Dev ex-US hedged",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "DFAC",
       "name": "US core equity",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "DGRO",
       "name": "Dividend growth",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "DGRW",
       "name": "Dividend growth (WisdomTree)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "DIA",
       "name": "道瓊30",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "DRIV",
       "name": "Electric vehicles",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "DVY",
       "name": "Dividend achievers",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "DXJ",
       "name": "Japan currency hedged",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "ECH",
       "name": "Chile",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EEM",
       "name": "新興市場",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_em"
+      "category": "intl_em",
+      "product_type": "etf"
     },
     {
       "ticker": "EFA",
       "name": "已開發市場（除美）",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "EFAV",
       "name": "EAFE min vol",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "EFV",
       "name": "EAFE value",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "EIDO",
       "name": "Indonesia",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EIS",
       "name": "Israel",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EMQQ",
       "name": "EM internet",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_thematic"
+      "category": "intl_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "EMXC",
       "name": "EM ex-China",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_em"
+      "category": "intl_em",
+      "product_type": "etf"
     },
     {
       "ticker": "ENOR",
       "name": "Norway",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EPHE",
       "name": "Philippines",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EPI",
       "name": "India (WisdomTree)",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EPOL",
       "name": "Poland",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "ESGU",
       "name": "ESG US",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_esg"
+      "category": "us_esg",
+      "product_type": "etf"
     },
     {
       "ticker": "ESGV",
       "name": "ESG US (Vanguard)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_esg"
+      "category": "us_esg",
+      "product_type": "etf"
     },
     {
       "ticker": "EWA",
       "name": "澳洲",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWC",
       "name": "加拿大",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWD",
       "name": "Sweden",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWG",
       "name": "德國",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWH",
       "name": "Hong Kong",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWI",
       "name": "Italy",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWJ",
       "name": "日本",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWL",
       "name": "Switzerland",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWM",
       "name": "Malaysia",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWN",
       "name": "Netherlands",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWP",
       "name": "Spain",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWQ",
       "name": "France",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWS",
       "name": "Singapore",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWT",
       "name": "台灣",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWU",
       "name": "英國",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWUS",
       "name": "UK small-cap",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "EWW",
       "name": "Mexico",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWY",
       "name": "南韓",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EWZ",
       "name": "巴西",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "EZU",
       "name": "歐元區",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "FAN",
       "name": "Wind",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "FDN",
       "name": "Internet",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "FEZ",
       "name": "歐元區大型",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "FINX",
       "name": "Fintech",
       "asset_class": "equity",
       "region": "global",
-      "category": "intl_thematic"
+      "category": "intl_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "FM",
       "name": "Frontier markets",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_frontier"
+      "category": "intl_frontier",
+      "product_type": "etf"
     },
     {
       "ticker": "FTEC",
       "name": "Technology (Fidelity)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "FVD",
       "name": "Value line dividend",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "FXH",
       "name": "Health care (First Trust)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "FXI",
       "name": "中國大型 (大型)",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "GDXJ",
       "name": "Junior gold miners",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "GEM",
       "name": "Active EM multifactor",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_em"
+      "category": "intl_em",
+      "product_type": "etf"
     },
     {
       "ticker": "GWL",
       "name": "Developed world",
       "asset_class": "equity",
       "region": "global",
-      "category": "global_broad"
+      "category": "global_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "GXC",
       "name": "China large-cap (SPDR)",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "HACK",
       "name": "Cybersecurity (ETFMG)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "HDV",
       "name": "高股息 (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "HEFA",
       "name": "Dev ex-US currency hedged",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "HEWJ",
       "name": "Japan hedged",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "IBB",
       "name": "Biotech (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "ICLN",
       "name": "潔淨能源",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "IDU",
       "name": "Utilities (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IEFA",
       "name": "已開發市場 (iShares)",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "IEMG",
       "name": "新興市場 (iShares)",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_em"
+      "category": "intl_em",
+      "product_type": "etf"
     },
     {
       "ticker": "IEUR",
       "name": "歐洲",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "IGV",
       "name": "Software (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IHF",
       "name": "Health care providers",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IHI",
       "name": "Medical devices",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IJH",
       "name": "S&P 中型股 (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "IJK",
       "name": "S&P mid-cap growth",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "IJR",
       "name": "S&P 小型股 600",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "IJS",
       "name": "S&P small-cap value",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "IJT",
       "name": "S&P small-cap growth",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "INDA",
       "name": "印度",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "IOO",
       "name": "Global 100",
       "asset_class": "equity",
       "region": "global",
-      "category": "global_broad"
+      "category": "global_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "ITA",
       "name": "Aerospace & defense (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "ITB",
       "name": "Home construction",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "ITOT",
       "name": "全美股市 (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "IVE",
       "name": "S&P 500 value (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "IVV",
       "name": "S&P 500 (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "IVW",
       "name": "S&P 500 growth (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "IWB",
       "name": "羅素1000大型",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "IWD",
       "name": "羅素1000價值",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "IWF",
       "name": "羅素1000成長",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "IWM",
       "name": "羅素2000小型股",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "IWN",
       "name": "Russell 2000 value",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "IWO",
       "name": "Russell 2000 growth",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "IWV",
       "name": "羅素3000",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "IXUS",
       "name": "全球（除美）iShares",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_broad"
+      "category": "intl_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "IYC",
       "name": "Consumer disc (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IYE",
       "name": "Energy (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IYF",
       "name": "Financials (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IYK",
       "name": "Consumer staples (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IYM",
       "name": "Materials (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IYT",
       "name": "Transportation",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "IYW",
       "name": "Technology (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "JETS",
       "name": "Airlines",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "KBE",
       "name": "Banks",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "KIE",
       "name": "Insurance",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "KRE",
       "name": "Regional banks",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "KSA",
       "name": "Saudi Arabia",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "KWEB",
       "name": "中國網路",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_thematic"
+      "category": "intl_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "LIT",
       "name": "Lithium & battery",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "LRGF",
       "name": "US large-cap multifactor",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "MCHI",
       "name": "中國大型股",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "MDY",
       "name": "S&P 中型股 400",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "MGK",
       "name": "US mega-cap growth",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_growth"
+      "category": "us_growth",
+      "product_type": "etf"
     },
     {
       "ticker": "MTUM",
       "name": "動能因子",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "NLR",
       "name": "Nuclear",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "PAVE",
       "name": "Infrastructure",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "PPH",
       "name": "Pharma (VanEck)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "PRF",
       "name": "Russell 1000 style neutral",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "PRFZ",
       "name": "Russell 2000 style neutral",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "QAT",
       "name": "Qatar",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "QQQ",
       "name": "納斯達克100",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_growth"
+      "category": "us_growth",
+      "product_type": "etf"
     },
     {
       "ticker": "QQQM",
       "name": "納斯達克100 (低成本)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_growth"
+      "category": "us_growth",
+      "product_type": "etf"
     },
     {
       "ticker": "QUAL",
       "name": "品質因子",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "ROBO",
       "name": "Robotics",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "RSP",
       "name": "S&P 500 equal weight",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "SCHB",
       "name": "全美股市 (Schwab)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "SCHD",
       "name": "股息成長",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "SCHE",
       "name": "EM small-cap",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_em"
+      "category": "intl_em",
+      "product_type": "etf"
     },
     {
       "ticker": "SCHX",
       "name": "US large-cap core",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "SIZE",
       "name": "規模因子",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "SKYY",
       "name": "Cloud computing",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "SMH",
       "name": "Semiconductors (VanEck)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "SOXX",
       "name": "Semiconductors (iShares)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "SPEM",
       "name": "EM (SPDR)",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_em"
+      "category": "intl_em",
+      "product_type": "etf"
     },
     {
       "ticker": "SPHD",
       "name": "S&P 500 high dividend low vol",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "SPHQ",
       "name": "S&P 500 quality",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "SPLG",
       "name": "S&P 500 low cost",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "SPLV",
       "name": "S&P 500低波動",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "SPMD",
       "name": "S&P 400 mid-cap",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "SPMO",
       "name": "S&P 500 momentum",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "SPSM",
       "name": "S&P 600 small-cap",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "SPTM",
       "name": "US total market",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "SPY",
       "name": "S&P 500",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "SPYG",
       "name": "S&P 500 growth",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "SPYV",
       "name": "S&P 500 value",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "SUSA",
       "name": "MSCI USA ESG",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_esg"
+      "category": "us_esg",
+      "product_type": "etf"
     },
     {
       "ticker": "TAN",
       "name": "Solar",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "THD",
       "name": "Thailand",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "UAE",
       "name": "UAE",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "URA",
       "name": "Uranium",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_thematic"
+      "category": "us_thematic",
+      "product_type": "etf"
     },
     {
       "ticker": "URTH",
       "name": "全球已開發",
       "asset_class": "equity",
       "region": "global",
-      "category": "global_broad"
+      "category": "global_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "USMC",
       "name": "US mega-cap",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "USMV",
       "name": "MSCI美國最小波動",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "VB",
       "name": "小型股",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "VBK",
       "name": "Small-cap growth",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "VBR",
       "name": "Small-cap value",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "VCR",
       "name": "Consumer disc Vanguard",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "VDC",
       "name": "Consumer staples Vanguard",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "VDE",
       "name": "能源 Vanguard",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "VEA",
       "name": "已開發市場 (Vanguard)",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "VEU",
       "name": "All-world ex-US",
       "asset_class": "equity",
       "region": "global",
-      "category": "global_broad"
+      "category": "global_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "VFH",
       "name": "金融 Vanguard",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "VGK",
       "name": "Europe",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_developed"
+      "category": "intl_developed",
+      "product_type": "etf"
     },
     {
       "ticker": "VGT",
       "name": "科技 (Vanguard)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "VHT",
       "name": "醫療 Vanguard",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "VIG",
       "name": "股息成長 (Vanguard)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "VIOG",
       "name": "S&P 600 growth",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "VIOO",
       "name": "S&P 600",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "VIOV",
       "name": "S&P 600 value",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "VIS",
       "name": "Industrials Vanguard",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "VLUE",
       "name": "價值因子",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "VNM",
       "name": "Vietnam",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_country"
+      "category": "intl_country",
+      "product_type": "etf"
     },
     {
       "ticker": "VO",
       "name": "中型股",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_size"
+      "category": "us_size",
+      "product_type": "etf"
     },
     {
       "ticker": "VONE",
       "name": "Russell 1000",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "VOO",
       "name": "S&P 500 (Vanguard)",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "VOX",
       "name": "Communication Vanguard",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "VPU",
       "name": "Utilities Vanguard",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "VT",
       "name": "全球股票 Vanguard",
       "asset_class": "equity",
       "region": "global",
-      "category": "global_broad"
+      "category": "global_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "VTI",
       "name": "全美股市",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "VTV",
       "name": "大型價值",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "VUG",
       "name": "大型成長",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "VV",
       "name": "US large-cap",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_broad"
+      "category": "us_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "VWO",
       "name": "新興市場 (Vanguard)",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_em"
+      "category": "intl_em",
+      "product_type": "etf"
     },
     {
       "ticker": "VXUS",
       "name": "全球（除美）",
       "asset_class": "equity",
       "region": "intl",
-      "category": "intl_broad"
+      "category": "intl_broad",
+      "product_type": "etf"
     },
     {
       "ticker": "VYM",
       "name": "高股息",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_factor"
+      "category": "us_factor",
+      "product_type": "etf"
     },
     {
       "ticker": "XAR",
       "name": "Aerospace & defense",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XBI",
       "name": "Biotech",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XES",
       "name": "Oil & gas equipment",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XHB",
       "name": "Homebuilders",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XHE",
       "name": "Healthcare equipment",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XHS",
       "name": "Health care services",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XLB",
       "name": "原物料",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XLC",
       "name": "通訊服務",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XLE",
       "name": "能源類股",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XLF",
       "name": "金融類股",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XLI",
       "name": "工業類股",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XLK",
       "name": "科技類股",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XLP",
       "name": "必需消費",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XLU",
       "name": "公用事業",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XLV",
       "name": "醫療類股",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XLY",
       "name": "非必需消費",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_sector"
+      "category": "us_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "XME",
       "name": "Metals & mining",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XNTK",
       "name": "Nasdaq 100 Technology",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XOP",
       "name": "Oil & gas exploration",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XPH",
       "name": "Pharma",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XRT",
       "name": "Retail",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XSD",
       "name": "Semiconductor SPDR",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XSW",
       "name": "Software",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XTL",
       "name": "Telecom",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
     },
     {
       "ticker": "XWEB",
       "name": "Internet & direct marketing",
       "asset_class": "equity",
       "region": "us",
-      "category": "us_industry"
+      "category": "us_industry",
+      "product_type": "etf"
+    },
+    {
+      "ticker": "AAPL",
+      "name": "蘋果",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ABBV",
+      "name": "艾伯維",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ABNB",
+      "name": "Airbnb",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ABT",
+      "name": "雅培",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ADBE",
+      "name": "Adobe",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AMAT",
+      "name": "應用材料",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_semi",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AMD",
+      "name": "超微",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_semi",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AMGN",
+      "name": "安進",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AMZN",
+      "name": "亞馬遜",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AVGO",
+      "name": "博通",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AXP",
+      "name": "美國運通",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BA",
+      "name": "波音",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BAC",
+      "name": "美國銀行",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BKNG",
+      "name": "Booking",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BLK",
+      "name": "貝萊德",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BMY",
+      "name": "必治妥",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BRK-B",
+      "name": "波克夏 B",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "C",
+      "name": "花旗",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CAT",
+      "name": "卡特彼勒",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CMCSA",
+      "name": "康卡斯特",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_comms",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "COF",
+      "name": "Capital One",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "COP",
+      "name": "康菲",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_energy",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "COST",
+      "name": "好市多",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CRM",
+      "name": "Salesforce",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CRWD",
+      "name": "CrowdStrike",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CSCO",
+      "name": "思科",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CVX",
+      "name": "雪佛龍",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_energy",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DE",
+      "name": "約翰迪爾",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DHR",
+      "name": "丹納赫",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DIS",
+      "name": "迪士尼",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_comms",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DUK",
+      "name": "Duke Energy",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_utilities",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "EOG",
+      "name": "EOG",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_energy",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ETN",
+      "name": "伊頓",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "GE",
+      "name": "通用電氣",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "GILD",
+      "name": "吉利德",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "GOOG",
+      "name": "Alphabet C",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "GOOGL",
+      "name": "Alphabet A",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "GS",
+      "name": "高盛",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "HD",
+      "name": "Home Depot",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "HON",
+      "name": "霍尼韋爾",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "IBM",
+      "name": "IBM",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "INTC",
+      "name": "英特爾",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_semi",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "INTU",
+      "name": "Intuit",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ISRG",
+      "name": "直覺外科",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "JNJ",
+      "name": "嬌生",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "JPM",
+      "name": "摩根大通",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "KLAC",
+      "name": "KLA",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_semi",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "KO",
+      "name": "可口可樂",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_staples",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "LIN",
+      "name": "Linde",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_materials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "LLY",
+      "name": "禮來",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "LMT",
+      "name": "洛克希德",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "LOW",
+      "name": "Lowe's",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "LRCX",
+      "name": "Lam Research",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_semi",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MA",
+      "name": "Mastercard",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MCD",
+      "name": "麥當勞",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "META",
+      "name": "Meta",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MO",
+      "name": "Altria",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_staples",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MRK",
+      "name": "默沙東",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MS",
+      "name": "摩根士丹利",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MSFT",
+      "name": "微軟",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MU",
+      "name": "美光",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_semi",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "NEE",
+      "name": "NextEra",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_utilities",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "NFLX",
+      "name": "Netflix",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_comms",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "NKE",
+      "name": "Nike",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "NOW",
+      "name": "ServiceNow",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "NVDA",
+      "name": "輝達",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ORCL",
+      "name": "甲骨文",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PANW",
+      "name": "Palo Alto",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PEP",
+      "name": "百事",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_staples",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PFE",
+      "name": "輝瑞",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PG",
+      "name": "寶僑",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_staples",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PLTR",
+      "name": "Palantir",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PM",
+      "name": "菲利普莫里斯",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_staples",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PYPL",
+      "name": "PayPal",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "QCOM",
+      "name": "高通",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_semi",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "REGN",
+      "name": "再生元",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "RTX",
+      "name": "RTX",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SBUX",
+      "name": "星巴克",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SCHW",
+      "name": "嘉信",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SHW",
+      "name": "Sherwin-Williams",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_materials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SLB",
+      "name": "Schlumberger",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_energy",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SNOW",
+      "name": "Snowflake",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SO",
+      "name": "南方電力",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_utilities",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "T",
+      "name": "AT&T",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_comms",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TGT",
+      "name": "Target",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TJX",
+      "name": "TJX",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TMO",
+      "name": "賽默飛",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TMUS",
+      "name": "T-Mobile",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_comms",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TSLA",
+      "name": "特斯拉",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_mega",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TXN",
+      "name": "德州儀器",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_semi",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "UNH",
+      "name": "聯合健康",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "UNP",
+      "name": "聯合太平洋",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "UPS",
+      "name": "UPS",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_industrials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "V",
+      "name": "Visa",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "VRTX",
+      "name": "Vertex",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_healthcare",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "VZ",
+      "name": "Verizon",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_comms",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "WFC",
+      "name": "富國銀行",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_financials",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "WMT",
+      "name": "沃爾瑪",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_consumer",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "XOM",
+      "name": "艾克森美孚",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_energy",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AGTHX",
+      "name": "American Funds Growth Fund of America A",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_growth",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "AIVSX",
+      "name": "American Funds Investment Co of America A",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "AMECX",
+      "name": "American Funds Income Fund of America A",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_income",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "AMRMX",
+      "name": "American Funds American Mutual A",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_value",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "ANCFX",
+      "name": "American Funds Fundamental Investors A",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "AWSHX",
+      "name": "American Funds Washington Mutual A",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_value",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "CAIBX",
+      "name": "American Funds Capital Income Builder A",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "global_fund_income",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "CWGFX",
+      "name": "American Funds Capital World Growth & Income A",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "global_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "DODFX",
+      "name": "Dodge & Cox International Stock",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_fund_value",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "DODGX",
+      "name": "Dodge & Cox Stock",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_value",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FBALX",
+      "name": "Fidelity Balanced",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_balanced",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FBGRX",
+      "name": "Fidelity Blue Chip Growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_growth",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FCNTX",
+      "name": "Fidelity Contrafund",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_growth",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FDGRX",
+      "name": "Fidelity Growth Company",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_growth",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FSKAX",
+      "name": "Fidelity Total Market Index",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FSPGX",
+      "name": "Fidelity Large Cap Growth Index",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_growth",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FXAIX",
+      "name": "Fidelity 500 Index",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FZILX",
+      "name": "Fidelity ZERO International",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FZROX",
+      "name": "Fidelity ZERO Total Market",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "PRGFX",
+      "name": "T. Rowe Price Growth Stock",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_growth",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "PRWCX",
+      "name": "T. Rowe Price Capital Appreciation",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_balanced",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "RERFX",
+      "name": "American Funds EuroPacific Growth R5",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_fund_growth",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "SWISX",
+      "name": "Schwab International Index",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "SWPPX",
+      "name": "Schwab S&P 500 Index",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "SWTSX",
+      "name": "Schwab Total Stock Market Index",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "SWYGX",
+      "name": "Schwab Target 2040 Index",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_target",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "SWYNX",
+      "name": "Schwab Target 2050 Index",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_target",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "TRBCX",
+      "name": "T. Rowe Price Blue Chip Growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_growth",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VDIGX",
+      "name": "Vanguard Dividend Growth",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_dividend",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VFIAX",
+      "name": "Vanguard 500 Index Admiral",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VHYAX",
+      "name": "Vanguard High Dividend Yield Admiral",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_dividend",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VIGAX",
+      "name": "Vanguard Growth Index Admiral",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_growth",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VIMAX",
+      "name": "Vanguard Mid-Cap Index Admiral",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_size",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VSMAX",
+      "name": "Vanguard Small-Cap Index Admiral",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_size",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VTIAX",
+      "name": "Vanguard Total Intl Stock Admiral",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VTSAX",
+      "name": "Vanguard Total Stock Market Admiral",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VTWAX",
+      "name": "Vanguard Total World Stock Admiral",
+      "asset_class": "equity",
+      "region": "global",
+      "category": "global_fund_core",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VWELX",
+      "name": "Vanguard Wellington Investor",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_balanced",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VWENX",
+      "name": "Vanguard Wellington Admiral",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_balanced",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VWNDX",
+      "name": "Vanguard Windsor",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_fund_value",
+      "product_type": "fund"
     },
     {
       "ticker": "AGG",
       "name": "美國綜合債券 iShares",
       "asset_class": "bond",
       "region": "us",
-      "category": "aggregate"
+      "category": "aggregate",
+      "product_type": "etf"
     },
     {
       "ticker": "ANGL",
       "name": "Fallen angels (VanEck)",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_hy"
+      "category": "credit_hy",
+      "product_type": "etf"
     },
     {
       "ticker": "BIL",
       "name": "1-3月美債",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "BIV",
       "name": "Intermediate bond Vanguard",
       "asset_class": "bond",
       "region": "us",
-      "category": "aggregate"
+      "category": "aggregate",
+      "product_type": "etf"
     },
     {
       "ticker": "BLV",
       "name": "Long-term bond Vanguard",
       "asset_class": "bond",
       "region": "us",
-      "category": "aggregate"
+      "category": "aggregate",
+      "product_type": "etf"
     },
     {
       "ticker": "BND",
       "name": "美國綜合債券",
       "asset_class": "bond",
       "region": "us",
-      "category": "aggregate"
+      "category": "aggregate",
+      "product_type": "etf"
     },
     {
       "ticker": "BNDX",
       "name": "全球債券（除美）",
       "asset_class": "bond",
       "region": "intl",
-      "category": "intl_bond"
+      "category": "intl_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "BSV",
       "name": "Short-term bond Vanguard",
       "asset_class": "bond",
       "region": "us",
-      "category": "aggregate"
+      "category": "aggregate",
+      "product_type": "etf"
     },
     {
       "ticker": "BWX",
       "name": "International Treasury",
       "asset_class": "bond",
       "region": "intl",
-      "category": "intl_bond"
+      "category": "intl_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "BWZ",
       "name": "Short-term intl Treasury",
       "asset_class": "bond",
       "region": "intl",
-      "category": "intl_bond"
+      "category": "intl_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "CMBS",
       "name": "CMBS",
       "asset_class": "bond",
       "region": "us",
-      "category": "bond_mbs"
+      "category": "bond_mbs",
+      "product_type": "etf"
     },
     {
       "ticker": "EDV",
       "name": "Extended duration Treasury",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "EMB",
       "name": "新興市場美元債",
       "asset_class": "bond",
       "region": "intl",
-      "category": "em_bond"
+      "category": "em_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "EMHY",
       "name": "EM USD HY",
       "asset_class": "bond",
       "region": "intl",
-      "category": "em_bond"
+      "category": "em_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "EMLC",
       "name": "EM local currency bonds",
       "asset_class": "bond",
       "region": "intl",
-      "category": "em_bond"
+      "category": "em_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "FALN",
       "name": "Fallen angels HY",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_hy"
+      "category": "credit_hy",
+      "product_type": "etf"
     },
     {
       "ticker": "FLOT",
       "name": "Investment-grade floating rate",
       "asset_class": "bond",
       "region": "us",
-      "category": "bond_floating"
+      "category": "bond_floating",
+      "product_type": "etf"
     },
     {
       "ticker": "GNMA",
       "name": "GNMA bonds",
       "asset_class": "bond",
       "region": "us",
-      "category": "bond_mbs"
+      "category": "bond_mbs",
+      "product_type": "etf"
     },
     {
       "ticker": "GOVT",
       "name": "美債全期限",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "HYD",
       "name": "High yield muni",
       "asset_class": "bond",
       "region": "us",
-      "category": "muni"
+      "category": "muni",
+      "product_type": "etf"
     },
     {
       "ticker": "HYG",
       "name": "高收益債",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_hy"
+      "category": "credit_hy",
+      "product_type": "etf"
     },
     {
       "ticker": "HYLB",
       "name": "High yield corporate",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_hy"
+      "category": "credit_hy",
+      "product_type": "etf"
     },
     {
       "ticker": "IAGG",
       "name": "全球債券 iShares",
       "asset_class": "bond",
       "region": "intl",
-      "category": "intl_bond"
+      "category": "intl_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "IEF",
       "name": "中期美債 7-10年",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "IEI",
       "name": "中短期美債 3-7年",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "IGIB",
       "name": "Intermediate IG corporate",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_ig"
+      "category": "credit_ig",
+      "product_type": "etf"
     },
     {
       "ticker": "IGLB",
       "name": "Long-term IG corporate",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_ig"
+      "category": "credit_ig",
+      "product_type": "etf"
     },
     {
       "ticker": "IGOV",
       "name": "International Treasury (iShares)",
       "asset_class": "bond",
       "region": "intl",
-      "category": "intl_bond"
+      "category": "intl_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "IGSB",
       "name": "Short-term IG corporate",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_ig"
+      "category": "credit_ig",
+      "product_type": "etf"
     },
     {
       "ticker": "JNK",
       "name": "高收益債 (SPDR)",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_hy"
+      "category": "credit_hy",
+      "product_type": "etf"
     },
     {
       "ticker": "JPMB",
       "name": "EM corporate",
       "asset_class": "bond",
       "region": "intl",
-      "category": "em_bond"
+      "category": "em_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "LEMB",
       "name": "EM local currency (iShares)",
       "asset_class": "bond",
       "region": "intl",
-      "category": "em_bond"
+      "category": "em_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "LMBS",
       "name": "Mortgage-backed securities",
       "asset_class": "bond",
       "region": "us",
-      "category": "bond_mbs"
+      "category": "bond_mbs",
+      "product_type": "etf"
     },
     {
       "ticker": "LQD",
       "name": "投資級公司債",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_ig"
+      "category": "credit_ig",
+      "product_type": "etf"
     },
     {
       "ticker": "LTPZ",
       "name": "Long-term TIPS",
       "asset_class": "bond",
       "region": "us",
-      "category": "inflation"
+      "category": "inflation",
+      "product_type": "etf"
     },
     {
       "ticker": "MBB",
       "name": "MBS (iShares)",
       "asset_class": "bond",
       "region": "us",
-      "category": "bond_mbs"
+      "category": "bond_mbs",
+      "product_type": "etf"
     },
     {
       "ticker": "MUB",
       "name": "市政債",
       "asset_class": "bond",
       "region": "us",
-      "category": "muni"
+      "category": "muni",
+      "product_type": "etf"
     },
     {
       "ticker": "MUNI",
       "name": "National muni",
       "asset_class": "bond",
       "region": "us",
-      "category": "muni"
+      "category": "muni",
+      "product_type": "etf"
     },
     {
       "ticker": "PCY",
       "name": "EM sovereign debt",
       "asset_class": "bond",
       "region": "intl",
-      "category": "em_bond"
+      "category": "em_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "PHB",
       "name": "High yield (PowerShares)",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_hy"
+      "category": "credit_hy",
+      "product_type": "etf"
     },
     {
       "ticker": "SCHO",
       "name": "Short-term Treasury (Schwab)",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "SCHP",
       "name": "TIPS Schwab",
       "asset_class": "bond",
       "region": "us",
-      "category": "inflation"
+      "category": "inflation",
+      "product_type": "etf"
     },
     {
       "ticker": "SCHR",
       "name": "Intermediate Treasury (Schwab)",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "SCHZ",
       "name": "US aggregate bond",
       "asset_class": "bond",
       "region": "us",
-      "category": "aggregate"
+      "category": "aggregate",
+      "product_type": "etf"
     },
     {
       "ticker": "SGOV",
       "name": "0-3 month T-bills",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "SHV",
       "name": "超短期美債",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "SHY",
       "name": "短期美債 1-3年",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "SHYG",
       "name": "Short-term HY",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_hy"
+      "category": "credit_hy",
+      "product_type": "etf"
     },
     {
       "ticker": "SJNK",
       "name": "Short-term HY (SPDR)",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_hy"
+      "category": "credit_hy",
+      "product_type": "etf"
     },
     {
       "ticker": "SPAB",
       "name": "US aggregate (SPDR)",
       "asset_class": "bond",
       "region": "us",
-      "category": "aggregate"
+      "category": "aggregate",
+      "product_type": "etf"
     },
     {
       "ticker": "SPBO",
       "name": "Global IG corporate",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_ig"
+      "category": "credit_ig",
+      "product_type": "etf"
     },
     {
       "ticker": "SPTI",
       "name": "Intermediate Treasury",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "SPTL",
       "name": "Long-term Treasury",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "SPTS",
       "name": "Short-term Treasury",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "STIP",
       "name": "短期 TIPS",
       "asset_class": "bond",
       "region": "us",
-      "category": "inflation"
+      "category": "inflation",
+      "product_type": "etf"
     },
     {
       "ticker": "SUB",
       "name": "Short-term muni",
       "asset_class": "bond",
       "region": "us",
-      "category": "muni"
+      "category": "muni",
+      "product_type": "etf"
     },
     {
       "ticker": "TBIL",
       "name": "T-bill",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "TFLO",
       "name": "Floating rate Treasury",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "TIP",
       "name": "通膨連動債 TIPS",
       "asset_class": "bond",
       "region": "us",
-      "category": "inflation"
+      "category": "inflation",
+      "product_type": "etf"
     },
     {
       "ticker": "TIPX",
       "name": "TIPS broad",
       "asset_class": "bond",
       "region": "us",
-      "category": "inflation"
+      "category": "inflation",
+      "product_type": "etf"
     },
     {
       "ticker": "TLT",
       "name": "長天期美債 20+年",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "USFR",
       "name": "Floating rate Treasury (WisdomTree)",
       "asset_class": "bond",
       "region": "us",
-      "category": "bond_floating"
+      "category": "bond_floating",
+      "product_type": "etf"
     },
     {
       "ticker": "USHY",
       "name": "高收益 (iShares)",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_hy"
+      "category": "credit_hy",
+      "product_type": "etf"
     },
     {
       "ticker": "VCIT",
       "name": "中期公司債",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_ig"
+      "category": "credit_ig",
+      "product_type": "etf"
     },
     {
       "ticker": "VCSH",
       "name": "短期公司債",
       "asset_class": "bond",
       "region": "us",
-      "category": "credit_ig"
+      "category": "credit_ig",
+      "product_type": "etf"
     },
     {
       "ticker": "VGIT",
       "name": "中期美債 Vanguard",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "VGLT",
       "name": "長期美債 Vanguard",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "VGSH",
       "name": "Short-term Treasury Vanguard",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "VMBS",
       "name": "MBS Vanguard",
       "asset_class": "bond",
       "region": "us",
-      "category": "bond_mbs"
+      "category": "bond_mbs",
+      "product_type": "etf"
     },
     {
       "ticker": "VTEB",
       "name": "市政債 Vanguard",
       "asset_class": "bond",
       "region": "us",
-      "category": "muni"
+      "category": "muni",
+      "product_type": "etf"
     },
     {
       "ticker": "VTIP",
       "name": "Short-term TIPS Vanguard",
       "asset_class": "bond",
       "region": "us",
-      "category": "inflation"
+      "category": "inflation",
+      "product_type": "etf"
     },
     {
       "ticker": "VUSB",
       "name": "Ultra-short bond",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
     },
     {
       "ticker": "VWOB",
       "name": "新興市場債 Vanguard",
       "asset_class": "bond",
       "region": "intl",
-      "category": "em_bond"
+      "category": "em_bond",
+      "product_type": "etf"
     },
     {
       "ticker": "ZROZ",
       "name": "25+ year Treasury",
       "asset_class": "bond",
       "region": "us",
-      "category": "treasury"
+      "category": "treasury",
+      "product_type": "etf"
+    },
+    {
+      "ticker": "ABNDX",
+      "name": "American Funds Bond Fund of America A",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "us_fund_bond",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "DODIX",
+      "name": "Dodge & Cox Income",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "us_fund_bond",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FAGIX",
+      "name": "Fidelity Capital & Income",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "us_fund_credit",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FTBFX",
+      "name": "Fidelity Total Bond",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "us_fund_bond",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "FXNAX",
+      "name": "Fidelity U.S. Bond Index",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "us_fund_bond",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "SWAGX",
+      "name": "Schwab U.S. Aggregate Bond Index",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "us_fund_bond",
+      "product_type": "fund"
+    },
+    {
+      "ticker": "VBTLX",
+      "name": "Vanguard Total Bond Market Admiral",
+      "asset_class": "bond",
+      "region": "us",
+      "category": "us_fund_bond",
+      "product_type": "fund"
     },
     {
       "ticker": "BCI",
       "name": "Broad commodities",
       "asset_class": "commodity",
       "region": "global",
-      "category": "broad"
+      "category": "broad",
+      "product_type": "etf"
     },
     {
       "ticker": "BNO",
       "name": "Brent crude",
       "asset_class": "commodity",
       "region": "global",
-      "category": "energy"
+      "category": "energy",
+      "product_type": "etf"
     },
     {
       "ticker": "COMT",
       "name": "Commodity broad",
       "asset_class": "commodity",
       "region": "global",
-      "category": "broad"
+      "category": "broad",
+      "product_type": "etf"
     },
     {
       "ticker": "CORN",
       "name": "Corn",
       "asset_class": "commodity",
       "region": "global",
-      "category": "commodity_agriculture"
+      "category": "commodity_agriculture",
+      "product_type": "etf"
     },
     {
       "ticker": "CPER",
       "name": "銅",
       "asset_class": "commodity",
       "region": "global",
-      "category": "industrial"
+      "category": "industrial",
+      "product_type": "etf"
     },
     {
       "ticker": "DBA",
       "name": "Agriculture broad",
       "asset_class": "commodity",
       "region": "global",
-      "category": "commodity_agriculture"
+      "category": "commodity_agriculture",
+      "product_type": "etf"
     },
     {
       "ticker": "DBC",
       "name": "商品指數",
       "asset_class": "commodity",
       "region": "global",
-      "category": "broad"
+      "category": "broad",
+      "product_type": "etf"
     },
     {
       "ticker": "GCC",
       "name": "Commodity broad (WisdomTree)",
       "asset_class": "commodity",
       "region": "global",
-      "category": "broad"
+      "category": "broad",
+      "product_type": "etf"
     },
     {
       "ticker": "GDX",
       "name": "金礦股",
       "asset_class": "commodity",
       "region": "global",
-      "category": "precious"
+      "category": "precious",
+      "product_type": "etf"
     },
     {
       "ticker": "GLD",
       "name": "黃金",
       "asset_class": "commodity",
       "region": "global",
-      "category": "precious"
+      "category": "precious",
+      "product_type": "etf"
     },
     {
       "ticker": "GLDM",
       "name": "Gold mini",
       "asset_class": "commodity",
       "region": "global",
-      "category": "precious"
+      "category": "precious",
+      "product_type": "etf"
     },
     {
       "ticker": "GSG",
       "name": "商品 S&P GSCI",
       "asset_class": "commodity",
       "region": "global",
-      "category": "broad"
+      "category": "broad",
+      "product_type": "etf"
     },
     {
       "ticker": "IAU",
       "name": "黃金 (低成本)",
       "asset_class": "commodity",
       "region": "global",
-      "category": "precious"
+      "category": "precious",
+      "product_type": "etf"
     },
     {
       "ticker": "PALL",
       "name": "Palladium",
       "asset_class": "commodity",
       "region": "global",
-      "category": "precious"
+      "category": "precious",
+      "product_type": "etf"
     },
     {
       "ticker": "PDBC",
       "name": "商品指數 (主動)",
       "asset_class": "commodity",
       "region": "global",
-      "category": "broad"
+      "category": "broad",
+      "product_type": "etf"
     },
     {
       "ticker": "PPLT",
       "name": "Platinum",
       "asset_class": "commodity",
       "region": "global",
-      "category": "precious"
+      "category": "precious",
+      "product_type": "etf"
     },
     {
       "ticker": "SGOL",
       "name": "Gold (Aberdeen)",
       "asset_class": "commodity",
       "region": "global",
-      "category": "precious"
+      "category": "precious",
+      "product_type": "etf"
     },
     {
       "ticker": "SLV",
       "name": "白銀",
       "asset_class": "commodity",
       "region": "global",
-      "category": "precious"
+      "category": "precious",
+      "product_type": "etf"
     },
     {
       "ticker": "SOYB",
       "name": "Soybeans",
       "asset_class": "commodity",
       "region": "global",
-      "category": "commodity_agriculture"
+      "category": "commodity_agriculture",
+      "product_type": "etf"
     },
     {
       "ticker": "TAGS",
       "name": "Agriculture",
       "asset_class": "commodity",
       "region": "global",
-      "category": "commodity_agriculture"
+      "category": "commodity_agriculture",
+      "product_type": "etf"
     },
     {
       "ticker": "UNG",
       "name": "Natural gas",
       "asset_class": "commodity",
       "region": "global",
-      "category": "energy"
+      "category": "energy",
+      "product_type": "etf"
     },
     {
       "ticker": "USL",
       "name": "Oil",
       "asset_class": "commodity",
       "region": "global",
-      "category": "energy"
+      "category": "energy",
+      "product_type": "etf"
     },
     {
       "ticker": "USO",
       "name": "原油",
       "asset_class": "commodity",
       "region": "global",
-      "category": "energy"
+      "category": "energy",
+      "product_type": "etf"
     },
     {
       "ticker": "WEAT",
       "name": "Wheat",
       "asset_class": "commodity",
       "region": "global",
-      "category": "commodity_agriculture"
+      "category": "commodity_agriculture",
+      "product_type": "etf"
     },
     {
       "ticker": "HAUZ",
       "name": "International residential",
       "asset_class": "real_estate",
       "region": "intl",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
     },
     {
       "ticker": "INDS",
       "name": "Industrial REIT",
       "asset_class": "real_estate",
       "region": "us",
-      "category": "reit_sector"
+      "category": "reit_sector",
+      "product_type": "etf"
     },
     {
       "ticker": "IYR",
       "name": "美國房地產",
       "asset_class": "real_estate",
       "region": "us",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
     },
     {
       "ticker": "MORT",
       "name": "Mortgage REIT (VanEck)",
       "asset_class": "real_estate",
       "region": "us",
-      "category": "reit_mortgage"
+      "category": "reit_mortgage",
+      "product_type": "etf"
     },
     {
       "ticker": "REET",
       "name": "全球 REITs",
       "asset_class": "real_estate",
       "region": "global",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
     },
     {
       "ticker": "REM",
       "name": "Mortgage REIT",
       "asset_class": "real_estate",
       "region": "us",
-      "category": "reit_mortgage"
+      "category": "reit_mortgage",
+      "product_type": "etf"
     },
     {
       "ticker": "RWO",
       "name": "Global REIT",
       "asset_class": "real_estate",
       "region": "global",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
     },
     {
       "ticker": "RWR",
       "name": "REIT (SPDR)",
       "asset_class": "real_estate",
       "region": "us",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
     },
     {
       "ticker": "SCHH",
       "name": "美國 REITs Schwab",
       "asset_class": "real_estate",
       "region": "us",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
     },
     {
       "ticker": "USRT",
       "name": "REIT core",
       "asset_class": "real_estate",
       "region": "us",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
     },
     {
       "ticker": "VNQ",
       "name": "美國 REITs",
       "asset_class": "real_estate",
       "region": "us",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
     },
     {
       "ticker": "VNQI",
       "name": "國際 REITs",
       "asset_class": "real_estate",
       "region": "intl",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
     },
     {
       "ticker": "XLRE",
       "name": "房地產類股",
       "asset_class": "real_estate",
       "region": "us",
-      "category": "reit"
+      "category": "reit",
+      "product_type": "etf"
+    },
+    {
+      "ticker": "VGSLX",
+      "name": "Vanguard Real Estate Index Admiral",
+      "asset_class": "real_estate",
+      "region": "us",
+      "category": "us_fund_reit",
+      "product_type": "fund"
     },
     {
       "ticker": "AMLP",
       "name": "MLP 能源基礎建設",
       "asset_class": "alternative",
       "region": "us",
-      "category": "income"
+      "category": "income",
+      "product_type": "etf"
     },
     {
       "ticker": "BKLN",
       "name": "銀行貸款",
       "asset_class": "alternative",
       "region": "us",
-      "category": "credit_alt"
+      "category": "credit_alt",
+      "product_type": "etf"
     },
     {
       "ticker": "BTAL",
       "name": "Anti-beta",
       "asset_class": "alternative",
       "region": "us",
-      "category": "alt_hedge"
+      "category": "alt_hedge",
+      "product_type": "etf"
     },
     {
       "ticker": "CTA",
       "name": "Managed futures (Simplify)",
       "asset_class": "alternative",
       "region": "global",
-      "category": "alt_managed_futures"
+      "category": "alt_managed_futures",
+      "product_type": "etf"
     },
     {
       "ticker": "DBMF",
       "name": "Managed futures",
       "asset_class": "alternative",
       "region": "global",
-      "category": "alt_managed_futures"
+      "category": "alt_managed_futures",
+      "product_type": "etf"
     },
     {
       "ticker": "ENFR",
       "name": "Energy infrastructure",
       "asset_class": "alternative",
       "region": "us",
-      "category": "income"
+      "category": "income",
+      "product_type": "etf"
     },
     {
       "ticker": "FTSL",
       "name": "Senior loans (First Trust)",
       "asset_class": "alternative",
       "region": "us",
-      "category": "credit_alt"
+      "category": "credit_alt",
+      "product_type": "etf"
     },
     {
       "ticker": "ICAP",
       "name": "Infrastructure income",
       "asset_class": "alternative",
       "region": "us",
-      "category": "income"
+      "category": "income",
+      "product_type": "etf"
     },
     {
       "ticker": "KMLM",
       "name": "Managed futures (KFA)",
       "asset_class": "alternative",
       "region": "global",
-      "category": "alt_managed_futures"
+      "category": "alt_managed_futures",
+      "product_type": "etf"
     },
     {
       "ticker": "MLPA",
       "name": "MLP",
       "asset_class": "alternative",
       "region": "us",
-      "category": "income"
+      "category": "income",
+      "product_type": "etf"
     },
     {
       "ticker": "MNA",
       "name": "Merger arbitrage",
       "asset_class": "alternative",
       "region": "us",
-      "category": "alt_hedge"
+      "category": "alt_hedge",
+      "product_type": "etf"
     },
     {
       "ticker": "PFF",
       "name": "優先股",
       "asset_class": "alternative",
       "region": "us",
-      "category": "preferred"
+      "category": "preferred",
+      "product_type": "etf"
     },
     {
       "ticker": "PFFA",
       "name": "Preferred & income",
       "asset_class": "alternative",
       "region": "us",
-      "category": "preferred"
+      "category": "preferred",
+      "product_type": "etf"
     },
     {
       "ticker": "PFFD",
       "name": "Preferred securities",
       "asset_class": "alternative",
       "region": "us",
-      "category": "preferred"
+      "category": "preferred",
+      "product_type": "etf"
     },
     {
       "ticker": "PGX",
       "name": "優先股 (全球)",
       "asset_class": "alternative",
       "region": "global",
-      "category": "preferred"
+      "category": "preferred",
+      "product_type": "etf"
     },
     {
       "ticker": "PUTW",
       "name": "Covered put write",
       "asset_class": "alternative",
       "region": "us",
-      "category": "alt_hedge"
+      "category": "alt_hedge",
+      "product_type": "etf"
     },
     {
       "ticker": "QAI",
       "name": "Multi-strategy alt",
       "asset_class": "alternative",
       "region": "global",
-      "category": "multi_alt"
+      "category": "multi_alt",
+      "product_type": "etf"
     },
     {
       "ticker": "RLY",
       "name": "Real assets",
       "asset_class": "alternative",
       "region": "global",
-      "category": "multi_alt"
+      "category": "multi_alt",
+      "product_type": "etf"
     },
     {
       "ticker": "SRLN",
       "name": "Senior loans",
       "asset_class": "alternative",
       "region": "us",
-      "category": "credit_alt"
+      "category": "credit_alt",
+      "product_type": "etf"
     },
     {
       "ticker": "SVOL",
       "name": "Short vol",
       "asset_class": "alternative",
       "region": "us",
-      "category": "alt_hedge"
+      "category": "alt_hedge",
+      "product_type": "etf"
     }
   ]
 }

@@ -7,6 +7,8 @@ export type UniverseItem = {
   asset_class: string;
   region?: string;
   category?: string;
+  /** Instrument type: etf (default), stock, fund, … */
+  product_type?: string;
 };
 
 export type UniverseFilterOptions = {
@@ -81,6 +83,10 @@ export function getUniverseMeta() {
     asset_class_breakdown: countField(items, "asset_class"),
     region_breakdown: countField(items, "region"),
     category_breakdown: countField(items, "category"),
+    product_type_breakdown: countField(
+      items.map((u) => ({ ...u, product_type: u.product_type ?? "etf" })),
+      "product_type",
+    ),
   };
 }
 
