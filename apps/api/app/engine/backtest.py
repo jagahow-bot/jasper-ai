@@ -736,6 +736,7 @@ def _run_iterative_search(
             rebalance_freq=rebalance_rule,
             max_weight_cap=req.max_weight,
             max_turnover_cap=req.max_turnover,
+            max_holdings_cap=req.max_holdings,
             top_n_cap=req.top_n,
             tradable_count=int(prices_train.shape[1]),
             param_controls=param_controls_dict,
@@ -3039,6 +3040,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             rebalance_freq=rebalance_rule,
             max_weight_cap=req.max_weight,
             max_turnover_cap=req.max_turnover,
+            max_holdings_cap=req.max_holdings,
             top_n_cap=req.top_n,
             tradable_count=len(tickers),
             param_controls=param_controls_dict,
@@ -3930,3 +3932,30 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
         result = _run_backtest_engine(req, job_id, progress_cb=progress_cb)
     result.llm_logs = pop_llm_audit_logs(job_id) or None
     return result
+
+
+def build_interrupted_result(
+    req: BacktestRequest,
+    job_id: str,
+    message: str = "Server restart interrupted this run",
+) -> BacktestResult:
+    """Minimal result stub used when a job is interrupted by a graceful shutdown."""
+    return BacktestResult(
+        job_id=job_id,
+        scenario_id=req.scenario_id,
+        benchmark=req.benchmark_ticker or "SPY",
+        period={"start": req.start_date, "end": req.end_date},
+        candidates=[],
+        equity_curve=[],
+        efficient_frontier=[],
+        narrative_facts={
+            "status": "interrupted",
+            "message": message,
+            "trials_completed": 0,
+        },
+        pro_rounds=None,
+        experimental=None,
+        dynamic_objective_timeline=None,
+        dynamic_objective_benchmark_series=None,
+        llm_logs=pop_llm_audit_logs(job_id) or None,
+    )

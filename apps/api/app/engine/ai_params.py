@@ -782,6 +782,7 @@ def generate_ai_param_sets(
     rebalance_freq: str,
     max_weight_cap: float,
     max_turnover_cap: float,
+    max_holdings_cap: int,
     top_n_cap: int | None,
     tradable_count: int,
     param_controls: dict[str, dict] | None = None,
@@ -819,6 +820,7 @@ def generate_ai_param_sets(
         max_weight=float(max_weight_cap),
         max_turnover=float(max_turnover_cap),
         top_n=int(top_n_cap) if top_n_cap is not None else None,
+        max_holdings=int(max_holdings_cap),
     )
     param_controls = normalize_param_controls(param_controls, blueprint)
     learning_context = learning_context or {}
@@ -2229,6 +2231,7 @@ def generate_ai_round_seed(
     rebalance_freq: str,
     max_weight_cap: float,
     max_turnover_cap: float,
+    max_holdings_cap: int,
     top_n_cap: int | None,
     tradable_count: int,
     param_controls: dict[str, dict] | None = None,
@@ -2258,6 +2261,7 @@ def generate_ai_round_seed(
         max_weight=float(max_weight_cap),
         max_turnover=float(max_turnover_cap),
         top_n=int(top_n_cap) if top_n_cap is not None else None,
+        max_holdings=int(max_holdings_cap),
     )
     param_controls = normalize_param_controls(param_controls, blueprint)
     learning_context = learning_context or {}

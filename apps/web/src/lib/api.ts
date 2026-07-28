@@ -200,6 +200,48 @@ export async function evaluateObjectiveSwitchLab(
   });
 }
 
+export type PoolValidationReport = {
+  upserted: number;
+  skipped: number;
+  errors: string[];
+  items: Array<{
+    ticker: string;
+    name: string;
+    asset_class: string;
+    region: string;
+    product_type: string;
+    enabled: boolean;
+  }>;
+  valid: boolean;
+};
+
+export type ModelsValidationReport = {
+  imported: number;
+  skipped: number;
+  errors: string[];
+  portfolios: Array<{
+    id: string;
+    name: string;
+    benchmark: string;
+    holdings: Array<{ ticker: string; weight: number }>;
+  }>;
+  valid: boolean;
+};
+
+export async function validatePoolCsv(csvText: string): Promise<PoolValidationReport> {
+  return fetchJson<PoolValidationReport>("/settings/validate-pool", {
+    method: "POST",
+    body: JSON.stringify({ csv_text: csvText }),
+  });
+}
+
+export async function validateModelsCsv(csvText: string): Promise<ModelsValidationReport> {
+  return fetchJson<ModelsValidationReport>("/settings/validate-models", {
+    method: "POST",
+    body: JSON.stringify({ csv_text: csvText }),
+  });
+}
+
 export function downloadCsv(result: BacktestResult, scenarioTitle: string) {
   const top = result.candidates[0];
   const header = "ticker,weight\n";

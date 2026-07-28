@@ -306,6 +306,7 @@ def test_generate_ai_round_seed_posts_thinking_config(monkeypatch):
         rebalance_freq="monthly",
         max_weight_cap=0.2,
         max_turnover_cap=0.5,
+        max_holdings_cap=30,
         top_n_cap=20,
         tradable_count=50,
         learning_context=_sample_learning_context(),
@@ -394,6 +395,7 @@ def test_generate_ai_round_seed_inherits_thinking_from_global(monkeypatch):
         rebalance_freq="monthly",
         max_weight_cap=0.2,
         max_turnover_cap=0.5,
+        max_holdings_cap=30,
         top_n_cap=20,
         tradable_count=50,
     )
@@ -431,6 +433,7 @@ def test_generate_ai_round_seed_max_tokens_returns_disabled(monkeypatch):
         rebalance_freq="monthly",
         max_weight_cap=0.2,
         max_turnover_cap=0.5,
+        max_holdings_cap=30,
         top_n_cap=20,
         tradable_count=50,
     )
@@ -513,6 +516,7 @@ def test_generate_ai_round_seed_max_tokens_salvages_bloated_shrinkage(monkeypatc
         rebalance_freq="monthly",
         max_weight_cap=0.25,
         max_turnover_cap=0.5,
+        max_holdings_cap=30,
         top_n_cap=15,
         tradable_count=50,
         learning_context={"round_index": 1, "total_rounds": 3, "exploration_phase": "explore"},
@@ -638,6 +642,7 @@ def test_generate_ai_round_seed_dynamic_split_regime_factors(monkeypatch):
         rebalance_freq="W-FRI",
         max_weight_cap=0.2,
         max_turnover_cap=0.5,
+        max_holdings_cap=30,
         top_n_cap=20,
         tradable_count=50,
     )

@@ -18,6 +18,12 @@ import {
   type ManagedModelPortfolio,
   type ModelImportReport,
 } from "@/lib/model-portfolios-store";
+import {
+  validateModelsCsv,
+  validatePoolCsv,
+  type ModelsValidationReport,
+  type PoolValidationReport,
+} from "@/lib/api";
 
 export default function SettingsPage() {
   const { t } = useI18n();
@@ -44,6 +50,29 @@ export default function SettingsPage() {
 
   const onImportPool = async (file: File) => {
     const text = await file.text();
+    let backendReport: PoolValidationReport | null = null;
+    try {
+      backendReport = await validatePoolCsv(text);
+    } catch (err) {
+      setPoolReport({
+        upserted: 0,
+        skipped: 0,
+        errors: [
+          err instanceof Error
+            ? `Backend validation unavailable: ${err.message}`
+            : "Backend validation unavailable",
+        ],
+      });
+      return;
+    }
+    if (!backendReport.valid || backendReport.errors.length > 0) {
+      setPoolReport({
+        upserted: backendReport.upserted,
+        skipped: backendReport.skipped,
+        errors: backendReport.errors,
+      });
+      return;
+    }
     const { items: next, report } = importPoolFromCsv(text, items);
     setItems(next);
     setPoolReport(report);
@@ -56,6 +85,31 @@ export default function SettingsPage() {
 
   const onImportModels = async (file: File) => {
     const text = await file.text();
+    let backendReport: ModelsValidationReport | null = null;
+    try {
+      backendReport = await validateModelsCsv(text);
+    } catch (err) {
+      setModelsReport({
+        portfolios: 0,
+        skipped: 0,
+        conflicts: [],
+        errors: [
+          err instanceof Error
+            ? `Backend validation unavailable: ${err.message}`
+            : "Backend validation unavailable",
+        ],
+      });
+      return;
+    }
+    if (!backendReport.valid || backendReport.errors.length > 0) {
+      setModelsReport({
+        portfolios: backendReport.imported,
+        skipped: backendReport.skipped,
+        conflicts: [],
+        errors: backendReport.errors,
+      });
+      return;
+    }
     const pool = readInvestmentPool();
     const { portfolios: next, report } = importModelsFromCsv(text, pool);
     setPortfolios(next);

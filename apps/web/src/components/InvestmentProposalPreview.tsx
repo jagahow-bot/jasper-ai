@@ -21,6 +21,7 @@ import type { ClientOverlay } from "@/lib/overlay-schema";
 import type { ModelPortfolio } from "@/lib/model-portfolios";
 import { useI18n } from "@/lib/i18n";
 import type { PersonalizationCompare } from "@/lib/types";
+import { ComplianceBadge } from "@/components/ComplianceBadge";
 
 type Props = {
   open: boolean;
@@ -474,9 +475,10 @@ export function InvestmentProposalPreview({
             </div>
           </header>
 
-          <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 print:border-slate-300 print:bg-slate-50 print:text-slate-700">
-            {t("proposal.draftBanner")}
-          </p>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950 print:border-slate-300 print:bg-slate-50 print:text-slate-700">
+            <span>{t("proposal.draftBanner")}</span>
+            <ComplianceBadge variant="compact" />
+          </div>
 
           {/* Letter */}
           <section className="mb-8 space-y-3 border-b border-slate-200 pb-8">

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BenchmarkComparePanel } from "@/components/BenchmarkComparePanel";
+import { ComplianceBadge } from "@/components/ComplianceBadge";
 import { InvestmentProposalPreview } from "@/components/InvestmentProposalPreview";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
@@ -343,6 +344,7 @@ export function RmReportView({
         quantDashboard
       ) : (
         <div className="space-y-5">
+          <ComplianceBadge />
           {overlay && overlayBullets.length > 0 ? (
             <section className="pixel-panel border-emerald-100 bg-emerald-50/30">
               <div className="flex flex-wrap items-center justify-between gap-2">

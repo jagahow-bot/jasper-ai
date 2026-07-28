@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { AssetClassFilter } from "@/components/AssetClassFilter";
 import { ProOptimizationPanel } from "@/components/ProOptimizationPanel";
 import { QuickRefinements } from "@/components/QuickRefinements";
@@ -51,6 +51,7 @@ export function ConstraintsPanel({
   universeReadOnly = false,
 }: Props) {
   const { t } = useI18n();
+  const [quantMode, setQuantMode] = useState(false);
   const isPro = value.optimization_mode === "pro_auto";
   const dynamicObjective = value.objective === "dynamic";
   const offline = apiOnline === false;
@@ -157,6 +158,17 @@ export function ConstraintsPanel({
         <h3 className="ui-panel-title">{t("config.title")}</h3>
         <p className="mt-2 ui-body text-dim">{t("config.subtitle")}</p>
       </div>
+
+      <label className="ui-label flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={quantMode}
+          onChange={(e) => setQuantMode(e.target.checked)}
+          className="accent-[var(--neon)]"
+        />
+        {t("config.quantMode")}
+        <span className="ui-hint">— {t("config.quantModeHint")}</span>
+      </label>
 
       <AssetClassFilter
         value={value}
@@ -484,6 +496,7 @@ export function ConstraintsPanel({
           benchmark: String(value.benchmark_ticker ?? "SPY").toUpperCase(),
         })}
       </div>
+      {quantMode && (
       <details className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
         <summary className="ui-section-title cursor-pointer">
           {t("config.advanced.title")}
@@ -667,6 +680,7 @@ export function ConstraintsPanel({
           })}
         </div>
       </details>
+      )}
 
       {!universeReadOnly ? (
         <label className="block space-y-2">

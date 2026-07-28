@@ -6,13 +6,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.job_history import warmup_history_index
 from app.notifications import notifications_configured
-from app.routers import jobs, lab_objective_switch, scenarios, universe
+from app.routers import jobs, lab_objective_switch, scenarios, settings as settings_router, universe
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     warmup_history_index()
-    yield
+    try:
+        yield
+    finally:
+        from app.jobs import persist_running_jobs_as_interrupted, request_shutdown
+
+        request_shutdown()
+        persist_running_jobs_as_interrupted()
 
 
 app = FastAPI(
@@ -35,6 +41,7 @@ app.include_router(scenarios.router)
 app.include_router(universe.router)
 app.include_router(jobs.router)
 app.include_router(lab_objective_switch.router)
+app.include_router(settings_router.router)
 
 
 @app.get("/health")

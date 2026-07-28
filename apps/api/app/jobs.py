@@ -36,6 +36,20 @@ _continuation_snapshots: dict[str, dict] = {}
 _lock = threading.Lock()
 # One active backtest per API process on Render avoids 2× peak RAM (dual personalization jobs).
 _backtest_slot = threading.Semaphore(1 if is_render_runtime() else 2)
+class JobInterruptedError(Exception):
+    """Raised when a running job is asked to stop for a graceful shutdown."""
+
+
+_shutdown_event = threading.Event()
+
+
+def request_shutdown() -> None:
+    """Signal running jobs to finish their current step and exit cleanly."""
+    _shutdown_event.set()
+
+
+def is_shutdown_requested() -> bool:
+    return _shutdown_event.is_set()
 
 
 def _evict_stale_report_caches(active_job_id: str) -> None:
@@ -192,6 +206,8 @@ def pop_continuation_snapshot(job_id: str) -> dict | None:
 
 def _run_job(job_id: str, req: BacktestRequest) -> None:
     def on_progress(**kwargs) -> None:
+        if _shutdown_event.is_set():
+            raise JobInterruptedError("Server shutdown requested — job interrupted gracefully")
         with _lock:
             _jobs[job_id]["progress"] = JobProgress(
                 status=JobStatus.running,
@@ -222,6 +238,8 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
                 ),
                 trials_total=_estimated_trials_total(req),
             )
+        if _shutdown_event.is_set():
+            raise JobInterruptedError("Server shutdown requested — job not started")
 
         with _backtest_slot:
             result = run_backtest(req, job_id, progress_cb=on_progress)
@@ -247,7 +265,14 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
     except Exception as exc:  # noqa: BLE001
         err_text = str(exc)
         tb = traceback.format_exc()
-        logger.error("Backtest job %s failed: %s\n%s", job_id, err_text, tb)
+        is_interrupted = isinstance(exc, JobInterruptedError)
+        logger.error(
+            "Backtest job %s %s: %s\n%s",
+            job_id,
+            "interrupted" if is_interrupted else "failed",
+            err_text,
+            tb,
+        )
         with _lock:
             _jobs[job_id]["progress"] = JobProgress(
                 status=JobStatus.failed,
@@ -256,6 +281,7 @@ def _run_job(job_id: str, req: BacktestRequest) -> None:
             )
             _jobs[job_id]["error"] = err_text
             _jobs[job_id]["error_traceback"] = tb
+            _jobs[job_id]["interrupted"] = is_interrupted
         _notify_async(job_id, req, status="failed", error=_public_log_message(err_text))
 
 
@@ -476,3 +502,34 @@ def get_candidate_charts(
             return payload
         _patch_candidate_charts(job["result"], resolved, payload)
     return payload
+
+
+def persist_running_jobs_as_interrupted() -> None:
+    """Mark any still-running jobs as interrupted and persist them before shutdown."""
+    with _lock:
+        running = [
+            (jid, job)
+            for jid, job in _jobs.items()
+            if (job.get("progress") or {}).get("status") == JobStatus.running
+        ]
+    for jid, job in running:
+        req = job.get("request")
+        progress = job.get("progress")
+        message = "Server restart interrupted this run — please re-run or continue from the last completed job"
+        with _lock:
+            job["progress"] = JobProgress(
+                status=JobStatus.failed,
+                message=message,
+                trial=progress.trial if progress else 0,
+                trials_total=progress.trials_total if progress else _estimated_trials_total(req),
+            )
+            job["error"] = message
+            job["interrupted"] = True
+        if req is not None:
+            try:
+                from app.engine.backtest import build_interrupted_result
+
+                result = build_interrupted_result(req, job_id=jid, message=message)
+                persist_completed_job(jid, req, result)
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to persist interrupted job %s", jid)
