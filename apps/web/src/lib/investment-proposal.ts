@@ -359,6 +359,7 @@ export function buildInvestmentProposalDocument(input: {
   lang: Lang;
   t: TFn;
   customizedModelCode?: string | null;
+  talkingPoints?: string[];
 }): ProposalDocument {
   const {
     compare,
@@ -368,6 +369,7 @@ export function buildInvestmentProposalDocument(input: {
     lang,
     t,
     customizedModelCode,
+    talkingPoints: talkingPointsOverride,
   } = input;
   const pick: RmCandidatePick | undefined = customizedModelCode
     ? { customizedModelCode }
@@ -395,20 +397,23 @@ export function buildInvestmentProposalDocument(input: {
     compare.adjustedResult,
     pick,
   );
-  const talkingPoints = buildTalkingPoints({
-    metrics,
-    holdingsDiff,
-    overlay,
-    adjustedResult: compare.adjustedResult,
-    anchorLabel: compare.anchorLabel,
-    objectiveKey: resolveRunObjective(
-      compare.adjustedRequest,
-      compare.adjustedResult.narrative_facts,
-    ),
-    lang,
-    t,
-    customizedModelCode,
-  });
+  const talkingPoints =
+    talkingPointsOverride && talkingPointsOverride.length > 0
+      ? talkingPointsOverride
+      : buildTalkingPoints({
+          metrics,
+          holdingsDiff,
+          overlay,
+          adjustedResult: compare.adjustedResult,
+          anchorLabel: compare.anchorLabel,
+          objectiveKey: resolveRunObjective(
+            compare.adjustedRequest,
+            compare.adjustedResult.narrative_facts,
+          ),
+          lang,
+          t,
+          customizedModelCode,
+        });
 
   const amLabel = getAssetManagerLabel(anchorPortfolio, lang);
   const themeLabel = getPortfolioLabel(anchorPortfolio, lang);

@@ -14,6 +14,7 @@ AI_NUMBER_DESCRIPTION = "Max 4 decimal places; no long float expansions."
 _INT_KEYS = frozenset(
     {
         "top_n_actual",
+        "max_holdings_actual",
         "lookback_days",
         "factor_lookback_days",
         "reversal_lookback_days",

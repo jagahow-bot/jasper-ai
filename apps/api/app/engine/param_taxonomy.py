@@ -349,6 +349,25 @@ def build_pro_round_param_controls(
                 except (TypeError, ValueError):
                     pass
             controls[key] = {"mode": "fixed", "fixed": fixed}
+    # In non-matrix Pro rounds, allow per-trial variation around the AI-recommended
+    # top_n / max_holdings centers so portfolios within the same round are not identical.
+    # In matrix rounds, keep them fixed so regime-specific allocator slices remain coherent.
+    if not matrix_active:
+        for key in ("top_n_actual", "max_holdings_actual"):
+            if key not in setup or setup[key] is None:
+                continue
+            center = int(setup[key])
+            base = controls.get(key)
+            if not isinstance(base, dict):
+                continue
+            lo = int(base.get("min", 1))
+            hi = int(base.get("max", center))
+            delta = max(2, int(round(center * 0.25)))
+            new_lo = max(lo, center - delta)
+            new_hi = min(hi, center + delta)
+            if new_lo >= new_hi:
+                new_lo, new_hi = lo, hi
+            controls[key] = {"mode": "search", "min": new_lo, "max": new_hi, "step": 1}
     if (
         not skip_allocator_keys
         and ALLOCATOR_MODE_KEY in setup

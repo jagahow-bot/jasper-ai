@@ -2370,6 +2370,8 @@ Architecture (critical):
    max_weight_actual, max_turnover_actual, no_trade_tol, turnover_penalty_mult.
    Optional asset-class quotas ({alloc_keys}): include ONLY if you materially change them from defaults.
    Do NOT put factor weights or factor lookbacks in round_setup.
+   Note: top_n_actual and max_holdings_actual are your recommended centers; the engine will
+   let each trial sample a small range around them so portfolios within the same round differ.
    {"For dynamic objective: round_setup mode/lookback are shared defaults; per-regime allocator lives in regime_setups." if dynamic_matrix else ""}
 {factor_ranges_section}
 3) factor_choices — ONLY categorical indicators you fix this round; omit unchanged keys.
@@ -2785,12 +2787,12 @@ def generate_ai_round_champion(
         else "full-sample (horizons.full_sample or in_sample)"
     )
     selection_rules = (
-        f"1) Champion = highest {obj_label} on {horizon_note} (matches Optuna trial ranking).\n"
-        "2) Do NOT override the champion for overfitting concerns — cite horizons.gap or "
-        "overfitting_risk=high only as a deployment risk note when material.\n"
-        f"3) Name at least one runner-up and why they trailed on {obj_label}; mention OOS/robustness "
+        f"1) Champion = highest {obj_label} on {horizon_note} (matches the engine's ranking).\n"
+        "2) Do NOT override the champion for overfitting concerns — cite the in-sample / out-of-sample "
+        "gap only as a deployment risk note when it is material.\n"
+        f"3) Name at least one runner-up and why they trailed on {obj_label}; mention robustness "
         "only as context, not as a reason to prefer the runner-up.\n"
-        "4) When benchmark_relative exists, note whether the champion beats or trails benchmark."
+        "4) When benchmark_relative exists, note whether the champion beats or trails the benchmark."
     )
     if preselected:
         champion_line = (
@@ -2803,7 +2805,7 @@ def generate_ai_round_champion(
             "Do not demote the objective winner for IS/OOS gap or overfitting_risk."
         )
         selection_rules = selection_rules.replace(
-            "Champion = highest", "Pick the trial with the highest"
+            "Champion = highest", "Pick the model with the highest"
         ).replace(
             "Do NOT override the champion", "Do NOT pick a runner-up over the objective winner"
         )
@@ -2817,9 +2819,9 @@ holdout_objective, horizons.gap, overfitting_risk, and benchmark_relative when p
 METRIC FORMAT (payload JSON uses decimal fractions for rates):
 - Multiply by 100 for % in prose: cagr, max_drawdown (e.g. max_drawdown -0.42 → "42% drawdown").
 - Unitless (no %): sharpe, sortino, objective_value.
-- ALWAYS prefix every cited number with its horizon: "IS", "OOS", or "Full" (horizons.full_sample).
-- Lead with Full-period Sharpe/CAGR/max DD from horizons.full_sample when present — that matches the user's report grid.
-- horizons.in_sample / out_of_sample are full-path slices (same continuous backtest as Full), not independent trial simulates.
+- Use plain, client-facing language: say "full-period" instead of "Full/IS/OOS", "risk-adjusted return" instead of "objective_value", and avoid quant jargon.
+- Lead with full-period Sharpe/CAGR/max drawdown from horizons.full_sample when present — that matches the user's report grid.
+- In-sample / out-of-sample are full-path slices (same continuous backtest as full-period), not independent trial simulates.
 
 Selection logic:
 {selection_rules}

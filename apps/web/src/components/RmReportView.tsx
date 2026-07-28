@@ -21,8 +21,8 @@ import { resolveRunObjective } from "@/lib/resolve-run-objective";
 import {
   buildHoldingsDiff,
   buildMetricCompareRows,
-  buildTalkingPoints,
 } from "@/lib/rm-report-utils";
+import { useAiTalkingSummary } from "@/lib/use-ai-talking-summary";
 import { resolveTickerDisplayName } from "@/lib/ticker-display-name";
 import type {
   BacktestRequest,
@@ -166,34 +166,21 @@ export function RmReportView({
     ],
   );
 
-  const talkingPoints = useMemo(
-    () =>
-      buildTalkingPoints({
-        metrics,
-        holdingsDiff,
-        overlay,
-        adjustedResult: compare.adjustedResult,
-        anchorLabel: compare.anchorLabel,
-        objectiveKey: resolveRunObjective(
-          compare.adjustedRequest,
-          compare.adjustedResult.narrative_facts,
-        ),
-        lang,
-        t,
-        customizedModelCode: selectedModelCode,
-      }),
-    [
-      metrics,
-      holdingsDiff,
-      overlay,
-      compare.adjustedResult,
+  const talkingSummary = useAiTalkingSummary({
+    metrics,
+    holdingsDiff,
+    overlay,
+    adjustedResult: compare.adjustedResult,
+    anchorLabel: compare.anchorLabel,
+    objectiveKey: resolveRunObjective(
       compare.adjustedRequest,
-      compare.anchorLabel,
-      lang,
-      t,
-      selectedModelCode,
-    ],
-  );
+      compare.adjustedResult.narrative_facts,
+    ),
+    lang,
+    t,
+    customizedModelCode: selectedModelCode,
+    benchmark: anchorPortfolio.benchmark,
+  });
 
   const clientSummary = overlay
     ? formatOverlaySummary(overlay, lang)
@@ -221,9 +208,9 @@ export function RmReportView({
       );
     }
 
-    bullets.push(...talkingPoints.slice(0, 2));
+    bullets.push(...talkingSummary.summary.slice(0, 2));
     return bullets.slice(0, 5);
-  }, [metrics, talkingPoints, t, compare.anchorLabel]);
+  }, [metrics, talkingSummary.summary, t, compare.anchorLabel]);
 
   const quantDashboard =
     result.pro_rounds && result.pro_rounds.length > 0 ? (
@@ -452,12 +439,42 @@ export function RmReportView({
           <section className="pixel-panel border-amber-200 bg-amber-50/40">
             <h3 className="ui-panel-title text-[var(--amber)]">
               {t("rm.report.talkingTitle")}
+              {talkingSummary.source === "kimi" && (
+                <span className="ml-2 rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--primary)]">
+                  AI
+                </span>
+              )}
             </h3>
+            {talkingSummary.loading && (
+              <p className="ui-hint mt-3 text-dim">{t("rm.report.talkingLoading")}</p>
+            )}
+            {talkingSummary.error && !talkingSummary.loading && (
+              <p className="ui-hint mt-3 text-red-600">{talkingSummary.error}</p>
+            )}
+            {talkingSummary.rerunRecommended && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                <p className="text-sm font-medium text-red-800">
+                  {t("rm.report.performanceFlag")}
+                </p>
+                {talkingSummary.rerunReason && (
+                  <p className="mt-1 text-xs text-red-700">
+                    {talkingSummary.rerunReason}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={onRerun}
+                  className="mt-2 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                >
+                  {t("rm.report.rerun")}
+                </button>
+              </div>
+            )}
             <ul
               className="ui-body mt-3 list-disc space-y-2 pl-5"
               key={`talking-${selectedRowKey || selectedModelCode || "champ"}`}
             >
-              {talkingPoints.map((point, i) => (
+              {talkingSummary.summary.map((point, i) => (
                 <li key={`${selectedRowKey}-${i}`}>{point}</li>
               ))}
             </ul>

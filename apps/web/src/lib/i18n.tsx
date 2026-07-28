@@ -949,6 +949,9 @@ const en: Dict = {
   "rm.report.holdingsTitle": "Holdings changes",
   "rm.report.holdingsHint": "What shifted from the anchor portfolio",
   "rm.report.talkingTitle": "Strategy summary",
+  "rm.report.talkingLoading": "AI is drafting the strategy summary…",
+  "rm.report.performanceFlag": "Backtest result is below expectations",
+  "rm.report.rerun": "Rerun backtest",
   "compliance.badgeCompact": "Internal review only",
   "compliance.badgeDefault":
     "Internal review only — not investment advice. Supervisor approval required before client use.",
@@ -2193,6 +2196,9 @@ const zh: Dict = {
   "rm.report.holdingsTitle": "持股變化",
   "rm.report.holdingsHint": "相對基準配置的主要調整",
   "rm.report.talkingTitle": "策略摘要",
+  "rm.report.talkingLoading": "AI 正在撰寫策略摘要…",
+  "rm.report.performanceFlag": "回測結果未達預期",
+  "rm.report.rerun": "重新回測",
   "compliance.badgeCompact": "僅供內部審閱",
   "compliance.badgeDefault":
     "僅供內部審閱 — 非投資建議。客戶使用前須經主管批准。",
@@ -3440,6 +3446,9 @@ const ko: Dict = {
   "rm.report.holdingsTitle": "보유 종목 변화",
   "rm.report.holdingsHint": "기준 대비 주요 조정",
   "rm.report.talkingTitle": "전략 요약",
+  "rm.report.talkingLoading": "AI가 전략 요약을 작성 중입니다…",
+  "rm.report.performanceFlag": "백테스트 결과가 기대에 미치지 못합니다",
+  "rm.report.rerun": "백테스트 다시 실행",
   "compliance.badgeCompact": "내부 검토용",
   "compliance.badgeDefault":
     "내부 검토용 — 투자 권유가 아닙니다. 고객 사용 전 책임자 승인이 필요합니다.",

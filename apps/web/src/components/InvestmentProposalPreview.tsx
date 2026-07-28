@@ -22,6 +22,12 @@ import type { ModelPortfolio } from "@/lib/model-portfolios";
 import { useI18n } from "@/lib/i18n";
 import type { PersonalizationCompare } from "@/lib/types";
 import { ComplianceBadge } from "@/components/ComplianceBadge";
+import { useAiTalkingSummary } from "@/lib/use-ai-talking-summary";
+import {
+  buildHoldingsDiff,
+  buildMetricCompareRows,
+} from "@/lib/rm-report-utils";
+import { resolveRunObjective } from "@/lib/resolve-run-objective";
 
 type Props = {
   open: boolean;
@@ -380,6 +386,50 @@ export function InvestmentProposalPreview({
   customizedModelCode = null,
 }: Props) {
   const { t, lang } = useI18n();
+  const pick = useMemo(
+    () => (customizedModelCode ? { customizedModelCode } : undefined),
+    [customizedModelCode],
+  );
+  const metrics = useMemo(
+    () =>
+      buildMetricCompareRows(
+        compare.baseResult,
+        compare.adjustedResult,
+        {
+          cagr: t("compare.metric.cagr"),
+          sharpe: t("compare.metric.sharpe"),
+          mdd: t("compare.metric.mdd"),
+          vol: t("compare.metric.vol"),
+        },
+        pick,
+      ),
+    [compare.baseResult, compare.adjustedResult, pick, t],
+  );
+  const holdingsDiff = useMemo(
+    () =>
+      buildHoldingsDiff(
+        compare.baseResult,
+        compare.adjustedResult,
+        anchorPortfolio.holdings,
+        pick,
+      ),
+    [compare.baseResult, compare.adjustedResult, anchorPortfolio.holdings, pick],
+  );
+  const talkingSummary = useAiTalkingSummary({
+    metrics,
+    holdingsDiff,
+    overlay,
+    adjustedResult: compare.adjustedResult,
+    anchorLabel: compare.anchorLabel,
+    objectiveKey: resolveRunObjective(
+      compare.adjustedRequest,
+      compare.adjustedResult.narrative_facts,
+    ),
+    lang,
+    t,
+    customizedModelCode,
+    benchmark: anchorPortfolio.benchmark,
+  });
   const doc = useMemo(
     () =>
       buildInvestmentProposalDocument({
@@ -390,8 +440,18 @@ export function InvestmentProposalPreview({
         lang,
         t,
         customizedModelCode,
+        talkingPoints: talkingSummary.summary,
       }),
-    [compare, overlay, anchorPortfolio, client, lang, t, customizedModelCode],
+    [
+      compare,
+      overlay,
+      anchorPortfolio,
+      client,
+      lang,
+      t,
+      customizedModelCode,
+      talkingSummary.summary,
+    ],
   );
 
   if (!open) return null;
