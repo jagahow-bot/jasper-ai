@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  CURRENT_HOLDINGS_ANCHOR_ID,
   getAmThemeLabel,
   getAssetManagerLabel,
   getPortfolioDescription,
@@ -21,9 +22,16 @@ type Props = {
   selectedId: string;
   onSelect: (portfolio: ModelPortfolio) => void;
   onContinue: () => void;
+  /** When set, show “current holdings / no model” as a selectable baseline. */
+  currentHoldingsAnchor?: ModelPortfolio | null;
 };
 
-export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Props) {
+export function AnchorPortfolioSelector({
+  selectedId,
+  onSelect,
+  onContinue,
+  currentHoldingsAnchor = null,
+}: Props) {
   const { t, lang } = useI18n();
   const [managed, setManaged] = useState<ManagedModelPortfolio[]>([]);
 
@@ -34,26 +42,37 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
 
   const portfolios = useMemo(() => {
     const selectable = getSelectableAnchorPortfolios();
-    // If localStorage empty path already baked into getSelectable — prefer hydrated managed list
-    if (managed.length === 0) return selectable;
-    return managed
-      .filter((p) => p.enabled && p.conflict_tickers.length === 0)
-      .map((item) => {
-        const rest: Record<string, unknown> = { ...item };
-        delete rest.conflict_tickers;
-        delete rest.enabled;
-        return rest as Omit<typeof item, "conflict_tickers" | "enabled">;
-      });
-  }, [managed]);
+    const catalog =
+      managed.length === 0
+        ? selectable
+        : managed
+            .filter((p) => p.enabled && p.conflict_tickers.length === 0)
+            .map((item) => {
+              const rest: Record<string, unknown> = { ...item };
+              delete rest.conflict_tickers;
+              delete rest.enabled;
+              return rest as Omit<typeof item, "conflict_tickers" | "enabled">;
+            });
+    if (currentHoldingsAnchor) {
+      return [currentHoldingsAnchor, ...catalog];
+    }
+    return catalog;
+  }, [managed, currentHoldingsAnchor]);
 
   const conflictCount = managed.filter((p) => p.conflict_tickers.length > 0).length;
-  const selected = portfolios.find((p) => p.id === selectedId) ?? portfolios[0];
+  const selected =
+    portfolios.find((p) => p.id === selectedId) ??
+    currentHoldingsAnchor ??
+    portfolios[0];
 
   return (
     <div className="pixel-panel space-y-4">
       <div>
         <h2 className="ui-panel-title">{t("anchor.title")}</h2>
         <p className="mt-2 ui-hint">{t("anchor.subtitle")}</p>
+        {currentHoldingsAnchor ? (
+          <p className="mt-1 ui-hint">{t("anchor.currentHoldingsHint")}</p>
+        ) : null}
         {conflictCount > 0 ? (
           <p className="mt-1 text-sm text-[var(--amber)]">
             {t("anchor.poolConflicts", { count: conflictCount })}
@@ -72,6 +91,7 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
                 `${h.ticker} ${(h.weight * 100).toFixed(0)}% (${etfDisplayName(h.ticker, lang)})`,
             )
             .join(" · ");
+          const isCurrent = p.id === CURRENT_HOLDINGS_ANCHOR_ID;
           return (
             <button
               key={p.id}
@@ -89,6 +109,11 @@ export function AnchorPortfolioSelector({ selectedId, onSelect, onContinue }: Pr
               <span className="mt-2 text-sm font-semibold text-[var(--foreground)]">
                 {theme}
               </span>
+              {isCurrent ? (
+                <span className="mt-1 inline-flex w-fit rounded-md bg-[var(--primary)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--primary)]">
+                  {t("anchor.noModelBadge")}
+                </span>
+              ) : null}
               <p className="mt-2 flex-1 ui-hint leading-snug">
                 {getPortfolioDescription(p, lang)}
               </p>

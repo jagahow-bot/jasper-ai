@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
@@ -329,3 +330,92 @@ def test_lazy_get_disambiguates_duplicate_code_with_rank(client: TestClient):
     ):
         res = client.get(f"/jobs/{job_id}/candidates/M0001/charts?rank=5")
     assert res.status_code == 200
+
+
+def test_rebuild_candidate_charts_accepts_ten_sim_inputs():
+    """Regression: unpack must match _sim_inputs_from_params (10 values)."""
+    from app.candidate_charts import rebuild_candidate_charts
+    from app.engine.spec import BacktestSpec
+    from app.engine.allocator import AllocatorParams
+
+    req = BacktestRequest(
+        scenario_id="s1",
+        start_date="2020-01-01",
+        end_date="2020-06-01",
+        asset_classes=["equity"],
+        objective=Objective.max_sharpe,
+        max_weight=0.25,
+        max_turnover=0.5,
+        customization_drift=0.2,
+        anchor_weights={"SPY": 1.0},
+        top_n=5,
+        trials=5,
+        top_models=1,
+    )
+    params = {
+        "model_code": "M0001",
+        "mode": "mean_variance",
+        "lookback_days": 63,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 3,
+        "rebalance_freq": "M",
+        "customization_drift_actual": 0.12,
+    }
+    idx = pd.date_range("2020-01-01", periods=80, freq="B")
+    prices = pd.DataFrame({"SPY": np.linspace(100, 110, len(idx))}, index=idx)
+    spec = BacktestSpec(max_holdings=5)
+    sim_out = _minimal_sim(1.0, with_weights=True)
+
+    ten = (
+        spec,
+        AllocatorParams(
+            mode="mean_variance",
+            lookback_days=63,
+            shrinkage=0.1,
+            risk_aversion=2.0,
+        ),
+        0.25,
+        3,
+        0.0,
+        1.0,
+        0.5,
+        0.12,
+        {},
+        None,
+    )
+
+    with (
+        patch(
+            "app.candidate_charts._load_price_panel",
+            return_value=(["SPY"], prices, prices, spec, None, {"SPY": "equity"}),
+        ),
+        patch(
+            "app.candidate_charts._sim_inputs_from_params",
+            return_value=ten,
+        ) as sim_inputs,
+        patch(
+            "app.candidate_charts.simulate_dynamic_portfolio",
+            return_value=sim_out,
+        ) as sim_mock,
+        patch(
+            "app.candidate_charts._build_institutional_analytics",
+            return_value={},
+        ),
+    ):
+        payload = rebuild_candidate_charts(
+            req,
+            params,
+            trial_report_cache=None,
+            narrative_facts={"objective": "max_sharpe", "rebalance_freq": "M"},
+            benchmark="SPY",
+        )
+
+    sim_inputs.assert_called_once()
+    assert payload.model_code == "M0001"
+    assert payload.equity_curve
+    assert payload.weight_history
+    call_kw = sim_mock.call_args.kwargs
+    assert abs(float(call_kw["customization_drift"]) - 0.12) < 1e-9
+    assert call_kw["anchor_weights"] == {"SPY": 1.0}

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { generateTextWithAudit } from "@/lib/llm-audit";
 import {
+  DEFAULT_FLASH_MODEL_ID,
+  defaultFlashModel,
+  FLASH_MAX_OUTPUT_TOKENS,
   isProviderConfigured,
-  KIMI_K3_MODEL_ID,
   providerOptionsFor,
-  reasoningModel,
-  REASONING_MAX_OUTPUT_TOKENS,
 } from "@/lib/ai-provider";
 import { languageDirective } from "@/lib/ai-language";
 import { interpretOverlayFallback } from "@/lib/overlay-fallback";
@@ -210,13 +210,13 @@ function parseMessages(body: InterpretBody): OverlayConversationMessage[] {
 }
 
 function logInterpretResult(
-  source: "kimi" | "rules",
+  source: "gemini" | "rules",
   overlay: ClientOverlay,
   turns: number,
 ): void {
   if (process.env.NODE_ENV === "production") return;
   console.info("[overlay/interpret]", {
-    source: source === "rules" ? "fallback" : "kimi",
+    source: source === "rules" ? "fallback" : "gemini",
     session_id: overlay.audit.session_id,
     turns,
     confidence: overlay.confidence,
@@ -263,7 +263,7 @@ export async function POST(req: Request) {
     return overlay;
   };
 
-  if (!isProviderConfigured(KIMI_K3_MODEL_ID)) {
+  if (!isProviderConfigured(DEFAULT_FLASH_MODEL_ID)) {
     if (useRulesFallback) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("[overlay/interpret] AI provider not configured; using rules fallback");
@@ -274,7 +274,7 @@ export async function POST(req: Request) {
     return buildOverlayInterpretError(
       OVERLAY_INTERPRET_ERROR_CODES.API_KEY_MISSING,
       "AI API key is not configured",
-      "Set MOONSHOT_API_KEY or enable rules fallback for offline demos.",
+      "Set GOOGLE_GENERATIVE_AI_API_KEY (or GEMINI_API_KEY) or enable rules fallback for offline demos.",
       503,
     );
   }
@@ -282,8 +282,8 @@ export async function POST(req: Request) {
   let llmLog: import("@/lib/llm-audit").LlmAuditEntry | undefined;
   try {
     const { result, log } = await generateTextWithAudit({
-      model: reasoningModel(),
-      maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS,
+      model: defaultFlashModel(),
+      maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
       system: overlaySystemPrompt(lang),
       prompt: buildConversationPrompt(
         messages,
@@ -292,7 +292,7 @@ export async function POST(req: Request) {
         body.anchor_positions,
         body.anchor_label,
       ),
-      providerOptions: providerOptionsFor(KIMI_K3_MODEL_ID, { jsonMode: true }),
+      providerOptions: providerOptionsFor(DEFAULT_FLASH_MODEL_ID, { jsonMode: true }),
     });
     llmLog = log;
 
@@ -316,11 +316,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const overlay = wrapExtractAsOverlay(extract, sessionId, turns, "kimi", body.prior_overlay);
+    const overlay = wrapExtractAsOverlay(extract, sessionId, turns, "gemini", body.prior_overlay);
     attachAuditFields(overlay, body);
-    logInterpretResult("kimi", overlay, turns);
+    logInterpretResult("gemini", overlay, turns);
 
-    return NextResponse.json({ overlay, source: "kimi", llm_log: llmLog });
+    return NextResponse.json({ overlay, source: "gemini", llm_log: llmLog });
   } catch (error) {
     if (error && typeof error === "object" && "log" in error) {
       llmLog = (error as { log: import("@/lib/llm-audit").LlmAuditEntry }).log;

@@ -10,6 +10,7 @@ import {
 import { getPortfolioLabel } from "@/lib/model-portfolios";
 import { getManagedPortfolioById } from "@/lib/model-portfolios-store";
 import type { BacktestRequest } from "@/lib/types";
+import { getUniverseItems } from "@/lib/universe";
 
 export type LocalizedText = {
   en: string;
@@ -20,7 +21,13 @@ export type LocalizedText = {
 export type ClientHolding = {
   ticker: string;
   name: string;
+  /**
+   * Economic sleeve (equity / bond / cash / …). Used for allocation math.
+   * For UI labels prefer {@link resolveHoldingProductType} (ETF / stock / fund).
+   */
   asset_class: string;
+  /** Optional override; otherwise resolved from the investment universe. */
+  product_type?: string;
   /** Current portfolio weight after return drift (normalized across the book). */
   weight: number;
   /**
@@ -266,6 +273,25 @@ export function isCashHolding(
   );
 }
 
+/**
+ * Instrument / product type for display (etf | stock | fund | cash | …).
+ * Prefers holding.product_type, then universe lookup; cash sleeves → "cash".
+ */
+export function resolveHoldingProductType(
+  holding: Pick<ClientHolding, "ticker" | "asset_class" | "product_type">,
+): string {
+  if (holding.product_type?.trim()) {
+    return holding.product_type.trim().toLowerCase();
+  }
+  if (isCashHolding(holding)) return "cash";
+  const ticker = holding.ticker.toUpperCase();
+  const hit = getUniverseItems().find((u) => u.ticker.toUpperCase() === ticker);
+  if (hit?.product_type?.trim()) {
+    return hit.product_type.trim().toLowerCase();
+  }
+  return "other";
+}
+
 const MS_PER_DAY = 86_400_000;
 const DAYS_PER_YEAR = 365.25;
 
@@ -459,7 +485,7 @@ export function buildScopeHoldings(
   return Array.from(byTicker.values());
 }
 
-/** Default anchor from selected scope: one model → that id; none → fallback; many → first model. */
+/** Default anchor from selected scope: one model → that id; none → current-holdings fallback. */
 export function resolveAnchorIdFromScope(
   groups: ClientHoldingsGroup[],
   selectedIds: readonly string[],

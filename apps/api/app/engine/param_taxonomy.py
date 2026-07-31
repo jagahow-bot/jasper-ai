@@ -44,6 +44,7 @@ SETUP_PARAM_KEYS: tuple[str, ...] = (
     "no_trade_tol",
     "turnover_penalty_mult",
     "max_turnover_actual",
+    "customization_drift_actual",
     *ALL_ALLOC_WEIGHT_KEYS,
 )
 
@@ -58,6 +59,7 @@ FACTOR_NUMERIC_KEYS: tuple[str, ...] = (
     "w_lowvol",
     "w_trend",
     "w_drawdown",
+    "w_income",
 )
 
 # Factor layer: categorical indicators fixed for the round.
@@ -68,6 +70,7 @@ FACTOR_CATEGORICAL_KEYS: tuple[str, ...] = (
     "lowvol_indicator",
     "trend_indicator",
     "drawdown_indicator",
+    "income_indicator",
 )
 
 FACTOR_PARAM_KEYS: tuple[str, ...] = FACTOR_NUMERIC_KEYS + FACTOR_CATEGORICAL_KEYS
@@ -86,6 +89,7 @@ DEFAULT_FACTOR_BOUNDS: dict[str, tuple[float | int, float | int, int]] = {
     "w_lowvol": (0.0, 2.0, 1),
     "w_trend": (0.0, 1.5, 1),
     "w_drawdown": (0.0, 1.5, 1),
+    "w_income": (0.0, 0.40, 1),
 }
 
 _ALL_KNOWN: frozenset[str] = frozenset(
@@ -512,7 +516,13 @@ def summarize_prior_round_seed(
     )
     regime_factor_ranges = _normalize_regime_factor_ranges_seed(
         seed_dict.get("regime_factor_ranges"),
-        blueprint=RunBlueprint(max_weight=1.0, max_turnover=1.0, top_n=30, max_holdings=30),
+        blueprint=RunBlueprint(
+            max_weight=1.0,
+            max_turnover=1.0,
+            top_n=30,
+            max_holdings=30,
+            customization_drift=1.0,
+        ),
         param_controls=None,
     )
     if not regime_factor_ranges:

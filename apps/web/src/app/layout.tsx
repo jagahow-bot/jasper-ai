@@ -14,8 +14,8 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JASPER.AI",
-  description: "Institutional quant backtest · Pro champion-challenger loop",
+  title: "JASPER 智慧投組平台",
+  description: "JASPER Portfolio Studio — AI portfolio customization for wealth managers",
 };
 
 export default function RootLayout({

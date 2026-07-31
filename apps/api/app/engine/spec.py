@@ -11,10 +11,18 @@ class BacktestSpec:
     rebalance_rule: str = "QE"
     min_holdings: int = 5
     max_holdings: int = 30
+    cash_reserve_pct: float = 0.0
+    cash_return_mode: str = "risk_free"
+    deployment_months: int | None = None
+    deployment_tranches: int | None = None
 
     @property
     def fee_rate(self) -> float:
         return self.fee_bps / 10_000.0
+
+    @property
+    def target_invested_frac(self) -> float:
+        return float(max(0.0, min(1.0, 1.0 - float(self.cash_reserve_pct or 0.0))))
 
 
 DEFAULT_SPEC = BacktestSpec()

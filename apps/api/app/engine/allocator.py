@@ -72,8 +72,18 @@ def solve_weights(
     drift = float(customization_drift) if customization_drift is not None else None
     if anchor is not None and anchor.shape != (n,):
         anchor = None
-    # Zero drift means hold the anchor exactly.
-    if anchor is not None and drift == 0.0:
+    if anchor is not None:
+        anchor = np.maximum(anchor, 0.0)
+    # Keep sparse subset anchors as-is (do NOT renormalize to sum 1). Renormalizing
+    # a partial book made within-subset L1 look small while full-portfolio turnover
+    # vs the true anchor far exceeded the committed customization_drift.
+    anchor_sum = float(anchor.sum()) if anchor is not None else 0.0
+    if anchor is not None and anchor_sum <= 1e-12:
+        anchor = None
+    sparse_anchor = bool(anchor is not None and anchor_sum < 1.0 - 1e-6)
+    # Zero drift means hold the (renormalized) anchor exactly when the subset
+    # covers the full book; sparse zero-drift is handled by full-portfolio projection.
+    if anchor is not None and drift == 0.0 and not sparse_anchor:
         return project_max_weight(np.maximum(anchor, 0.0), max_weight)
 
     # Conservative step size based on trace as a cheap Lipschitz proxy.
@@ -117,9 +127,15 @@ def solve_weights(
 
     w = project_max_weight(w, max_weight)
 
-    # Hard projection onto the anchor-drift L1 ball. The anchor reference is first
-    # projected onto the feasible capped simplex so the constraint is attainable.
-    if anchor is not None and drift is not None and 0.0 < drift < 1.0:
+    # Hard projection onto the subset L1 ball only when the subset already covers
+    # the full anchor mass. Sparse subsets defer to full-portfolio projection in
+    # portfolio.simulate so turnover is measured against the true anchor.
+    if (
+        anchor is not None
+        and drift is not None
+        and 0.0 < drift < 1.0
+        and not sparse_anchor
+    ):
         anchor_ref = project_max_weight(np.maximum(anchor, 0.0), max_weight)
         for _ in range(5):
             dev = float(np.sum(np.abs(w - anchor_ref))) / 2.0

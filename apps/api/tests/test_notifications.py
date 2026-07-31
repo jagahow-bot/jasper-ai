@@ -216,6 +216,29 @@ def test_send_completed_email(reset_smtp, monkeypatch) -> None:
     assert _FakeSMTP.logged_in is True
 
 
+def test_completed_email_includes_client_deep_link(reset_smtp, monkeypatch) -> None:
+    settings.smtp_host = "smtp.example.com"
+    settings.smtp_ssl = False
+    settings.smtp_starttls = True
+    settings.public_web_url = "https://jasper-ai-web.onrender.com"
+    monkeypatch.setattr(notifications.smtplib, "SMTP", _FakeSMTP)
+
+    req = _request("user@example.com")
+    req = req.model_copy(update={"client_ref": "demo-chen"})
+    sent = notifications.send_job_notification(
+        "job-abc12345",
+        req,
+        status="completed",
+        result=_result("job-abc12345"),
+    )
+    assert sent is True
+    body = _FakeSMTP.last_message.get_content()
+    assert (
+        "https://jasper-ai-web.onrender.com/?job=job-abc12345&client=demo-chen"
+        in body
+    )
+
+
 def test_send_failed_email(reset_smtp, monkeypatch) -> None:
     settings.smtp_host = "smtp.example.com"
     settings.smtp_ssl = False

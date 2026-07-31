@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -76,6 +76,7 @@ import {
   resolveResultBenchmarkTicker,
 } from "@/lib/resolve-result-benchmark";
 import { formatBenchmarkDisplayLabel, anchorDiffersFromBenchmarkTicker, type ModelPortfolio } from "@/lib/model-portfolios";
+import { uniqueTickers } from "@/lib/locked-universe";
 import { ContinueRefinementCTA } from "@/components/ContinueRefinementCTA";
 import { fetchCandidateCharts } from "@/lib/api";
 import { flushLlmAuditLogs, pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
@@ -91,6 +92,8 @@ import type {
   BenchmarkSeriesPoint,
   CandidateChartsPayload,
   DynamicObjectiveTimelinePoint,
+  PortfolioCandidate,
+  ProposalCard,
 } from "@/lib/types";
 import {
   alignWeightHistoryToEquityStart,
@@ -105,6 +108,16 @@ import {
   buildHoldoutLeaderboard,
   type LeaderboardSort,
 } from "@/lib/leaderboard";
+import { dedupeProposalSet } from "@/lib/proposal-set";
+import {
+  NEEDS_TABLE_I18N,
+  needsFloorRows,
+} from "@/lib/needs-fulfillment";
+import {
+  buildAllocationRows,
+  formatWeightPct,
+  resolveCandidateWeights,
+} from "@/lib/candidate-weights";
 
 const CHAMPION_STROKE = "#ffb000";
 const BENCHMARK_FILL = "#ffb000";
@@ -144,6 +157,13 @@ const COLORS = [
 
 const SELECTED_STROKE = "#f97316";
 
+function proposalLabelI18nKey(label: string): string | null {
+  if (label === "recommended" || label === "defensive" || label === "growth") {
+    return `results.proposalLabel.${label}`;
+  }
+  return null;
+}
+
 type Props = {
   result: BacktestResult;
   narrative: string;
@@ -178,6 +198,8 @@ type Props = {
   /** Controlled candidate row key (sync with parent, e.g. RmReportView). */
   selectedRowKey?: string;
   onSelectedRowKeyChange?: (rowKey: string) => void;
+  /** Promote result holdings into the candidate universe and re-run. */
+  onPromoteTickers?: (tickers: string[]) => void;
 };
 
 export function ResultsDashboard({
@@ -199,6 +221,7 @@ export function ResultsDashboard({
   anchorBaselineLabel = null,
   selectedRowKey: selectedRowKeyProp,
   onSelectedRowKeyChange,
+  onPromoteTickers,
 }: Props) {
   const { t, lang } = useI18n();
   const isRmCompact = variant === "rm";
@@ -639,16 +662,72 @@ export function ResultsDashboard({
   }, [result.narrative_facts.weight_cap_violation, weightCapAudit]);
 
   const allocationRows = useMemo(() => {
-    const weights = selected?.weights ?? {};
-    return Object.entries(weights)
-      .filter(([, w]) => w > 0.001)
-      .sort(([, a], [, b]) => b - a)
-      .map(([ticker, weight]) => ({
-        ticker,
-        name: etfDisplayName(ticker, lang),
-        weight,
-      }));
-  }, [selected?.weights, lang]);
+    // Prefer terminal weight_history (engine truth) over 4dp-packaged weights.
+    const weights = resolveCandidateWeights(chartCandidate ?? selected);
+    return buildAllocationRows(weights).map(({ ticker, weight, pct }) => ({
+      ticker,
+      name:
+        ticker.toUpperCase() === "CASH"
+          ? t("results.cashSleeveLabel")
+          : ticker.toUpperCase() === "OTHER"
+            ? t("linkedChart.other")
+            : etfDisplayName(ticker, lang),
+      weight,
+      pct,
+    }));
+  }, [chartCandidate, selected, lang, t]);
+
+  const baseUniverse = useMemo(() => {
+    const tickers = uniqueTickers([
+      ...(request.universe_tickers ?? []),
+      ...(request.anchor_weights ? Object.keys(request.anchor_weights) : []),
+    ]);
+    return new Set(tickers.map((ticker) => ticker.toUpperCase()));
+  }, [request.universe_tickers, request.anchor_weights]);
+
+  const promoteCandidates = useMemo(() => {
+    const weights = selected?.weights ?? championCandidate?.weights ?? {};
+    return uniqueTickers(
+      Object.entries(weights)
+        .filter(
+          ([ticker, weight]) =>
+            ticker.toUpperCase() !== "CASH" &&
+            weight >= 0.03 &&
+            !baseUniverse.has(ticker.toUpperCase()),
+        )
+        .map(([ticker]) => ticker),
+    );
+  }, [selected?.weights, championCandidate?.weights, baseUniverse]);
+
+  const selectProposalModel = useCallback(
+    (proposal: ProposalCard) => {
+      const code = proposal.model_code.toUpperCase();
+      const idx = result.candidates.findIndex(
+        (c) => candidateModelKey(c).toUpperCase() === code,
+      );
+      if (idx >= 0) {
+        setSelectedRowKey(candidateRowKey(result.candidates[idx], idx));
+      }
+    },
+    [result.candidates, setSelectedRowKey],
+  );
+
+  const proposalCards = useMemo(
+    () => dedupeProposalSet(result.proposal_set, result.candidates),
+    [result.proposal_set, result.candidates],
+  );
+
+  const handlePromoteHoldings = useCallback(() => {
+    if (!promoteCandidates.length) return;
+    if (onPromoteTickers) {
+      onPromoteTickers(promoteCandidates);
+      return;
+    }
+    console.info(
+      "[ResultsDashboard] Wire onPromoteTickers to add holdings to universe:",
+      promoteCandidates,
+    );
+  }, [onPromoteTickers, promoteCandidates]);
 
   const benchmarkRequest = useMemo(
     () =>
@@ -1030,12 +1109,45 @@ export function ResultsDashboard({
   const holdoutLeaderboard = useMemo(() => {
     if (!oosLeaderboardRaw?.length) return [];
     const fullByCode = new Map<string, number>();
+    const horizonsByCode = new Map<
+      string,
+      {
+        in_sample_objective?: number;
+        out_of_sample_objective?: number;
+        full_sample_objective?: number;
+        gap_objective?: number;
+      }
+    >();
     for (const c of result.candidates) {
       const code = c.model_code;
-      const full = c.analytics?.sample_metrics?.full_sample?.objective_value;
-      if (code && full != null) fullByCode.set(code, Number(full));
+      if (!code) continue;
+      const sm = c.analytics?.sample_metrics;
+      const full = sm?.full_sample?.objective_value;
+      if (full != null) fullByCode.set(code, Number(full));
+      if (!sm?.in_sample && !sm?.out_of_sample && !sm?.full_sample) continue;
+      horizonsByCode.set(code, {
+        in_sample_objective:
+          sm?.in_sample?.objective_value != null
+            ? Number(sm.in_sample.objective_value)
+            : undefined,
+        out_of_sample_objective:
+          sm?.out_of_sample?.objective_value != null
+            ? Number(sm.out_of_sample.objective_value)
+            : undefined,
+        full_sample_objective:
+          sm?.full_sample?.objective_value != null
+            ? Number(sm.full_sample.objective_value)
+            : undefined,
+        gap_objective:
+          sm?.gap?.objective != null ? Number(sm.gap.objective) : undefined,
+      });
     }
-    return buildHoldoutLeaderboard(oosLeaderboardRaw, leaderboardSort, fullByCode);
+    return buildHoldoutLeaderboard(
+      oosLeaderboardRaw,
+      leaderboardSort,
+      fullByCode,
+      horizonsByCode,
+    );
   }, [oosLeaderboardRaw, result.candidates, leaderboardSort]);
 
   const paramFrontierSamples = useMemo(
@@ -1100,9 +1212,11 @@ export function ResultsDashboard({
     weightCapAudit?.active_holdings != null
       ? Number(weightCapAudit.active_holdings)
       : Object.values(top.weights ?? {}).filter((w) => Number(w) > 0.0001).length;
-  const donut = Object.entries(top.weights ?? {})
-    .filter(([, w]) => w > 0.01)
-    .map(([name, value]) => ({ name, value }));
+  // Same L-R percents as the holdings table so the pie also sums to 100%.
+  const donut = allocationRows.map(({ ticker, pct }) => ({
+    name: ticker,
+    value: pct / 100,
+  }));
 
   const params = (top.params ?? {}) as Record<string, unknown>;
   const aiGen = (result.narrative_facts.ai_param_generation ??
@@ -1359,6 +1473,56 @@ export function ResultsDashboard({
             ) : (
               t("results.meta.search", { trials: trialsRequested })
             )}
+            {championCandidate?.needs_attainment ? (
+              (() => {
+                const na = championCandidate.needs_attainment;
+                const actualPct = ((na.max_drawdown_actual ?? 0) * 100).toFixed(1);
+                const floorPct = ((na.max_drawdown_tolerance ?? 0) * 100).toFixed(1);
+                const breachPct = ((na.drawdown_breach_pct ?? 0) * 100).toFixed(1);
+                const missing = na.missing_must_include ?? [];
+                const driftFail = na.within_customization_drift === false;
+                const mustFail = na.within_must_include === false;
+                const warn = mustFail || driftFail || !na.within_drawdown_tolerance;
+                return (
+              <div
+                className={`mt-1 text-sm ${
+                  warn ? "text-amber-700" : "text-emerald-700"
+                }`}
+              >
+                {na.max_drawdown_tolerance != null ? (
+                  <p>
+                    <span className="font-medium">{t("results.needsFloorTitle")}: </span>
+                    {na.within_drawdown_tolerance
+                      ? t("results.needsFloorPass", {
+                          actual: `${actualPct}%`,
+                          floor: `${floorPct}%`,
+                        })
+                      : t("results.needsFloorFail", {
+                          actual: `${actualPct}%`,
+                          floor: `${floorPct}%`,
+                          breach: `${breachPct}%`,
+                        })}
+                  </p>
+                ) : null}
+                {mustFail ? (
+                  <p className="mt-0.5">
+                    {t("results.needsMustIncludeFail", {
+                      tickers: missing.join(", "),
+                    })}
+                  </p>
+                ) : null}
+                {driftFail ? (
+                  <p className="mt-0.5">
+                    {t("results.needsDriftFail", {
+                      actual: `${(((na.customization_drift_l1 ?? 0) * 100)).toFixed(1)}%`,
+                      cap: `${(((na.customization_drift_cap ?? 0) * 100)).toFixed(1)}%`,
+                    })}
+                  </p>
+                ) : null}
+              </div>
+                );
+              })()
+            ) : null}
           </>
         ) : (
           <>{t("results.meta.search", { trials: trialsRequested })}</>
@@ -1397,38 +1561,159 @@ export function ResultsDashboard({
         )}
       </div>
 
+      {proposalCards.length ? (
+        <div className="pixel-panel">
+          <h3 className="ui-panel-title">{t("results.proposalSetTitle")}</h3>
+          <div
+            className={`mt-3 grid gap-3 ${
+              isRmCompact
+                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+            }`}
+          >
+            {proposalCards.map((proposal) => {
+              const labelKey = proposalLabelI18nKey(proposal.label);
+              const labelText = labelKey ? t(labelKey) : proposal.label;
+              const activeModelKey = selected
+                ? candidateModelKey(selected)
+                : championCandidate
+                  ? candidateModelKey(championCandidate)
+                  : "";
+              const isActive =
+                activeModelKey.toUpperCase() === proposal.model_code.toUpperCase();
+              const floorRows = needsFloorRows(proposal.needs_attainment);
+              return (
+                <button
+                  key={proposal.model_code}
+                  type="button"
+                  onClick={() => selectProposalModel(proposal)}
+                  className={`rounded-lg border-2 bg-[var(--surface-2)] p-3 text-left transition-colors ${
+                    isActive
+                      ? "border-[var(--primary)] ring-1 ring-[var(--primary)]"
+                      : "border-[var(--border)] hover:border-[var(--primary-muted)]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="ui-section-title text-[var(--primary)]">
+                      {labelText}
+                    </span>
+                    {proposal.is_recommended ? (
+                      <span className="pixel-badge-cyan text-xs">★</span>
+                    ) : null}
+                  </div>
+                  <p className="ui-hint mt-1 text-dim">{proposal.model_code}</p>
+                  <div
+                    className={`mt-2 grid gap-1 ui-body ${
+                      isRmCompact ? "grid-cols-3" : "grid-cols-3"
+                    }`}
+                  >
+                    <div>
+                      <div className="text-dim">Sharpe</div>
+                      <div>{proposal.sharpe.toFixed(3)}</div>
+                    </div>
+                    <div>
+                      <div className="text-dim">CAGR</div>
+                      <div>{(proposal.cagr * 100).toFixed(2)}%</div>
+                    </div>
+                    <div>
+                      <div className="text-dim">MDD</div>
+                      <div>{(proposal.max_drawdown * 100).toFixed(2)}%</div>
+                    </div>
+                  </div>
+                  {floorRows.length > 0 ? (
+                    <table className="mt-3 w-full ui-hint">
+                      <tbody>
+                        {floorRows.map(({ key, pass }) => (
+                          <tr key={key} className="border-t border-[var(--border)]">
+                            <td className="py-1 pr-2 text-dim">{t(NEEDS_TABLE_I18N[key])}</td>
+                            <td
+                              className={`py-1 text-right font-medium ${
+                                pass ? "text-emerald-700" : "text-amber-700"
+                              }`}
+                            >
+                              {pass == null
+                                ? "—"
+                                : pass
+                                  ? t("results.needsTable.pass")
+                                  : t("results.needsTable.fail")}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       <ReportGroup
         index={1}
         title={t("report.group.summary")}
         subtitle={t("report.group.summaryHint")}
       >
       <div className="pixel-panel">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="ui-panel-title">{t("results.title")}</h3>
-          {!sortByModelCode && (
-            <span className="pixel-badge-cyan">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h3 className="ui-panel-title shrink-0 leading-none">
+            {t("results.title")}
+          </h3>
+          {!sortByModelCode ? (
+            <span className="pixel-badge pixel-badge-cyan shrink-0 text-xs">
               {`${t("results.sort")}: ${localizedObjectiveLabel}`}
             </span>
-          )}
-          <label className="ui-body flex items-center gap-2 text-dim">
-            {t("results.model")}
-            <select
-              value={selectedChartKey}
-              onChange={(e) => setSelectedRowKey(e.target.value)}
-              className="pixel-input ui-body py-1"
-            >
-              {modelSelectOptions.map(({ c, i }) => (
-                <option
-                  key={candidateRowKey(c, i)}
-                  value={candidateRowKey(c, i)}
-                >
-                  {(c.model_code ?? `M?`)}
-                  {candidateModelKey(c) === championModelKey ? " ★" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <label className="flex shrink-0 items-stretch overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-2)]">
+              <span className="ui-label flex items-center border-r border-[var(--border)] px-2.5 py-1.5">
+                {t("results.model")}
+              </span>
+              <select
+                value={selectedChartKey}
+                onChange={(e) => setSelectedRowKey(e.target.value)}
+                className="ui-dropdown min-w-[6.5rem] shrink-0 border-0 bg-transparent px-2 py-1.5 focus:outline-none focus:ring-0"
+              >
+                {modelSelectOptions.map(({ c, i }) => (
+                  <option
+                    key={candidateRowKey(c, i)}
+                    value={candidateRowKey(c, i)}
+                  >
+                    {(c.model_code ?? `M?`)}
+                    {candidateModelKey(c) === championModelKey ? " ★" : ""}
+                    {c.needs_attainment &&
+                    !c.needs_attainment.within_drawdown_tolerance
+                      ? " ⚠"
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {modelSelectOptions.some(
+              ({ c }) =>
+                c.needs_attainment &&
+                !c.needs_attainment.within_drawdown_tolerance,
+            ) ? (
+              <span className="pixel-badge pixel-badge-warn shrink-0">
+                {t("results.needsFloorLegend")}
+              </span>
+            ) : null}
+          </div>
         </div>
+        {promoteCandidates.length > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+            <span className="ui-hint text-dim">
+              {promoteCandidates.join(", ")}
+            </span>
+            <button
+              type="button"
+              onClick={handlePromoteHoldings}
+              className="pixel-btn text-sm"
+            >
+              {t("results.addToUniverseCta")}
+            </button>
+          </div>
+        ) : null}
         {narrative && !isRmCompact ? (
           <div className="mt-3 rounded-lg border border-indigo-100 bg-indigo-50/50 px-4 py-3 text-dim">
             <p className="ui-section-title mb-2 text-[var(--cyan)]">
@@ -2088,9 +2373,8 @@ export function ResultsDashboard({
               <>
                 {" "}
                 {t("results.proChampionScorePrefix")}{" "}
-                <span className="text-[var(--amber)]">{t("results.comprehensiveScore")}</span> (
-                <code className="ui-hint">objective_value_is</code>
-                ) — {t("results.proChampionScoreFormula")}
+                <span className="text-[var(--amber)]">{t("results.comprehensiveScore")}</span>{" "}
+                — {t("results.proChampionScoreFormula")}
               </>
             ) : null}
           </p>
@@ -2148,13 +2432,13 @@ export function ResultsDashboard({
                   </tr>
                 </thead>
                 <tbody>
-                  {allocationRows.map(({ ticker, name, weight }) => (
+                  {allocationRows.map(({ ticker, name, pct }) => (
                     <tr key={ticker} className="border-t border-[var(--border)]">
                       <td className="py-1.5 text-dim">{latestAllocationDate}</td>
                       <td className="py-1.5">{ticker}</td>
                       <td className="py-1.5 text-dim">{name}</td>
                       <td className="py-1.5 text-right text-[var(--primary)]">
-                        {(weight * 100).toFixed(2)}%
+                        {formatWeightPct(pct)}
                       </td>
                     </tr>
                   ))}

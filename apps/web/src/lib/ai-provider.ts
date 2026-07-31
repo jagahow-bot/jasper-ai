@@ -6,6 +6,21 @@ import {
   GEMINI_NARRATIVE_MAX_OUTPUT_TOKENS,
 } from "./gemini";
 
+/**
+ * Web LLM routing (model IDs + which helper each route should use):
+ *
+ * Gemini Flash (`defaultFlashModel` / DEFAULT_FLASH_MODEL_ID):
+ *   Interactive / latency-sensitive — overlay/interpret, universe/filter,
+ *   scenario/analyze, param-seeds.
+ *
+ * Kimi K3 (`reasoningModel` / KIMI_K3_MODEL_ID):
+ *   Non-interactive / prose-heavy — narrate, talking-summary,
+ *   candidate-summary, candidate-compare-summary.
+ *
+ * Exact IDs come from GEMINI_MODEL / MOONSHOT_MODEL (defaults below).
+ * Backend Pro refinement / AI param seeds use apps/api settings.gemini_model
+ * (same Gemini Flash id); keep Kimi out of real-time overlay confirm paths.
+ */
 export const DEFAULT_FLASH_MODEL_ID =
   process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
 

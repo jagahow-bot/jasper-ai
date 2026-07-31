@@ -45,8 +45,8 @@ describe("candidate-charts-lazy", () => {
     const merged = mergeCandidateCharts(slim, {
       model_code: "M0005",
       equity_curve: [{ date: "2020-01-01", value: 100 }],
-      weight_history: [{ date: "2020-01-01", SPY: 1 }],
-      weight_history_tickers: ["SPY"],
+      weight_history: [{ date: "2020-01-01", SPY: 0.62, QQQ: 0.38 }],
+      weight_history_tickers: ["SPY", "QQQ"],
       benchmark_equity_curve: [{ date: "2020-01-01", value: 100 }],
       institutional: {
         rolling: {
@@ -67,6 +67,8 @@ describe("candidate-charts-lazy", () => {
     expect(merged.analytics?.rolling?.rolling_sharpe).toHaveLength(1);
     expect(merged.analytics?.periodic_returns?.monthly).toHaveLength(1);
     expect(merged.analytics?.risk_contribution).toHaveLength(1);
+    // Packaged OOS last_weights must not stick after full-path charts load.
+    expect(merged.weights).toEqual({ SPY: 0.62, QQQ: 0.38 });
   });
 
   it("tracks lazy payload completeness", () => {

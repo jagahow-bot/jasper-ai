@@ -147,6 +147,7 @@ def test_pro_regime_adaptive_large_universe_optuna(large_panel) -> None:
     ):
         records, _history, meta = _run_iterative_search(
             req,
+            prices=prices_train,
             prices_train=prices_train,
             prices_sim_panel=prices_sim,
             prices_val=None,

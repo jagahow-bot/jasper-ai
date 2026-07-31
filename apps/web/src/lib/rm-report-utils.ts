@@ -1,3 +1,4 @@
+import { largestRemainderPercents, resolveCandidateWeights } from "@/lib/candidate-weights";
 import {
   resolveChampionCandidateIndex,
   resolveHorizonMetrics,
@@ -267,23 +268,21 @@ export function buildHoldingsDiff(
   const baseChamp = pickChampion(baseResult);
   const adjChamp = pickCandidate(adjustedResult, pick?.customizedModelCode);
 
+  // Prefer terminal weight_history over packaged `weights` — OOS assembly can
+  // stash holdout-fresh-start last_weights that look artificially round, while
+  // the full-path rebalance history holds the real allocator end-weights.
   const anchorWeights: Record<string, number> = {};
   if (anchorHoldings?.length) {
     for (const h of anchorHoldings) {
       anchorWeights[h.ticker.toUpperCase()] = h.weight;
     }
-  } else if (baseChamp?.weights) {
-    for (const [t, w] of Object.entries(baseChamp.weights)) {
-      if (w > 0.001) anchorWeights[t.toUpperCase()] = w;
-    }
+  } else {
+    Object.assign(anchorWeights, resolveCandidateWeights(baseChamp));
   }
 
-  const customizedWeights: Record<string, number> = {};
-  if (adjChamp?.weights) {
-    for (const [t, w] of Object.entries(adjChamp.weights)) {
-      if (w > 0.001) customizedWeights[t.toUpperCase()] = w;
-    }
-  }
+  const customizedWeights = resolveCandidateWeights(adjChamp);
+  const anchorPcts = largestRemainderPercents(anchorWeights, 2);
+  const customizedPcts = largestRemainderPercents(customizedWeights, 2);
 
   const tickers = new Set([
     ...Object.keys(anchorWeights),
@@ -292,8 +291,8 @@ export function buildHoldingsDiff(
 
   const rows: HoldingDiffRow[] = [];
   for (const ticker of [...tickers].sort()) {
-    const anchorPct = (anchorWeights[ticker] ?? 0) * 100;
-    const customizedPct = (customizedWeights[ticker] ?? 0) * 100;
+    const anchorPct = anchorPcts[ticker] ?? 0;
+    const customizedPct = customizedPcts[ticker] ?? 0;
     const deltaPct = customizedPct - anchorPct;
 
     let change: HoldingDiffRow["change"] = "unchanged";
@@ -326,8 +325,7 @@ function pickCustomizedWeights(
   result: BacktestResult,
   modelCode?: string | null,
 ): Record<string, number> {
-  const candidate = pickCandidate(result, modelCode);
-  return candidate?.weights ?? {};
+  return resolveCandidateWeights(pickCandidate(result, modelCode));
 }
 
 function computeAssetMixFromWeights(weights: Record<string, number>): Record<string, number> {

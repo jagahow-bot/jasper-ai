@@ -15,6 +15,7 @@ from app.config import settings
 from app.engine.ai_client import generate_ai_text, model_has_api_key
 from app.engine.factors import (
     DRAWDOWN_INDICATOR_CHOICES,
+    INCOME_INDICATOR_CHOICES,
     LOWVOL_INDICATOR_CHOICES,
     MOM_INDICATOR_CHOICES,
     REVERSAL_INDICATOR_CHOICES,
@@ -70,6 +71,7 @@ _INDICATOR_SCHEMA_PROPS: dict[str, dict[str, str]] = {
     "lowvol_indicator": {"type": "STRING"},
     "trend_indicator": {"type": "STRING"},
     "drawdown_indicator": {"type": "STRING"},
+    "income_indicator": {"type": "STRING"},
 }
 
 _PARAM_SET_REQUIRED = [
@@ -80,6 +82,7 @@ _PARAM_SET_REQUIRED = [
     "max_holdings_actual",
     "max_weight_actual",
     "max_turnover_actual",
+    "customization_drift_actual",
     "w_mom",
     "w_lowvol",
     "w_equity",
@@ -94,6 +97,7 @@ _PARAM_SET_CORE_PROPS: dict[str, dict[str, str]] = {
     "max_holdings_actual": {"type": "NUMBER"},
     "max_weight_actual": {"type": "NUMBER"},
     "max_turnover_actual": {"type": "NUMBER"},
+    "customization_drift_actual": {"type": "NUMBER"},
     "w_mom": {"type": "NUMBER"},
     "w_lowvol": {"type": "NUMBER"},
     "w_equity": {"type": "NUMBER"},
@@ -789,6 +793,7 @@ def generate_ai_param_sets(
     progress_cb: Callable[[int, int, str], None] | None = None,
     learning_context: dict[str, Any] | None = None,
     all_ai_seeds: bool = False,
+    customization_drift_cap: float = 1.0,
 ) -> dict[str, Any]:
     """Generate candidate parameter sets via Gemini.
 
@@ -816,11 +821,13 @@ def generate_ai_param_sets(
     seed_plan = resolve_ai_param_seed_plan(n, all_ai=all_ai_seeds)
     requested_n = int(seed_plan["requested"])
     n = int(seed_plan["target"])
+    drift_cap = float(max(0.0, min(1.0, float(customization_drift_cap))))
     blueprint = RunBlueprint(
         max_weight=float(max_weight_cap),
         max_turnover=float(max_turnover_cap),
         top_n=int(top_n_cap) if top_n_cap is not None else None,
         max_holdings=int(max_holdings_cap),
+        customization_drift=drift_cap,
     )
     param_controls = normalize_param_controls(param_controls, blueprint)
     learning_context = learning_context or {}
@@ -828,6 +835,7 @@ def generate_ai_param_sets(
     learning_context_block = _build_learning_context_block_for_mode(
         learning_context, learning_context_mode
     )
+    client_needs_line = _client_needs_prompt_line(learning_context)
     learning_context_label = {
         "ultra": "ultra-compact",
         "standard": "standard",
@@ -847,17 +855,19 @@ def generate_ai_param_sets(
         f"{blueprint_prompt_lines(blueprint)} "
         f"cap[max_weight]=0.05..{max_weight_cap:.4f}; "
         f"cap[max_turnover]=0.05..{max_turnover_cap:.4f}; "
+        f"cap[customization_drift]=0..{drift_cap:.4f}; "
         f"top_n=5..{top_n_ai_range_hi(top_n_cap, tradable_count)}; "
         f"max_holdings=1..{int(blueprint.max_holdings)}; "
         "lookback=126..504; factor_lb=126..504; rev_lb=63..252; val_lb=63..252; "
         "shrinkage=0..0.5; risk_aversion=0.5..12; no_trade_tol=0..0.02; turnover_penalty=0.5..3; "
-        "factor_weights=0..2(trend/drawdown<=1.5); class_weights=0..1; "
+        "factor_weights=0..2(trend/drawdown<=1.5); income w_income=0..0.40; class_weights=0..1; "
         f"mom_indicator in {list(MOM_INDICATOR_CHOICES)}; "
         f"reversal_indicator in {list(REVERSAL_INDICATOR_CHOICES)}; "
         f"value_indicator in {list(VALUE_INDICATOR_CHOICES)}; "
         f"lowvol_indicator in {list(LOWVOL_INDICATOR_CHOICES)}; "
         f"trend_indicator in {list(TREND_INDICATOR_CHOICES)}; "
-        f"drawdown_indicator in {list(DRAWDOWN_INDICATOR_CHOICES)}"
+        f"drawdown_indicator in {list(DRAWDOWN_INDICATOR_CHOICES)}; "
+        f"income_indicator in {list(INCOME_INDICATOR_CHOICES)}"
     )
     # Sequential per-seed requests: each call must see the real previously generated
     # sets so the model is forced to produce meaningfully different parameters.
@@ -898,11 +908,11 @@ Treat GLOBAL settings as immutable and only vary fields listed in MUTABLE_ONLY/M
 Do not output objective_mode or rebalance_freq (run-level fixed).
 Include mode (allocator) plus any MUTABLE fields you change; omit unchanged optional fields.
 Required minimum: mode, lookback_days, risk_aversion, top_n_actual, max_holdings_actual,
-max_weight_actual, max_turnover_actual, w_mom, w_lowvol, w_equity, w_bond.
+max_weight_actual, max_turnover_actual, customization_drift_actual, w_mom, w_lowvol, w_equity, w_bond.
 Factor indicators (optional; materially different signals): mom_indicator cumulative_return|risk_adjusted_return|skip_month_12_1;
 reversal negative_return|off_peak|rsi_mean_reversion; value ma_price_ratio|price_percentile|inverse_long_momentum;
 lowvol negative_vol|negative_downside_dev|negative_beta_market; trend price_ma_ratio|ma_slope|dual_ma_crossover;
-drawdown max_drawdown_depth|time_since_peak|ulcer_index.
+drawdown max_drawdown_depth|time_since_peak|ulcer_index; income w_income (0..0.40) trailing_12m_yield.
 Champion challenge success must follow objective in GLOBAL/constraints (do not optimize a different objective).
 Numeric rule: at most 4 decimal places for every number; never emit long float expansions.
 Output rule: include required fields plus only optional fields you materially change; omit other optional numerics.
@@ -918,10 +928,10 @@ Optimization Direction Blueprint (GLOBAL for this batch):
 - do_more: {direction_do_more}
 - do_less: {direction_do_less}
 - risk_notes: {direction_risk_notes}
-
+{client_needs_block}
 Compact constraints spec: {constraints_compact}
 
-MUST NOT exceed run ceilings in GLOBAL/constraints (max_weight_actual, max_turnover_actual, top_n_actual, max_holdings_actual).
+MUST NOT exceed run ceilings in GLOBAL/constraints (max_weight_actual, max_turnover_actual, customization_drift_actual, top_n_actual, max_holdings_actual).
 Note: server-side validation/clamping is authoritative; values above ceilings are rejected or clipped.
 
 Return STRICT JSON only:
@@ -1045,6 +1055,9 @@ Return STRICT JSON only:
                     direction_do_more=direction_do_more,
                     direction_do_less=direction_do_less,
                     direction_risk_notes=direction_risk_notes,
+                    client_needs_block=(
+                        "" if compact or not client_needs_line else client_needs_line + "\n"
+                    ),
                     constraints_compact=constraints_compact,
                     extra_sets_hint=extra_sets_hint,
                 )
@@ -1303,6 +1316,7 @@ _ROUND_SETUP_SCHEMA_CORE: dict[str, dict[str, str]] = {
     "max_holdings_actual": ai_number_schema(integer=True),
     "max_weight_actual": ai_number_schema(),
     "max_turnover_actual": ai_number_schema(),
+    "customization_drift_actual": ai_number_schema(),
     "no_trade_tol": ai_number_schema(),
     "turnover_penalty_mult": ai_number_schema(),
 }
@@ -2013,13 +2027,51 @@ def _round_seed_prior_round_lines(
     return lines
 
 
+def _client_needs_prompt_line(learning_context: dict[str, Any] | None) -> str | None:
+    """Render the client-needs card as one compact prompt line (None when absent)."""
+    if not learning_context:
+        return None
+    needs = learning_context.get("client_needs")
+    if not isinstance(needs, dict) or not needs:
+        return None
+    parts: list[str] = []
+    risk = _sanitize_prompt_string(needs.get("risk_tolerance"))
+    if risk:
+        parts.append(f"risk={risk}")
+    horizon = needs.get("investment_horizon_years")
+    if horizon:
+        parts.append(f"horizon={horizon}y")
+    tolerance = needs.get("max_drawdown_tolerance")
+    if tolerance:
+        parts.append(f"max_dd_floor={tolerance}")
+    income = needs.get("income_need_pct")
+    if income:
+        parts.append(f"income_need={income}")
+    summary = _sanitize_prompt_string(needs.get("needs_summary"))
+    if not parts and not summary:
+        return None
+    line = "CLIENT_NEEDS " + " ".join(parts)
+    if summary:
+        line += f' view="{summary}"'
+    if tolerance:
+        line += (
+            " — trials breaching this drawdown floor are score-penalized; "
+            "prefer params that respect it."
+        )
+    return line
+
+
 def _collect_round_seed_learning_lines(
     learning_context: dict[str, Any],
     *,
     round_index: int,
     compress: _RoundSeedCompress,
 ) -> list[str]:
-    lines: list[str] = list(_round_seed_budget_lines(learning_context))
+    lines: list[str] = []
+    client_line = _client_needs_prompt_line(learning_context)
+    if client_line:
+        lines.append(client_line)
+    lines.extend(_round_seed_budget_lines(learning_context))
     if round_index <= 1:
         return lines
 
@@ -2238,6 +2290,7 @@ def generate_ai_round_seed(
     progress_cb: Callable[[int, int, str], None] | None = None,
     learning_context: dict[str, Any] | None = None,
     language: str | None = None,
+    customization_drift_cap: float = 1.0,
 ) -> dict[str, Any]:
     """One AI call per Pro round: fixed round_setup + factor_ranges + factor_choices."""
     model = settings.gemini_model
@@ -2257,11 +2310,13 @@ def generate_ai_round_seed(
         empty["rationale"] = "AI key not configured; fallback to Optuna search only."
         return empty
 
+    drift_cap = float(max(0.0, min(1.0, float(customization_drift_cap))))
     blueprint = RunBlueprint(
         max_weight=float(max_weight_cap),
         max_turnover=float(max_turnover_cap),
         top_n=int(top_n_cap) if top_n_cap is not None else None,
         max_holdings=int(max_holdings_cap),
+        customization_drift=drift_cap,
     )
     param_controls = normalize_param_controls(param_controls, blueprint)
     learning_context = learning_context or {}
@@ -2310,6 +2365,7 @@ def generate_ai_round_seed(
         f"{blueprint_prompt_lines(blueprint)} "
         f"cap[max_weight]=0.05..{max_weight_cap:.4f}; "
         f"cap[max_turnover]=0.05..{max_turnover_cap:.4f}; "
+        f"cap[customization_drift]=0..{drift_cap:.4f}; "
         f"top_n=5..{top_n_ai_range_hi(top_n_cap, tradable_count)}; "
         f"max_holdings=1..{int(blueprint.max_holdings)}; "
         "lookback=126..504; factor_lb=126..504; rev_lb=63..252; val_lb=63..252; "
@@ -2367,7 +2423,7 @@ Output the final JSON immediately; no markdown or commentary.
 Architecture (critical):
 1) round_setup — fixed for ALL Optuna trials this round (portfolio/model setup only).
    Required keys: mode, lookback_days, shrinkage, risk_aversion, top_n_actual, max_holdings_actual,
-   max_weight_actual, max_turnover_actual, no_trade_tol, turnover_penalty_mult.
+   max_weight_actual, max_turnover_actual, customization_drift_actual, no_trade_tol, turnover_penalty_mult.
    Optional asset-class quotas ({alloc_keys}): include ONLY if you materially change them from defaults.
    Do NOT put factor weights or factor lookbacks in round_setup.
    Note: top_n_actual and max_holdings_actual are your recommended centers; the engine will
@@ -2810,6 +2866,15 @@ def generate_ai_round_champion(
             "Do NOT override the champion", "Do NOT pick a runner-up over the objective winner"
         )
 
+    client_needs_note = ""
+    if isinstance(payload.get("client_needs"), dict) and payload.get("client_needs"):
+        client_needs_note = (
+            "\n- client_needs describes the signed client's goals. In the rationale, "
+            "explicitly connect the champion to those needs in plain wealth-management "
+            "language (e.g. whether it stays inside the client's drawdown comfort zone "
+            "when max_drawdown_tolerance is given). Do not quote raw field names."
+        )
+
     prompt = f"""Institutional quant analyst. {_round_champion_language_directive(language)}
 After this Pro Optuna round, {champion_line}
 Each candidate includes horizons.in_sample (IS), horizons.out_of_sample (OOS holdout), and
@@ -2821,7 +2886,7 @@ METRIC FORMAT (payload JSON uses decimal fractions for rates):
 - Unitless (no %): sharpe, sortino, objective_value.
 - Use plain, client-facing language: say "full-period" instead of "Full/IS/OOS", "risk-adjusted return" instead of "objective_value", and avoid quant jargon.
 - Lead with full-period Sharpe/CAGR/max drawdown from horizons.full_sample when present — that matches the user's report grid.
-- In-sample / out-of-sample are full-path slices (same continuous backtest as full-period), not independent trial simulates.
+- In-sample / out-of-sample are full-path slices (same continuous backtest as full-period), not independent trial simulates.{client_needs_note}
 
 Selection logic:
 {selection_rules}

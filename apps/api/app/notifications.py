@@ -36,11 +36,17 @@ def is_valid_email(email: str | None) -> bool:
     return bool(email) and bool(_EMAIL_RE.match(email.strip()))
 
 
-def _results_link(job_id: str) -> str | None:
+def _results_link(job_id: str, req: BacktestRequest | None = None) -> str | None:
     base = (settings.public_web_url or "").strip().rstrip("/")
     if not base:
         return None
-    return f"{base}/?job={job_id}"
+    link = f"{base}/?job={job_id}"
+    client_ref = (req.client_ref or "").strip() if req is not None else ""
+    if client_ref:
+        from urllib.parse import quote
+
+        link = f"{link}&client={quote(client_ref)}"
+    return link
 
 
 def _champion(result: BacktestResult):
@@ -69,7 +75,7 @@ def _completed_body(job_id: str, req: BacktestRequest, result: BacktestResult) -
             f"  CAGR:    {metrics.cagr * 100:.2f}%",
             f"  Max DD:  {metrics.max_drawdown * 100:.2f}%",
         ]
-    link = _results_link(job_id)
+    link = _results_link(job_id, req)
     if link:
         lines += ["", f"View the full report: {link}"]
     else:

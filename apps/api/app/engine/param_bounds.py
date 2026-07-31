@@ -13,12 +13,14 @@ RUN_CEILING_KEYS: dict[str, str] = {
     "max_turnover_actual": "max_turnover",
     "top_n_actual": "top_n",
     "max_holdings_actual": "max_holdings",
+    "customization_drift_actual": "customization_drift",
 }
 
 _NUMERIC_FLOOR: dict[str, float] = {
     "max_weight_actual": 0.05,
     "max_turnover_actual": 0.05,
     "max_holdings_actual": 1.0,
+    "customization_drift_actual": 0.0,
 }
 
 
@@ -28,15 +30,18 @@ class RunBlueprint:
     max_turnover: float
     top_n: int | None
     max_holdings: int
+    customization_drift: float = 1.0
 
     @classmethod
     def from_request(cls, req: Any) -> RunBlueprint:
         top_n = None if req.top_n is None else int(req.top_n)
+        drift = getattr(req, "customization_drift", 1.0)
         return cls(
             max_weight=float(req.max_weight),
             max_turnover=float(req.max_turnover),
             top_n=top_n,
             max_holdings=int(getattr(req, "max_holdings", 30)),
+            customization_drift=float(drift if drift is not None else 1.0),
         )
 
     def ceiling(self, param_key: str) -> float | int | None:
@@ -51,6 +56,8 @@ class RunBlueprint:
             return int(self.top_n) if self.top_n is not None else None
         if run_field == "max_holdings":
             return int(self.max_holdings)
+        if run_field == "customization_drift":
+            return float(self.customization_drift)
         return None
 
     def off_default(self, param_key: str) -> float | int | None:
@@ -227,6 +234,7 @@ def blueprint_prompt_lines(blueprint: RunBlueprint) -> str:
     return (
         f"HARD CEILINGS (never exceed): max_weight_actual<={blueprint.max_weight:.4f}; "
         f"max_turnover_actual<={blueprint.max_turnover:.4f}; "
+        f"customization_drift_actual<={blueprint.customization_drift:.4f}; "
         f"{top_n_line}; "
         f"max_holdings_actual<={blueprint.max_holdings}. "
         "Run sliders are authoritative; search only within [floor, ceiling]."

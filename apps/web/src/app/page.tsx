@@ -52,6 +52,8 @@ import { useI18n } from "@/lib/i18n";
 import { flushLlmAuditLogs, pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import {
   buildAnchorBacktestRequest,
+  buildCurrentHoldingsAnchor,
+  CURRENT_HOLDINGS_ANCHOR_ID,
   getAnchorPortfolioById,
   getCustomizedVsAnchorLabel,
   getPortfolioLabel,
@@ -68,7 +70,13 @@ import {
   type ClientOverlay,
   type OverlayConversationMessage,
 } from "@/lib/overlay-schema";
+import {
+  decideFilterProposalInterrupt,
+  overlayAlreadyShowsProposedTickers,
+  overlayPromptsKey,
+} from "@/lib/overlay-filter-proposals";
 import { resolveOverlayUniverse } from "@/lib/resolve-overlay-universe";
+import { uniqueTickers } from "@/lib/locked-universe";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -76,6 +84,9 @@ import type {
   PersonalizationCompare,
   WizardPhase,
 } from "@/lib/types";
+
+/** Stable empty transcript — avoids `[]` identity churn in overlay two-way sync. */
+const EMPTY_OVERLAY_MESSAGES: OverlayConversationMessage[] = [];
 
 function asModelPortfolio(
   p: ModelPortfolio & { conflict_tickers?: string[]; enabled?: boolean },
@@ -169,14 +180,8 @@ export default function HomePage() {
   const [portfolioName, setPortfolioName] = useState("");
   const [signedOverlay, setSignedOverlay] = useState<ClientOverlay | null>(null);
   const [overlaySession, setOverlaySession] = useState<ClientOverlay | null>(null);
-  const [overlayMessages, setOverlayMessages] = useState<OverlayConversationMessage[]>([]);
-
-  // Reset the overlay conversation when the client or anchor model changes,
-  // so we do not carry a stale dialogue into a new customization.
-  useEffect(() => {
-    setOverlaySession(null);
-    setOverlayMessages([]);
-  }, [activeClient?.client_id, anchorPortfolioId]);
+  const [overlayMessages, setOverlayMessages] =
+    useState<OverlayConversationMessage[]>(EMPTY_OVERLAY_MESSAGES);
 
   const [personalizationCompare, setPersonalizationCompare] =
     useState<PersonalizationCompare | null>(null);
@@ -194,6 +199,26 @@ export default function HomePage() {
   >(null);
   const [continueLoading, setContinueLoading] = useState(false);
   const clientLaunchApplied = useRef(false);
+  /** Prompts fingerprint after suggestions were shown (chat or filter interrupt). */
+  const filterProposalsSurfacedKeyRef = useRef<string | null>(null);
+
+  // Reset the overlay conversation when the client or anchor model changes,
+  // so we do not carry a stale dialogue into a new customization.
+  useEffect(() => {
+    setOverlaySession(null);
+    setOverlayMessages(EMPTY_OVERLAY_MESSAGES);
+    filterProposalsSurfacedKeyRef.current = null;
+  }, [activeClient?.client_id, anchorPortfolioId]);
+
+  // Chat/AI (or a prior filter interrupt) already listed proposed_tickers — treat
+  // that prompts fingerprint as surfaced so a later confirm cannot re-open the gate
+  // after the RM acknowledges and clears the list.
+  useEffect(() => {
+    if (!overlaySession || !overlayAlreadyShowsProposedTickers(overlaySession)) {
+      return;
+    }
+    filterProposalsSurfacedKeyRef.current = overlayPromptsKey(overlaySession);
+  }, [overlaySession]);
   const scopeGroups = useMemo(
     () => (activeClient ? getClientHoldingsGroups(activeClient) : []),
     [activeClient],
@@ -206,13 +231,21 @@ export default function HomePage() {
     return buildScopeHoldings(scopeGroups, ids);
   }, [activeClient, scopeGroupIds, scopeGroups]);
 
+  const currentHoldingsAnchor = useMemo(
+    () => (activeClient ? buildCurrentHoldingsAnchor(scopeHoldings) : null),
+    [activeClient, scopeHoldings],
+  );
+
   const anchorPortfolio = useMemo(() => {
+    if (anchorPortfolioId === CURRENT_HOLDINGS_ANCHOR_ID) {
+      return currentHoldingsAnchor ?? SPY_ANCHOR;
+    }
     const managed = getManagedPortfolioById(anchorPortfolioId);
     if (managed) {
       return asModelPortfolio(managed);
     }
     return getAnchorPortfolioById(anchorPortfolioId) ?? SPY_ANCHOR;
-  }, [anchorPortfolioId]);
+  }, [anchorPortfolioId, currentHoldingsAnchor]);
 
   const customizedLabel = useMemo(() => {
     const trimmed = portfolioName.trim();
@@ -275,6 +308,23 @@ export default function HomePage() {
     [anchorPortfolio],
   );
 
+  // Keep the synthetic baseline in sync when the RM changes which sleeves are in scope.
+  useEffect(() => {
+    if (
+      phase !== "anchor" ||
+      anchorPortfolioId !== CURRENT_HOLDINGS_ANCHOR_ID ||
+      !currentHoldingsAnchor
+    ) {
+      return;
+    }
+    syncRequestFromAnchor(currentHoldingsAnchor);
+  }, [
+    phase,
+    anchorPortfolioId,
+    currentHoldingsAnchor,
+    syncRequestFromAnchor,
+  ]);
+
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -300,26 +350,88 @@ export default function HomePage() {
       req: BacktestRequest,
       compare?: PersonalizationCompare | null,
     ) => {
-      const effectiveReq = compare
+      const local = findLocalHistoryEntry(id);
+      const clientId =
+        req.client_ref?.trim() ||
+        local?.clientId ||
+        local?.signedOverlay?.audit.client_ref ||
+        null;
+      if (clientId) {
+        const client = getDemoClientById(clientId);
+        if (client) setActiveClient(client);
+      }
+      if (local?.signedOverlay) {
+        setSignedOverlay(local.signedOverlay);
+      }
+      const anchorId = req.anchor_portfolio_id?.trim();
+      if (anchorId) {
+        setAnchorPortfolioId(anchorId);
+      }
+
+      let resolvedCompare = compare ?? local?.personalizationCompare ?? null;
+      if (!resolvedCompare && req.anchor_job_id) {
+        try {
+          const [baseRes, baseReqStored] = await Promise.all([
+            getJobResult(req.anchor_job_id),
+            getJobRequest(req.anchor_job_id).catch(() => null),
+          ]);
+          const portfolioId =
+            anchorId ||
+            local?.personalizationCompare?.anchorPortfolioId ||
+            CURRENT_HOLDINGS_ANCHOR_ID;
+          const managed = getManagedPortfolioById(portfolioId);
+          const catalog = getAnchorPortfolioById(portfolioId);
+          const portfolio =
+            portfolioId === CURRENT_HOLDINGS_ANCHOR_ID
+              ? null
+              : managed
+                ? asModelPortfolio(managed)
+                : catalog;
+          resolvedCompare = {
+            anchorPortfolioId: portfolioId,
+            anchorLabel:
+              local?.personalizationCompare?.anchorLabel ||
+              (portfolio ? getPortfolioLabel(portfolio, lang) : portfolioId),
+            customizedLabel:
+              local?.personalizationCompare?.customizedLabel ||
+              getCustomizedVsAnchorLabel(
+                portfolio ?? SPY_ANCHOR,
+                lang,
+              ),
+            baseResult: baseRes,
+            baseRequest: baseReqStored ?? req,
+            adjustedResult: res,
+            adjustedRequest: req,
+          };
+        } catch {
+          resolvedCompare = null;
+        }
+      }
+
+      const effectiveReq = resolvedCompare
         ? {
             ...req,
             benchmark_ticker:
               req.benchmark_ticker ??
-              compare.baseRequest.benchmark_ticker ??
-              compare.adjustedRequest.benchmark_ticker,
+              resolvedCompare.baseRequest.benchmark_ticker ??
+              resolvedCompare.adjustedRequest.benchmark_ticker,
           }
         : req;
-      recordCompletedBacktest(id, effectiveReq, res);
+      recordCompletedBacktest(id, effectiveReq, res, {
+        personalizationCompare: resolvedCompare ?? undefined,
+        signedOverlay: local?.signedOverlay ?? (compare ? signedOverlay : null),
+        clientId,
+      });
       setJobId(id);
       setRequest(effectiveReq);
       setResult(res);
-      setPersonalizationCompare(compare ?? null);
+      setPersonalizationCompare(resolvedCompare);
       // Job-level narrative is generated reactively (see effect below) so it
       // regenerates in the active language when the user switches locale.
       setNarrative("");
       setPhase("results");
     },
-    [],
+    [lang, signedOverlay],
   );
 
   // Regenerate the job-level AI narrative whenever the result or the active
@@ -426,6 +538,11 @@ export default function HomePage() {
     const jobParam = params.get("job");
     if (jobParam) {
       deepLinkLoaded.current = true;
+      const clientFromLink = params.get("client");
+      if (clientFromLink) {
+        const client = getDemoClientById(clientFromLink);
+        if (client) setActiveClient(client);
+      }
       void loadHistoricalJob(jobParam);
       return;
     }
@@ -455,24 +572,45 @@ export default function HomePage() {
         portfolioNameParam?.trim() ||
           defaultCustomizationPortfolioName(client, lang),
       );
-      const fallbackAnchor =
-        getSelectableAnchorPortfolios()[0]?.id ?? SPY_ANCHOR_ID;
+      const scopeH = buildScopeHoldings(groups, initialScopeIds);
+      const liveCurrent = buildCurrentHoldingsAnchor(scopeH);
+      const fallbackAnchor = liveCurrent
+        ? CURRENT_HOLDINGS_ANCHOR_ID
+        : (getSelectableAnchorPortfolios()[0]?.id ?? SPY_ANCHOR_ID);
       const anchorId =
         anchorParam ||
         resolveAnchorIdFromScope(groups, initialScopeIds, fallbackAnchor);
-      const portfolio =
-        getManagedPortfolioById(anchorId) ??
-        getAnchorPortfolioById(anchorId) ??
-        SPY_ANCHOR;
-      setAnchorPortfolioId(portfolio.id);
-      syncRequestFromAnchor(asModelPortfolio(portfolio));
-    } else if (anchorParam) {
-      const portfolio =
-        getManagedPortfolioById(anchorParam) ??
-        getAnchorPortfolioById(anchorParam);
-      if (portfolio) {
+      if (anchorId === CURRENT_HOLDINGS_ANCHOR_ID) {
+        if (liveCurrent) {
+          setAnchorPortfolioId(CURRENT_HOLDINGS_ANCHOR_ID);
+          syncRequestFromAnchor(liveCurrent);
+        } else {
+          const portfolio =
+            getSelectableAnchorPortfolios()[0] ??
+            getAnchorPortfolioById(SPY_ANCHOR_ID) ??
+            SPY_ANCHOR;
+          setAnchorPortfolioId(portfolio.id);
+          syncRequestFromAnchor(asModelPortfolio(portfolio));
+        }
+      } else {
+        const portfolio =
+          getManagedPortfolioById(anchorId) ??
+          getAnchorPortfolioById(anchorId) ??
+          SPY_ANCHOR;
         setAnchorPortfolioId(portfolio.id);
         syncRequestFromAnchor(asModelPortfolio(portfolio));
+      }
+    } else if (anchorParam) {
+      if (anchorParam === CURRENT_HOLDINGS_ANCHOR_ID) {
+        setAnchorPortfolioId(CURRENT_HOLDINGS_ANCHOR_ID);
+      } else {
+        const portfolio =
+          getManagedPortfolioById(anchorParam) ??
+          getAnchorPortfolioById(anchorParam);
+        if (portfolio) {
+          setAnchorPortfolioId(portfolio.id);
+          syncRequestFromAnchor(asModelPortfolio(portfolio));
+        }
       }
     }
   }, [loadHistoricalJob, lang, syncRequestFromAnchor]);
@@ -512,7 +650,7 @@ export default function HomePage() {
 
   const runPersonalizationBacktest = useCallback(
     async (reqOverride?: BacktestRequest) => {
-      const anchor = getAnchorPortfolioById(anchorPortfolioId) ?? SPY_ANCHOR;
+      const anchor = anchorPortfolio;
       const baseReq = buildAnchorBacktestRequest(
         anchor,
         reqOverride ?? request ?? buildDefaultRequest(),
@@ -537,6 +675,11 @@ export default function HomePage() {
             max_holdings: lockedOverlayReq!.max_holdings,
             max_weight: lockedOverlayReq!.max_weight,
             benchmark_ticker: anchor.benchmark,
+            client_ref:
+              activeClient?.client_id ??
+              signedOverlay.audit.client_ref ??
+              null,
+            anchor_portfolio_id: anchor.id,
           }
         : scopedBase;
 
@@ -551,8 +694,10 @@ export default function HomePage() {
 
       try {
         // Run anchor (static replay) first so customized Optuna does not overlap peak RAM on API.
+        // Do not email for the anchor leg — only the customized job notifies.
         const baseJob = await createJob({
           ...baseReq,
+          notify_email: null,
           experiment: undefined,
           report_language: lang,
         });
@@ -571,8 +716,14 @@ export default function HomePage() {
           if (!baseDone) await new Promise((r) => setTimeout(r, 400));
         }
 
-        const adjustedJob = await createJob({
+        const adjustedWithAnchor: BacktestRequest = {
           ...adjustedReq,
+          anchor_job_id: baseJob.job_id,
+        };
+        setRequest(adjustedWithAnchor);
+
+        const adjustedJob = await createJob({
+          ...adjustedWithAnchor,
           experiment: undefined,
           report_language: lang,
         });
@@ -605,7 +756,7 @@ export default function HomePage() {
             getJobResult(baseJob.job_id),
             getJobResult(adjustedJob.job_id),
             getJobRequest(baseJob.job_id).catch(() => baseReq),
-            getJobRequest(adjustedJob.job_id).catch(() => adjustedReq),
+            getJobRequest(adjustedJob.job_id).catch(() => adjustedWithAnchor),
           ]);
 
         const compare: PersonalizationCompare = {
@@ -615,19 +766,36 @@ export default function HomePage() {
           baseResult: baseRes,
           baseRequest: baseReqStored,
           adjustedResult: adjustedRes,
-          adjustedRequest: adjustedReqStored,
+          adjustedRequest: {
+            ...adjustedReqStored,
+            client_ref: adjustedWithAnchor.client_ref,
+            anchor_job_id: baseJob.job_id,
+            anchor_portfolio_id: anchor.id,
+          },
         };
 
         if (baseFailed) {
-          await presentResult(adjustedJob.job_id, adjustedRes, adjustedReqStored, null);
+          await presentResult(adjustedJob.job_id, adjustedRes, compare.adjustedRequest, null);
           return;
         }
 
         recordCompletedBacktest(baseJob.job_id, baseReqStored, baseRes);
+        recordCompletedBacktest(
+          adjustedJob.job_id,
+          compare.adjustedRequest,
+          adjustedRes,
+          {
+            personalizationCompare: compare,
+            signedOverlay,
+            clientId:
+              activeClient?.client_id ?? signedOverlay?.audit.client_ref,
+
+          },
+        );
         await presentResult(
           adjustedJob.job_id,
           adjustedRes,
-          adjustedReqStored,
+          compare.adjustedRequest,
           compare,
         );
       } catch {
@@ -635,13 +803,14 @@ export default function HomePage() {
       }
     },
     [
-      anchorPortfolioId,
+      anchorPortfolio,
       signedOverlay,
       request,
       lang,
       presentResult,
       scopeHoldings,
       customizedLabel,
+      activeClient,
     ],
   );
 
@@ -664,8 +833,7 @@ export default function HomePage() {
   }, [syncRequestFromAnchor]);
 
   const onOverlayConfirm = useCallback(
-    async (overlay: ClientOverlay) => {
-      setSignedOverlay(overlay);
+    async (overlay: ClientOverlay): Promise<boolean | ClientOverlay> => {
       const base = buildAnchorBacktestRequest(
         anchorPortfolio,
         request ?? buildDefaultRequest(),
@@ -673,20 +841,85 @@ export default function HomePage() {
       // Scope first so overlay add/exclude applies on top of locked holdings.
       const scoped = applyScopeToBacktestRequest(base, scopeHoldings);
       const reportLanguage = lang === "zh" ? "zh-TW" : lang;
-      const resolved = await resolveOverlayUniverse(scoped, overlay, {
-        scenarioId: `customized-${overlay.audit.session_id}`,
-        reportLanguage,
+      const promptsKey = overlayPromptsKey(overlay);
+      const alreadySurfaced =
+        overlayAlreadyShowsProposedTickers(overlay) ||
+        (filterProposalsSurfacedKeyRef.current !== null &&
+          filterProposalsSurfacedKeyRef.current === promptsKey);
+
+      const { request: resolved, filterProposedTickers } = await resolveOverlayUniverse(
+        scoped,
+        overlay,
+        {
+          scenarioId: `customized-${overlay.audit.session_id}`,
+          reportLanguage,
+          // Avoid a second LLM filter pass once suggestions are already on-screen
+          // (or were earlier and the RM cleared them by acknowledging).
+          skipFilterProposals: alreadySurfaced,
+        },
+      );
+
+      const decision = decideFilterProposalInterrupt({
+        overlay,
+        filterProposedTickers,
+        surfacedKey: filterProposalsSurfacedKeyRef.current,
       });
+
+      if (decision.action === "interrupt") {
+        filterProposalsSurfacedKeyRef.current = decision.promptsKey;
+        setOverlaySession(decision.overlay);
+        // Return the merged overlay so the child applies it immediately (avoids
+        // a two-way sync race while awaiting the next paint).
+        return decision.overlay;
+      }
+
+      filterProposalsSurfacedKeyRef.current = null;
+      setSignedOverlay(decision.overlay);
       setRequest(resolved);
       setPhase("constraints");
+      return true;
     },
     [anchorPortfolio, request, lang, scopeHoldings],
+  );
+
+  const onPromoteTickers = useCallback(
+    (tickers: string[]) => {
+      const normalized = uniqueTickers(tickers);
+      if (!normalized.length) return;
+
+      if (signedOverlay) {
+        const updatedOverlay: ClientOverlay = {
+          ...signedOverlay,
+          universe: {
+            ...signedOverlay.universe,
+            supplement_tickers: uniqueTickers([
+              ...(signedOverlay.universe.supplement_tickers ?? []),
+              ...normalized,
+            ]),
+          },
+        };
+        setSignedOverlay(updatedOverlay);
+        void runPersonalizationBacktest();
+        return;
+      }
+
+      const next: BacktestRequest = {
+        ...(request ?? buildDefaultRequest()),
+        universe_supplement_tickers: uniqueTickers([
+          ...(request?.universe_supplement_tickers ?? []),
+          ...normalized,
+        ]),
+      };
+      void runBacktest(next);
+    },
+    [signedOverlay, request, runPersonalizationBacktest, runBacktest],
   );
 
   const onSkipOverlay = useCallback(() => {
     setSignedOverlay(null);
     setOverlaySession(null);
-    setOverlayMessages([]);
+    setOverlayMessages(EMPTY_OVERLAY_MESSAGES);
+    filterProposalsSurfacedKeyRef.current = null;
     const base = buildAnchorBacktestRequest(
       anchorPortfolio,
       request ?? buildDefaultRequest(),
@@ -811,6 +1044,7 @@ export default function HomePage() {
             selectedId={anchorPortfolioId}
             onSelect={onAnchorSelect}
             onContinue={onAnchorContinue}
+            currentHoldingsAnchor={currentHoldingsAnchor}
           />
         )}
 
@@ -926,6 +1160,7 @@ export default function HomePage() {
               onQuickTweakAndRun={onQuickTweakAndRun}
               onContinueRefinement={onContinueRefinement}
               continueLoading={continueLoading}
+              onPromoteTickers={onPromoteTickers}
             />
           ) : (
           <>
@@ -947,6 +1182,7 @@ export default function HomePage() {
               onContinueRefinement={onContinueRefinement}
               continueLoading={continueLoading}
               showRunObjectiveBanner={false}
+              onPromoteTickers={onPromoteTickers}
             />
           ) : (
             <ResultsDashboard
@@ -962,6 +1198,7 @@ export default function HomePage() {
               onContinueRefinement={onContinueRefinement}
               continueLoading={continueLoading}
               showRunObjectiveBanner={false}
+              onPromoteTickers={onPromoteTickers}
             />
           )}
           </>

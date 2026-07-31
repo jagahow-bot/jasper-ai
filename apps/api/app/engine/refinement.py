@@ -18,7 +18,7 @@ from app.engine.objectives import (
     metrics_snapshot,
     objective_label,
 )
-from app.engine.portfolio import metrics_for_horizon_window
+from app.engine.portfolio import metrics_for_horizon_window, stitch_full_path_from_slices
 from app.engine.ai_json import dumps_for_ai, round_ai_float, sanitize_for_ai
 from app.engine.param_taxonomy import summarize_prior_round_seed
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
@@ -919,6 +919,73 @@ def build_round_seed_learning_payload(
     return ctx
 
 
+def client_needs_prompt_block(client_context: Any | None) -> dict[str, Any] | None:
+    """Compact client-needs card injected into AI seed / narration prompts.
+
+    This is the only channel through which the signed overlay's client story
+    reaches the optimizer-side AI: without it the AI sees metrics but never
+    who it is optimizing for. Values are plain fields; prompt-side rendering
+    sanitizes strings.
+    """
+    if not client_context:
+        return None
+    keys = (
+        "risk_tolerance",
+        "investment_horizon_years",
+        "max_drawdown_tolerance",
+        "income_need_pct",
+        "max_single_name_pct",
+        "theme_exposure_cap_pct",
+        "cash_reserve_pct",
+        "needs_summary",
+    )
+    if not isinstance(client_context, dict):
+        client_context = {k: getattr(client_context, k, None) for k in keys}
+    block: dict[str, Any] = {}
+    risk = client_context.get("risk_tolerance")
+    if risk:
+        block["risk_tolerance"] = str(risk)
+    horizon = client_context.get("investment_horizon_years")
+    if horizon:
+        block["investment_horizon_years"] = horizon
+    tolerance = client_context.get("max_drawdown_tolerance")
+    if tolerance:
+        block["max_drawdown_tolerance"] = tolerance
+        block["drawdown_floor_rule"] = (
+            "Trials are penalized when in-sample max drawdown breaches this floor; "
+            "prefer parameters that keep the portfolio inside it."
+        )
+    income = client_context.get("income_need_pct")
+    if income:
+        block["income_need_pct"] = income
+        block["income_rule"] = (
+            "Prefer higher w_income / bond-income sleeves when income_need_pct is set."
+        )
+    single = client_context.get("max_single_name_pct")
+    if single:
+        block["max_single_name_pct"] = single
+        block["single_name_rule"] = (
+            "Penalize trials whose largest holding exceeds this soft cap."
+        )
+    theme = client_context.get("theme_exposure_cap_pct")
+    if theme:
+        block["theme_exposure_cap_pct"] = theme
+        block["theme_rule"] = (
+            "Penalize concentrated theme/growth equity sleeves above this soft cap."
+        )
+    cash = client_context.get("cash_reserve_pct")
+    if cash:
+        block["cash_reserve_pct"] = cash
+        block["cash_rule"] = (
+            "Keep an uninvested cash sleeve near this floor; cash earns the risk-free rate."
+        )
+    summary = client_context.get("needs_summary")
+    if isinstance(summary, str) and summary.strip():
+        block["needs_summary"] = summary.strip()[:300]
+    return block or None
+    return block or None
+
+
 def build_gemini_learning_context(
     *,
     champion_record: tuple[float, dict[str, Any], dict[str, Any]],
@@ -1065,6 +1132,7 @@ def summarize_params_for_ai(params: dict[str, Any], *, full: bool = False) -> st
         "w_lowvol",
         "w_trend",
         "w_drawdown",
+        "w_income",
         "mom_indicator",
         "reversal_indicator",
         "value_indicator",
@@ -1074,6 +1142,7 @@ def summarize_params_for_ai(params: dict[str, Any], *, full: bool = False) -> st
         "w_equity",
         "w_bond",
         "max_turnover_actual",
+        "customization_drift_actual",
         "rebalance_freq",
     )
     parts: list[str] = []
@@ -1112,6 +1181,59 @@ def _trial_sim_slices_from_record(
     val_snap = metrics.get("validation_metrics")
     val_m = copy.deepcopy(val_snap) if isinstance(val_snap, dict) else None
     return train_m, val_m
+
+
+def attach_full_period_objective(
+    metrics: dict[str, Any],
+    *,
+    objective_mode: str,
+    train_m: dict[str, Any] | None = None,
+    val_m: dict[str, Any] | None = None,
+    full_m: dict[str, Any] | None = None,
+    spec: BacktestSpec | None = None,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Write objective_value_full (+ full_metrics) for leaderboard / report rows.
+
+    Prefer a continuous full_m when present; otherwise stitch IS+OOS port_ret and
+    recompute window metrics. Mutates and returns ``metrics``.
+    """
+    if not overwrite and metrics.get("objective_value_full") is not None:
+        return metrics
+    scoring_obj = trial_scoring_objective(objective_mode)
+    source: dict[str, Any] | None = None
+    if full_m is not None and full_m.get("port_ret") is not None:
+        if spec is not None:
+            try:
+                n = len(full_m["port_ret"])
+                source = metrics_for_horizon_window(full_m, spec, 0, n)
+            except (ValueError, KeyError, TypeError):
+                source = full_m
+        else:
+            source = full_m
+    elif train_m is not None and val_m is not None and spec is not None:
+        stitched = stitch_full_path_from_slices(train_m, val_m)
+        if stitched is not None and stitched.get("port_ret") is not None:
+            try:
+                n = len(stitched["port_ret"])
+                source = metrics_for_horizon_window(stitched, spec, 0, n)
+            except (ValueError, KeyError, TypeError):
+                source = None
+    elif train_m is not None and val_m is None and train_m.get("port_ret") is not None:
+        source = train_m
+    elif metrics.get("port_ret") is not None and (
+        metrics.get("sharpe") is not None or metrics.get("cagr") is not None
+    ):
+        source = metrics
+    if source is None:
+        return metrics
+    try:
+        snap = metrics_snapshot(source, objective_mode=scoring_obj)
+    except (TypeError, ValueError, KeyError):
+        return metrics
+    metrics["full_metrics"] = snap
+    metrics["objective_value_full"] = float(snap["objective_value"])
+    return metrics
 
 
 def horizon_snapshots_from_full_path(
@@ -1241,6 +1363,7 @@ def resolve_trial_metrics_for_reporting(
         if oos_snap is not None:
             merged["validation_metrics"] = oos_snap
         merged["full_metrics"] = full_snap
+        merged["objective_value_full"] = float(full_snap.get("objective_value", 0.0))
         for key in ("sharpe", "cagr", "max_drawdown", "sortino", "volatility"):
             if key in full_snap:
                 merged[key] = full_snap[key]
@@ -1266,6 +1389,14 @@ def resolve_trial_metrics_for_reporting(
             merged["validation_metrics"] = metrics_snapshot(
                 val_m, objective_mode=scoring_obj
             )
+        attach_full_period_objective(
+            merged,
+            objective_mode=scoring_obj,
+            train_m=train_m,
+            val_m=val_m,
+            full_m=None,
+            spec=spec,
+        )
         for key in ("sharpe", "cagr", "max_drawdown", "sortino", "volatility"):
             if key in train_m:
                 merged[key] = train_m[key]
@@ -1284,6 +1415,7 @@ def build_round_champion_ai_payload(
     trial_report_cache: Any | None = None,
     spec: BacktestSpec | None = None,
     is_split_idx: int | None = None,
+    client_needs: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Slim per-round trial metrics for post-Optuna AI champion selection."""
     candidates: list[dict[str, Any]] = []
@@ -1395,7 +1527,7 @@ def build_round_champion_ai_payload(
             if val_sh is not None:
                 row["validation_sharpe"] = round_ai_float(val_sh)
         candidates.append(row)
-    return {
+    payload: dict[str, Any] = {
         "round": int(round_index),
         "objective": objective_effective,
         "benchmark": benchmark_ticker,
@@ -1411,6 +1543,9 @@ def build_round_champion_ai_payload(
         ),
         "candidates": candidates,
     }
+    if client_needs:
+        payload["client_needs"] = client_needs
+    return payload
 
 
 def record_for_model_code(

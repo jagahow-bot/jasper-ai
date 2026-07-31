@@ -33,6 +33,7 @@ _WEIGHT_NUMERIC_KEYS = frozenset(
         "risk_aversion",
         "max_weight_actual",
         "max_turnover_actual",
+        "customization_drift_actual",
         "no_trade_tol",
         "turnover_penalty_mult",
     }

@@ -139,6 +139,41 @@ def enforce_class_weight_budget(
     if not class_indices:
         return out
 
+    from app.engine.weights import WEIGHT_EPS, project_max_weight
+
+    n_active = int((out > WEIGHT_EPS).sum()) or len(active_set) or 1
+    requested_cap = float(max_weight) if max_weight is not None else None
+    # When the active book cannot satisfy the per-name cap (n*cap < 1), hard
+    # clipping every name to `cap` then renormalizing collapses to exact 1/N.
+    # Prefer sleeve-budget scaling that preserves allocator relatives.
+    cap_infeasible = (
+        requested_cap is not None
+        and requested_cap < 1.0 - 1e-12
+        and float(n_active) * float(requested_cap) < 1.0 - 1e-9
+    )
+    cap = None if cap_infeasible else requested_cap
+
+    # Clamp sleeve targets to capacity under a feasible per-name cap.
+    feasible_budget: dict[str, float] = {}
+    for ac, target in budget.items():
+        idxs = class_indices.get(ac) or []
+        if not idxs:
+            continue
+        if cap is None:
+            feasible_budget[ac] = float(target)
+        else:
+            feasible_budget[ac] = min(float(target), float(len(idxs)) * float(cap))
+    fb_sum = float(sum(feasible_budget.values()))
+    if fb_sum <= 1e-12 and cap is not None:
+        feasible_budget = {
+            ac: float(len(idxs)) * float(cap)
+            for ac, idxs in class_indices.items()
+            if idxs
+        }
+        fb_sum = float(sum(feasible_budget.values()))
+    if fb_sum > 1e-12:
+        budget = {ac: v / fb_sum for ac, v in feasible_budget.items()}
+
     def _project_to_budget(weights: np.ndarray) -> np.ndarray:
         projected = np.zeros_like(weights)
         active_targets: dict[str, float] = {}
@@ -195,6 +230,9 @@ def enforce_class_weight_budget(
                 slice_w[under] += surplus * (under_w / float(under_w.sum()))
             elif under.any():
                 slice_w[under] = surplus / float(under.sum())
+            # else: whole sleeve already at the per-name cap; surplus is
+            # unplaceable inside this class — leave names at `cap` (feasible
+            # budgets above should have kept sleeve <= n_i * cap).
             _assign_class_weight_slice(capped, indices, slice_w)
         total = float(capped.sum())
         if total > 1e-12:
@@ -202,15 +240,12 @@ def enforce_class_weight_budget(
         return capped
 
     out = _project_to_budget(out)
-    cap = float(max_weight) if max_weight is not None else None
     active_targets = {
         ac: target
         for ac, target in budget.items()
         if class_indices.get(ac)
     }
     if cap is not None and cap < 1.0 - 1e-12:
-        from app.engine.weights import project_max_weight
-
         out = _cap_within_classes(out)
         for _ in range(max_iter):
             next_out = _project_to_budget(_cap_within_classes(out))

@@ -30,12 +30,18 @@ type Dict = Record<string, string>;
 const en: Dict = {
   // Header / shell
   "header.phase.scenario": "—",
-  "header.phase.anchor": "ANCHOR",
+  "header.phase.anchor": "BASELINE",
   "header.phase.overlay": "CLIENT NEEDS",
   "header.phase.constraints": "SETUP",
   "header.phase.running": "RUNNING",
   "header.phase.results": "RESULTS",
   "header.phase.export": "EXPORT",
+  "live.trial": "Proposal {n} of {total}",
+  "results.needsFloorTitle": "Client floor check",
+  "results.needsFloorPass":
+    "Training-period max drawdown {actual} (floor {floor}) — within tolerance",
+  "results.needsFloorFail":
+    "Training-period max drawdown {actual} (floor {floor}) — breached by {breach}",
   "header.apiOffline": "Service offline",
   "header.apiOfflineHint":
     "We can’t reach the analytics service right now. Please try again in a moment.",
@@ -50,17 +56,16 @@ const en: Dict = {
   "history.record": "{count} result",
   "history.records": "{count} results",
   "history.empty":
-    "Your completed backtests show up here. Run one to get started.",
+    "Your completed projections show up here. Run one to get started.",
   "history.load": "OPEN",
   "history.status.completed": "completed",
   "history.status.failed": "failed",
   "history.status.running": "running",
   "history.status.queued": "queued",
-
   // Constraints / config form
   "config.title": "Strategy setup",
   "config.subtitle":
-    "Set your strategy below. At each review, Jasper selects the strongest candidates and sizes positions to balance risk and return.",
+    "Set your proposal below. At each review, Jasper selects the strongest candidates and sizes positions to balance risk and return.",
   "config.maxWeight": "Max position size: {pct}%",
   "config.minWeight": "Min position size: {pct}%",
   "config.minWeightHint":
@@ -68,12 +73,12 @@ const en: Dict = {
   "config.maxTurnover": "Max turnover per review: {pct}%",
   "config.maxTurnoverHint":
     "Limits how much of the portfolio Jasper can trade at each review, helping keep trading costs in check.",
-  "config.customizationDrift": "Customization room: {pct}%",
+  "config.customizationDrift": "Customization room (max): {pct}%",
   "config.customizationDriftHint":
-    "0% keeps the portfolio identical to the anchor model. 100% lets Jasper fully reshape positions within the agreed universe.",
+    "Ceiling for how far Jasper may deviate from the baseline model (0% = identical, 100% = full reshape). By default AI searches within this room; set Advanced → Customization drift to Fixed to lock the slider value.",
   "config.maxHoldings": "Max positions: {n}",
   "config.maxHoldingsHint":
-    "The most positions your portfolio will hold at any one time.",
+    "Must be greater than 100% ÷ single-name cap (min {min} when cap is {pct}%). Otherwise every name hits the cap and weights collapse to equal.",
   "config.topN": "Candidate shortlist: {n}",
   "config.topNHint":
     "Jasper ranks every candidate and keeps the top {n} to build your portfolio from.",
@@ -83,60 +88,63 @@ const en: Dict = {
   "config.startHint":
     "We load extra price history before this date so your day-one positions are based on real signals, not a placeholder.",
   "config.end": "End",
-  "config.trials": "Search depth: {n} strategies",
+  "config.trials": "Search depth: {n} proposals",
   "config.topModels": "Models in report: {n}",
   "config.holdout":
     "Validate on recent data (Jasper trains on the earlier period, then checks results on the unseen part)",
-  "config.inSampleRatio": "Train on the first {pct}% (the rest is reserved for validation)",
+  "config.inSampleRatio":
+    "Train on the first {pct}% (the rest is reserved for validation)",
   "config.fee": "Trading cost: {bps} bps",
   "config.rebalanceFreq": "Review frequency",
   "config.rebalance.weekly": "Weekly (Fridays)",
   "config.rebalance.monthly": "Monthly",
   "config.rebalance.quarterly": "Quarterly",
   "config.rebalance.yearly": "Yearly",
-  "config.runStandard": "Run strategy test",
-  "config.runPro": "Run Pro search",
+  "config.runStandard": "Run portfolio projection",
+  "config.runPro": "Run smart multi-round optimization",
   "config.notifyEmail": "Email me when done (optional)",
   "config.notifyEmailPlaceholder": "you@example.com",
   "config.notifyEmailHint":
-    "Backtests run on the server, so you can close this tab. If you enter an email, we'll notify you when the run finishes or fails.",
+    "Projections run on the server, so you can close this tab. If you enter an email, we'll notify you when the run finishes or fails.",
   "config.notifyEmailSmtpDisabled":
     "Email alerts are not enabled on this server (SMTP not configured). You won't receive a message even if you enter an address.",
 
   // Pro rounds tabs
   "pro.tabsHint":
-    "Each tab is one round: the current leader plus its challengers. ★ marks the round winner. The catalog tab lists every strategy tried so far.",
+    "Each tab is one round: the current top pick plus its challenger proposals. ★ marks the round winner. The catalog tab lists every proposal tried so far.",
   "pro.allRounds": "ALL ROUNDS",
-  "pro.role.incoming": "Current leader",
-  "pro.role.challenger": "Challenger",
+  "pro.roundChip": "Round {n}",
+  "pro.role.incoming": "Current leading proposal",
+  "pro.role.challenger": "Challenger proposal",
   "pro.role.winner": "Round winner",
-
   // Results dashboard
   "results.runObjectiveLabel": "Investment goal for this run",
   "results.title": "Results",
   "results.model": "strategy",
   "results.fullNarrative": "Full summary",
   "results.fullPeriod": "Full period",
-  "results.rmChampionLine": "Champion model {model} · Sharpe {sharpe} · CAGR {cagr}",
+  "results.rmChampionLine":
+    "Recommended proposal {model} · Sharpe {sharpe} · CAGR {cagr}",
   "results.refineHint":
     "Click to apply an adjustment · double-click to apply and rerun.",
   "results.editConfig": "Edit setup",
   "results.exportCsv": "Export CSV",
-  "results.belowBenchmarkTitle": "Honest read: this run underperformed the benchmark",
+  "results.belowBenchmarkTitle":
+    "Honest read: this run underperformed the benchmark",
   "results.belowBenchmarkBody":
-    "None of the strategies beat {benchmark} on the selected goal over this window. That's a real result, not a failure of the tool — you can keep refining from this run: adjust the signals, constraints, universe, or goal and re-run without starting over.",
+    "None of the proposals beat {benchmark} on the selected goal over this window. That's a real result, not a failure of the tool — you can keep refining from this run: adjust the signals, constraints, candidate list, or goal and re-run without starting over.",
   "results.iterateFromHere": "Adjust & re-run",
   "results.continueRefinementTitle": "Below benchmark — continue refining?",
   "results.continueRefinementBody":
-    "None of the strategies beat {benchmark} on the goal over this window. You can add more Pro rounds and carry over the leading model, learning history, and AI context from this run.",
+    "None of the proposals beat {benchmark} on the goal over this window. You can add more Pro rounds and carry over the leading model, learning history, and AI context from this run.",
   "results.continueRefinementCta": "Continue optimization",
   "results.continueRefinementRunning": "Continuing…",
-  "results.continueRefinementHint": "Carries champion pool and prior rounds from job {job}…",
+  "results.continueRefinementHint":
+    "Carries top-pick pool and prior rounds from run {job}…",
   "results.extraRoundsLabel": "Additional rounds",
-  "results.extraTrialsPerRoundLabel": "Trials per round (challengers)",
-  "results.extraTrialsLabel": "Additional Optuna trials",
+  "results.extraTrialsPerRoundLabel": "Challenger proposals per round",
+  "results.extraTrialsLabel": "Extended evaluation proposals",
   "results.continueFromRound": "Will resume at round {round}",
-
   // Common labels
   "common.on": "ON",
   "common.off": "OFF",
@@ -148,8 +156,8 @@ const en: Dict = {
   "common.period": "Period",
   "common.return": "Return",
   "common.objective": "Goal",
-  "common.inSample": "In-Sample",
-  "common.outOfSample": "Out-of-Sample",
+  "common.inSample": "Training period",
+  "common.outOfSample": "Validation period",
   "common.full": "Full",
   "common.gap": "Gap",
   "common.regime": "Regime",
@@ -168,32 +176,34 @@ const en: Dict = {
   "common.activeRegime": "Active regime",
   "common.rawRegime": "Raw regime",
   "common.switch": "switch",
-
   // Pro panel
   "proPanel.title": "Pro · AI optimization",
   "proPanel.desc.beforeDynamic":
-    "Jasper runs rounds of challengers against the current leader. The AI proposes new settings based on what worked before, and keeps refining until results stop improving.",
+    "Jasper runs rounds of challenger proposals against the current top pick. The AI proposes new settings based on what worked before, and keeps refining until results stop improving.",
   "proPanel.dynamic": "Dynamic",
   "proPanel.desc.afterDynamic":
-    "goal tunes a separate strategy for each market mood (risk-off, neutral, risk-on) and applies the right one as conditions change.",
-  "proPanel.estimationPrefix": "Pro mode manages the search effort for you. It will run up to about",
+    "goal tunes a separate proposal for each market mood (risk-off, neutral, risk-on) and applies the right one as conditions change.",
+  "proPanel.estimationPrefix":
+    "Pro mode manages the search effort for you. It will run up to about",
   "proPanel.estimationSuffix":
-    "backtests, and may finish early once results stop improving.",
+    "projections, and may finish early once results stop improving.",
   "proPanel.highTrialsWarning":
-    "Higher settings run many more backtests and take longer. Each round uses one AI suggestion to guide the search.",
-  "proPanel.round1Batch": "First-round strategies",
-  "proPanel.round1BatchHint": "How many strategies to try in the first round (3–100).",
-  "proPanel.challengersPerRound": "Challengers per round",
-  "proPanel.challengersPerRoundHint": "New strategies tested against the leader each round (2–100).",
+    "Higher settings run many more projections and take longer. Each round uses one AI suggestion to guide the search.",
+  "proPanel.round1Batch": "First-round proposals",
+  "proPanel.round1BatchHint":
+    "How many proposals to try in the first round (3–100).",
+  "proPanel.challengersPerRound": "Challenger proposals per round",
+  "proPanel.challengersPerRoundHint":
+    "New proposals tested against the top pick each round (2–100).",
   "proPanel.maxRounds": "Max rounds",
-  "proPanel.maxRoundsHint": "The most rounds to run, including the first (2–30).",
+  "proPanel.maxRoundsHint":
+    "The most rounds to run, including the first (2–30).",
   "proPanel.patienceRounds": "Patience (rounds)",
   "proPanel.holdoutTip":
-    "Tip: turn on a holdout so strategies are ranked on the optimization period, then checked on unseen data.",
+    "Tip: turn on a holdout so proposals are ranked on the optimization period, then checked on unseen data.",
 
   "quickRefinements.title": "Quick adjustments",
   "quickRefinements.doubleClickHint": "double-click to rerun",
-
   "progress.running": "Running…",
   "progress.roundUnderperformed": "ROUND TRAILED THE BENCHMARK",
   "progress.roundUnderperformedHint":
@@ -202,14 +212,14 @@ const en: Dict = {
   "progress.benchmark": "Benchmark",
   "progress.round": "Round",
   "progress.bestInSample": "Best so far",
-
   // Live progress messages (localized on the client from backend templates)
   "progress.msg.queued": "Strategy test queued…",
-  "progress.msg.queuedStatic": "Static replay job queued…",
-  "progress.msg.queuedPro": "Pro optimization job queued…",
+  "progress.msg.queuedStatic": "Baseline replay queued…",
+  "progress.msg.queuedPro": "Smart multi-round optimization queued…",
   "progress.msg.fetching": "Fetching market data, starting optimization…",
   "progress.msg.fetchingStatic": "Static replay: fetching market data…",
-  "progress.msg.staticSimulating": "Static replay: simulating fixed-weight portfolio…",
+  "progress.msg.staticSimulating":
+    "Static replay: simulating fixed-weight portfolio…",
   "progress.msg.fetchingPro": "Pro: fetching data, starting iterative search…",
   "progress.msg.complete": "Strategy test complete",
   "progress.msg.completePro": "Pro optimization complete",
@@ -218,39 +228,45 @@ const en: Dict = {
   "progress.msg.loadedRegimeSuffix":
     " Regime-adaptive: allocator preset is set per rebalance.",
   "progress.msg.proHoldout":
-    "Pro: strategies are ranked on the optimization period; the holdout is used for final checks…",
-  "progress.msg.proLoop": "Pro: running challenger rounds (AI learns from history)…",
-  "progress.msg.startingAi": "Starting AI — planning strategy seeds for {trials} strategies…",
-  "progress.msg.aiDone": "AI done: {used} seed sets for {trials} strategies — starting backtests…",
+    "Pro: proposals are ranked on the optimization period; the holdout is used for final checks…",
+  "progress.msg.proLoop":
+    "Pro: running challenger rounds (AI learns from history)…",
+  "progress.msg.startingAi": "AI planning {trials} starting proposals…",
+  "progress.msg.aiDone":
+    "AI ready: {used} starting proposals for {trials} candidates — running projections…",
   "progress.msg.aiDoneCapped":
-    "AI done: {used} seed sets for {trials} strategies (AI capped at {cap}; extra strategies are search-only) — starting backtests…",
-  "progress.msg.aiOff": "AI off ({err}) — falling back to automatic search…",
-  "progress.msg.optuna": "Strategy {trial}/{total} ({scope})",
-  "progress.msg.optunaBest": "Strategy {trial}/{total} ({scope}), best {label} {value}",
+    "AI done: {used} starting proposal sets for {trials} proposals (AI capped at {cap}; extra proposals are search-only) — starting projections…",
+  "progress.msg.aiOff":
+    "Smart optimization unavailable — switched to automatic search…",
+  "progress.msg.optuna": "Proposal {trial}/{total} ({scope})",
+  "progress.msg.optunaBest":
+    "Proposal {trial}/{total} ({scope}), best {label} {value}",
   "progress.msg.searchDone":
     "Search done ({feasible} feasible) — packaging top {top} for the report…",
-  "progress.msg.packaging": "Packaging report: {inner}",
+  "progress.msg.packaging": "Preparing report: {inner}",
   "progress.msg.roundReport": "Round {round} report: {inner}",
-  "progress.msg.proRound": "Round {round}/{max}: {carry}, preparing {n} challengers…",
-  "progress.msg.roundOptuna": "Round {round} · strategy {trial}/{total} ({scope})",
+  "progress.msg.proRound":
+    "Round {round}/{max}: {carry}, preparing {n} challenger proposals…",
+  "progress.msg.roundOptuna":
+    "Round {round} · proposal {trial}/{total} ({scope})",
   "progress.msg.roundOptunaBest":
-    "Round {round} · strategy {trial}/{total} ({scope}), round best {label} {value}",
+    "Round {round} · proposal {trial}/{total} ({scope}), round best {label} {value}",
   "progress.msg.roundAiLearning":
-    "Round {round}: AI learning from {n} weaker challengers, target score {score}…",
+    "Round {round}: AI learning from {n} weaker challenger proposals, target score {score}…",
   "progress.msg.roundDone":
     "Round {round} done: round best {best}, leader {champ} (no-gain streak {streak}/{patience})",
   "progress.msg.roundDoneAlphaSuffix":
-    " · in-sample alpha vs {benchmark} {alpha} (below benchmark)",
-  "progress.msg.pkgFromCache": "Packaging {code} {label} from search cache ({rank}/{total})…",
-  "progress.msg.pkgMetricsOnly": "Packaging {code} metrics only ({rank}/{total})…",
+    " · training-period alpha vs {benchmark} {alpha} (below benchmark)",
+  "progress.msg.pkgFromCache": "Preparing {code} {label}  ({rank}/{total})…",
+  "progress.msg.pkgMetricsOnly": "Preparing {code} metrics ({rank}/{total})…",
   "progress.msg.pkgNoCache":
-    "Packaging {code} ({rank}/{total}): no cache — running backtests for charts…",
+    "Preparing {code} ({rank}/{total}): computing charts for charts…",
   "progress.msg.pkgIsOos":
-    "Packaging {code} ({rank}/{total}): one full-period backtest for weights…",
+    "Preparing {code} ({rank}/{total}): one full-period projection for weights…",
   "progress.msg.pkgIncomplete":
-    "Packaging {code} ({rank}/{total}): cache incomplete ({missing}) — running backtests…",
-  "progress.msg.pkgTop": "top {top} of {feasible} pool strategies…",
-  "progress.msg.scope.inSample": "in-sample",
+    "Preparing {code} ({rank}/{total}): rebuilding chart series ({missing})…",
+  "progress.msg.pkgTop": "top {top} of {feasible} pool proposals…",
+  "progress.msg.scope.inSample": "training period",
   "progress.msg.scope.fullWindow": "full window",
   "progress.label.sharpe": "Sharpe",
   "progress.label.cagr": "CAGR",
@@ -260,21 +276,21 @@ const en: Dict = {
   "progress.label.vol": "volatility",
   "progress.label.comprehensive": "composite",
   "progress.label.metric": "metric",
-
   "customScenario.title": "Your market view",
   "customScenario.description":
-    "Describe your macro, sector, or risk outlook, and Jasper turns it into a strategy you can backtest.",
+    "Describe your macro, sector, or risk outlook, and Jasper turns it into a proposal you can projection.",
   "customScenario.placeholder":
     "e.g. Sticky US inflation, Fed higher for longer, growth multiples under pressure — tilt toward short-duration bonds and defensives...",
   "customScenario.analyzing": "Building…",
   "customScenario.analyzeButton": "Build scenario",
   "customScenario.analysisFailed": "Couldn’t build that scenario",
-  "customScenario.analysisFailedRetry": "We couldn’t build that scenario. Please try again.",
-
+  "customScenario.analysisFailedRetry":
+    "We couldn’t build that scenario. Please try again.",
   "assetFilter.assetClasses": "ASSET CLASSES",
   "assetFilter.selectedBase": "{base} of {total} ETFs selected",
   "assetFilter.selectedCombined": "{combined} of {total} ETFs selected",
-  "assetFilter.layer1Intro": "Pick the asset classes to invest across ({base} ETFs).",
+  "assetFilter.layer1Intro":
+    "Pick the asset classes to invest across ({base} ETFs).",
   "assetFilter.aiFilter": "AI INVESTMENT SEARCH",
   "assetFilter.clearAiFilter": "CLEAR",
   "assetFilter.layer1Hint":
@@ -303,14 +319,16 @@ const en: Dict = {
   "assetFilter.noneForRule": "(no matches for this rule)",
   "assetFilter.newVsBase": "Newly added",
   "assetFilter.guaranteed": "Always included",
-  "assetFilter.guaranteedHint": "these tickers are always part of your backtest.",
-
+  "assetFilter.guaranteedHint":
+    "these tickers are always part of your projection.",
   "linkedChart.tooltipRegime": "Regime",
   "linkedChart.tooltipActiveObjective": "Active goal",
-  "linkedChart.noHistory": "No performance or holdings history for this strategy.",
+  "linkedChart.noHistory":
+    "No performance or holdings history for this proposal.",
   "linkedChart.linkedCursorHint":
     "Hover any chart — performance, market regime, and holdings all line up on the same dates.",
-  "linkedChart.cumulativeTitle": "Cumulative return % — Portfolio vs {benchmark}",
+  "linkedChart.cumulativeTitle":
+    "Cumulative return % — Portfolio vs {benchmark}",
   "linkedChart.amberSwitch": "Amber = switch",
   "linkedChart.holdingsTitle": "Holdings over time",
   "linkedChart.assetClassTitle": "Asset class mix over time",
@@ -320,7 +338,6 @@ const en: Dict = {
   "linkedChart.hoverHint": "Hover the chart to see holdings",
   "linkedChart.other": "Other",
   "linkedChart.portfolio": "Portfolio",
-
   // Market regime + allocator objective band labels (shared across charts)
   "regime.risk_off": "Risk-off",
   "regime.neutral": "Neutral",
@@ -328,25 +345,29 @@ const en: Dict = {
   "objectiveBand.max_sharpe": "Maximize Sharpe",
   "objectiveBand.max_return": "Maximize CAGR",
   "objectiveBand.min_max_drawdown": "Minimize max drawdown",
-
   "objectiveLab.rec.apply": "Recommendation: apply",
   "objectiveLab.rec.notYet": "Recommendation: not yet",
   "objectiveLab.rec.needMoreData": "Recommendation: need more data",
   "objectiveLab.reportCard": "Lab results",
-  "objectiveLab.oosSharpeDelta": "Out-of-sample Sharpe gain (switching vs. fixed):",
+  "objectiveLab.oosSharpeDelta":
+    "Out-of-sample Sharpe gain (switching vs. fixed):",
   "objectiveLab.regimeDetector": "Regime detector",
-  "objectiveLab.detectorV2": "weighs risk-on vs. risk-off signals to read the market",
+  "objectiveLab.detectorV2":
+    "weighs risk-on vs. risk-off signals to read the market",
   "objectiveLab.detectorLegacy": "classic return and volatility thresholds",
-  "objectiveLab.fastRiskOffExit": "Exit risk-off quickly on a rebound (21 days)",
+  "objectiveLab.fastRiskOffExit":
+    "Exit risk-off quickly on a rebound (21 days)",
   "objectiveLab.fixedObjective": "Fixed goal",
-  "objectiveLab.switchPolicy": "Switching strategy",
+  "objectiveLab.switchPolicy": "Switching proposal",
   "objectiveLab.benchmarkVsRegime": "Benchmark vs. market regime",
   "objectiveLab.regimeScores": "Regime scores vs. active regime",
-  "objectiveLab.hoverSyncHint": "Hover either chart — both line up on the same dates.",
+  "objectiveLab.hoverSyncHint":
+    "Hover either chart — both line up on the same dates.",
   "objectiveLab.regimeTimeline": "Regime timeline",
   "objectiveLab.off": "Off",
   "objectiveLab.on": "On",
-  "objectiveLab.predictionQualityTitle": "Regime prediction quality (episode-based)",
+  "objectiveLab.predictionQualityTitle":
+    "Regime prediction quality (episode-based)",
   "objectiveLab.predictionQualityDesc":
     "Scores each contiguous active-regime episode by benchmark behavior from switch-in until the label changes: risk-on if return > 0; risk-off if segment annualized vol ≥ 1.15× the lab episode-vol median; neutral relative to the prior episode — after risk-on, return ≤ 0 or below the prior risk-on segment return; after risk-off, segment vol below the prior risk-off segment; otherwise |return| ≤ 3%. Return and drawdown are shown for context. Unlike a fixed 21-day forward window per step, this does not replace the Sharpe A/B test.",
   "objectiveLab.episodeAlignment": "Episode alignment {score}/100",
@@ -363,20 +384,20 @@ const en: Dict = {
   "objectiveLab.stepLevelAlignment":
     "Step-level alignment {score}/100 — same return-based rules on {days}d forward windows; the headline score above uses full episodes.",
   "objectiveLab.regimeSwitches": "Regime switches: {count}",
-  "objectiveLab.isSharpe": "In-sample Sharpe",
+  "objectiveLab.isSharpe": "Training-period Sharpe",
   "objectiveLab.oosSharpe": "Out-of-sample Sharpe",
-  "objectiveLab.isReturn": "In-sample return",
-  "objectiveLab.isMaxDd": "In-sample max drawdown",
+  "objectiveLab.isReturn": "Training-period return",
+  "objectiveLab.isMaxDd": "Training-period max drawdown",
   "objectiveLab.hit": "hit",
   "objectiveLab.miss": "miss",
-
   "benchmarkChart.noSeries": "No benchmark data to chart.",
   "benchmarkChart.noValidDates": "No valid dates to chart.",
   "benchmarkChart.cumPct": "{ticker} cumulative %",
   "benchmarkChart.footer":
     "Top: {ticker} cumulative return (%). Shaded bands show the market regime; the amber strip marks regime switches. Hover to sync with the regime scores below.",
 
-  "regimeScore.noScores": "No regime scores yet. Try the newer detector or a longer optimization period.",
+  "regimeScore.noScores":
+    "No regime scores yet. Try the newer detector or a longer optimization period.",
   "regimeScore.noValidDates": "No valid dates to chart.",
   "regimeScore.stepWinner": "Leading score",
   "regimeScore.rawRegime": "Raw regime",
@@ -394,16 +415,20 @@ const en: Dict = {
     "Top: {ticker} cumulative return (%); the shaded background shows which goal was active over time. Bottom: goal switches (amber = switch). Hover to sync with the performance chart above.",
 
   "institutional.loadingAnalytics": "analytics",
-  "institutional.noAnalytics": "No detailed analytics available — please rerun the backtest.",
-  "institutional.monthlyInSample": "Monthly returns (In-Sample{range})",
+  "institutional.noAnalytics":
+    "No detailed analytics available — please rerun the projection.",
+  "institutional.monthlyInSample": "Monthly returns (Training period{range})",
   "institutional.monthlyFull": "Monthly returns",
-  "institutional.annualInSample": "Annual returns (In-Sample{range})",
+  "institutional.annualInSample": "Annual returns (Training period{range})",
   "institutional.annualFull": "Yearly returns",
-  "institutional.monthlyOosFrom": "Monthly returns (Out-of-Sample from {date})",
-  "institutional.monthlyOos": "Monthly returns (Out-of-Sample)",
-  "institutional.annualOosFrom": "Annual returns (Out-of-Sample from {date})",
-  "institutional.annualOos": "Annual returns (Out-of-Sample)",
-  "institutional.horizonTitle": "Performance by horizon (In-Sample / Out-of-Sample / Full)",
+  "institutional.monthlyOosFrom":
+    "Monthly returns (Validation period from {date})",
+  "institutional.monthlyOos": "Monthly returns (Validation period)",
+  "institutional.annualOosFrom":
+    "Annual returns (Validation period from {date})",
+  "institutional.annualOos": "Annual returns (Validation period)",
+  "institutional.horizonTitle":
+    "Performance by horizon (Training period / Validation period / Full)",
   "institutional.horizon": "Horizon",
   "institutional.maxDd": "Max drawdown",
   "institutional.rebalanceExecution": "Rebalance execution",
@@ -422,17 +447,19 @@ const en: Dict = {
   "institutional.durationProxy": "Avg. duration (yrs)",
   "institutional.riskContributionTop": "Top risk contributors",
   "institutional.coreHoldingsTitle": "Core holdings",
-  "institutional.coreHoldingsNote": "The names this strategy leaned on most — how large a share they usually took and how consistently they were held across rebalances.",
+  "institutional.coreHoldingsNote":
+    "The names this proposal leaned on most — how large a share they usually took and how consistently they were held across rebalances.",
   "institutional.avgWeight": "Avg. weight",
-  "institutional.avgWeightHint": "Average share of the portfolio across all rebalance dates. Higher means it was a bigger, more central position.",
+  "institutional.avgWeightHint":
+    "Average share of the portfolio across all rebalance dates. Higher means it was a bigger, more central position.",
   "institutional.holdFrequency": "Held",
-  "institutional.holdFrequencyHint": "How often this name was held (share of rebalance dates with a position above 0.5%). 100% means it was held the whole time.",
+  "institutional.holdFrequencyHint":
+    "How often this name was held (share of rebalance dates with a position above 0.5%). 100% means it was held the whole time.",
   "institutional.weightShort": "Wt",
   "institutional.drawdownCurve": "Drawdown curve",
   "institutional.drawdownEpisodes": "Drawdown episodes",
   "institutional.insufficientData": "Not enough data",
   "institutional.noData": "No data",
-
   // Results extended
   "results.failedLoadTrajectory": "Couldn’t load this chart",
   "results.dataRange": "Data: {start} → {end}, {rows} sessions",
@@ -443,21 +470,26 @@ const en: Dict = {
     "Heads up: results use sample data rather than live market data. Treat metrics as illustrative.",
   "results.warning.unrealistic":
     "Heads up: some metrics look unrealistic. Please review your data and parameters.",
-  "results.liveData": "Live market data · {start} → {end} · {rows} trading days",
+  "results.liveData":
+    "Live market data · {start} → {end} · {rows} trading days",
   "results.requested": "requested",
   "results.lateListingsDropped": "newer listings excluded",
   "results.viewing": "Viewing",
   "results.round": "round",
   "results.newRoundBest": "new round best",
   "results.proRefinement": "Pro optimization",
-  "results.meta.rounds": "{rounds} refinement rounds across {trials} candidate strategies",
+  "results.meta.rounds":
+    "{rounds} refinement rounds across {trials} candidate proposals",
   "results.meta.convergedEarly": "converged early (no further gains)",
   "results.meta.fullSearch": "ran the full search",
-  "results.meta.search": "Parameter search across {trials} candidate strategies",
-  "results.meta.reported": "{feasible} valid strategies found, {reported} included in this report",
+  "results.meta.search": "Parameter search across {trials} candidate proposals",
+  "results.meta.reported":
+    "{feasible} valid proposals found, {reported} included in this report",
   "results.meta.catalog": "(of {catalog} explored in total)",
-  "results.meta.rebalance": "{freq} rebalancing — applied {applied} of {count} scheduled dates",
-  "results.meta.rebalanceSkipped": "({skipped} skipped — need more price history before first rebalance)",
+  "results.meta.rebalance":
+    "{freq} rebalancing — applied {applied} of {count} scheduled dates",
+  "results.meta.rebalanceSkipped":
+    "({skipped} skipped — need more price history before first rebalance)",
   "results.meta.rebalanceChartDownsampled":
     "holdings chart shows {shown} of {total} rebalance snapshots",
   "results.freq.weekly": "Weekly",
@@ -466,8 +498,8 @@ const en: Dict = {
   "results.freq.yearly": "Yearly",
   "results.freq.daily": "Daily",
   "results.sort": "sort",
-  "results.rankedOnInSample": "Ranked on In-Sample",
-  "results.gapInOut": "Gap (In-Sample − Out-of-Sample)",
+  "results.rankedOnInSample": "Ranked on Training period",
+  "results.gapInOut": "Gap (Training period − validation period)",
   "results.winRate": "Win rate",
   "results.avgTurnover": "Avg turnover",
   "results.totalTurnover": "Total turnover",
@@ -476,35 +508,41 @@ const en: Dict = {
   "results.cvar95": "CVaR 95% (d)",
   "results.te": "TE",
   "results.ir": "IR",
-  "results.horizonCompareTitle": "In-Sample / Out-of-Sample / Full",
+  "results.horizonCompareTitle": "Training period / Validation period / Full",
   "results.horizonMetricsHint":
-    "Key metrics across each period. Strategies are chosen on the In-Sample period only.",
+    "Key metrics across each period. Proposals are chosen on the training period only.",
   "results.metric": "Metric",
-  "results.gapObjectiveSharpe": "In-Sample − Out-of-Sample gap: goal",
-  "results.positiveInSampleStronger": "positive means In-Sample is stronger",
-  "results.championLeaderboard": "Leaderboard · strategies ranked on the In-Sample period",
+  "results.gapObjectiveSharpe": "Training period − validation period gap: goal",
+  "results.positiveInSampleStronger":
+    "positive means Training period is stronger",
+  "results.championLeaderboard":
+    "Leaderboard · proposals ranked on the training period",
   "results.leaderboardTitleOutOfSample":
-    "Leaderboard · strategies ranked on the Out-of-Sample period",
+    "Leaderboard · proposals ranked on the Validation period period",
   "results.leaderboardTitleFull":
-    "Leaderboard · strategies ranked on the full sample period",
+    "Leaderboard · proposals ranked on the full sample period",
   "results.leaderboardTitleGap":
-    "Leaderboard · strategies ranked by In-Sample minus Out-of-Sample gap",
+    "Leaderboard · proposals ranked by Training period minus Validation period gap",
   "results.sortTableBy": "Sort table by",
-  "results.inSampleSelection": "In-Sample (selection)",
-  "results.gapSelection": "Gap (IS − OOS)",
+  "results.inSampleSelection": "Training period (selection)",
+  "results.gapSelection": "Gap (IS − validation)",
   "results.engine": "engine",
-  "results.warmStartExact": "Warm-started from prior champion {code} (job {job})",
-  "results.warmStartFuzzy": "Warm-started from prior champion {code} (job {job}; period end differs)",
-  "results.warmStartImproved": "New champion beat the cached baseline",
-  "results.warmStartKept": "Cached champion still competitive",
+  "results.warmStartExact":
+    "Warm-started from prior top pick {code} (run {job})",
+  "results.warmStartFuzzy":
+    "Warm-started from prior top pick {code} (run {job}; period end differs)",
+  "results.warmStartImproved": "New top pick beat the cached baseline",
+  "results.warmStartKept": "Cached top pick still competitive",
   "results.holdings": "holdings",
   "results.cap": "cap",
-  "results.weightChartMayListMore": "the holdings chart may show more tickers across rebalances",
+  "results.weightChartMayListMore":
+    "the holdings chart may show more tickers across rebalances",
   "results.maxWeight": "max weight",
   "results.runCap": "run cap",
   "results.effective": "effective",
   "results.observed": "observed",
-  "results.selectionHint": "chosen on In-Sample; Out-of-Sample acts as a live test",
+  "results.selectionHint":
+    "chosen on Training period; Validation period acts as a live test",
   "results.weightCapBreach": "Weight cap exceeded: observed",
   "results.vsEffectiveCap": "vs effective cap",
   "results.firstOn": "first on",
@@ -515,7 +553,27 @@ const en: Dict = {
   "results.generatingComparison": "Generating comparison…",
   "results.noComparisonYet": "No comparison available yet",
   "results.benchmark": "benchmark",
-  "results.champion": "champion",
+  "results.champion": "recommended",
+  "results.needsFloorLegend": "⚠ breaches the client's drawdown floor",
+  "results.proposalSetTitle": "Proposal comparison",
+  "results.proposalLabel.recommended": "Recommended",
+  "results.proposalLabel.defensive": "Defensive",
+  "results.proposalLabel.growth": "Growth",
+  "results.needsTable.drawdown": "Drawdown floor",
+  "results.needsTable.singleName": "Single-name cap",
+  "results.needsTable.theme": "Theme cap",
+  "results.needsTable.cash": "Cash reserve",
+  "results.needsTable.income": "Income need",
+  "results.needsTable.mustInclude": "Must-include tickers",
+  "results.needsTable.drift": "Customization drift",
+  "results.needsMustIncludeFail":
+    "Overlay tickers missing from final portfolio: {tickers}",
+  "results.needsDriftFail":
+    "Portfolio drifted {actual} from the anchor (limit {cap})",
+  "results.needsTable.pass": "Pass",
+  "results.needsTable.fail": "Fail",
+  "results.addToUniverseCta": "Add holdings to candidate list & re-run",
+  "results.cashSleeveLabel": "Cash",
   "results.cagrPct": "CAGR %",
   "results.maxDdPct": "MaxDD %",
   "results.dynamicObjectives": "Dynamic goals",
@@ -524,45 +582,48 @@ const en: Dict = {
   "results.loadingTrajectory": "Loading {model}…",
   "results.walkForwardHint":
     "Market regime and active goal over time, lined up with the performance and holdings charts.",
-  "results.proChampionScorePrefix": "The Pro winner is chosen on an In-Sample",
+  "results.proChampionScorePrefix":
+    "The Pro winner is chosen on an Training period",
   "results.comprehensiveScore": "composite score",
   "results.proChampionScoreFormula":
     "0.45×Sharpe + 0.25×Sortino + 0.20×(5×CAGR) − 0.35×|max drawdown| − 0.10×turnover.",
-  "results.dynamicScoreTitle": "Dynamic composite score — this is the ranking metric",
+  "results.dynamicScoreTitle":
+    "Dynamic composite score — this is the ranking metric",
   "results.dynamicScoreExplain":
-    "In dynamic mode, strategies aren't ranked by Sharpe or return alone. They are ranked by one composite score that blends risk-adjusted return, growth, drawdown and trading cost. That's why the champion (★) can win overall without topping any single column below.",
-  "results.championWhyTitle": "Why ★ {code} is the champion",
+    "In dynamic mode, proposals aren't ranked by Sharpe or return alone. They are ranked by one composite score that blends risk-adjusted return, growth, drawdown and trading cost. That's why the top pick (★) can win overall without topping any single column below.",
+  "results.championWhyTitle": "Why ★ {code} is the top pick",
   "results.championWhyHorizonNote":
-    "★ is chosen on the selection horizon (in-sample when OOS holdout is on; otherwise full-sample). Full-period metrics in the report grid can differ — a higher Full Sharpe does not demote the IS goal winner. In-sample / out-of-sample gap is diagnostic only.",
+    "★ is chosen on the selection horizon (training-period when validation holdout is on; otherwise full-period). Full-period metrics in the report grid can differ — a higher Full Sharpe does not demote the training-period goal winner. Training-period / validation-period gap is diagnostic only.",
   "results.championWhyFallbackLead":
     "{code} won under goal “{objective}” on the {horizon} selection horizon (IS Sharpe {sharpe}, CAGR {cagr}, max DD {mdd}). Full-period: Sharpe {fullSharpe}, CAGR {fullCagr}.",
   "results.championWhyFallbackLeadFull":
-    "{code} won under goal “{objective}” on the full-sample horizon (Sharpe {sharpe}, CAGR {cagr}, max DD {mdd}).",
+    "{code} won under goal “{objective}” on the full-period horizon (Sharpe {sharpe}, CAGR {cagr}, max DD {mdd}).",
   "results.championWhyFallbackAlt":
     "Runner-up {alt} scored lower on that same selection horizon (IS Sharpe {altSharpe}, CAGR {altCagr}) even if its full-period Sharpe ({altFullSharpe}) looks higher.",
   "results.championWhyFallbackAltFull":
     "Compared with runner-up {alt} (Sharpe {altSharpe}, CAGR {altCagr}).",
-  "results.championHorizonInSample": "in-sample",
-  "results.championHorizonFullSample": "full-sample",
+  "results.championHorizonInSample": "training-period",
+  "results.championHorizonFullSample": "full-period",
   "results.anchorBenchmarkNote":
-    "Anchor model portfolio: {anchor}. Performance benchmark ticker (price series): {ticker} — the chart compares strategies to this ticker’s returns, not a replica of every anchor holding.",
+    "Baseline model portfolio: {anchor}. Performance benchmark ticker (price series): {ticker} — the chart compares proposals to this ticker’s returns, not a replica of every anchor holding.",
   "results.anchorPortfolioBaselineNote":
-    "Baseline for comparison: static replay of the anchor model portfolio ({anchor}), not the market ticker alone.",
+    "Baseline for comparison: static replay of the baseline model portfolio ({anchor}), not the market ticker alone.",
   "results.championFullSharpe": "Full Sharpe",
   "results.championFullMaxDd": "Full max DD",
   "results.championFullCagr": "Full CAGR",
   "results.leaderboardDynamicNote":
-    "Values are the dynamic composite score for each period (higher is better). The champion (★) is ranked by the objective on the selection horizon (in-sample when OOS is on). OOS / overfitting metrics are informational and do not demote the objective winner.",
-  "results.selectTrialHint": "Select a strategy above to see its performance and holdings.",
+    "Values are the dynamic composite score for each period (higher is better). The top pick (★) is ranked by the objective on the selection horizon (training-period when validation is on). validation / overfitting metrics are informational and do not demote the objective winner.",
+  "results.selectTrialHint":
+    "Select a proposal above to see its performance and holdings.",
   "results.efficientFrontierHint":
-    "Blue dots are strategies Jasper tried; orange dots are the top picks shown in your report.",
+    "Blue dots are proposals Jasper tried; orange dots are the top picks shown in your report.",
   "results.annVol": "Annualized volatility (%)",
   "results.annReturn": "Ann. return (%)",
   "results.outputModel": "Top pick",
-  "results.searchTrial": "Tested strategy",
+  "results.searchTrial": "Tested proposal",
   "results.paramSamples": "Strategies tried",
   "results.outputModels": "Top picks",
-  "results.universeFilter": "Universe filter",
+  "results.universeFilter": "Candidate list filter",
   "results.universeFilterHint":
     "other asset classes are left out of the search.",
   "results.targetNamesRegime": "Target names ({regime} regime)",
@@ -572,10 +633,10 @@ const en: Dict = {
   "results.actualClassWeights": "Actual asset-class mix (holdings)",
   "results.actualClassWeightsRegime": "Actual mix during {regime} rebalances",
   "results.classBreakdownChampion":
-    "Showing the champion’s asset-class mix — this strategy stored a condensed version.",
+    "Showing the top pick’s asset-class mix — this proposal stored a condensed version.",
   "results.weightPct": "Weight %",
   "results.factorAttributionChampion":
-    "Showing the champion’s factor breakdown — this strategy didn’t store full details.",
+    "Showing the top pick’s factor breakdown — this proposal didn’t store full details.",
   "results.noFactorAttribution": "No factor breakdown available",
   "results.contribPct": "Contrib %",
   "results.observations": "Observations",
@@ -583,9 +644,9 @@ const en: Dict = {
   "results.factorMetricLogic": "How factors were measured",
   "results.noMetricLogic": "No factor detail available",
   "results.summaryOnlyModel":
-    "This strategy has a summary only — no detailed holdings or charts. Pick one with a full report to explore further.",
+    "This proposal has a summary only — no detailed holdings or charts. Pick one with a full report to explore further.",
   "results.analyticsFallback":
-    "Rolling, exposure, and return tables come from the champion; the headline metrics match the strategy you selected.",
+    "Rolling, exposure, and return tables come from the top pick; the headline metrics match the proposal you selected.",
   "results.aiParameterRationale": "Why the AI chose these settings",
   "results.generation": "Generation",
   "results.noAiRationale": "No AI explanation for this run.",
@@ -601,29 +662,33 @@ const en: Dict = {
   "results.chart.latestAllocation": "Current allocation",
   "results.chart.reproducibleParameters": "Settings to reproduce this run",
   "report.group.summary": "Executive summary",
-  "report.group.summaryHint": "AI verdict, champion pick, and headline metrics",
+  "report.group.summaryHint": "AI verdict, top pick pick, and headline metrics",
   "report.group.performance": "Performance",
-  "report.group.performanceHint": "How the models stack up against the benchmark",
+  "report.group.performanceHint":
+    "How the models stack up against the benchmark",
   "report.group.journey": "Portfolio journey",
-  "report.group.journeyHint": "Equity growth and how holdings shifted over time",
+  "report.group.journeyHint":
+    "Equity growth and how holdings shifted over time",
   "report.group.holdings": "Holdings & risk",
-  "report.group.holdingsHint": "What the portfolio owns and its asset-class mix",
+  "report.group.holdingsHint":
+    "What the portfolio owns and its asset-class mix",
   "report.group.strategy": "Strategy deep-dive",
   "report.group.strategyHint": "Risk/return trade-offs and factor drivers",
   "report.group.institutional": "Institutional analytics",
-  "report.group.institutionalHint": "Benchmark, exposure, rolling risk, and drawdowns",
+  "report.group.institutionalHint":
+    "Benchmark, exposure, rolling risk, and drawdowns",
   "report.group.reproducibility": "Reproducibility",
-  "report.group.reproducibilityHint": "Exact settings and parameters behind this run",
+  "report.group.reproducibilityHint":
+    "Exact settings and parameters behind this run",
   "results.factor.momentum": "Momentum",
   "results.factor.reversal": "Reversal",
   "results.factor.value": "Value",
   "results.factor.lowvol": "Low vol",
   "results.factor.trend": "Trend",
   "results.factor.drawdown": "Drawdown",
-
   // Constraints — offline + hints
   "config.runOfflineHint":
-    "The analytics service is offline right now, so backtests can’t run. Please try again in a moment.",
+    "The analytics service is offline right now, so projections can’t run. Please try again in a moment.",
   "config.assetClassSyncHint":
     "Your selected asset classes and their target weights stay in sync — anything you leave out is held at zero.",
   "config.enforceClassWeights": "Enforce class allocation targets",
@@ -634,25 +699,25 @@ const en: Dict = {
   "config.quantMode": "Expert mode",
   "config.quantModeHint": "Show advanced portfolio-engineering controls",
   "config.objectiveHint.dynamic":
-    "Dynamic adapts the portfolio to the market regime — defensive when risk is high, growth-seeking when conditions are strong, balanced in between. Champions are ranked on one blended composite score (risk-adjusted return + growth + drawdown + trading cost), not a single metric. To be judged purely on one goal such as Max CAGR while still switching by regime, pick that goal and turn on Regime-adaptive allocation below.",
+    "Dynamic adapts the portfolio to the market regime — defensive when risk is high, growth-seeking when conditions are strong, balanced in between. Top picks are ranked on one blended composite score (risk-adjusted return + growth + drawdown + trading cost), not a single metric. To be judged purely on one goal such as Max CAGR while still switching by regime, pick that goal and turn on Regime-adaptive allocation below.",
   "config.objectiveHint.default":
-    "With a holdout turned on, strategies are ranked on the optimization period; the holdout and full-period results are shown for comparison only.",
+    "With a holdout turned on, proposals are ranked on the optimization period; the holdout and full-period results are shown for comparison only.",
   "config.regimeAdaptive": "Regime-adaptive allocation",
   "config.regimeAdaptiveHint.dynamic":
     "Always on with the Dynamic goal: the allocator switches preset by market regime (defensive / balanced / growth) every rebalance.",
   "config.regimeAdaptiveHint.on":
-    "On: the allocator switches preset by market regime (risk-off / neutral / risk-on) each rebalance, while your chosen goal above still decides how strategies are ranked.",
+    "On: the allocator switches preset by market regime (risk-off / neutral / risk-on) each rebalance, while your chosen goal above still decides how proposals are ranked.",
   "config.regimeAdaptiveHint.off":
     "Off: one allocation style is used across all market conditions. Turn on to let the allocator adapt by regime while keeping your ranking goal above.",
   "config.customObjectivePlaceholder":
     "e.g. low drawdown first, then return, keep turnover modest",
-  "config.customObjectiveHint": "Jasper turns this into a goal it can optimize for.",
+  "config.customObjectiveHint":
+    "Jasper turns this into a goal it can optimize for.",
   "config.trialsHint.pro":
     "Pro mode manages this for you using the round settings above.",
   "config.trialsHint.standard":
-    "How many strategies to test. In standard mode every trial uses an AI-generated seed (no random filler). Set the report size below.",
+    "How many proposals to test. In standard mode every candidate uses an AI-generated starting proposal (no random filler). Set the report size below.",
   "config.benchmarkLine": "Benchmark: {benchmark} · Risk-free rate: 4%",
-
   // Constraints — advanced controls
   "config.advanced.title": "Expert controls (optional)",
   "config.advanced.maxWeightNote":
@@ -665,7 +730,6 @@ const en: Dict = {
   "config.advanced.searchHint":
     "AI explores all options; your choice is the starting preference",
   "config.advanced.fixedHint": "Fixed signal style for this factor",
-
   // Optimization objectives (dropdown)
   "objective.dynamic": "Dynamic — adapt to market conditions",
   "objective.max_sharpe": "Best risk-adjusted return",
@@ -677,14 +741,12 @@ const en: Dict = {
   "objective.max_diversification": "Most diversified portfolio",
   "objective.mean_variance_utility": "Balance return and risk",
   "objective.custom": "Custom goal",
-
   // Allocator modes (dropdown)
   "allocator.auto": "Auto (let Jasper choose)",
   "allocator.mean_variance": "Return-risk balance",
   "allocator.min_var": "Lowest volatility",
   "allocator.risk_parity": "Equal risk contribution",
   "allocator.max_diversification": "Maximum diversification",
-
   // Factor indicators — factor name + friendly description
   "factorInd.mom_indicator.label": "Momentum",
   "factorInd.mom_indicator.hint":
@@ -724,12 +786,10 @@ const en: Dict = {
   "factorOpt.max_drawdown_depth": "max drawdown depth",
   "factorOpt.time_since_peak": "time since peak",
   "factorOpt.ulcer_index": "ulcer index",
-
   // Constraints — categorical labels
   "config.categorical.objective_mode": "Investment goal",
   "config.categorical.allocator_mode": "Portfolio engine",
   "config.categorical.rebalance_freq": "Rebalance frequency",
-
   // Constraints — advanced numeric control labels
   "config.control.subPrefix": "{label} sleeve",
   "config.control.lookback_days": "Market memory (days)",
@@ -744,6 +804,7 @@ const en: Dict = {
   "config.control.no_trade_tol": "Rebalance threshold",
   "config.control.turnover_penalty_mult": "Trading cost pressure",
   "config.control.max_turnover_actual": "Max turnover / rebalance",
+  "config.control.customization_drift_actual": "Customization drift",
   "config.control.w_mom": "Momentum signal",
   "config.control.w_reversal": "Reversal signal",
   "config.control.w_value": "Value signal",
@@ -755,7 +816,6 @@ const en: Dict = {
   "config.control.w_commodity": "Commodity sleeve",
   "config.control.w_real_estate": "Real estate sleeve",
   "config.control.w_alternative": "Alternative sleeve",
-
   // Quick refinements
   "refinements.bond-tilt.label": "Bond tilt",
   "refinements.bond-tilt.desc": "Equity + bond focus, drawdown-aware objective",
@@ -769,26 +829,26 @@ const en: Dict = {
   "refinements.defensive.desc": "Bond, REIT, commodity, alternatives",
   "refinements.equity-only.label": "Equity only",
   "refinements.equity-only.desc": "Optimize within equity ETFs only",
-
   // Pro rounds — banner, seed panel, prefix
   "pro.roundN": "Round {n}",
   "pro.banner.title": "ROUND UNDERPERFORMED BENCHMARK",
   "pro.banner.body":
-    "Portfolio return trails the benchmark ({benchmark}) in this sample. Consider wider exploration or strategy tweaks next round.",
+    "Portfolio return trails the benchmark ({benchmark}) in this sample. Consider wider exploration or proposal tweaks next round.",
   "pro.banner.stats":
     "Portfolio return {portfolio} · Benchmark {benchmark} · Alpha {alpha}",
   "pro.seed.regimeMatrix":
     "Market-regime presets (portfolio engine per market condition)",
-  "pro.seed.regimeQuotas": "Market-regime sleeve targets (asset-class mix per condition)",
+  "pro.seed.regimeQuotas":
+    "Market-regime sleeve targets (asset-class mix per condition)",
   "pro.seed.assessment": "AI performance assessment",
-  "pro.seed.strategy": "AI optimization strategy",
-  "pro.seed.roundSetup": "Round setup (applies to every strategy this round)",
+  "pro.seed.strategy": "AI optimization proposal",
+  "pro.seed.roundSetup": "Round setup (applies to every proposal this round)",
   "pro.seed.factorSearch": "Factor search (ranges Jasper explored)",
   "pro.seed.fixed": "fixed",
-  "pro.prefix.improved": "Round winner — replaced the incoming champion",
-  "pro.prefix.held": "Incoming champion held (improvement below threshold)",
+  "pro.prefix.improved": "Round winner — replaced the incoming top pick",
+  "pro.prefix.held": "Incoming top pick held (improvement below threshold)",
   "pro.prefix.body":
-    "{label} — {status}. Adjusted score {score}, from {trials} trials across {models} strategies.",
+    "{label} — {status}. Adjusted score {score}, from {trials} candidates across {models} proposals.",
 
   // Pro rounds — parameter labels
   "pro.param.mode": "Portfolio engine",
@@ -798,6 +858,7 @@ const en: Dict = {
   "pro.param.max_weight_actual": "Single-name limit",
   "pro.param.top_n_actual": "Shortlist size",
   "pro.param.max_turnover_actual": "Max turnover",
+  "pro.param.customization_drift_actual": "Customization drift",
   "pro.param.no_trade_tol": "Rebalance threshold",
   "pro.param.turnover_penalty_mult": "Trading cost pressure",
   "pro.param.factor_lookback_days": "Signal window",
@@ -820,18 +881,18 @@ const en: Dict = {
   "pro.param.lowvol_indicator": "Low-volatility signal",
   "pro.param.trend_indicator": "Trend signal",
   "pro.param.drawdown_indicator": "Drawdown quality signal",
-
   // Institutional report — extended
   "institutional.loadingFor": "for {model}",
   "institutional.through": "through {date}",
   "institutional.horizonNote":
-    "Trial selection uses In-Sample when holdout is on. In-Sample and Out-of-Sample rows are slices of the same continuous Full backtest; they are not separate fresh-start runs. Ranked Sharpe on the dashboard may differ slightly from these rows.",
+    "Candidate selection uses Training period when holdout is on. Training period and Validation period rows are slices of the same continuous Full projection; they are not separate fresh-start runs. Ranked Sharpe on the dashboard may differ slightly from these rows.",
   "institutional.gapNote":
-    "In-Sample − Out-of-Sample gap: goal {objective}, Sharpe {sharpe} (positive = In-Sample stronger).",
+    "Training period − Validation period gap: goal {objective}, Sharpe {sharpe} (positive = Training period stronger).",
   "institutional.vsBenchmark": "vs {benchmark}",
-  "institutional.rmCompactHint": "Key benchmark and allocation context for client discussions",
+  "institutional.rmCompactHint":
+    "Key benchmark and allocation context for client discussions",
   "institutional.benchmarkStaleNote":
-    "Beta, alpha, and IR below were computed vs {computed}. Re-run the backtest to refresh metrics for the selected anchor benchmark.",
+    "Beta, alpha, and IR below were computed vs {computed}. Re-run the projection to refresh metrics for the selected baseline benchmark.",
   "institutional.trackingErr": "Tracking err",
   "institutional.ir": "IR",
   "institutional.upCapture": "Up capture",
@@ -840,31 +901,35 @@ const en: Dict = {
   "institutional.rollingSharpe": "Rolling Sharpe (252-day)",
   "institutional.rollingVol": "Rolling volatility (252-day)",
   "institutional.inSampleNote":
-    "Selection and ranking use In-Sample only; periods below exclude the Out-of-Sample tail.",
+    "Selection and ranking use Training period only; periods below exclude the Validation period tail.",
   "institutional.ddStart": "Start",
   "institutional.ddTrough": "Trough",
   "institutional.ddEnd": "End",
   "institutional.ddDepth": "Depth",
   "institutional.ddDays": "Days",
-
   // Anchor / benchmark personalization
   "anchor.title": "Anchor portfolio",
   "anchor.subtitle":
-    "Choose an Asset Manager model portfolio as the client's starting benchmark.",
-  "anchor.universeNote": "Demo universe: {count} mainstream ETFs (SPY, IVV, QQQ, VTI, AGG, …)",
-  "anchor.placeholderHoldingsHint": "All constituents are ETFs from this Asset Manager",
+    "Choose a house model as the starting benchmark — or use current holdings with no model.",
+  "anchor.universeNote":
+    "Demo candidate list: {count} mainstream ETFs (SPY, IVV, QQQ, VTI, AGG, …)",
+  "anchor.placeholderHoldingsHint":
+    "Mix of ETFs, mutual funds, and stocks from the house model catalog",
+  "anchor.currentHoldingsHint":
+    "If you are only optimizing a satellite / stock sleeve (not a model book), choose “Current holdings (no model)”.",
+  "anchor.noModelBadge": "No model",
   "anchor.selected": "Selected anchor",
   "anchor.continue": "Continue to client needs",
   "anchor.am": "Asset Manager",
   "anchor.theme": "Theme",
-
   // Overlay conversation step
   "overlay.skipToConfig": "Skip to advanced setup",
-  "overlay.continueToConfig": "Continue to backtest setup",
+  "overlay.continueToConfig": "Continue to projection setup",
   "overlay.contextSummaryTitle": "Confirmed customization context",
   "overlay.contextGroups": "Groups to customize",
-  "overlay.contextGroupsFallback": "Current selection will use the active scope.",
-  "overlay.contextAnchor": "Target model portfolio",
+  "overlay.contextGroupsFallback":
+    "Current selection will use the active scope.",
+  "overlay.contextAnchor": "Baseline portfolio",
   "overlay.interpret.error.apiKeyMissing":
     "Overlay interpretation is unavailable: AI API key is not configured.",
   "overlay.interpret.error.aiUnavailable":
@@ -877,23 +942,25 @@ const en: Dict = {
     "Overlay interpretation failed: AI returned an unusable response. Please try again.",
   "overlay.interpret.error.generic":
     "Overlay interpretation failed. Please try again or contact support.",
-  "overlay.thinking.label": "Jasper is analyzing the request (typically 10–30 seconds)…",
+  "overlay.thinking.label":
+    "Jasper is analyzing the request (typically 10–30 seconds)…",
   "overlay.thinking.step1": "Understanding intent…",
   "overlay.thinking.step2": "Extracting risk profile & goals…",
-  "overlay.thinking.step3": "Mapping to the ticker universe…",
+  "overlay.thinking.step3": "Mapping to the ticker candidate list…",
   "overlay.thinking.step4": "Drafting recommendations…",
   "overlay.proposedTickers.title": "Suggested tickers (select to add)",
   "overlay.proposedTickers.all": "Select all",
   "overlay.proposedTickers.none": "Select none",
-  "overlay.proposedTickers.addSelected": "Add selected ({count}) to universe",
-  "overlay.proposedTickers.confirmMessage": "Added {tickers} to the universe.",
+  "overlay.proposedTickers.addSelected":
+    "Add selected ({count}) to candidate list",
+  "overlay.proposedTickers.confirmMessage":
+    "Added {tickers} to the candidate list.",
   "chat.speakerYou": "You:",
   "chat.speakerJasper": "Jasper:",
   "chat.speakerSystem": "System:",
-
   // Base vs customized comparison
   "compare.title": "Anchor vs customized",
-  "compare.subtitle": "Side-by-side metrics from parallel backtests.",
+  "compare.subtitle": "Side-by-side metrics from parallel projections.",
   "compare.col.metric": "Metric",
   "compare.col.delta": "Δ",
   "compare.metric.cagr": "CAGR",
@@ -903,7 +970,6 @@ const en: Dict = {
   "compare.chart.title": "Equity curves",
   "compare.chart.anchor": "Anchor",
   "compare.chart.customized": "Customized",
-
   // RM workflow (Relationship Manager)
   "rm.mode.label": "Mode",
   "rm.mode.rm": "RM",
@@ -916,66 +982,93 @@ const en: Dict = {
   "rm.step.skipped": "skipped",
   "rm.run.title": "Ready to run",
   "rm.run.subtitle":
-    "Review the signed client overlay, then run the anchor vs customized dual backtest.",
+    "Review the signed client overlay, then run the anchor vs customized dual-track projection.",
   "rm.run.clientNeeds": "Client needs summary",
   "rm.run.whatWillRun": "What will run",
   "rm.run.period": "Period: {start} → {end}",
   "rm.run.dualTrack": "Dual track: anchor replay + customized optimization",
   "rm.run.proSearchTitle": "Jasper Pro Search",
   "rm.run.proSearchHint":
-    "Turning on Pro Search runs AI multi-round parameter optimization (champion–challenger). It usually takes longer.",
+    "Turning on Pro Search runs AI multi-round parameter optimization (top-pick vs challenger proposals). It usually takes longer.",
   "rm.run.proSearchOn": "Jasper Pro Search: ON (multi-round AI optimization)",
   "rm.run.proSearchOff":
-    "Jasper Pro Search: OFF (single pass — all trials use AI-generated seeds)",
-  "rm.run.execute": "Run backtest",
+    "Jasper Pro Search: OFF (single pass — all candidates use AI-generated starting proposals)",
+  "rm.run.execute": "Start portfolio projection",
   "rm.run.showAdvanced": "Advanced settings",
   "rm.run.hideAdvanced": "Hide advanced settings",
-  "rm.universe.fixedTitle": "Investment universe (fixed)",
-  "rm.universe.fixedCount": "{n} tickers pinned for backtest",
+  "rm.universe.fixedTitle": "Investment candidate list (fixed)",
+  "rm.universe.fixedCount": "{n} tickers pinned for projection",
   "rm.universe.lockedTitle": "Model portfolio holdings (locked)",
   "rm.universe.lockedHint":
-    "Base universe is the target model portfolio holdings. Client requirements may only add or remove specific tickers — not browse the full fund pool.",
-  "rm.universe.lockedCount": "{n} tickers locked from model holdings ± requirements",
+    "Base candidate list is the target model portfolio holdings. Client requirements may only add or remove specific tickers — not browse the full fund pool.",
+  "rm.universe.lockedCount":
+    "{n} tickers locked from model holdings ± requirements",
   "rm.report.title": "RM report",
-  "rm.report.tabRm": "RM summary",
-  "rm.report.tabQuant": "Quant analysis",
+  "rm.report.subtitle": "Client needs → constraint check → recommended portfolio",
+  "rm.report.tabRm": "Client report",
+  "rm.report.tabQuant": "Engine detail",
+  "rm.report.quantTabHint":
+    "Search rounds, leaderboards, and factor diagnostics — for RM deep-dive, not the client conversation.",
+  "rm.report.heroEyebrow": "Recommended portfolio",
+  "rm.report.heroTitle": "{code}{star}",
+  "rm.report.heroHint": "Primary proposal vs anchor 「{anchor}」",
+  "rm.report.needsTitle": "Needs fulfillment",
+  "rm.report.needsHint":
+    "Did this run keep the commitments signed in the overlay?",
+  "rm.report.needsOverallPass": "All checks passed",
+  "rm.report.needsOverallFail": "Gaps vs signed needs",
+  "rm.report.needsColConstraint": "Commitment",
+  "rm.report.needsColDetail": "Actual / limit",
+  "rm.report.needsColStatus": "Status",
+  "rm.report.needsDetailHint":
+    "For must-include, detail lists missing tickers when failed, otherwise the required set.",
+  "rm.report.altsTitle": "Meaningful alternatives",
+  "rm.report.altsHint":
+    "Near-identical clones are hidden. Open a card to inspect that proposal.",
+  "rm.report.expand": "Show",
+  "rm.report.collapse": "Hide",
+  "rm.report.talkingCollapsedHint": "Talking points for the client meeting",
   "rm.report.executiveTitle": "Executive summary",
   "rm.report.executiveHint": "Key points for your client conversation",
   "rm.report.metricsSummary":
     "vs {anchor}: return {cagrDelta}, max drawdown {mddDelta}",
-  "rm.report.noOverlaySummary": "Customized portfolio based on anchor configuration.",
+  "rm.report.noOverlaySummary":
+    "Customized portfolio based on anchor configuration.",
   "rm.report.overlayTitle": "Signed client needs",
   "rm.report.overlayHint": "Constraints and preferences confirmed in step 2",
   "rm.report.overlaySigned": "Signed {date}",
   "rm.report.metricsTitle": "Key metrics vs anchor",
   "rm.report.metricsHint": "Green = better than anchor for this metric",
   "rm.report.holdingsTitle": "Holdings changes",
-  "rm.report.holdingsHint": "What shifted from the anchor portfolio",
+  "rm.report.holdingsHint": "What shifted from the baseline portfolio",
+  "rm.report.holdingsPrecisionHint":
+    "Weights are end-of-period allocator holdings (2 d.p.). Near-equal splits usually mean the single-name cap is incompatible with max holdings or class sleeves (e.g. 8% cap with only 8 names needs ≥13 names) — raise max weight, raise max holdings, or loosen class budgets.",
   "rm.report.talkingTitle": "Strategy summary",
-  "rm.report.talkingLoading": "AI is drafting the strategy summary…",
-  "rm.report.performanceFlag": "Backtest result is below expectations",
-  "rm.report.rerun": "Rerun backtest",
+  "rm.report.talkingLoading": "AI is drafting the proposal summary…",
+  "rm.report.performanceFlag": "Projection result is below expectations",
+  "rm.report.rerun": "Rerun projection",
   "compliance.badgeCompact": "Internal review only",
   "compliance.badgeDefault":
     "Internal review only — not investment advice. Supervisor approval required before client use.",
   "rm.report.disclaimerTitle": "Compliance notice",
   "rm.report.disclaimerBody":
-    "For internal RM review only. This document is not an offer, recommendation, or solicitation to buy or sell any security. All figures are from historical simulations and assume the strategy was implemented exactly as modeled; past performance does not guarantee future results. A licensed supervisor must review and approve any client-facing material before use.",
-  "rm.report.openQuant": "Open quant analysis",
+    "For internal RM review only. This document is not an offer, recommendation, or solicitation to buy or sell any security. All figures are from historical simulations and assume the proposal was implemented exactly as modeled; past performance does not guarantee future results. A licensed supervisor must review and approve any client-facing material before use.",
+  "rm.report.openQuant": "Open engine detail",
   "rm.report.revise": "Revise client needs",
-  "rm.report.candidateTitle": "Candidate strategy",
+  "rm.report.candidateTitle": "Candidate proposal",
   "rm.report.candidateHint":
-    "Compare candidate strategies for the customized run. The leading model is selected by default.",
-  "rm.report.candidateLabel": "Tested portfolio",
+    "Compare candidate proposals for the customized run. The leading model is selected by default.",
+  "rm.report.candidateLabel": "View portfolio",
   "rm.report.candidateChampion": "★",
-  "rm.quant.championWhyTitle": "Why this champion was selected",
-  "rm.quant.championWhyCode": "Champion strategy: {code}",
+  "rm.quant.championWhyTitle": "Why this top pick was selected",
+  "rm.quant.championWhyCode": "Recommended proposal: {code}",
   "proposal.ctaTitle": "Investment Proposal",
   "proposal.ctaHint":
-    "Turn this backtest's AI top-recommended portfolio into an Investment Proposal",
+    "Turn this projection's AI top-recommended portfolio into an Investment Proposal",
   "proposal.generate": "Generate Investment Proposal",
   "proposal.title": "Investment Proposal (draft)",
-  "proposal.subtitle": "Internal RM draft — numbers from dual backtest; review before client use",
+  "proposal.subtitle":
+    "Internal RM draft — numbers from dual-track projection; review before client use",
   "proposal.print": "Print / Save as PDF",
   "proposal.close": "Close",
   "proposal.draftBanner":
@@ -1026,7 +1119,7 @@ const en: Dict = {
   "proposal.section.executive": "Executive Summary",
   "proposal.section.profile": "Client Profile & Objectives",
   "proposal.section.current": "Current Situation / Holdings",
-  "proposal.section.strategy": "Recommended Strategy",
+  "proposal.section.strategy": "Recommended Proposal",
   "proposal.section.allocation": "Proposed Allocation",
   "proposal.section.rationale": "Rationale & Talking Points",
   "proposal.section.performance": "Risk & Performance Illustration",
@@ -1039,44 +1132,55 @@ const en: Dict = {
   "proposal.body.letterIntro":
     "This proposal outlines a customized ETF portfolio for {client} (illustrative size {amount}), using {am} · {theme} as the model-portfolio anchor.",
   "proposal.body.executive":
-    "Recommended direction: customize {anchor} into {customized}, validated by dual-track backtest.",
-  "proposal.body.metricsPending": "Key performance deltas will appear after metrics load.",
-  "proposal.body.profileFallback": "Client preferences were captured in the overlay workflow.",
-  "proposal.body.currentAnchor": "Starting point (anchor model portfolio): {anchor}",
+    "Recommended direction: customize {anchor} into {customized}, validated by dual-track projection.",
+  "proposal.body.metricsPending":
+    "Key performance deltas will appear after metrics load.",
+  "proposal.body.profileFallback":
+    "Client preferences were captured in the overlay workflow.",
+  "proposal.body.currentAnchor":
+    "Starting point (anchor model portfolio): {anchor}",
   "proposal.body.currentFootnote":
     "Current holdings snapshot as of {asOf}. Demo data — not a custodian feed.",
   "proposal.body.market":
     "Adjustment rationale centers on moving from {anchor} toward {customized} while respecting signed client needs.",
   "proposal.body.strategyAnchor":
-    "Anchor model portfolio: {am} · {theme} (risk band: {risk}). This is the AM-themed starting product.",
+    "Baseline model portfolio: {am} · {theme} (risk band: {risk}). This is the AM-themed starting product.",
   "proposal.body.strategyCustomize":
-    "Customized recommendation ({customized}) personalizes the anchor ({anchor}) using signed overlay constraints and dual backtest validation.",
-  "proposal.body.allocationFallback": "Customized holdings will appear after weights resolve.",
+    "Customized recommendation ({customized}) personalizes the anchor ({anchor}) using signed overlay constraints and dual-track projection validation.",
+  "proposal.body.allocationFallback":
+    "Customized holdings will appear after weights resolve.",
   "proposal.body.allocationFootnote":
-    "Weights from the customized champion (or selected trial). Monetary figures are illustrative using the client cash / AUM snapshot.",
+    "Weights from the customized top pick (or selected candidate). Monetary figures are illustrative using the client cash / AUM snapshot.",
   "proposal.body.constructionFallback":
     "Simulation window {start} → {end}; goal {objective}. Overlay prompts and excludes apply.",
   "proposal.body.excludes": "Excluded tickers: {tickers}",
   "proposal.body.objectiveLine": "Investment goal: {objective}",
   "proposal.body.validationNote":
-    "Figures come from the engine dual backtest (anchor vs customized), not generative AI invention. Past performance is not a reliable guide to future performance.",
+    "Figures come from the engine dual-track projection (anchor vs customized), not generative AI invention. Past performance is not a reliable guide to future performance.",
   "proposal.body.chartCaption":
     "Illustrative dual equity (rebased to 100) over {start} → {end}. Actual policy values will differ after fees, taxes, and timing.",
-  "proposal.body.riskMdd": "Customized max drawdown {customized} vs anchor {anchor}.",
-  "proposal.body.riskFallback": "Review drawdown and concentration in the quant tab.",
+  "proposal.body.riskMdd":
+    "Customized max drawdown {customized} vs anchor {anchor}.",
+  "proposal.body.riskFallback":
+    "Review drawdown and concentration in the quant tab.",
   "proposal.body.implDca":
     "Consider dollar-cost averaging (DCA) into equity sleeves if lump-sum market timing is a concern.",
   "proposal.body.implRebalance":
-    "Rebalance according to the signed backtest window assumptions ({start} → {end}) unless the bank policy specifies otherwise.",
+    "Rebalance according to the signed projection window assumptions ({start} → {end}) unless the bank policy specifies otherwise.",
   "proposal.body.implLiquidity":
     "Retain a liquidity buffer aligned to near-term cash needs before full deployment.",
   "proposal.body.implClientLiquidity": "Client liquidity note: {note}",
-  "proposal.body.impl1": "Phase entries if liquidity or market impact is a concern.",
-  "proposal.body.impl2": "Confirm fees, taxes, and suitability under bank policy before client delivery.",
-  "proposal.body.impl3": "Rebalance cadence follows the signed backtest configuration unless amended.",
+  "proposal.body.impl1":
+    "Phase entries if liquidity or market impact is a concern.",
+  "proposal.body.impl2":
+    "Confirm fees, taxes, and suitability under bank policy before client delivery.",
+  "proposal.body.impl3":
+    "Rebalance cadence follows the signed projection configuration unless amended.",
   "proposal.body.signOffNote": "RM sign-off note: {note}",
-  "proposal.body.disclaimer1": "Past performance is not indicative of future results.",
-  "proposal.body.disclaimer2": "This draft is for RM internal use until compliance clearance.",
+  "proposal.body.disclaimer1":
+    "Past performance is not indicative of future results.",
+  "proposal.body.disclaimer2":
+    "This draft is for RM internal use until compliance clearance.",
   "proposal.body.disclaimerSuitability":
     "Suitability, KYC, and product approval remain bank-controlled processes; JASPER does not certify regulatory fitness.",
   "proposal.body.nextSteps":
@@ -1088,7 +1192,7 @@ const en: Dict = {
   "proposal.warning.currency":
     "Warning: Returns may be affected by changes in currency exchange rates.",
   "proposal.warning.estimates":
-    "Warning: These figures are estimates / backtested illustrations only.",
+    "Warning: These figures are estimates / simulated illustrations only.",
   "proposal.warning.noAdvice":
     "Warning: This material is for information and discussion purposes only and does not constitute an offer or investment advice.",
   "rm.holdings.change": "Change",
@@ -1115,7 +1219,7 @@ const en: Dict = {
   "rm.talking.clientMarketView":
     "Signed market view ({stance}): {summary} — anchor the conversation on how holdings express this view.",
   "rm.talking.clientUniverse":
-    "Signed universe rules: {rules} — explain how the final holdings respect these constraints.",
+    "Signed candidate list rules: {rules} — explain how the final holdings respect these constraints.",
   "rm.talking.riskTolerance.conservative": "conservative",
   "rm.talking.riskTolerance.moderate": "moderate",
   "rm.talking.riskTolerance.aggressive": "aggressive",
@@ -1142,13 +1246,13 @@ const en: Dict = {
   "rm.talking.tradeoffGeneric": "lower risk and smoother ride vs anchor",
   "rm.talking.performanceSimilar":
     "Returns are close to anchor ({highlights}) — focus on how allocation better matches signed client needs.",
-  "rm.talking.similarGeneric": "allocation fit matters more than small return gaps",
+  "rm.talking.similarGeneric":
+    "allocation fit matters more than small return gaps",
   "rm.talking.compliance":
-    "Reminder: illustrative backtest for discussion only — not investment advice. Confirm suitability and compliance before any implementation.",
+    "Reminder: illustrative projection for discussion only — not investment advice. Confirm suitability and compliance before any implementation.",
 
-  "progress.dual.anchor": "Anchor backtest",
-  "progress.dual.customized": "Customized backtest",
-
+  "progress.dual.anchor": "Baseline projection",
+  "progress.dual.customized": "Customized projection",
   // RM Copilot nav + Client / Pool / Models
   "nav.aria": "Primary navigation",
   "nav.menu": "Open navigation menu",
@@ -1157,17 +1261,18 @@ const en: Dict = {
   "nav.models": "Model Portfolios",
   "nav.personalization": "Portfolio Customization",
   "nav.settings": "Admin Settings",
-
   "settings.subtitle": "Import & export",
-  "settings.hint": "Manage Investment Pool and Model Portfolios CSV data here. Browse and enable items on their own pages.",
+  "settings.hint":
+    "Manage Investment Pool and Model Portfolios CSV data here. Browse and enable items on their own pages.",
   "settings.poolTitle": "Investment Pool",
   "settings.poolHint": "Import or export the global product shelf CSV.",
   "settings.modelsTitle": "Model Portfolios",
-  "settings.modelsHint": "Import or export AM model portfolio CSV (flat rows per holding).",
-
+  "settings.modelsHint":
+    "Import or export AM model portfolio CSV (flat rows per holding).",
   "clients.listTitle": "Client Dashboard",
   "clients.listSubtitle": "Demo clients",
-  "clients.listHint": "Select a client to review profile and holdings, then launch Portfolio Customization.",
+  "clients.listHint":
+    "Select a client to review profile and holdings, then launch Portfolio Customization.",
   "clients.detailSubtitle": "Client profile",
   "clients.backToList": "Back to clients",
   "clients.notFound": "Client not found.",
@@ -1201,7 +1306,7 @@ const en: Dict = {
   "clients.chart.performance": "Performance trend",
   "clients.chart.allocation": "Holdings mix",
   "clients.chart.nav": "NAV",
-  "clients.holdings.individual": "Individual holdings",
+  "clients.holdings.individual": "Individual / satellite sleeve",
   "clients.holdings.cash": "Cash",
   "clients.holdings.groupSubtotal": "Subtotal",
   "clients.holdings.total": "Total",
@@ -1216,34 +1321,38 @@ const en: Dict = {
   "clients.add.notePlaceholder": "Add a note…",
   "clients.add.eventPlaceholder": "Event label…",
   "clients.add.noEvents": "No upcoming events yet.",
-
+  "clients.history.title": "Customized portfolio history",
+  "clients.history.record": "{count} result",
+  "clients.history.records": "{count} results",
+  "clients.history.empty":
+    "Customized portfolios generated for this client will appear here.",
+  "clients.history.open": "OPEN",
+  "clients.history.untitled": "Customized portfolio",
   "customization.optimizeScopeTitle": "Optimize these holdings",
-  "customization.optimizeScopeHint": "Adjust which sleeves are included in this customization run.",
+  "customization.optimizeScopeHint":
+    "Choose which holdings groups (model books or satellite sleeves) to include in this run.",
   "customization.multiModelNotice":
-    "Multiple model portfolios are selected. They will be customized together into one resulting portfolio. Uncheck any sleeve you do not want changed.",
+    "Multiple model portfolios are selected. They will be customized together into one resulting portfolio. Uncheck any group you do not want changed.",
   "customization.portfolioName": "Portfolio name",
-  "customization.portfolioNamePlaceholder": "Name for this customized portfolio",
-
+  "customization.portfolioNamePlaceholder":
+    "Name for this customized portfolio",
   "enum.risk.conservative": "Conservative",
   "enum.risk.moderate": "Moderate",
   "enum.risk.aggressive": "Aggressive",
   "enum.risk.moderate_conservative": "Moderately conservative",
   "enum.risk.moderate_aggressive": "Moderately aggressive",
-
   "enum.esg.none": "None",
   "enum.esg.light": "Light",
   "enum.esg.moderate": "Moderate",
   "enum.esg.strong": "Strong",
   "enum.esg.strict": "Strict",
-
   "institutional.cash": "Cash",
   "institutional.fixed_income": "Fixed income",
-
   "pool.title": "Investment Pool",
   "pool.subtitle": "Global product shelf",
   "pool.countBadge": "{enabled} / {total} enabled",
   "pool.loadDemo": "Load demo ETFs",
-  "pool.loadFull": "Load full ETF universe",
+  "pool.loadFull": "Load full ETF candidate list",
   "pool.importCsv": "Import CSV",
   "pool.exportCsv": "Export CSV",
   "pool.importReport": "Import: {upserted} upserted, {skipped} skipped",
@@ -1266,13 +1375,14 @@ const en: Dict = {
   "pool.product.etf": "ETF",
   "pool.product.stock": "Stock",
   "pool.product.fund": "Fund",
+  "pool.product.cash": "Cash",
   "pool.product.structured": "Structured",
   "pool.product.bond": "Bond",
   "pool.product.other": "Other",
-
   "models.title": "Model Portfolios",
   "models.subtitle": "House model catalog",
-  "models.hint": "Manage model portfolios for Benchmark Personalization. Holdings may mix ETFs, mutual funds, and stocks from the Investment Pool. CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
+  "models.hint":
+    "Manage model portfolios for Benchmark Personalization. Holdings may mix ETFs, mutual funds, and stocks from the Investment Pool. CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
   "models.countBadge": "{ready} ready / {total} total",
   "models.resetBundled": "Reset to bundled",
   "models.importCsv": "Import CSV",
@@ -1289,7 +1399,8 @@ const en: Dict = {
   "models.col.theme": "Theme",
   "models.risk": "Risk",
   "models.benchmark": "Benchmark",
-  "models.issuerHoldingsHint": "All constituents are ETFs from this Asset Manager",
+  "models.issuerHoldingsHint":
+    "Mix of ETFs, mutual funds, and stocks from the house model catalog",
   "models.filter.am": "Filter by asset manager",
   "models.filter.risk": "Filter by risk",
   "models.filter.theme": "Filter by theme",
@@ -1302,43 +1413,48 @@ const en: Dict = {
   "models.sort.risk": "Sort: Risk",
   "models.sort.theme": "Sort: Theme",
   "models.empty": "No model portfolios match these filters.",
-
-  "anchor.poolConflicts": "{count} model(s) hidden due to Investment Pool conflicts — fix Pool or Models.",
-  "anchor.empty": "No selectable anchors. Enable Model Portfolios whose holdings are in the enabled Investment Pool.",
+  "anchor.poolConflicts":
+    "{count} model(s) hidden due to Investment Pool conflicts — fix Pool or Models.",
+  "anchor.empty":
+    "No selectable anchors. Enable Model Portfolios whose holdings are in the enabled Investment Pool.",
 };
 
 const zh: Dict = {
   // Header / shell
   "header.phase.scenario": "—",
-  "header.phase.anchor": "基準配置",
+  "header.phase.anchor": "基準組合",
   "header.phase.overlay": "客戶需求",
   "header.phase.constraints": "設定",
   "header.phase.running": "執行中",
   "header.phase.results": "結果",
   "header.phase.export": "匯出",
+  "live.trial": "方案 {n}/{total}",
+  "results.needsFloorTitle": "客戶底線檢核",
+  "results.needsFloorPass": "訓練期最大回撤 {actual}（容忍線 {floor}）— 守住了",
+  "results.needsFloorFail":
+    "訓練期最大回撤 {actual}（容忍線 {floor}）— 超過 {breach}",
   "header.apiOffline": "服務離線",
   "header.apiOfflineHint": "目前無法連線到分析服務，請稍後再試。",
-  "header.apiLinked": "策略引擎已連線",
+  "header.apiLinked": "方案引擎已連線",
   "lang.label": "語言",
   "lang.aria": "語言",
   // Backtest history panel
-  "history.title": "策略紀錄",
+  "history.title": "方案紀錄",
   "history.refresh": "重新整理",
   "history.syncing": "同步中…",
   "history.apiOffline": "離線 — 顯示本機結果",
   "history.record": "{count} 筆結果",
   "history.records": "{count} 筆結果",
-  "history.empty": "完成的回測會顯示在這裡，跑一次就能開始。",
+  "history.empty": "完成的試算會顯示在這裡，跑一次就能開始。",
   "history.load": "開啟",
   "history.status.completed": "已完成",
   "history.status.failed": "失敗",
   "history.status.running": "執行中",
   "history.status.queued": "排隊中",
-
   // Constraints / config form
-  "config.title": "策略設定",
+  "config.title": "方案設定",
   "config.subtitle":
-    "在下方設定你的策略。每次組合檢視時，Jasper 會挑出表現最強的標的，再分配權重以兼顧風險與報酬。",
+    "在下方設定你的方案。每次組合檢視時，Jasper 會挑出表現最強的標的，再分配權重以兼顧風險與報酬。",
   "config.maxWeight": "單一檔最大比重：{pct}%",
   "config.minWeight": "單一檔最小比重：{pct}%",
   "config.minWeightHint":
@@ -1346,13 +1462,15 @@ const zh: Dict = {
   "config.maxTurnover": "每次檢視最大換手率：{pct}%",
   "config.maxTurnoverHint":
     "限制 Jasper 每次組合檢視能調動的部位比例，有助於控制交易成本。",
-  "config.customizationDrift": "客製化空間：{pct}%",
+  "config.customizationDrift": "客製化空間（上限）：{pct}%",
   "config.customizationDriftHint":
-    "0% 會讓投組與目標模型完全一致；100% 則允許 Jasper 在約定標的池中重新建構部位。",
+    "允許偏離目標模型的上限（0% = 完全一致，100% = 可在標的池中全面重構）。預設由 AI 在此範圍內搜尋；若要鎖定滑桿值，請在進階參數將「客製化偏離」設為固定。",
   "config.maxHoldings": "最多持倉檔數：{n}",
-  "config.maxHoldingsHint": "投資組合在任一時間最多持有的部位數。",
+  "config.maxHoldingsHint":
+    "必須大於 100%÷單檔上限（上限 {pct}% 時至少 {min} 檔）。否則每檔都會卡在上限、權重變成均分，優化失去意義。",
   "config.topN": "候選標的清單：{n}",
-  "config.topNHint": "Jasper 會為所有候選標的排名，保留前 {n} 名來建構你的投資組合。",
+  "config.topNHint":
+    "Jasper 會為所有候選標的排名，保留前 {n} 名來建構你的投資組合。",
   "config.objective": "投資目標",
   "config.customObjective": "描述你的目標",
   "config.start": "開始日期",
@@ -1370,30 +1488,31 @@ const zh: Dict = {
   "config.rebalance.monthly": "每月",
   "config.rebalance.quarterly": "每季",
   "config.rebalance.yearly": "每年",
-  "config.runStandard": "執行策略測試",
+  "config.runStandard": "執行方案測試",
   "config.runPro": "執行 Pro 搜尋",
   "config.notifyEmail": "完成後寄信通知我（選填）",
   "config.notifyEmailPlaceholder": "you@example.com",
   "config.notifyEmailHint":
-    "策略測試在伺服器端執行，你可以關閉此分頁。若填入電子郵件，測試完成或失敗時我們會通知你。",
+    "方案測試在伺服器端執行，你可以關閉此分頁。若填入電子郵件，測試完成或失敗時我們會通知你。",
   "config.notifyEmailSmtpDisabled":
     "此伺服器尚未設定郵件（SMTP），即使填了信箱也不會收到通知。",
 
   // Pro rounds tabs
   "pro.tabsHint":
-    "每個分頁代表一輪：當前領先者與它的挑戰者。★ 標示該輪優勝者。總覽分頁列出目前嘗試過的所有策略。",
+    "每個分頁代表一輪：當前領先方案與它的對照方案。★ 標示該輪優勝者。總覽分頁列出目前嘗試過的所有方案。",
   "pro.allRounds": "所有輪次",
-  "pro.role.incoming": "當前領先者",
-  "pro.role.challenger": "挑戰者",
+  "pro.roundChip": "第 {n} 輪",
+  "pro.role.incoming": "當前領先方案",
+  "pro.role.challenger": "對照方案",
   "pro.role.winner": "本輪優勝者",
-
   // Results dashboard
   "results.runObjectiveLabel": "本次投資目標",
   "results.title": "結果",
   "results.model": "模型",
   "results.fullNarrative": "完整摘要",
   "results.fullPeriod": "完整期間",
-  "results.rmChampionLine": "領先模型 {model} · 夏普 {sharpe} · 年化報酬 {cagr}",
+  "results.rmChampionLine":
+    "建議方案 {model} · 夏普 {sharpe} · 年化報酬 {cagr}",
   "results.refineHint": "點擊套用調整 · 雙擊套用並重新執行。",
   "results.editConfig": "編輯設定",
   "results.belowBenchmarkTitle": "客觀結果：本次測試未能勝過基準",
@@ -1405,13 +1524,13 @@ const zh: Dict = {
     "在此區間內，沒有任何試算在所選目標上勝過 {benchmark}。可追加 Pro 輪次，並帶入本次的領先模型、學習紀錄與 AI 脈絡繼續搜尋。",
   "results.continueRefinementCta": "繼續搜尋",
   "results.continueRefinementRunning": "延續搜尋中…",
-  "results.continueRefinementHint": "帶入 job {job}… 的領先模型與先前輪次紀錄",
+  "results.continueRefinementHint":
+    "帶入執行紀錄 {job}… 的領先模型與先前輪次紀錄",
   "results.extraRoundsLabel": "追加輪次",
-  "results.extraTrialsPerRoundLabel": "每輪試算數（挑戰者）",
-  "results.extraTrialsLabel": "追加試算",
+  "results.extraTrialsPerRoundLabel": "每輪對照方案數",
+  "results.extraTrialsLabel": "延伸評估方案數",
   "results.continueFromRound": "將從第 {round} 輪繼續",
   "results.exportCsv": "匯出 CSV",
-
   // Common labels
   "common.on": "開",
   "common.off": "關",
@@ -1423,8 +1542,8 @@ const zh: Dict = {
   "common.period": "期間",
   "common.return": "報酬",
   "common.objective": "目標",
-  "common.inSample": "樣本內",
-  "common.outOfSample": "樣本外",
+  "common.inSample": "訓練期",
+  "common.outOfSample": "驗證期",
   "common.full": "完整",
   "common.gap": "落差",
   "common.regime": "市場狀態",
@@ -1443,31 +1562,30 @@ const zh: Dict = {
   "common.activeRegime": "現行市場狀態",
   "common.rawRegime": "原始市場狀態",
   "common.switch": "切換",
-
   // Pro panel
   "proPanel.title": "Pro · AI 最佳化",
   "proPanel.desc.beforeDynamic":
-    "Jasper 會讓挑戰者一輪輪挑戰當前領先者。AI 會根據先前有效的設定提出新方案，持續優化直到結果不再進步。",
+    "Jasper 會讓對照方案一輪輪挑戰當前領先方案。AI 會根據先前有效的設定提出新方案，持續優化直到結果不再進步。",
   "proPanel.dynamic": "動態",
   "proPanel.desc.afterDynamic":
-    "目標會為每種市場氛圍（避險、中性、偏多）各自調校一套策略，並隨情勢變化套用最合適的那一套。",
+    "目標會為每種市場氛圍（避險、中性、偏多）各自調校一套方案，並隨情勢變化套用最合適的那一套。",
   "proPanel.estimationPrefix": "Pro 模式會替你管理搜尋強度，最多約執行",
   "proPanel.estimationSuffix": "次，並可能在結果不再進步時提前結束。",
   "proPanel.highTrialsWarning":
-    "設定越高，執行的回測越多、耗時也越長。每一輪都會用一則 AI 建議來引導搜尋。",
-  "proPanel.round1Batch": "首輪策略數",
-  "proPanel.round1BatchHint": "首輪要嘗試的策略數量（3–100）。",
-  "proPanel.challengersPerRound": "每輪挑戰者數",
-  "proPanel.challengersPerRoundHint": "每一輪挑戰領先者的新策略數量（2–100）。",
+    "設定越高，執行的試算越多、耗時也越長。每一輪都會用一則 AI 建議來引導搜尋。",
+  "proPanel.round1Batch": "首輪方案數",
+  "proPanel.round1BatchHint": "首輪要嘗試的方案數量（3–100）。",
+  "proPanel.challengersPerRound": "每輪對照方案數",
+  "proPanel.challengersPerRoundHint":
+    "每一輪挑戰領先方案的新方案數量（2–100）。",
   "proPanel.maxRounds": "最大輪數",
   "proPanel.maxRoundsHint": "最多執行的輪數，含首輪（2–30）。",
   "proPanel.patienceRounds": "耐心輪數",
   "proPanel.holdoutTip":
-    "提示：開啟保留資料，策略會先以最佳化期間排名，再用未看過的資料驗證。",
+    "提示：開啟保留資料，方案會先以最佳化期間排名，再用未看過的資料驗證。",
 
   "quickRefinements.title": "快速調整",
   "quickRefinements.doubleClickHint": "雙擊以重新執行",
-
   "progress.running": "執行中…",
   "progress.roundUnderperformed": "本輪落後基準",
   "progress.roundUnderperformedHint":
@@ -1476,50 +1594,55 @@ const zh: Dict = {
   "progress.benchmark": "基準",
   "progress.round": "輪次",
   "progress.bestInSample": "目前最佳",
-
   // Live progress messages (localized on the client from backend templates)
-  "progress.msg.queued": "策略測試作業已排入佇列…",
-  "progress.msg.queuedStatic": "靜態重播作業已排入佇列…",
-  "progress.msg.queuedPro": "Pro 搜尋作業已排入佇列…",
+  "progress.msg.queued": "方案測試排隊中…",
+  "progress.msg.queuedStatic": "基準重播排隊中…",
+  "progress.msg.queuedPro": "Pro 搜尋排隊中…",
   "progress.msg.fetching": "正在擷取市場資料，開始最佳化…",
-  "progress.msg.fetchingStatic": "靜態重播：正在擷取市場資料…",
-  "progress.msg.staticSimulating": "靜態重播：模擬固定權重組合…",
+  "progress.msg.fetchingStatic": "基準重播：正在擷取市場資料…",
+  "progress.msg.staticSimulating": "基準重播：模擬固定權重組合…",
   "progress.msg.fetchingPro": "Pro：正在擷取資料，開始迭代搜尋…",
-  "progress.msg.complete": "策略測試完成",
+  "progress.msg.complete": "方案測試完成",
   "progress.msg.completePro": "Pro 搜尋完成",
   "progress.msg.loaded":
     "已載入 {tickers} 檔標的、{rows} 個交易日。每次再平衡會挑出最強的持股，再分配部位權重。",
-  "progress.msg.loadedRegimeSuffix": " 隨市場狀態調整：每次再平衡設定配置器預設。",
-  "progress.msg.proHoldout": "Pro：策略以最佳化期間排名；保留資料用於最終驗證…",
-  "progress.msg.proLoop": "Pro：執行挑戰者輪次（AI 從歷史學習）…",
-  "progress.msg.startingAi": "正在啟動 AI — 為 {trials} 種策略規劃初始參數…",
-  "progress.msg.aiDone": "AI 完成：{trials} 種策略的 {used} 組初始參數 — 開始回測…",
+  "progress.msg.loadedRegimeSuffix":
+    " 隨市場狀態調整：每次再平衡設定配置器預設。",
+  "progress.msg.proHoldout": "Pro：方案以最佳化期間排名；保留資料用於最終驗證…",
+  "progress.msg.proLoop": "Pro：執行對照方案輪次（AI 從歷史學習）…",
+  "progress.msg.startingAi": "正在啟動 AI — 為 {trials} 種方案規劃初始參數…",
+  "progress.msg.aiDone":
+    "AI 完成：{trials} 種方案的 {used} 組初始參數 — 開始試算…",
   "progress.msg.aiDoneCapped":
-    "AI 完成：{trials} 種策略的 {used} 組初始參數（AI 上限 {cap}；其餘策略僅用搜尋）— 開始回測…",
-  "progress.msg.aiOff": "AI 關閉（{err}）— 改用自動搜尋…",
-  "progress.msg.optuna": "策略 {trial}/{total}（{scope}）",
-  "progress.msg.optunaBest": "策略 {trial}/{total}（{scope}），目前最佳 {label} {value}",
-  "progress.msg.searchDone": "搜尋完成（{feasible} 個可行）— 正在為報告打包前 {top} 名…",
-  "progress.msg.packaging": "正在打包報告：{inner}",
+    "AI 完成：{trials} 種方案的 {used} 組初始參數（AI 上限 {cap}；其餘方案僅用搜尋）— 開始試算…",
+  "progress.msg.aiOff": "智慧優化暫不可用，已切換自動搜尋…",
+  "progress.msg.optuna": "方案 {trial}/{total}（{scope}）",
+  "progress.msg.optunaBest":
+    "方案 {trial}/{total}（{scope}），目前最佳 {label} {value}",
+  "progress.msg.searchDone":
+    "搜尋完成（{feasible} 個可行）— 正在為報告整理前 {top} 名…",
+  "progress.msg.packaging": "整理中報告：{inner}",
   "progress.msg.roundReport": "第 {round} 輪報告：{inner}",
-  "progress.msg.proRound": "第 {round}/{max} 輪：{carry}，準備 {n} 位挑戰者…",
-  "progress.msg.roundOptuna": "第 {round} 輪 · 策略 {trial}/{total}（{scope}）",
+  "progress.msg.proRound": "第 {round}/{max} 輪：{carry}，準備 {n} 位對照方案…",
+  "progress.msg.roundOptuna": "第 {round} 輪 · 方案 {trial}/{total}（{scope}）",
   "progress.msg.roundOptunaBest":
-    "第 {round} 輪 · 策略 {trial}/{total}（{scope}），本輪最佳 {label} {value}",
+    "第 {round} 輪 · 方案 {trial}/{total}（{scope}），本輪最佳 {label} {value}",
   "progress.msg.roundAiLearning":
-    "第 {round} 輪：AI 從 {n} 位較弱的挑戰者學習，目標分數 {score}…",
+    "第 {round} 輪：AI 從 {n} 位較弱的對照方案學習，目標分數 {score}…",
   "progress.msg.roundDone":
-    "第 {round} 輪完成：本輪最佳 {best}，領先者 {champ}（無進步輪數 {streak}/{patience}）",
+    "第 {round} 輪完成：本輪最佳 {best}，領先方案 {champ}（無進步輪數 {streak}/{patience}）",
   "progress.msg.roundDoneAlphaSuffix":
-    " · 樣本內 Alpha 相對 {benchmark} {alpha}（低於基準）",
-  "progress.msg.pkgFromCache": "正在打包 {code} {label}，取自搜尋快取（{rank}/{total}）…",
-  "progress.msg.pkgMetricsOnly": "正在打包 {code}（僅指標）（{rank}/{total}）…",
-  "progress.msg.pkgNoCache": "正在打包 {code}（{rank}/{total}）：無快取 — 為圖表執行回測…",
-  "progress.msg.pkgIsOos": "正在打包 {code}（{rank}/{total}）：以完整期間回測一次以取得權重…",
+    " · 訓練期 Alpha 相對 {benchmark} {alpha}（低於基準）",
+  "progress.msg.pkgFromCache": "整理中 {code} {label}（{rank}/{total}）…",
+  "progress.msg.pkgMetricsOnly": "整理中 {code}（僅指標）（{rank}/{total}）…",
+  "progress.msg.pkgNoCache":
+    "整理中 {code}（{rank}/{total}）：重新計算圖表資料…",
+  "progress.msg.pkgIsOos":
+    "整理中 {code}（{rank}/{total}）：以完整期間試算一次以取得權重…",
   "progress.msg.pkgIncomplete":
-    "正在打包 {code}（{rank}/{total}）：快取不完整（{missing}）— 執行回測…",
-  "progress.msg.pkgTop": "資料池中前 {top}／{feasible} 個策略…",
-  "progress.msg.scope.inSample": "樣本內",
+    "整理中 {code}（{rank}/{total}）：補齊圖表序列（{missing}）…",
+  "progress.msg.pkgTop": "資料池中前 {top}／{feasible} 個方案…",
+  "progress.msg.scope.inSample": "訓練期",
   "progress.msg.scope.fullWindow": "完整期間",
   "progress.label.sharpe": "夏普",
   "progress.label.cagr": "年化報酬",
@@ -1529,17 +1652,15 @@ const zh: Dict = {
   "progress.label.vol": "波動度",
   "progress.label.comprehensive": "綜合分數",
   "progress.label.metric": "指標",
-
   "customScenario.title": "你的市場觀點",
   "customScenario.description":
-    "描述你對總體經濟、產業或風險的看法，Jasper 會把它轉化為可回測的策略。",
+    "描述你對總體經濟、產業或風險的看法，Jasper 會把它轉化為可試算的方案。",
   "customScenario.placeholder":
     "例如：美國通膨頑強、聯準會維持高利率更久、成長股評價承壓 — 偏向短天期債券與防禦性資產…",
   "customScenario.analyzing": "建構中…",
   "customScenario.analyzeButton": "建構情境",
   "customScenario.analysisFailed": "無法建構該情境",
   "customScenario.analysisFailedRetry": "無法建構該情境，請再試一次。",
-
   "assetFilter.assetClasses": "資產類別",
   "assetFilter.selectedBase": "已選 {base} / {total} 檔 ETF",
   "assetFilter.selectedCombined": "已選 {combined} / {total} 檔 ETF",
@@ -1572,11 +1693,10 @@ const zh: Dict = {
   "assetFilter.noneForRule": "（此規則沒有符合的標的）",
   "assetFilter.newVsBase": "新增加入",
   "assetFilter.guaranteed": "一律納入",
-  "assetFilter.guaranteedHint": "這些標的一定會納入你的回測。",
-
+  "assetFilter.guaranteedHint": "這些標的一定會納入你的試算。",
   "linkedChart.tooltipRegime": "市場狀態",
   "linkedChart.tooltipActiveObjective": "現行目標",
-  "linkedChart.noHistory": "此策略沒有績效或持股歷史。",
+  "linkedChart.noHistory": "此方案沒有績效或持股歷史。",
   "linkedChart.linkedCursorHint":
     "將游標移到任一圖表上 — 績效、市場狀態與持股都會對齊到相同日期。",
   "linkedChart.cumulativeTitle": "累積報酬 % — 投資組合 vs {benchmark}",
@@ -1589,7 +1709,6 @@ const zh: Dict = {
   "linkedChart.hoverHint": "將游標移到圖表上查看持股",
   "linkedChart.other": "其他",
   "linkedChart.portfolio": "投資組合",
-
   // Market regime + allocator objective band labels (shared across charts)
   "regime.risk_off": "風險趨避",
   "regime.neutral": "中性",
@@ -1597,21 +1716,21 @@ const zh: Dict = {
   "objectiveBand.max_sharpe": "最大夏普",
   "objectiveBand.max_return": "最大 CAGR",
   "objectiveBand.min_max_drawdown": "最小最大回撤",
-
   "objectiveLab.rec.apply": "建議：採用",
   "objectiveLab.rec.notYet": "建議：暫不採用",
   "objectiveLab.rec.needMoreData": "建議：需要更多資料",
   "objectiveLab.reportCard": "實驗室結果",
-  "objectiveLab.oosSharpeDelta": "樣本外夏普值提升（切換 vs. 固定）：",
+  "objectiveLab.oosSharpeDelta": "驗證期夏普值提升（切換 vs. 固定）：",
   "objectiveLab.regimeDetector": "市場狀態偵測器",
   "objectiveLab.detectorV2": "權衡偏多與避險訊號來判讀市場",
   "objectiveLab.detectorLegacy": "傳統的報酬與波動度門檻",
   "objectiveLab.fastRiskOffExit": "反彈時快速退出避險狀態（21 天）",
   "objectiveLab.fixedObjective": "固定目標",
-  "objectiveLab.switchPolicy": "切換策略",
+  "objectiveLab.switchPolicy": "切換方案",
   "objectiveLab.benchmarkVsRegime": "基準 vs. 市場狀態",
   "objectiveLab.regimeScores": "市場狀態分數 vs. 現行狀態",
-  "objectiveLab.hoverSyncHint": "將游標移到任一圖表上 — 兩者都會對齊到相同日期。",
+  "objectiveLab.hoverSyncHint":
+    "將游標移到任一圖表上 — 兩者都會對齊到相同日期。",
   "objectiveLab.regimeTimeline": "市場狀態時間軸",
   "objectiveLab.off": "關",
   "objectiveLab.on": "開",
@@ -1632,20 +1751,20 @@ const zh: Dict = {
   "objectiveLab.stepLevelAlignment":
     "逐步一致度 {score}/100 —— 以相同的報酬規則套用於 {days} 天前瞻窗口；上方主要分數採用完整區段。",
   "objectiveLab.regimeSwitches": "市場狀態切換次數：{count}",
-  "objectiveLab.isSharpe": "樣本內夏普",
-  "objectiveLab.oosSharpe": "樣本外夏普",
-  "objectiveLab.isReturn": "樣本內報酬",
-  "objectiveLab.isMaxDd": "樣本內最大回撤",
+  "objectiveLab.isSharpe": "訓練期夏普",
+  "objectiveLab.oosSharpe": "驗證期夏普",
+  "objectiveLab.isReturn": "訓練期報酬",
+  "objectiveLab.isMaxDd": "訓練期最大回撤",
   "objectiveLab.hit": "命中",
   "objectiveLab.miss": "誤判",
-
   "benchmarkChart.noSeries": "沒有可繪製的基準資料。",
   "benchmarkChart.noValidDates": "沒有可繪製的有效日期。",
   "benchmarkChart.cumPct": "{ticker} 累積 %",
   "benchmarkChart.footer":
     "上方：{ticker} 累積報酬（%）。陰影區帶顯示市場狀態；琥珀色條標示狀態切換。移動游標可與下方的市場狀態分數同步。",
 
-  "regimeScore.noScores": "尚無市場狀態分數。請改用較新的偵測器，或拉長最佳化期間。",
+  "regimeScore.noScores":
+    "尚無市場狀態分數。請改用較新的偵測器，或拉長最佳化期間。",
   "regimeScore.noValidDates": "沒有可繪製的有效日期。",
   "regimeScore.stepWinner": "領先分數",
   "regimeScore.rawRegime": "原始市場狀態",
@@ -1663,22 +1782,22 @@ const zh: Dict = {
     "上方：{ticker} 累積報酬（%）；陰影背景顯示各時期啟用的目標。下方：目標切換（琥珀色 = 切換）。移動游標可與上方的績效圖表同步。",
 
   "institutional.loadingAnalytics": "分析資料",
-  "institutional.noAnalytics": "沒有可用的詳細分析 — 請重新執行回測。",
-  "institutional.monthlyInSample": "月報酬（樣本內{range}）",
+  "institutional.noAnalytics": "沒有可用的詳細分析 — 請重新執行試算。",
+  "institutional.monthlyInSample": "月報酬（訓練期{range}）",
   "institutional.monthlyFull": "月報酬",
-  "institutional.annualInSample": "年報酬（樣本內{range}）",
+  "institutional.annualInSample": "年報酬（訓練期{range}）",
   "institutional.annualFull": "年報酬",
-  "institutional.monthlyOosFrom": "月報酬（樣本外，自 {date} 起）",
-  "institutional.monthlyOos": "月報酬（樣本外）",
-  "institutional.annualOosFrom": "年報酬（樣本外，自 {date} 起）",
-  "institutional.annualOos": "年報酬（樣本外）",
-  "institutional.horizonTitle": "各期間績效（樣本內 / 樣本外 / 完整）",
+  "institutional.monthlyOosFrom": "月報酬（驗證期，自 {date} 起）",
+  "institutional.monthlyOos": "月報酬（驗證期）",
+  "institutional.annualOosFrom": "年報酬（驗證期，自 {date} 起）",
+  "institutional.annualOos": "年報酬（驗證期）",
+  "institutional.horizonTitle": "各期間績效（訓練期 / 驗證期 / 完整）",
   "institutional.horizon": "期間",
   "institutional.maxDd": "最大回撤",
   "institutional.rebalanceExecution": "再平衡執行",
   "institutional.freq": "頻率",
   "institutional.count": "次數",
-  "institutional.sampleDates": "樣本日期",
+  "institutional.sampleDates": "期間日期",
   "institutional.exposure": "曝險",
   "institutional.assetClass": "資產類別",
   "institutional.bucketsRegion": "依地區",
@@ -1691,17 +1810,19 @@ const zh: Dict = {
   "institutional.durationProxy": "平均存續期間（年）",
   "institutional.riskContributionTop": "主要風險貢獻者",
   "institutional.coreHoldingsTitle": "核心持股",
-  "institutional.coreHoldingsNote": "這檔策略最倚重的標的——它們平常占投資組合多大比重，以及在每次再平衡中被持有的頻率高不高。",
+  "institutional.coreHoldingsNote":
+    "這檔方案最倚重的標的——它們平常占投資組合多大比重，以及在每次再平衡中被持有的頻率高不高。",
   "institutional.avgWeight": "平均權重",
-  "institutional.avgWeightHint": "在所有再平衡日期中，該標的平均占投資組合的比重。數字越高，代表它是越核心、越重要的持股。",
+  "institutional.avgWeightHint":
+    "在所有再平衡日期中，該標的平均占投資組合的比重。數字越高，代表它是越核心、越重要的持股。",
   "institutional.holdFrequency": "持有比例",
-  "institutional.holdFrequencyHint": "該標的被持有的頻率（權重高於 0.5% 的再平衡日期占比）。100% 代表整段期間都持有。",
+  "institutional.holdFrequencyHint":
+    "該標的被持有的頻率（權重高於 0.5% 的再平衡日期占比）。100% 代表整段期間都持有。",
   "institutional.weightShort": "權重",
   "institutional.drawdownCurve": "回撤曲線",
   "institutional.drawdownEpisodes": "回撤事件",
   "institutional.insufficientData": "資料不足",
   "institutional.noData": "無資料",
-
   // Results extended
   "results.failedLoadTrajectory": "無法載入此圖表",
   "results.dataRange": "資料：{start} → {end}，{rows} 個交易日",
@@ -1719,14 +1840,17 @@ const zh: Dict = {
   "results.round": "輪次",
   "results.newRoundBest": "本輪新最佳",
   "results.proRefinement": "Pro 優化",
-  "results.meta.rounds": "共 {rounds} 輪優化，測試了 {trials} 種候選策略",
+  "results.meta.rounds": "共 {rounds} 輪優化，測試了 {trials} 種候選方案",
   "results.meta.convergedEarly": "已提前收斂（不再有明顯進步）",
   "results.meta.fullSearch": "已完成完整搜尋",
-  "results.meta.search": "參數搜尋，測試了 {trials} 種候選策略",
-  "results.meta.reported": "找到 {feasible} 個有效策略，已納入報告 {reported} 個",
+  "results.meta.search": "參數搜尋，測試了 {trials} 種候選方案",
+  "results.meta.reported":
+    "找到 {feasible} 個有效方案，已納入報告 {reported} 個",
   "results.meta.catalog": "（累計嘗試 {catalog} 個）",
-  "results.meta.rebalance": "{freq}再平衡（預定的 {count} 次中實際套用 {applied} 次）",
-  "results.meta.rebalanceSkipped": "（{skipped} 次略過 — 首次再平衡前需要更長的價格歷史）",
+  "results.meta.rebalance":
+    "{freq}再平衡（預定的 {count} 次中實際套用 {applied} 次）",
+  "results.meta.rebalanceSkipped":
+    "（{skipped} 次略過 — 首次再平衡前需要更長的價格歷史）",
   "results.meta.rebalanceChartDownsampled":
     "持股圖表顯示 {total} 次再平衡快照中的 {shown} 次",
   "results.freq.weekly": "每週",
@@ -1735,8 +1859,8 @@ const zh: Dict = {
   "results.freq.yearly": "每年",
   "results.freq.daily": "每日",
   "results.sort": "排序",
-  "results.rankedOnInSample": "依樣本內排名",
-  "results.gapInOut": "落差（樣本內 − 樣本外）",
+  "results.rankedOnInSample": "依訓練期排名",
+  "results.gapInOut": "落差（訓練期 − 驗證期）",
   "results.winRate": "勝率",
   "results.avgTurnover": "平均換手率",
   "results.totalTurnover": "總換手率",
@@ -1745,26 +1869,25 @@ const zh: Dict = {
   "results.cvar95": "CVaR 95%（日）",
   "results.te": "追蹤誤差",
   "results.ir": "資訊比率",
-  "results.horizonCompareTitle": "樣本內 / 樣本外 / 完整",
-  "results.horizonMetricsHint":
-    "各期間的關鍵指標。策略僅依樣本內期間挑選。",
+  "results.horizonCompareTitle": "訓練期 / 驗證期 / 完整",
+  "results.horizonMetricsHint": "各期間的關鍵指標。方案僅依訓練期挑選。",
   "results.metric": "指標",
-  "results.gapObjectiveSharpe": "樣本內 − 樣本外落差：投資目標",
-  "results.positiveInSampleStronger": "正值代表樣本內表現較強",
-  "results.championLeaderboard": "排行榜 · 依樣本內期間為策略排名",
-  "results.leaderboardTitleOutOfSample":
-    "排行榜 · 依樣本外期間為策略排名",
-  "results.leaderboardTitleFull": "排行榜 · 依全樣本期間為策略排名",
-  "results.leaderboardTitleGap":
-    "排行榜 · 依樣本內減樣本外落差為策略排名",
+  "results.gapObjectiveSharpe": "訓練期 − 驗證期落差：投資目標",
+  "results.positiveInSampleStronger": "正值代表訓練期表現較強",
+  "results.championLeaderboard": "排行榜 · 依訓練期為方案排名",
+  "results.leaderboardTitleOutOfSample": "排行榜 · 依驗證期期間為方案排名",
+  "results.leaderboardTitleFull": "排行榜 · 依全期間期間為方案排名",
+  "results.leaderboardTitleGap": "排行榜 · 依訓練期減驗證期落差為方案排名",
   "results.sortTableBy": "表格排序依據",
-  "results.inSampleSelection": "樣本內（挑選）",
-  "results.gapSelection": "落差（樣本內 − 樣本外）",
+  "results.inSampleSelection": "訓練期（挑選）",
+  "results.gapSelection": "落差（訓練期 − 驗證期）",
   "results.engine": "引擎",
-  "results.warmStartExact": "以先前冠軍 {code} 為起點繼續優化（job {job}）",
-  "results.warmStartFuzzy": "以先前冠軍 {code} 為起點繼續優化（job {job}；回測終點不同）",
-  "results.warmStartImproved": "新冠軍超越快取基準",
-  "results.warmStartKept": "快取冠軍仍具競爭力",
+  "results.warmStartExact":
+    "以先前建議方案 {code} 為起點繼續優化（執行紀錄 {job}）",
+  "results.warmStartFuzzy":
+    "以先前建議方案 {code} 為起點繼續優化（執行紀錄 {job}；試算終點不同）",
+  "results.warmStartImproved": "新建議方案超越既有基準",
+  "results.warmStartKept": "既有建議方案仍具競爭力",
   "results.holdings": "持股",
   "results.cap": "上限",
   "results.weightChartMayListMore": "持股圖表可能會顯示跨再平衡的更多標的",
@@ -1772,7 +1895,7 @@ const zh: Dict = {
   "results.runCap": "執行上限",
   "results.effective": "有效",
   "results.observed": "實際觀察",
-  "results.selectionHint": "依樣本內挑選；樣本外作為實戰驗證",
+  "results.selectionHint": "依訓練期挑選；驗證期作為實戰驗證",
   "results.weightCapBreach": "超過權重上限：實際觀察",
   "results.vsEffectiveCap": "對比有效上限",
   "results.firstOn": "首次出現於",
@@ -1783,7 +1906,25 @@ const zh: Dict = {
   "results.generatingComparison": "正在產生比較…",
   "results.noComparisonYet": "目前尚無可用比較",
   "results.benchmark": "基準",
-  "results.champion": "冠軍",
+  "results.champion": "建議方案",
+  "results.needsFloorLegend": "⚠ 超過客戶回撤容忍線",
+  "results.proposalSetTitle": "方案比較",
+  "results.proposalLabel.recommended": "建議方案",
+  "results.proposalLabel.defensive": "防禦型",
+  "results.proposalLabel.growth": "成長型",
+  "results.needsTable.drawdown": "回撤底線",
+  "results.needsTable.singleName": "單一部位上限",
+  "results.needsTable.theme": "主題曝險上限",
+  "results.needsTable.cash": "現金部位",
+  "results.needsTable.income": "收益需求",
+  "results.needsTable.mustInclude": "必納標的",
+  "results.needsTable.drift": "客製化偏離",
+  "results.needsMustIncludeFail": "最終組合缺少 overlay 標的：{tickers}",
+  "results.needsDriftFail": "相對錨定組合偏離 {actual}（上限 {cap}）",
+  "results.needsTable.pass": "通過",
+  "results.needsTable.fail": "未達",
+  "results.addToUniverseCta": "納入標的池並重新試算",
+  "results.cashSleeveLabel": "現金",
   "results.cagrPct": "年化報酬 %",
   "results.maxDdPct": "最大回撤 %",
   "results.dynamicObjectives": "動態目標",
@@ -1792,44 +1933,44 @@ const zh: Dict = {
   "results.loadingTrajectory": "載入 {model} 中…",
   "results.walkForwardHint":
     "市場狀態與現行目標隨時間的變化，與績效及持股圖表對齊。",
-  "results.proChampionScorePrefix": "Pro 優勝者依樣本內的",
+  "results.proChampionScorePrefix": "Pro 優勝者依訓練期的",
   "results.comprehensiveScore": "綜合分數",
   "results.proChampionScoreFormula":
     "0.45×夏普 + 0.25×索提諾 + 0.20×(5×年化報酬) − 0.35×|最大回撤| − 0.10×換手率。",
   "results.dynamicScoreTitle": "動態綜合分數 —— 這就是排名依據",
   "results.dynamicScoreExplain":
-    "在動態模式下，策略不是只看夏普或報酬來排名，而是用一個綜合分數排名，該分數同時衡量風險調整後報酬、成長、回撤與交易成本。因此冠軍（★）可能整體勝出，卻不一定在下方任一欄位都最高。",
-  "results.championWhyTitle": "為什麼 ★ {code} 是冠軍",
+    "在動態模式下，方案不是只看夏普或報酬來排名，而是用一個綜合分數排名，該分數同時衡量風險調整後報酬、成長、回撤與交易成本。因此建議方案（★）可能整體勝出，卻不一定在下方任一欄位都最高。",
+  "results.championWhyTitle": "為什麼 ★ {code} 是建議方案",
   "results.championWhyHorizonNote":
-    "★ 依挑選期間選定（啟用 OOS 保留段時為樣本內；否則為完整樣本）。報告格的完整期間指標可能不同——更高的完整期間夏普不會讓樣本內投資目標勝出者落敗。樣本內／樣本外差距僅供診斷。",
+    "★ 依挑選期間選定（啟用 驗證期保留段時為訓練期；否則為完整期間）。報告格的完整期間指標可能不同——更高的完整期間夏普不會讓訓練期投資目標勝出者落敗。訓練期／驗證期差距僅供診斷。",
   "results.championWhyFallbackLead":
-    "在投資目標「{objective}」下，{code} 於「{horizon}」挑選期間勝出（樣本內夏普 {sharpe}、年化 {cagr}、最大回撤 {mdd}）。完整期間：夏普 {fullSharpe}、年化 {fullCagr}。",
+    "在投資目標「{objective}」下，{code} 於「{horizon}」挑選期間勝出（訓練期夏普 {sharpe}、年化 {cagr}、最大回撤 {mdd}）。完整期間：夏普 {fullSharpe}、年化 {fullCagr}。",
   "results.championWhyFallbackLeadFull":
-    "在投資目標「{objective}」下，{code} 於完整樣本期間勝出（夏普 {sharpe}、年化 {cagr}、最大回撤 {mdd}）。",
+    "在投資目標「{objective}」下，{code} 於完整期間期間勝出（夏普 {sharpe}、年化 {cagr}、最大回撤 {mdd}）。",
   "results.championWhyFallbackAlt":
-    "次優 {alt} 在同一挑選期間分數較低（樣本內夏普 {altSharpe}、年化 {altCagr}），即使其完整期間夏普（{altFullSharpe}）看起來更高。",
+    "次優 {alt} 在同一挑選期間分數較低（訓練期夏普 {altSharpe}、年化 {altCagr}），即使其完整期間夏普（{altFullSharpe}）看起來更高。",
   "results.championWhyFallbackAltFull":
     "相對於次優 {alt}（夏普 {altSharpe}、年化 {altCagr}）。",
-  "results.championHorizonInSample": "樣本內",
-  "results.championHorizonFullSample": "完整樣本",
+  "results.championHorizonInSample": "訓練期",
+  "results.championHorizonFullSample": "完整期間",
   "results.anchorBenchmarkNote":
-    "錨點模型組合：{anchor}。績效基準代碼（價格序列）：{ticker} — 圖表是與該代碼報酬比較，並非複製錨點的每一檔持股。",
+    "基準組合模型組合：{anchor}。績效基準代碼（價格序列）：{ticker} — 圖表是與該代碼報酬比較，並非複製基準組合的每一檔持股。",
   "results.anchorPortfolioBaselineNote":
-    "比較基準：錨點模型組合（{anchor}）的靜態重播績效，而非僅市場代碼。",
+    "比較基準：基準組合模型組合（{anchor}）的基準重播績效，而非僅市場代碼。",
   "results.championFullSharpe": "完整期間夏普",
   "results.championFullMaxDd": "完整期間最大回撤",
   "results.championFullCagr": "完整期間年化報酬",
   "results.leaderboardDynamicNote":
-    "數值為各期間的動態綜合分數（越高越好）。冠軍（★）依挑選期間的目標排序（啟用 OOS 時為樣本內）。OOS／過擬合指標僅供參考，不會讓目標勝出者落敗。",
-  "results.selectTrialHint": "選取上方的策略以查看其績效與持股。",
+    "數值為各期間的動態綜合分數（越高越好）。建議方案（★）依挑選期間的目標排序（啟用驗證期時為訓練期）。驗證期／過擬合指標僅供參考，不會讓目標勝出者落敗。",
+  "results.selectTrialHint": "選取上方的方案以查看其績效與持股。",
   "results.efficientFrontierHint":
-    "藍點是 Jasper 嘗試過的策略；橘點是報告中列出的精選策略。",
+    "藍點是 Jasper 嘗試過的方案；橘點是報告中列出的精選方案。",
   "results.annVol": "年化波動度（%）",
   "results.annReturn": "年化報酬（%）",
-  "results.outputModel": "精選策略",
-  "results.searchTrial": "已測試策略",
-  "results.paramSamples": "已嘗試策略數",
-  "results.outputModels": "精選策略",
+  "results.outputModel": "精選方案",
+  "results.searchTrial": "已測試方案",
+  "results.paramSamples": "已嘗試方案數",
+  "results.outputModels": "精選方案",
   "results.universeFilter": "投資範圍篩選",
   "results.universeFilterHint": "其他資產類別不納入搜尋。",
   "results.targetNamesRegime": "目標標的（{regime} 狀態）",
@@ -1839,10 +1980,10 @@ const zh: Dict = {
   "results.actualClassWeights": "實際資產類別配置（持股）",
   "results.actualClassWeightsRegime": "實際配置（{regime} 再平衡期間平均）",
   "results.classBreakdownChampion":
-    "顯示冠軍的資產類別配置 — 此策略只儲存了精簡版本。",
+    "顯示建議方案的資產類別配置 — 此方案只儲存了精簡版本。",
   "results.weightPct": "權重 %",
   "results.factorAttributionChampion":
-    "顯示冠軍的因子拆解 — 此策略未儲存完整明細。",
+    "顯示建議方案的因子拆解 — 此方案未儲存完整明細。",
   "results.noFactorAttribution": "沒有可用的因子拆解",
   "results.contribPct": "貢獻 %",
   "results.observations": "觀察筆數",
@@ -1850,16 +1991,15 @@ const zh: Dict = {
   "results.factorMetricLogic": "因子如何衡量",
   "results.noMetricLogic": "沒有可用的因子明細",
   "results.summaryOnlyModel":
-    "此策略僅有摘要 — 沒有詳細持股或圖表。請挑選有完整報告的策略以深入了解。",
+    "此方案僅有摘要 — 沒有詳細持股或圖表。請挑選有完整報告的方案以深入了解。",
   "results.analyticsFallback":
-    "滾動、曝險與報酬表格取自冠軍；標題指標則對應你選取的策略。",
+    "滾動、曝險與報酬表格取自建議方案；標題指標則對應你選取的方案。",
   "results.aiParameterRationale": "AI 為何選擇這些設定",
   "results.generation": "世代",
   "results.noAiRationale": "本次執行沒有 AI 說明。",
   "results.fullRunConfig": "完整設定（JSON）",
   "results.manualAdjustment": "手動調整",
-  "results.disclaimer":
-    "僅供研究與教育用途 — 非投資建議。資料：",
+  "results.disclaimer": "僅供研究與教育用途 — 非投資建議。資料：",
   "results.chart.performanceComparison": "績效比較",
   "results.chart.trajectoryHoldings": "績效與持股",
   "results.chart.efficientFrontier": "風險 vs. 報酬（效率前緣）",
@@ -1868,14 +2008,14 @@ const zh: Dict = {
   "results.chart.latestAllocation": "目前配置",
   "results.chart.reproducibleParameters": "重現本次執行的設定",
   "report.group.summary": "重點摘要",
-  "report.group.summaryHint": "AI 結論、冠軍模型與關鍵指標",
+  "report.group.summaryHint": "AI 結論、建議方案模型與關鍵指標",
   "report.group.performance": "績效表現",
   "report.group.performanceHint": "各模型與基準的比較",
   "report.group.journey": "投資歷程",
   "report.group.journeyHint": "淨值成長與持股隨時間的變化",
   "report.group.holdings": "持股與風險",
   "report.group.holdingsHint": "投資組合的持股與資產類別配置",
-  "report.group.strategy": "策略深入分析",
+  "report.group.strategy": "方案深入分析",
   "report.group.strategyHint": "風險/報酬取捨與因子驅動",
   "report.group.institutional": "機構級分析",
   "report.group.institutionalHint": "基準、曝險、滾動風險與回撤",
@@ -1887,9 +2027,8 @@ const zh: Dict = {
   "results.factor.lowvol": "低波動",
   "results.factor.trend": "趨勢",
   "results.factor.drawdown": "回撤",
-
   // Constraints — offline + hints
-  "config.runOfflineHint": "分析服務目前離線，無法執行回測。請稍後再試。",
+  "config.runOfflineHint": "分析服務目前離線，無法執行試算。請稍後再試。",
   "config.assetClassSyncHint":
     "你選取的資產類別與目標權重會保持同步 — 未納入的部分一律維持為零。",
   "config.enforceClassWeights": "強制落實資產類別目標配置",
@@ -1900,14 +2039,14 @@ const zh: Dict = {
   "config.quantMode": "專家模式",
   "config.quantModeHint": "顯示進階投資組合工程控制項",
   "config.objectiveHint.dynamic":
-    "「動態」會讓投資組合隨市場狀態自動切換配置風格：風險高時偏防守、行情強勁時追求成長、介於兩者之間時取得平衡。冠軍策略是以單一綜合分數挑選（風險調整後報酬＋成長＋回撤＋交易成本），而非單一指標。若想單純以某個目標（例如最大 CAGR）排名、同時仍隨市場切換配置，請選擇該目標並開啟下方的「隨市場狀態調整配置」。",
+    "「動態」會讓投資組合隨市場狀態自動切換配置風格：風險高時偏防守、行情強勁時追求成長、介於兩者之間時取得平衡。建議方案方案是以單一綜合分數挑選（風險調整後報酬＋成長＋回撤＋交易成本），而非單一指標。若想單純以某個目標（例如最大 CAGR）排名、同時仍隨市場切換配置，請選擇該目標並開啟下方的「隨市場狀態調整配置」。",
   "config.objectiveHint.default":
-    "開啟保留資料後，策略會以最佳化期間排名；保留期與完整期間的結果僅供比較參考。",
+    "開啟保留資料後，方案會以最佳化期間排名；保留期與完整期間的結果僅供比較參考。",
   "config.regimeAdaptive": "隨市場狀態調整配置",
   "config.regimeAdaptiveHint.dynamic":
     "選擇「動態」目標時一律開啟：配置器會在每次再平衡依市場狀態（防守／平衡／成長）切換預設配置風格。",
   "config.regimeAdaptiveHint.on":
-    "開啟：配置器會在每次再平衡依市場狀態（風險趨避／中性／風險偏好）切換預設風格，而上方選定的目標仍決定策略的排名方式。",
+    "開啟：配置器會在每次再平衡依市場狀態（風險趨避／中性／風險偏好）切換預設風格，而上方選定的目標仍決定方案的排名方式。",
   "config.regimeAdaptiveHint.off":
     "關閉：所有市場狀態都套用同一套配置風格。開啟後，配置會隨市場狀態調整，同時仍以上方目標排名。",
   "config.customObjectivePlaceholder":
@@ -1915,12 +2054,12 @@ const zh: Dict = {
   "config.customObjectiveHint": "Jasper 會把它轉化為可最佳化的目標。",
   "config.trialsHint.pro": "Pro 模式會依上方的輪次設定替你管理。",
   "config.trialsHint.standard":
-    "要測試多少種策略。標準模式下每個試驗都使用 AI 產生的種子（不混入隨機探索）。報告數量請在下方設定。",
+    "要測試多少種方案。標準模式下每個試驗都使用 AI 產生的初始方案（不混入隨機探索）。報告數量請在下方設定。",
   "config.benchmarkLine": "基準：{benchmark} · 無風險利率：4%",
-
   // Constraints — advanced controls
   "config.advanced.title": "專家控制（選用）",
-  "config.advanced.maxWeightNote": "單一檔上限搜尋最高不得超過 {pct}%（執行滑桿）。",
+  "config.advanced.maxWeightNote":
+    "單一檔上限搜尋最高不得超過 {pct}%（執行滑桿）。",
   "config.advanced.categorical": "選擇型",
   "config.advanced.factorIndicators": "訊號風格（每個訊號）",
   "config.advanced.search": "搜尋",
@@ -1928,7 +2067,6 @@ const zh: Dict = {
   "config.advanced.off": "關閉",
   "config.advanced.searchHint": "AI 會考量所有選項；你的選擇只是起始偏好",
   "config.advanced.fixedHint": "此訊號的固定風格",
-
   // Optimization objectives (dropdown)
   "objective.dynamic": "動態 — 因應市場狀態",
   "objective.max_sharpe": "最佳風險調整後報酬",
@@ -1940,14 +2078,12 @@ const zh: Dict = {
   "objective.max_diversification": "最大化分散程度",
   "objective.mean_variance_utility": "平衡報酬與風險",
   "objective.custom": "自訂目標",
-
   // Allocator modes (dropdown)
   "allocator.auto": "自動（交給 Jasper 決定）",
   "allocator.mean_variance": "報酬—風險平衡",
   "allocator.min_var": "最低波動",
   "allocator.risk_parity": "等風險貢獻",
   "allocator.max_diversification": "最大分散",
-
   // Factor indicators — factor name + friendly description
   "factorInd.mom_indicator.label": "動能",
   "factorInd.mom_indicator.hint": "報酬水準、風險調整後報酬，或 12-1 跳月動能",
@@ -1956,12 +2092,12 @@ const zh: Dict = {
   "factorInd.value_indicator.label": "價值",
   "factorInd.value_indicator.hint": "低於均線、區間相對便宜，或長期逆勢報酬",
   "factorInd.lowvol_indicator.label": "低波動",
-  "factorInd.lowvol_indicator.hint": "總波動、下檔波動，或相對等權指數的低 Beta",
+  "factorInd.lowvol_indicator.hint":
+    "總波動、下檔波動，或相對等權指數的低 Beta",
   "factorInd.trend_indicator.label": "趨勢",
   "factorInd.trend_indicator.hint": "價格對均線、均線斜率，或快慢均線交叉",
   "factorInd.drawdown_indicator.label": "回撤",
   "factorInd.drawdown_indicator.hint": "回撤深度、距前高時間，或潰瘍痛苦指數",
-
   // Factor indicator options (dropdown values)
   "factorOpt.cumulative_return": "累積報酬",
   "factorOpt.risk_adjusted_return": "風險調整後報酬",
@@ -1981,12 +2117,10 @@ const zh: Dict = {
   "factorOpt.max_drawdown_depth": "最大回撤深度",
   "factorOpt.time_since_peak": "距前高時間",
   "factorOpt.ulcer_index": "潰瘍指數",
-
   // Constraints — categorical labels
   "config.categorical.objective_mode": "投資目標",
   "config.categorical.allocator_mode": "組合引擎",
   "config.categorical.rebalance_freq": "組合檢視頻率",
-
   // Constraints — advanced numeric control labels
   "config.control.subPrefix": "{label} 子組合",
   "config.control.lookback_days": "市場記憶（日）",
@@ -2001,6 +2135,7 @@ const zh: Dict = {
   "config.control.no_trade_tol": "再平衡門檻",
   "config.control.turnover_penalty_mult": "交易成本壓力",
   "config.control.max_turnover_actual": "每次檢視最大換手率",
+  "config.control.customization_drift_actual": "客製化偏離",
   "config.control.w_mom": "動能訊號",
   "config.control.w_reversal": "反轉訊號",
   "config.control.w_value": "價值訊號",
@@ -2012,7 +2147,6 @@ const zh: Dict = {
   "config.control.w_commodity": "商品部位",
   "config.control.w_real_estate": "REIT 部位",
   "config.control.w_alternative": "另類部位",
-
   // Quick refinements
   "refinements.bond-tilt.label": "債券傾斜",
   "refinements.bond-tilt.desc": "聚焦股票＋債券，採用回撤導向目標",
@@ -2026,22 +2160,22 @@ const zh: Dict = {
   "refinements.defensive.desc": "債券、REIT、商品、另類資產",
   "refinements.equity-only.label": "僅股票",
   "refinements.equity-only.desc": "僅在股票 ETF 中最佳化",
-
   // Pro rounds — banner, seed panel, prefix
   "pro.roundN": "第 {n} 輪",
   "pro.banner.title": "本輪表現落後基準",
   "pro.banner.body":
-    "本樣本中，投資組合報酬落後基準（{benchmark}）。下一輪可考慮擴大探索或調整策略。",
-  "pro.banner.stats": "投資組合報酬 {portfolio} · 基準 {benchmark} · Alpha {alpha}",
+    "本期間中，投資組合報酬落後基準（{benchmark}）。下一輪可考慮擴大探索或調整方案。",
+  "pro.banner.stats":
+    "投資組合報酬 {portfolio} · 基準 {benchmark} · Alpha {alpha}",
   "pro.seed.regimeMatrix": "市場狀態預設（各狀態的組合引擎）",
   "pro.seed.regimeQuotas": "市場狀態子組合目標（各狀態的資產類別配置）",
   "pro.seed.assessment": "AI 績效評估",
-  "pro.seed.strategy": "AI 最佳化策略",
-  "pro.seed.roundSetup": "本輪設定（套用於本輪每一個策略）",
+  "pro.seed.strategy": "AI 最佳化方案",
+  "pro.seed.roundSetup": "本輪設定（套用於本輪每一個方案）",
   "pro.seed.factorSearch": "訊號搜尋（Jasper 探索的範圍）",
   "pro.seed.fixed": "固定",
-  "pro.prefix.improved": "本輪優勝者 — 取代了原本的領先者",
-  "pro.prefix.held": "原領先者保留（進步幅度低於門檻）",
+  "pro.prefix.improved": "本輪優勝者 — 取代了原本的領先方案",
+  "pro.prefix.held": "原領先方案保留（進步幅度低於門檻）",
   "pro.prefix.body":
     "{label} — {status}。調整後分數 {score}，來自 {trials} 次試算、共 {models} 種模型。",
 
@@ -2053,6 +2187,7 @@ const zh: Dict = {
   "pro.param.max_weight_actual": "單一檔上限",
   "pro.param.top_n_actual": "候選清單大小",
   "pro.param.max_turnover_actual": "最大換手率",
+  "pro.param.customization_drift_actual": "客製化偏離",
   "pro.param.no_trade_tol": "再平衡門檻",
   "pro.param.turnover_penalty_mult": "交易成本壓力",
   "pro.param.factor_lookback_days": "訊號窗口",
@@ -2075,18 +2210,17 @@ const zh: Dict = {
   "pro.param.lowvol_indicator": "低波動訊號",
   "pro.param.trend_indicator": "趨勢訊號",
   "pro.param.drawdown_indicator": "回撤品質訊號",
-
   // Institutional report — extended
   "institutional.loadingFor": "（{model}）",
   "institutional.through": "至 {date}",
   "institutional.horizonNote":
-    "開啟保留資料時，試算挑選以樣本內為準。樣本內與樣本外列是同一段連續完整模擬的切片，並非各自重新起算的獨立執行。儀表板上的排名夏普值可能與這些列略有差異。",
+    "開啟保留資料時，試算挑選以訓練期為準。訓練期與驗證期列是同一段連續完整模擬的切片，並非各自重新起算的獨立執行。儀表板上的排名夏普值可能與這些列略有差異。",
   "institutional.gapNote":
-    "樣本內 − 樣本外落差：投資目標 {objective}、夏普 {sharpe}（正值代表樣本內較強）。",
+    "訓練期 − 驗證期落差：投資目標 {objective}、夏普 {sharpe}（正值代表訓練期較強）。",
   "institutional.vsBenchmark": "vs {benchmark}",
   "institutional.rmCompactHint": "客戶溝通用的基準與資產配置重點",
   "institutional.benchmarkStaleNote":
-    "以下 Beta、Alpha、IR 係以 {computed} 計算。請重新執行回測以更新為所選基準的指標。",
+    "以下 Beta、Alpha、IR 係以 {computed} 計算。請重新執行試算以更新為所選基準的指標。",
   "institutional.trackingErr": "追蹤誤差",
   "institutional.ir": "資訊比率",
   "institutional.upCapture": "上行捕捉",
@@ -2095,31 +2229,33 @@ const zh: Dict = {
   "institutional.rollingSharpe": "滾動夏普值（252 日）",
   "institutional.rollingVol": "滾動波動度（252 日）",
   "institutional.inSampleNote":
-    "挑選與排名僅使用樣本內；下方各期間不含樣本外尾段。",
+    "挑選與排名僅使用訓練期；下方各期間不含驗證期尾段。",
   "institutional.ddStart": "起始",
   "institutional.ddTrough": "谷底",
   "institutional.ddEnd": "結束",
   "institutional.ddDepth": "深度",
   "institutional.ddDays": "天數",
-
   // Anchor / benchmark personalization
   "anchor.title": "基準配置",
   "anchor.subtitle":
-    "選擇資產管理公司（AM）發布的主題模型組合作為客戶起點基準。",
-  "anchor.universeNote": "示範標的池：{count} 檔主流 ETF（SPY、IVV、QQQ、VTI、AGG 等）",
-  "anchor.placeholderHoldingsHint": "成分均為該發行機構 ETF",
+    "可選擇自家模型組合作為起點基準，或以現況持倉為基準、不參照任一模型。",
+  "anchor.universeNote":
+    "示範標的池：{count} 檔主流 ETF（SPY、IVV、QQQ、VTI、AGG 等）",
+  "anchor.placeholderHoldingsHint": "含 ETF、共同基金與個股的自家模型配置",
+  "anchor.currentHoldingsHint":
+    "若本次只優化個股／衛星部位（非模型組合），請選「現況持倉（不參照模型）」。",
+  "anchor.noModelBadge": "不參照模型",
   "anchor.selected": "已選基準",
   "anchor.continue": "下一步：描述客戶需求",
   "anchor.am": "資產管理人",
   "anchor.theme": "主題",
-
   // Overlay conversation step
   "overlay.skipToConfig": "略過，直接進階設定",
-  "overlay.continueToConfig": "前往回測設定",
+  "overlay.continueToConfig": "前往試算設定",
   "overlay.contextSummaryTitle": "已確認的客製化內容",
   "overlay.contextGroups": "要客製化的群組",
   "overlay.contextGroupsFallback": "目前選擇會沿用現行客製化範圍。",
-  "overlay.contextAnchor": "目標模型組合",
+  "overlay.contextAnchor": "基準配置（起點）",
   "overlay.interpret.error.apiKeyMissing":
     "無法解讀客戶需求：尚未設定 AI API 金鑰。",
   "overlay.interpret.error.aiUnavailable":
@@ -2130,8 +2266,7 @@ const zh: Dict = {
     "解讀失敗：AI 回應格式不符預期，請再試一次。",
   "overlay.interpret.error.responseInvalid":
     "解讀失敗：AI 回應無法使用，請再試一次。",
-  "overlay.interpret.error.generic":
-    "客戶需求解讀失敗，請稍後再試或聯絡支援。",
+  "overlay.interpret.error.generic": "客戶需求解讀失敗，請稍後再試或聯絡支援。",
   "overlay.thinking.label": "Jasper 正在分析客戶需求（約需 10–30 秒）…",
   "overlay.thinking.step1": "理解語意…",
   "overlay.thinking.step2": "提取風險取向與投資目標…",
@@ -2145,10 +2280,9 @@ const zh: Dict = {
   "chat.speakerYou": "您：",
   "chat.speakerJasper": "JASPER：",
   "chat.speakerSystem": "系統：",
-
   // Base vs customized comparison
   "compare.title": "基準 vs 客製化配置",
-  "compare.subtitle": "並行回測的績效並列比較。",
+  "compare.subtitle": "並行試算的績效並列比較。",
   "compare.col.metric": "指標",
   "compare.col.delta": "差異",
   "compare.metric.cagr": "年化報酬",
@@ -2158,7 +2292,6 @@ const zh: Dict = {
   "compare.chart.title": "權益曲線",
   "compare.chart.anchor": "基準",
   "compare.chart.customized": "客製化",
-
   "rm.mode.label": "模式",
   "rm.mode.rm": "RM 模式",
   "rm.mode.advanced": "進階模式",
@@ -2168,19 +2301,20 @@ const zh: Dict = {
   "rm.step.execute": "一鍵執行",
   "rm.step.report": "RM 報告",
   "rm.step.skipped": "已略過",
-  "rm.run.title": "準備執行回測",
-  "rm.run.subtitle": "請確認已簽核的客戶需求摘要，然後執行「基準 vs 客製化」雙軌回測。",
+  "rm.run.title": "準備執行試算",
+  "rm.run.subtitle":
+    "請確認已簽核的客戶需求摘要，然後執行「基準 vs 客製化」雙軌試算。",
   "rm.run.clientNeeds": "客戶需求摘要",
   "rm.run.whatWillRun": "即將執行",
-  "rm.run.period": "回測區間：{start} → {end}",
+  "rm.run.period": "試算區間：{start} → {end}",
   "rm.run.dualTrack": "雙軌：基準重播 ＋ 客製化最佳化",
   "rm.run.proSearchTitle": "Jasper Pro Search",
   "rm.run.proSearchHint":
-    "開啟 Pro Search 會進行 AI 多輪參數最佳化（冠軍–挑戰者），通常需要更長時間。",
+    "開啟 Pro Search 會進行 AI 多輪參數最佳化（建議方案–對照方案），通常需要更長時間。",
   "rm.run.proSearchOn": "Jasper Pro Search：開啟（多輪 AI 最佳化）",
   "rm.run.proSearchOff":
-    "Jasper Pro Search：關閉（單次通過 — 所有試驗皆使用 AI 種子）",
-  "rm.run.execute": "一鍵執行回測",
+    "Jasper Pro Search：關閉（單次通過 — 所有試驗皆使用 AI 初始方案）",
+  "rm.run.execute": "開始方案試算",
   "rm.run.showAdvanced": "進階設定",
   "rm.run.hideAdvanced": "收合進階設定",
   "rm.universe.fixedTitle": "投資標的（已固定）",
@@ -2190,8 +2324,28 @@ const zh: Dict = {
     "基礎標的池鎖定為目標模型投組持倉；客戶需求僅可增刪特定標的，不會開啟完整基金池。",
   "rm.universe.lockedCount": "已鎖定 {n} 檔（模型持倉 ± 需求增刪）",
   "rm.report.title": "RM 客戶報告",
-  "rm.report.tabRm": "RM 摘要",
-  "rm.report.tabQuant": "量化分析",
+  "rm.report.subtitle": "客戶需求 → 約束兌現 → 建議投組",
+  "rm.report.tabRm": "客戶報告",
+  "rm.report.tabQuant": "引擎細節",
+  "rm.report.quantTabHint":
+    "搜尋輪次、排行榜與因子診斷——供 RM 深挖，不是客戶會議主畫面。",
+  "rm.report.heroEyebrow": "建議投組",
+  "rm.report.heroTitle": "{code}{star}",
+  "rm.report.heroHint": "相對錨定「{anchor}」的主要提案",
+  "rm.report.needsTitle": "需求達成檢核",
+  "rm.report.needsHint": "這次回測有沒有守住 overlay 簽核的承諾？",
+  "rm.report.needsOverallPass": "全部達標",
+  "rm.report.needsOverallFail": "與簽核需求有落差",
+  "rm.report.needsColConstraint": "承諾項目",
+  "rm.report.needsColDetail": "實際／上限",
+  "rm.report.needsColStatus": "狀態",
+  "rm.report.needsDetailHint":
+    "必納標的未達時，明細列出缺少代碼；通過時列出應納入清單。",
+  "rm.report.altsTitle": "有意義的替代方案",
+  "rm.report.altsHint": "近乎相同的投組已隱藏。點選卡片可檢視該方案。",
+  "rm.report.expand": "展開",
+  "rm.report.collapse": "收合",
+  "rm.report.talkingCollapsedHint": "客戶會議可用的說明重點",
   "rm.report.executiveTitle": "執行摘要",
   "rm.report.executiveHint": "與客戶會議的關鍵重點",
   "rm.report.metricsSummary":
@@ -2204,35 +2358,35 @@ const zh: Dict = {
   "rm.report.metricsHint": "綠燈代表該指標優於基準",
   "rm.report.holdingsTitle": "持股變化",
   "rm.report.holdingsHint": "相對基準配置的主要調整",
-  "rm.report.talkingTitle": "策略摘要",
-  "rm.report.talkingLoading": "AI 正在撰寫策略摘要…",
-  "rm.report.performanceFlag": "回測結果未達預期",
-  "rm.report.rerun": "重新回測",
+  "rm.report.holdingsPrecisionHint":
+    "權重為期末配置（顯示至小數點後兩位）。接近等權通常代表單檔上限與持股數／資產類別袖口不相容（例如上限 8% 但只持 8 檔，需 ≥13 檔才可行）— 請提高單檔上限、增加持股數，或放寬類別預算。",
+  "rm.report.talkingTitle": "方案摘要",
+  "rm.report.talkingLoading": "AI 正在撰寫方案摘要…",
+  "rm.report.performanceFlag": "試算結果未達預期",
+  "rm.report.rerun": "重新試算",
   "compliance.badgeCompact": "僅供內部審閱",
   "compliance.badgeDefault":
     "僅供內部審閱 — 非投資建議。客戶使用前須經主管批准。",
   "rm.report.disclaimerTitle": "合規與審閱聲明",
   "rm.report.disclaimerBody":
-    "僅供 RM 內部審閱，不構成任何證券之買賣要約、推薦或招攬。所有數字均來自歷史模擬，並假設策略完全按模型執行；過去績效不代表未來表現。任何客戶面對面資料使用前，須經具適當授權之主管審核批准。",
-  "rm.report.openQuant": "開啟量化分析",
+    "僅供 RM 內部審閱，不構成任何證券之買賣要約、推薦或招攬。所有數字均來自歷史模擬，並假設方案完全按模型執行；過去績效不代表未來表現。任何客戶面對面資料使用前，須經具適當授權之主管審核批准。",
+  "rm.report.openQuant": "開啟引擎細節",
   "rm.report.revise": "修改客戶需求",
   "rm.report.candidateTitle": "候選模型",
-  "rm.report.candidateHint":
-    "切換客製化測試的候選模型；預設為領先模型。",
-  "rm.report.candidateLabel": "測試投組",
+  "rm.report.candidateHint": "切換客製化測試的候選模型；預設為領先模型。",
+  "rm.report.candidateLabel": "檢視投組",
   "rm.report.candidateChampion": "★",
-  "rm.quant.championWhyTitle": "為何選為冠軍策略",
-  "rm.quant.championWhyCode": "冠軍策略：{code}",
+  "rm.quant.championWhyTitle": "為何選為建議方案",
+  "rm.quant.championWhyCode": "建議方案：{code}",
   "proposal.ctaTitle": "Investment Proposal",
-  "proposal.ctaHint":
-    "將本次回測 AI 最推薦投組製作成投資建議書",
+  "proposal.ctaHint": "將本次試算 AI 最推薦投組製作成投資建議書",
   "proposal.generate": "生成 Investment Proposal",
   "proposal.title": "Investment Proposal（草案）",
-  "proposal.subtitle": "RM 內部草案 — 數字來自雙軌回測；對客前請審核",
+  "proposal.subtitle": "RM 內部草案 — 數字來自雙軌試算；對客前請審核",
   "proposal.print": "列印／另存為 PDF",
   "proposal.close": "關閉",
   "proposal.draftBanner":
-    "僅為作業草案。JASPER 不下單。正式對客文件仍須 RM／合規審核。",
+    "僅為執行草案。JASPER 不下單。正式對客文件仍須 RM／合規審核。",
   "proposal.toc": "目錄 Contents",
   "proposal.cover.docTitle": "Investment Proposal",
   "proposal.cover.firm": "私人銀行 · RM Copilot",
@@ -2241,10 +2395,10 @@ const zh: Dict = {
   "proposal.cover.rmFallback": "理財經理",
   "proposal.cover.amountPending": "待確認",
   "proposal.cover.strategyLine":
-    "錨點：{am} · {theme}。建議路徑：{customized}。",
+    "基準組合：{am} · {theme}。建議路徑：{customized}。",
   "proposal.letter.dear": "親愛的 {client}：",
   "proposal.letter.thanks":
-    "感謝與您討論約 {amount} 的投資配置，錨點為 {strategy}。以下為建議組合與相關分析。",
+    "感謝與您討論約 {amount} 的投資配置，基準組合為 {strategy}。以下為建議組合與相關分析。",
   "proposal.letter.recommend":
     "我們建議自 {anchor} 朝客製化配置（{customized}）推進，最終仍須您的確認與本行之適配審查。",
   "proposal.letter.close": "此致",
@@ -2274,59 +2428,60 @@ const zh: Dict = {
   "proposal.table.total": "合計",
   "proposal.table.metric": "指標",
   "proposal.table.delta": "差異",
-  "proposal.table.anchorPct": "錨點 %",
+  "proposal.table.anchorPct": "基準組合 %",
   "proposal.table.customPct": "建議 %",
   "proposal.section.executive": "執行摘要 Executive Summary",
   "proposal.section.profile": "客戶輪廓與目標 Client Profile & Objectives",
   "proposal.section.current": "現況與持倉 Current Situation / Holdings",
-  "proposal.section.strategy": "建議策略 Recommended Strategy",
+  "proposal.section.strategy": "建議方案 Recommended Strategy",
   "proposal.section.allocation": "建議配置 Proposed Allocation",
   "proposal.section.rationale": "理由與話術 Rationale & Talking Points",
   "proposal.section.performance": "風險與績效示意 Risk & Performance",
   "proposal.section.implementation": "執行規劃 Implementation",
   "proposal.section.disclaimers": "免責與適配 Disclaimers & Suitability",
   "proposal.section.market": "市場脈絡與建議理由 Market Context & Rationale",
-  "proposal.section.construction": "策略建構與約束 Strategy Construction & Constraints",
+  "proposal.section.construction":
+    "方案建構與約束 Strategy Construction & Constraints",
   "proposal.section.validation": "歷史模擬",
   "proposal.section.risk": "風險分析 Risk Analysis",
   "proposal.body.letterIntro":
-    "本建議書為 {client} 之客製化 ETF 配置草案（參考規模 {amount}），以 {am} · {theme} 為模型組合錨點。",
+    "本建議書為 {client} 之客製化 ETF 配置草案（參考規模 {amount}），以 {am} · {theme} 為模型組合基準組合。",
   "proposal.body.executive":
-    "建議方向：將 {anchor} 客製化為 {customized}，並以雙軌回測驗證。",
+    "建議方向：將 {anchor} 客製化為 {customized}，並以雙軌試算驗證。",
   "proposal.body.metricsPending": "關鍵績效差異將於指標載入後顯示。",
   "proposal.body.profileFallback": "客戶偏好已於 Overlay 流程確認。",
-  "proposal.body.currentAnchor": "起點（錨點模型組合）：{anchor}",
+  "proposal.body.currentAnchor": "起點（基準組合模型組合）：{anchor}",
   "proposal.body.currentFootnote":
     "現況持倉截至 {asOf}。Demo 資料 — 非保管行正式進帳。",
   "proposal.body.market":
     "調整理由聚焦於從 {anchor} 移向 {customized}，並遵循已簽核客戶需求。",
   "proposal.body.strategyAnchor":
-    "錨點模型組合：{am} · {theme}（風險帶：{risk}）。此為資產管理公司主題產品起點。",
+    "基準組合模型組合：{am} · {theme}（風險帶：{risk}）。此為資產管理公司主題產品起點。",
   "proposal.body.strategyCustomize":
-    "客製化建議（{customized}）依已簽核 Overlay 約束，對錨點（{anchor}）進行個人化，並以雙軌回測驗證。",
+    "客製化建議（{customized}）依已簽核 Overlay 約束，對基準組合（{anchor}）進行個人化，並以雙軌試算驗證。",
   "proposal.body.allocationFallback": "客製化持股將於權重解析後顯示。",
   "proposal.body.allocationFootnote":
-    "權重來自客製化冠軍（或選定試驗）。金額為示意，依客戶現金／AUM 快照推估。",
+    "權重來自客製化建議方案（或選定試驗）。金額為示意，依客戶現金／AUM 快照推估。",
   "proposal.body.constructionFallback":
     "模擬區間 {start} → {end}；目標 {objective}。客製化提示與排除條件仍適用。",
   "proposal.body.excludes": "排除標的：{tickers}",
   "proposal.body.objectiveLine": "投資目標：{objective}",
   "proposal.body.validationNote":
-    "數字來自引擎雙軌回測（錨點 vs 客製化），非 AI 編造。過往績效並非未來表現之可靠指引。",
+    "數字來自引擎雙軌試算（基準組合 vs 客製化），非 AI 編造。過往績效並非未來表現之可靠指引。",
   "proposal.body.chartCaption":
     "雙軌淨值示意（均 rebase 至 100），區間 {start} → {end}。實際保單／帳戶價值將受費用、稅負與進出時點影響。",
-  "proposal.body.riskMdd": "客製化最大回撤 {customized}，錨點為 {anchor}。",
+  "proposal.body.riskMdd": "客製化最大回撤 {customized}，基準組合為 {anchor}。",
   "proposal.body.riskFallback": "請於量化分析分頁檢視回撤與集中度。",
   "proposal.body.implDca":
     "若顧慮一次性進場時機，可對股票部位採定期定額（DCA）分批布局。",
   "proposal.body.implRebalance":
-    "再平衡依已簽核回測假設（{start} → {end}），除非銀行政策另有規定。",
+    "再平衡依已簽核試算假設（{start} → {end}），除非銀行政策另有規定。",
   "proposal.body.implLiquidity":
     "全額投入前，請保留足以因應短期現金需求的流動性緩衝。",
   "proposal.body.implClientLiquidity": "客戶流動性備註：{note}",
   "proposal.body.impl1": "若流動性或市場衝擊敏感，可分批建倉。",
   "proposal.body.impl2": "對客前請確認費用、稅務與適配性（依機構規範）。",
-  "proposal.body.impl3": "再平衡頻率依已簽核回測設定，除非另行修訂。",
+  "proposal.body.impl3": "再平衡頻率依已簽核試算設定，除非另行修訂。",
   "proposal.body.signOffNote": "RM 簽核備註：{note}",
   "proposal.body.disclaimer1": "過往績效不代表未來結果。",
   "proposal.body.disclaimer2": "本草案僅供 RM 內部使用，待合規放行後再對客。",
@@ -2334,14 +2489,11 @@ const zh: Dict = {
     "適配性、KYC 與產品核准仍為銀行可控流程；JASPER 不對法規適配出具認證。",
   "proposal.body.nextSteps":
     "下一步：RM 審閱 → 合規／適配檢查 → 客戶討論 → 執行指示（於 JASPER 外完成）。",
-  "proposal.warning.pastPerformance":
-    "警語：過往績效並非未來表現之可靠指引。",
+  "proposal.warning.pastPerformance": "警語：過往績效並非未來表現之可靠指引。",
   "proposal.warning.valueFluctuation":
     "警語：投資價值可升可跌，您可能損失部分或全部本金。",
-  "proposal.warning.currency":
-    "警語：報酬可能受匯率波動影響。",
-  "proposal.warning.estimates":
-    "警語：數字僅為估計／回測示意。",
+  "proposal.warning.currency": "警語：報酬可能受匯率波動影響。",
+  "proposal.warning.estimates": "警語：數字僅為估計／試算示意。",
   "proposal.warning.noAdvice":
     "警語：本資料僅供資訊與討論，不構成要約或投資建議。",
   "rm.holdings.change": "變化",
@@ -2397,11 +2549,10 @@ const zh: Dict = {
     "報酬與基準相近（{highlights}）——著重說明配置如何更貼合簽核的客戶需求。",
   "rm.talking.similarGeneric": "配置契合度比小幅報酬差距更重要",
   "rm.talking.compliance":
-    "提醒：以上為回測示意，僅供討論之用，並非投資建議；實際執行前請確認適合度與合規要求。",
+    "提醒：以上為試算示意，僅供討論之用，並非投資建議；實際執行前請確認適合度與合規要求。",
 
-  "progress.dual.anchor": "基準回測",
-  "progress.dual.customized": "客製化回測",
-
+  "progress.dual.anchor": "基準試算",
+  "progress.dual.customized": "客製化試算",
   "nav.aria": "主導覽",
   "nav.menu": "開啟導覽選單",
   "nav.clients": "客戶儀表板",
@@ -2409,14 +2560,13 @@ const zh: Dict = {
   "nav.models": "模型組合",
   "nav.personalization": "投資組合客製化",
   "nav.settings": "後台設定",
-
   "settings.subtitle": "匯入與匯出",
-  "settings.hint": "在此管理投資標的池與模型組合的 CSV。瀏覽與啟用請至各功能頁。",
+  "settings.hint":
+    "在此管理投資標的池與模型組合的 CSV。瀏覽與啟用請至各功能頁。",
   "settings.poolTitle": "投資標的池",
   "settings.poolHint": "匯入或匯出全局貨架 CSV。",
   "settings.modelsTitle": "模型組合",
   "settings.modelsHint": "匯入或匯出 AM 模型組合 CSV（每列一筆持倉）。",
-
   "clients.listTitle": "客戶儀表板",
   "clients.listSubtitle": "示範客戶",
   "clients.listHint": "選擇客戶檢視輪廓與持倉，再啟動投資組合客製化。",
@@ -2453,7 +2603,7 @@ const zh: Dict = {
   "clients.chart.performance": "績效走勢",
   "clients.chart.allocation": "持股配置",
   "clients.chart.nav": "淨值",
-  "clients.holdings.individual": "個別投資標的",
+  "clients.holdings.individual": "個股／衛星部位",
   "clients.holdings.cash": "現金",
   "clients.holdings.groupSubtotal": "小計",
   "clients.holdings.total": "總計",
@@ -2468,29 +2618,30 @@ const zh: Dict = {
   "clients.add.notePlaceholder": "新增備註…",
   "clients.add.eventPlaceholder": "事件說明…",
   "clients.add.noEvents": "尚無即將發生的事件。",
-
+  "clients.history.title": "客製化投組紀錄",
+  "clients.history.record": "{count} 筆結果",
+  "clients.history.records": "{count} 筆結果",
+  "clients.history.empty": "為此客戶產生的客製化投組會顯示在這裡。",
+  "clients.history.open": "開啟",
+  "clients.history.untitled": "客製化投組",
   "customization.optimizeScopeTitle": "針對以下持倉部位做優化",
   "customization.optimizeScopeHint": "可調整本次客製化要納入的持倉群組。",
   "customization.multiModelNotice":
     "您勾選了多個模型組合，將一併客製化並形成同一個投資組合。若有不希望更動的模型，請取消勾選。",
   "customization.portfolioName": "投組名稱",
   "customization.portfolioNamePlaceholder": "為本次客製化投組命名",
-
   "enum.risk.conservative": "保守",
   "enum.risk.moderate": "穩健",
   "enum.risk.aggressive": "積極",
   "enum.risk.moderate_conservative": "偏保守",
   "enum.risk.moderate_aggressive": "偏積極",
-
   "enum.esg.none": "無",
   "enum.esg.light": "輕度",
   "enum.esg.moderate": "中度",
   "enum.esg.strong": "高度",
   "enum.esg.strict": "嚴格",
-
   "institutional.cash": "現金",
   "institutional.fixed_income": "固定收益",
-
   "pool.title": "投資標的池",
   "pool.subtitle": "全局示範貨架",
   "pool.countBadge": "已啟用 {enabled} / {total}",
@@ -2518,13 +2669,14 @@ const zh: Dict = {
   "pool.product.etf": "ETF",
   "pool.product.stock": "個股",
   "pool.product.fund": "基金",
+  "pool.product.cash": "現金",
   "pool.product.structured": "結構型",
   "pool.product.bond": "債券",
   "pool.product.other": "其他",
-
   "models.title": "模型組合",
   "models.subtitle": "自家模型目錄",
-  "models.hint": "管理投資組合客製化用的模型組合。持股可混搭 ETF、共同基金與個股，且須在啟用的投資標的池內。CSV：portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled。",
+  "models.hint":
+    "管理投資組合客製化用的模型組合。持股可混搭 ETF、共同基金與個股，且須在啟用的投資標的池內。CSV：portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled。",
   "models.countBadge": "可用 {ready} / 共 {total}",
   "models.resetBundled": "重設為內建組合",
   "models.importCsv": "匯入 CSV",
@@ -2541,7 +2693,7 @@ const zh: Dict = {
   "models.col.theme": "主題",
   "models.risk": "風險",
   "models.benchmark": "基準",
-  "models.issuerHoldingsHint": "成分均為該發行機構 ETF",
+  "models.issuerHoldingsHint": "含 ETF、共同基金與個股的自家模型配置",
   "models.filter.am": "依資產管理人篩選",
   "models.filter.risk": "依風險篩選",
   "models.filter.theme": "依投資主題篩選",
@@ -2554,43 +2706,50 @@ const zh: Dict = {
   "models.sort.risk": "排序：風險",
   "models.sort.theme": "排序：投資主題",
   "models.empty": "沒有符合篩選條件的模型組合。",
-
-  "anchor.poolConflicts": "有 {count} 組模型因標的池衝突而隱藏 — 請修正標的池或模型組合。",
-  "anchor.empty": "沒有可選錨點。請啟用成分皆在標的池中的模型組合。",
+  "anchor.poolConflicts":
+    "有 {count} 組模型因標的池衝突而隱藏 — 請修正標的池或模型組合。",
+  "anchor.empty": "沒有可選基準組合。請啟用成分皆在標的池中的模型組合。",
 };
 
 const ko: Dict = {
   // Header / shell
   "header.phase.scenario": "—",
-  "header.phase.anchor": "기준 구성",
+  "header.phase.anchor": "기준 포트폴리오",
   "header.phase.overlay": "고객 니즈",
   "header.phase.constraints": "설정",
   "header.phase.running": "실행 중",
   "header.phase.results": "결과",
   "header.phase.export": "내보내기",
+  "live.trial": "방안 {n}/{total}",
+  "results.needsFloorTitle": "고객 하단선 점검",
+  "results.needsFloorPass":
+    "학습 구간 최대 낙폭 {actual}（허용선 {floor}）— 준수",
+  "results.needsFloorFail":
+    "학습 구간 최대 낙폭 {actual}（허용선 {floor}）— {breach} 초과",
   "header.apiOffline": "서비스 오프라인",
-  "header.apiOfflineHint": "지금은 분석 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
-  "header.apiLinked": "전략 엔진 연결됨",
+  "header.apiOfflineHint":
+    "지금은 분석 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  "header.apiLinked": "방안 엔진 연결됨",
   "lang.label": "언어",
   "lang.aria": "언어",
   // Backtest history panel
-  "history.title": "전략 기록",
+  "history.title": "방안 기록",
   "history.refresh": "새로고침",
   "history.syncing": "동기화 중…",
   "history.apiOffline": "오프라인 — 로컬 결과 표시",
   "history.record": "결과 {count}개",
   "history.records": "결과 {count}개",
-  "history.empty": "완료된 백테스트가 여기에 표시됩니다. 한 번 실행해 시작해 보세요.",
+  "history.empty":
+    "완료된 시뮬레이션가 여기에 표시됩니다. 한 번 실행해 시작해 보세요.",
   "history.load": "열기",
   "history.status.completed": "완료됨",
   "history.status.failed": "실패",
   "history.status.running": "실행 중",
   "history.status.queued": "대기 중",
-
   // Constraints / config form
-  "config.title": "전략 설정",
+  "config.title": "방안 설정",
   "config.subtitle":
-    "아래에서 전략을 설정하세요. 포트폴리오 검토 시마다 Jasper가 가장 강한 종목을 추려낸 뒤, 위험과 수익의 균형을 맞춰 비중을 배분합니다.",
+    "아래에서 방안을 설정하세요. 포트폴리오 검토 시마다 Jasper가 가장 강한 종목을 추려낸 뒤, 위험과 수익의 균형을 맞춰 비중을 배분합니다.",
   "config.maxWeight": "종목별 최대 비중: {pct}%",
   "config.minWeight": "종목별 최소 비중: {pct}%",
   "config.minWeightHint":
@@ -2598,13 +2757,15 @@ const ko: Dict = {
   "config.maxTurnover": "검토 시 최대 회전율: {pct}%",
   "config.maxTurnoverHint":
     "Jasper가 포트폴리오 검토 시 거래할 수 있는 비율을 제한해 거래 비용을 억제합니다.",
-  "config.customizationDrift": "맞춤화 여유: {pct}%",
+  "config.customizationDrift": "맞춤화 여유(상한): {pct}%",
   "config.customizationDriftHint":
-    "0%는 기준 모델과 동일한 포트폴리오를 유지하고, 100%는 Jasper가 약속된 유니버스 안에서 포지션을 전면 재구성할 수 있습니다.",
+    "기준 모델에서 벗어날 수 있는 상한입니다(0% = 동일, 100% = 후보 유니버스 내 전면 재구성). 기본값은 AI가 이 범위 안에서 탐색하며, 슬라이더 값을 고정하려면 고급 파라미터에서 「맞춤화 편차」를 Fixed로 설정하세요.",
   "config.maxHoldings": "최대 보유 종목 수: {n}",
-  "config.maxHoldingsHint": "포트폴리오가 동시에 보유하는 최대 종목 수입니다.",
+  "config.maxHoldingsHint":
+    "100%÷종목당 상한보다 커야 합니다(상한 {pct}%일 때 최소 {min}종목). 그렇지 않으면 모든 종목이 상한에 걸려 등비로 붕괴합니다.",
   "config.topN": "후보 종목 수: {n}",
-  "config.topNHint": "Jasper가 모든 후보의 순위를 매기고 상위 {n}개를 골라 포트폴리오를 구성합니다.",
+  "config.topNHint":
+    "Jasper가 모든 후보의 순위를 매기고 상위 {n}개를 골라 포트폴리오를 구성합니다.",
   "config.objective": "투자 목표",
   "config.customObjective": "목표를 설명하세요",
   "config.start": "시작일",
@@ -2622,33 +2783,35 @@ const ko: Dict = {
   "config.rebalance.monthly": "매월",
   "config.rebalance.quarterly": "분기별",
   "config.rebalance.yearly": "매년",
-  "config.runStandard": "전략 테스트 실행",
+  "config.runStandard": "방안 테스트 실행",
   "config.runPro": "Pro 탐색 실행",
   "config.notifyEmail": "완료되면 이메일로 알림 (선택)",
   "config.notifyEmailPlaceholder": "you@example.com",
   "config.notifyEmailHint":
-    "전략 테스트는 서버에서 실행되므로 이 탭을 닫아도 됩니다. 이메일을 입력하면 실행이 완료되거나 실패할 때 알려드립니다.",
+    "방안 테스트는 서버에서 실행되므로 이 탭을 닫아도 됩니다. 이메일을 입력하면 실행이 완료되거나 실패할 때 알려드립니다.",
   "config.notifyEmailSmtpDisabled":
     "이 서버에는 이메일(SMTP)이 설정되어 있지 않아 주소를 입력해도 알림을 받을 수 없습니다.",
 
   // Pro rounds tabs
   "pro.tabsHint":
-    "각 탭은 한 라운드입니다: 현재 선두와 그 도전자들. ★는 라운드 우승자를 표시합니다. 카탈로그 탭에는 지금까지 시도한 모든 전략이 나열됩니다.",
+    "각 탭은 한 라운드입니다: 현재 선두와 그 대조 방안들. ★는 라운드 우승자를 표시합니다. 카탈로그 탭에는 지금까지 시도한 모든 방안이 나열됩니다.",
   "pro.allRounds": "전체 라운드",
+  "pro.roundChip": "{n}라운드",
   "pro.role.incoming": "현재 선두",
-  "pro.role.challenger": "도전자",
+  "pro.role.challenger": "대조 방안",
   "pro.role.winner": "라운드 우승자",
-
   // Results dashboard
   "results.runObjectiveLabel": "이번 투자 목표",
   "results.title": "결과",
   "results.model": "모델",
   "results.fullNarrative": "전체 요약",
   "results.fullPeriod": "전체 기간",
-  "results.rmChampionLine": "선도 모델 {model} · 샤프 {sharpe} · 연환산 수익 {cagr}",
+  "results.rmChampionLine":
+    "추천 방안 {model} · 샤프 {sharpe} · 연환산 수익 {cagr}",
   "results.refineHint": "클릭하면 조정 적용 · 더블클릭하면 적용 후 다시 실행.",
   "results.editConfig": "설정 편집",
-  "results.belowBenchmarkTitle": "솔직한 평가: 이번 실행은 벤치마크를 밑돌았습니다",
+  "results.belowBenchmarkTitle":
+    "솔직한 평가: 이번 실행은 벤치마크를 밑돌았습니다",
   "results.belowBenchmarkBody":
     "이 기간 동안 선택한 목표에서 {benchmark}를 이긴 시뮬레이션이 하나도 없습니다. 이는 도구의 문제가 아니라 실제 결과입니다 — 처음부터 다시 시작할 필요 없이 이번 실행에서 계속 다듬을 수 있습니다: 신호, 제약, 유니버스 또는 목표를 조정한 뒤 다시 실행하세요.",
   "results.iterateFromHere": "조정 후 다시 실행",
@@ -2657,13 +2820,13 @@ const ko: Dict = {
     "이 기간 동안 선택한 목표에서 {benchmark}를 이긴 시뮬레이션이 없습니다. Pro 라운드를 추가하고, 이번 실행의 선도 모델·학습 기록·AI 맥락을 이어서 탐색할 수 있습니다.",
   "results.continueRefinementCta": "탐색 계속",
   "results.continueRefinementRunning": "이어서 실행 중…",
-  "results.continueRefinementHint": "job {job}… 의 선도 모델과 이전 라운드 기록을 유지합니다",
+  "results.continueRefinementHint":
+    "실행 기록 {job}… 의 선도 모델과 이전 라운드 기록을 유지합니다",
   "results.extraRoundsLabel": "추가 라운드",
-  "results.extraTrialsPerRoundLabel": "라운드당 시뮬레이션 수(도전자)",
-  "results.extraTrialsLabel": "추가 시뮬레이션",
+  "results.extraTrialsPerRoundLabel": "라운드당 시뮬레이션 수(대조 방안)",
+  "results.extraTrialsLabel": "확장 평가 방안 수",
   "results.continueFromRound": "{round}라운드부터 재개",
   "results.exportCsv": "CSV 내보내기",
-
   // Common labels
   "common.on": "켜기",
   "common.off": "끄기",
@@ -2675,8 +2838,8 @@ const ko: Dict = {
   "common.period": "기간",
   "common.return": "수익률",
   "common.objective": "목표",
-  "common.inSample": "인샘플",
-  "common.outOfSample": "아웃오브샘플",
+  "common.inSample": "학습 구간",
+  "common.outOfSample": "검증 구간",
   "common.full": "전체",
   "common.gap": "격차",
   "common.regime": "국면",
@@ -2695,31 +2858,32 @@ const ko: Dict = {
   "common.activeRegime": "활성 국면",
   "common.rawRegime": "원시 국면",
   "common.switch": "전환",
-
   // Pro panel
   "proPanel.title": "Pro · AI 최적화",
   "proPanel.desc.beforeDynamic":
-    "Jasper가 현재 선두에 맞서 도전자들을 라운드별로 겨루게 합니다. AI는 이전에 효과적이었던 설정을 바탕으로 새 설정을 제안하고, 결과가 더 좋아지지 않을 때까지 다듬습니다.",
+    "Jasper가 현재 선두에 맞서 대조 방안들을 라운드별로 겨루게 합니다. AI는 이전에 효과적이었던 설정을 바탕으로 새 설정을 제안하고, 결과가 더 좋아지지 않을 때까지 다듬습니다.",
   "proPanel.dynamic": "동적",
   "proPanel.desc.afterDynamic":
-    "목표는 시장 분위기(위험 회피, 중립, 위험 선호)별로 전략을 따로 조정하고, 상황이 바뀌면 알맞은 전략을 적용합니다.",
-  "proPanel.estimationPrefix": "Pro 모드가 탐색 강도를 대신 관리합니다. 최대 약",
-  "proPanel.estimationSuffix": "회를 실행하며, 결과가 더 좋아지지 않으면 조기에 종료될 수 있습니다.",
+    "목표는 시장 분위기(위험 회피, 중립, 위험 선호)별로 방안을 따로 조정하고, 상황이 바뀌면 알맞은 방안을 적용합니다.",
+  "proPanel.estimationPrefix":
+    "Pro 모드가 탐색 강도를 대신 관리합니다. 최대 약",
+  "proPanel.estimationSuffix":
+    "회를 실행하며, 결과가 더 좋아지지 않으면 조기에 종료될 수 있습니다.",
   "proPanel.highTrialsWarning":
-    "설정이 높을수록 훨씬 많은 백테스트를 실행하고 시간이 더 걸립니다. 각 라운드는 하나의 AI 제안으로 탐색을 안내합니다.",
-  "proPanel.round1Batch": "첫 라운드 전략 수",
-  "proPanel.round1BatchHint": "첫 라운드에서 시도할 전략 수(3–100).",
-  "proPanel.challengersPerRound": "라운드당 도전자 수",
-  "proPanel.challengersPerRoundHint": "라운드마다 선두에 맞서 테스트할 새 전략 수(2–100).",
+    "설정이 높을수록 훨씬 많은 시뮬레이션를 실행하고 시간이 더 걸립니다. 각 라운드는 하나의 AI 제안으로 탐색을 안내합니다.",
+  "proPanel.round1Batch": "첫 라운드 방안 수",
+  "proPanel.round1BatchHint": "첫 라운드에서 시도할 방안 수(3–100).",
+  "proPanel.challengersPerRound": "라운드당 대조 방안 수",
+  "proPanel.challengersPerRoundHint":
+    "라운드마다 선두에 맞서 테스트할 새 방안 수(2–100).",
   "proPanel.maxRounds": "최대 라운드",
   "proPanel.maxRoundsHint": "첫 라운드를 포함해 실행할 최대 라운드 수(2–30).",
   "proPanel.patienceRounds": "인내 라운드",
   "proPanel.holdoutTip":
-    "팁: 홀드아웃을 켜면 전략이 최적화 기간으로 순위가 매겨진 뒤, 보지 않은 데이터로 검증됩니다.",
+    "팁: 홀드아웃을 켜면 방안이 최적화 기간으로 순위가 매겨진 뒤, 보지 않은 데이터로 검증됩니다.",
 
   "quickRefinements.title": "빠른 조정",
   "quickRefinements.doubleClickHint": "더블클릭하면 다시 실행",
-
   "progress.running": "실행 중…",
   "progress.roundUnderperformed": "이번 라운드가 벤치마크에 못 미침",
   "progress.roundUnderperformedHint":
@@ -2728,50 +2892,60 @@ const ko: Dict = {
   "progress.benchmark": "벤치마크",
   "progress.round": "라운드",
   "progress.bestInSample": "현재까지 최고",
-
   // Live progress messages (localized on the client from backend templates)
-  "progress.msg.queued": "전략 테스트 작업이 대기열에 추가되었습니다…",
-  "progress.msg.queuedStatic": "정적 재생 작업이 대기열에 추가되었습니다…",
-  "progress.msg.queuedPro": "Pro 탐색 작업이 대기열에 추가되었습니다…",
+  "progress.msg.queued": "방안 테스트 대기 중입니다…",
+  "progress.msg.queuedStatic": "기준 리플레이 대기 중입니다…",
+  "progress.msg.queuedPro": "Pro 탐색 대기 중입니다…",
   "progress.msg.fetching": "시장 데이터를 가져오는 중, 최적화를 시작합니다…",
-  "progress.msg.fetchingStatic": "정적 재생: 시장 데이터를 가져오는 중…",
-  "progress.msg.staticSimulating": "정적 재생: 고정 비중 포트폴리오 시뮬레이션 중…",
-  "progress.msg.fetchingPro": "Pro: 데이터를 가져오는 중, 반복 탐색을 시작합니다…",
-  "progress.msg.complete": "전략 테스트 완료",
+  "progress.msg.fetchingStatic": "기준 리플레이: 시장 데이터를 가져오는 중…",
+  "progress.msg.staticSimulating":
+    "기준 리플레이: 고정 비중 포트폴리오 시뮬레이션 중…",
+  "progress.msg.fetchingPro":
+    "Pro: 데이터를 가져오는 중, 반복 탐색을 시작합니다…",
+  "progress.msg.complete": "방안 테스트 완료",
   "progress.msg.completePro": "Pro 탐색 완료",
   "progress.msg.loaded":
     "티커 {tickers}개, 거래일 {rows}일을 불러왔습니다. 리밸런싱마다 가장 강한 종목을 추린 뒤 비중을 배분합니다.",
-  "progress.msg.loadedRegimeSuffix": " 국면 적응형: 리밸런싱마다 배분기 프리셋을 설정합니다.",
-  "progress.msg.proHoldout": "Pro: 전략은 최적화 기간으로 순위가 매겨지며, 홀드아웃은 최종 검증에 사용됩니다…",
-  "progress.msg.proLoop": "Pro: 도전자 라운드 실행 중(AI가 기록에서 학습)…",
-  "progress.msg.startingAi": "AI 시작 — 전략 {trials}개의 초기 매개변수를 계획하는 중…",
-  "progress.msg.aiDone": "AI 완료: 전략 {trials}개를 위한 시드 세트 {used}개 — 백테스트 시작…",
+  "progress.msg.loadedRegimeSuffix":
+    " 국면 적응형: 리밸런싱마다 배분기 프리셋을 설정합니다.",
+  "progress.msg.proHoldout":
+    "Pro: 방안은 최적화 기간으로 순위가 매겨지며, 홀드아웃은 최종 검증에 사용됩니다…",
+  "progress.msg.proLoop": "Pro: 대조 방안 라운드 실행 중(AI가 기록에서 학습)…",
+  "progress.msg.startingAi":
+    "AI 시작 — 방안 {trials}개의 초기 매개변수를 계획하는 중…",
+  "progress.msg.aiDone":
+    "AI 완료: 방안 {trials}개를 위한 초기안 세트 {used}개 — 시뮬레이션 시작…",
   "progress.msg.aiDoneCapped":
-    "AI 완료: 전략 {trials}개를 위한 시드 세트 {used}개(AI 상한 {cap}; 나머지 전략은 탐색만) — 백테스트 시작…",
-  "progress.msg.aiOff": "AI 꺼짐({err}) — 자동 탐색으로 대체…",
-  "progress.msg.optuna": "전략 {trial}/{total}({scope})",
-  "progress.msg.optunaBest": "전략 {trial}/{total}({scope}), 현재 최고 {label} {value}",
-  "progress.msg.searchDone": "탐색 완료(실현 가능 {feasible}개) — 보고서용 상위 {top}개 패키징 중…",
-  "progress.msg.packaging": "보고서 패키징 중: {inner}",
+    "AI 완료: 방안 {trials}개를 위한 초기안 세트 {used}개(AI 상한 {cap}; 나머지 방안은 탐색만) — 시뮬레이션 시작…",
+  "progress.msg.aiOff": "스마트 최적화 일시 불가 — 자동 탐색으로 전환…",
+  "progress.msg.optuna": "방안 {trial}/{total}({scope})",
+  "progress.msg.optunaBest":
+    "방안 {trial}/{total}({scope}), 현재 최고 {label} {value}",
+  "progress.msg.searchDone":
+    "탐색 완료(실현 가능 {feasible}개) — 보고서용 상위 {top}개 정리 중…",
+  "progress.msg.packaging": "보고서 정리 중: {inner}",
   "progress.msg.roundReport": "{round}라운드 보고서: {inner}",
-  "progress.msg.proRound": "{round}/{max}라운드: {carry}, 도전자 {n}명 준비 중…",
-  "progress.msg.roundOptuna": "{round}라운드 · 전략 {trial}/{total}({scope})",
+  "progress.msg.proRound":
+    "{round}/{max}라운드: {carry}, 대조 방안 {n}명 준비 중…",
+  "progress.msg.roundOptuna": "{round}라운드 · 방안 {trial}/{total}({scope})",
   "progress.msg.roundOptunaBest":
-    "{round}라운드 · 전략 {trial}/{total}({scope}), 이번 라운드 최고 {label} {value}",
+    "{round}라운드 · 방안 {trial}/{total}({scope}), 이번 라운드 최고 {label} {value}",
   "progress.msg.roundAiLearning":
-    "{round}라운드: AI가 더 약한 도전자 {n}명에게서 학습, 목표 점수 {score}…",
+    "{round}라운드: AI가 더 약한 대조 방안 {n}명에게서 학습, 목표 점수 {score}…",
   "progress.msg.roundDone":
     "{round}라운드 완료: 이번 라운드 최고 {best}, 선두 {champ}(무개선 라운드 {streak}/{patience})",
   "progress.msg.roundDoneAlphaSuffix":
-    " · 인샘플 알파 vs {benchmark} {alpha}(벤치마크 미달)",
-  "progress.msg.pkgFromCache": "{code} {label} 패키징 중, 탐색 캐시에서({rank}/{total})…",
-  "progress.msg.pkgMetricsOnly": "{code} 지표만 패키징 중({rank}/{total})…",
-  "progress.msg.pkgNoCache": "{code} 패키징 중({rank}/{total}): 캐시 없음 — 차트용 백테스트 실행…",
-  "progress.msg.pkgIsOos": "{code} 패키징 중({rank}/{total}): 비중을 위해 전체 기간 백테스트 1회…",
+    " · 학습 구간 알파 vs {benchmark} {alpha}(벤치마크 미달)",
+  "progress.msg.pkgFromCache": "{code} {label} 정리 중, ({rank}/{total})…",
+  "progress.msg.pkgMetricsOnly": "{code} 지표만 정리 중({rank}/{total})…",
+  "progress.msg.pkgNoCache":
+    "{code} 정리 중({rank}/{total}): 차트 데이터 계산…",
+  "progress.msg.pkgIsOos":
+    "{code} 정리 중({rank}/{total}): 비중을 위해 전체 기간 시뮬레이션 1회…",
   "progress.msg.pkgIncomplete":
-    "{code} 패키징 중({rank}/{total}): 캐시 불완전({missing}) — 백테스트 실행…",
-  "progress.msg.pkgTop": "풀에서 상위 {top}/{feasible}개 전략…",
-  "progress.msg.scope.inSample": "인샘플",
+    "{code} 정리 중({rank}/{total}): 차트 시계열 보완({missing})…",
+  "progress.msg.pkgTop": "풀에서 상위 {top}/{feasible}개 방안…",
+  "progress.msg.scope.inSample": "학습 구간",
   "progress.msg.scope.fullWindow": "전체 구간",
   "progress.label.sharpe": "샤프",
   "progress.label.cagr": "CAGR",
@@ -2781,17 +2955,16 @@ const ko: Dict = {
   "progress.label.vol": "변동성",
   "progress.label.comprehensive": "종합",
   "progress.label.metric": "지표",
-
   "customScenario.title": "나의 시장 관점",
   "customScenario.description":
-    "거시, 섹터 또는 리스크 전망을 설명하면 Jasper가 백테스트할 수 있는 전략으로 바꿔 줍니다.",
+    "거시, 섹터 또는 리스크 전망을 설명하면 Jasper가 시뮬레이션할 수 있는 방안으로 바꿔 줍니다.",
   "customScenario.placeholder":
     "예: 미국 인플레이션 고착, 연준 고금리 장기화, 성장주 밸류에이션 압박 — 단기 채권과 방어주로 기울이기…",
   "customScenario.analyzing": "구성 중…",
   "customScenario.analyzeButton": "시나리오 구성",
   "customScenario.analysisFailed": "시나리오를 구성하지 못했습니다",
-  "customScenario.analysisFailedRetry": "시나리오를 구성하지 못했습니다. 다시 시도해 주세요.",
-
+  "customScenario.analysisFailedRetry":
+    "시나리오를 구성하지 못했습니다. 다시 시도해 주세요.",
   "assetFilter.assetClasses": "자산군",
   "assetFilter.selectedBase": "{total}개 ETF 중 {base}개 선택됨",
   "assetFilter.selectedCombined": "{total}개 ETF 중 {combined}개 선택됨",
@@ -2824,11 +2997,10 @@ const ko: Dict = {
   "assetFilter.noneForRule": "(이 규칙에 일치하는 종목 없음)",
   "assetFilter.newVsBase": "새로 추가됨",
   "assetFilter.guaranteed": "항상 포함",
-  "assetFilter.guaranteedHint": "이 종목들은 항상 백테스트에 포함됩니다.",
-
+  "assetFilter.guaranteedHint": "이 종목들은 항상 시뮬레이션에 포함됩니다.",
   "linkedChart.tooltipRegime": "국면",
   "linkedChart.tooltipActiveObjective": "활성 목표",
-  "linkedChart.noHistory": "이 전략에는 성과나 보유 종목 기록이 없습니다.",
+  "linkedChart.noHistory": "이 방안에는 성과나 보유 종목 기록이 없습니다.",
   "linkedChart.linkedCursorHint":
     "아무 차트에나 마우스를 올려 보세요 — 성과, 시장 국면, 보유 종목이 모두 같은 날짜에 정렬됩니다.",
   "linkedChart.cumulativeTitle": "누적 수익률 % — 포트폴리오 vs {benchmark}",
@@ -2841,7 +3013,6 @@ const ko: Dict = {
   "linkedChart.hoverHint": "차트에 마우스를 올리면 보유 종목 표시",
   "linkedChart.other": "기타",
   "linkedChart.portfolio": "포트폴리오",
-
   // Market regime + allocator objective band labels (shared across charts)
   "regime.risk_off": "위험 회피",
   "regime.neutral": "중립",
@@ -2849,21 +3020,22 @@ const ko: Dict = {
   "objectiveBand.max_sharpe": "최대 샤프",
   "objectiveBand.max_return": "최대 CAGR",
   "objectiveBand.min_max_drawdown": "최소 최대 낙폭",
-
   "objectiveLab.rec.apply": "추천: 적용",
   "objectiveLab.rec.notYet": "추천: 아직 아님",
   "objectiveLab.rec.needMoreData": "추천: 데이터가 더 필요함",
   "objectiveLab.reportCard": "랩 결과",
-  "objectiveLab.oosSharpeDelta": "아웃오브샘플 샤프 개선(전환 vs. 고정):",
+  "objectiveLab.oosSharpeDelta": "검증 구간 샤프 개선(전환 vs. 고정):",
   "objectiveLab.regimeDetector": "국면 감지기",
   "objectiveLab.detectorV2": "위험 선호와 위험 회피 신호를 가늠해 시장을 읽음",
   "objectiveLab.detectorLegacy": "기존 수익률·변동성 임계값",
-  "objectiveLab.fastRiskOffExit": "반등 시 위험 회피에서 빠르게 빠져나오기(21일)",
+  "objectiveLab.fastRiskOffExit":
+    "반등 시 위험 회피에서 빠르게 빠져나오기(21일)",
   "objectiveLab.fixedObjective": "고정 목표",
-  "objectiveLab.switchPolicy": "전환 전략",
+  "objectiveLab.switchPolicy": "전환 방안",
   "objectiveLab.benchmarkVsRegime": "벤치마크 vs. 시장 국면",
   "objectiveLab.regimeScores": "국면 점수 vs. 활성 국면",
-  "objectiveLab.hoverSyncHint": "두 차트 중 하나에 마우스를 올리면 둘 다 같은 날짜에 정렬됩니다.",
+  "objectiveLab.hoverSyncHint":
+    "두 차트 중 하나에 마우스를 올리면 둘 다 같은 날짜에 정렬됩니다.",
   "objectiveLab.regimeTimeline": "국면 타임라인",
   "objectiveLab.off": "끄기",
   "objectiveLab.on": "켜기",
@@ -2884,20 +3056,20 @@ const ko: Dict = {
   "objectiveLab.stepLevelAlignment":
     "스텝 단위 정합도 {score}/100 — {days}일 전방 창에 동일한 수익률 규칙 적용; 위의 주요 점수는 전체 구간을 사용합니다.",
   "objectiveLab.regimeSwitches": "국면 전환 횟수: {count}",
-  "objectiveLab.isSharpe": "인샘플 샤프",
-  "objectiveLab.oosSharpe": "아웃오브샘플 샤프",
-  "objectiveLab.isReturn": "인샘플 수익률",
-  "objectiveLab.isMaxDd": "인샘플 최대 낙폭",
+  "objectiveLab.isSharpe": "학습 구간 샤프",
+  "objectiveLab.oosSharpe": "검증 구간 샤프",
+  "objectiveLab.isReturn": "학습 구간 수익률",
+  "objectiveLab.isMaxDd": "학습 구간 최대 낙폭",
   "objectiveLab.hit": "적중",
   "objectiveLab.miss": "오차",
-
   "benchmarkChart.noSeries": "차트로 그릴 벤치마크 데이터가 없습니다.",
   "benchmarkChart.noValidDates": "차트로 그릴 유효한 날짜가 없습니다.",
   "benchmarkChart.cumPct": "{ticker} 누적 %",
   "benchmarkChart.footer":
     "위: {ticker} 누적 수익률(%). 음영 띠는 시장 국면을 나타내고, 황색 띠는 국면 전환을 표시합니다. 마우스를 올리면 아래 국면 점수와 동기화됩니다.",
 
-  "regimeScore.noScores": "아직 국면 점수가 없습니다. 최신 감지기를 사용하거나 최적화 기간을 늘려 보세요.",
+  "regimeScore.noScores":
+    "아직 국면 점수가 없습니다. 최신 감지기를 사용하거나 최적화 기간을 늘려 보세요.",
   "regimeScore.noValidDates": "차트로 그릴 유효한 날짜가 없습니다.",
   "regimeScore.stepWinner": "선두 점수",
   "regimeScore.rawRegime": "원시 국면",
@@ -2915,16 +3087,17 @@ const ko: Dict = {
     "위: {ticker} 누적 수익률(%); 음영 배경은 기간별로 어떤 목표가 활성이었는지 보여 줍니다. 아래: 목표 전환(황색 = 전환). 마우스를 올리면 위 성과 차트와 동기화됩니다.",
 
   "institutional.loadingAnalytics": "분석",
-  "institutional.noAnalytics": "사용 가능한 상세 분석이 없습니다 — 백테스트를 다시 실행해 주세요.",
-  "institutional.monthlyInSample": "월별 수익률(인샘플{range})",
+  "institutional.noAnalytics":
+    "사용 가능한 상세 분석이 없습니다 — 시뮬레이션를 다시 실행해 주세요.",
+  "institutional.monthlyInSample": "월별 수익률(학습 구간{range})",
   "institutional.monthlyFull": "월별 수익률",
-  "institutional.annualInSample": "연간 수익률(인샘플{range})",
+  "institutional.annualInSample": "연간 수익률(학습 구간{range})",
   "institutional.annualFull": "연간 수익률",
-  "institutional.monthlyOosFrom": "월별 수익률(아웃오브샘플, {date}부터)",
-  "institutional.monthlyOos": "월별 수익률(아웃오브샘플)",
-  "institutional.annualOosFrom": "연간 수익률(아웃오브샘플, {date}부터)",
-  "institutional.annualOos": "연간 수익률(아웃오브샘플)",
-  "institutional.horizonTitle": "기간별 성과(인샘플 / 아웃오브샘플 / 전체)",
+  "institutional.monthlyOosFrom": "월별 수익률(검증 구간, {date}부터)",
+  "institutional.monthlyOos": "월별 수익률(검증 구간)",
+  "institutional.annualOosFrom": "연간 수익률(검증 구간, {date}부터)",
+  "institutional.annualOos": "연간 수익률(검증 구간)",
+  "institutional.horizonTitle": "기간별 성과(학습 구간 / 검증 구간 / 전체)",
   "institutional.horizon": "기간",
   "institutional.maxDd": "최대 낙폭",
   "institutional.rebalanceExecution": "리밸런싱 실행",
@@ -2943,17 +3116,19 @@ const ko: Dict = {
   "institutional.durationProxy": "평균 듀레이션(년)",
   "institutional.riskContributionTop": "주요 위험 기여 종목",
   "institutional.coreHoldingsTitle": "핵심 보유 종목",
-  "institutional.coreHoldingsNote": "이 전략이 가장 많이 활용한 종목입니다. 평소 포트폴리오에서 차지한 비중과 리밸런싱마다 얼마나 꾸준히 보유했는지를 보여줍니다.",
+  "institutional.coreHoldingsNote":
+    "이 방안이 가장 많이 활용한 종목입니다. 평소 포트폴리오에서 차지한 비중과 리밸런싱마다 얼마나 꾸준히 보유했는지를 보여줍니다.",
   "institutional.avgWeight": "평균 비중",
-  "institutional.avgWeightHint": "모든 리밸런싱 시점에서 해당 종목이 포트폴리오에서 차지한 평균 비중. 높을수록 더 크고 핵심적인 포지션입니다.",
+  "institutional.avgWeightHint":
+    "모든 리밸런싱 시점에서 해당 종목이 포트폴리오에서 차지한 평균 비중. 높을수록 더 크고 핵심적인 포지션입니다.",
   "institutional.holdFrequency": "보유 비율",
-  "institutional.holdFrequencyHint": "해당 종목을 보유한 빈도(비중이 0.5%를 넘은 리밸런싱 시점의 비율). 100%면 전체 기간 내내 보유했다는 뜻입니다.",
+  "institutional.holdFrequencyHint":
+    "해당 종목을 보유한 빈도(비중이 0.5%를 넘은 리밸런싱 시점의 비율). 100%면 전체 기간 내내 보유했다는 뜻입니다.",
   "institutional.weightShort": "비중",
   "institutional.drawdownCurve": "낙폭 곡선",
   "institutional.drawdownEpisodes": "낙폭 구간",
   "institutional.insufficientData": "데이터 부족",
   "institutional.noData": "데이터 없음",
-
   // Results extended
   "results.failedLoadTrajectory": "이 차트를 불러오지 못했습니다",
   "results.dataRange": "데이터: {start} → {end}, 거래일 {rows}일",
@@ -2971,14 +3146,18 @@ const ko: Dict = {
   "results.round": "라운드",
   "results.newRoundBest": "이번 라운드 최고",
   "results.proRefinement": "Pro 최적화",
-  "results.meta.rounds": "총 {rounds}회 개선 라운드, 후보 전략 {trials}개 테스트",
+  "results.meta.rounds":
+    "총 {rounds}회 개선 라운드, 후보 방안 {trials}개 테스트",
   "results.meta.convergedEarly": "조기에 수렴함 (추가 개선 없음)",
   "results.meta.fullSearch": "전체 탐색 완료",
-  "results.meta.search": "파라미터 검색, 후보 전략 {trials}개 테스트",
-  "results.meta.reported": "유효 전략 {feasible}개 발견, 보고서에 {reported}개 포함",
+  "results.meta.search": "파라미터 검색, 후보 방안 {trials}개 테스트",
+  "results.meta.reported":
+    "유효 방안 {feasible}개 발견, 보고서에 {reported}개 포함",
   "results.meta.catalog": "(총 {catalog}개 탐색)",
-  "results.meta.rebalance": "{freq} 리밸런싱 (예정된 {count}회 중 {applied}회 적용)",
-  "results.meta.rebalanceSkipped": "({skipped}회 건너뜀 — 첫 리밸런싱 전 더 긴 가격 이력 필요)",
+  "results.meta.rebalance":
+    "{freq} 리밸런싱 (예정된 {count}회 중 {applied}회 적용)",
+  "results.meta.rebalanceSkipped":
+    "({skipped}회 건너뜀 — 첫 리밸런싱 전 더 긴 가격 이력 필요)",
   "results.meta.rebalanceChartDownsampled":
     "보유 차트에 {total}회 리밸런싱 스냅샷 중 {shown}회 표시",
   "results.freq.weekly": "매주",
@@ -2987,8 +3166,8 @@ const ko: Dict = {
   "results.freq.yearly": "매년",
   "results.freq.daily": "매일",
   "results.sort": "정렬",
-  "results.rankedOnInSample": "인샘플 기준 순위",
-  "results.gapInOut": "격차(인샘플 − 아웃오브샘플)",
+  "results.rankedOnInSample": "학습 구간 기준 순위",
+  "results.gapInOut": "격차(학습 구간 − 검증 구간)",
   "results.winRate": "승률",
   "results.avgTurnover": "평균 회전율",
   "results.totalTurnover": "총 회전율",
@@ -2997,35 +3176,39 @@ const ko: Dict = {
   "results.cvar95": "CVaR 95%(일)",
   "results.te": "추적 오차",
   "results.ir": "정보 비율",
-  "results.horizonCompareTitle": "인샘플 / 아웃오브샘플 / 전체",
+  "results.horizonCompareTitle": "학습 구간 / 검증 구간 / 전체",
   "results.horizonMetricsHint":
-    "기간별 주요 지표. 전략은 인샘플 기간으로만 선택됩니다.",
+    "기간별 주요 지표. 방안은 학습 구간 기간으로만 선택됩니다.",
   "results.metric": "지표",
-  "results.gapObjectiveSharpe": "인샘플 − 아웃오브샘플 격차: 투자 목표",
-  "results.positiveInSampleStronger": "양수면 인샘플이 더 강함을 의미",
-  "results.championLeaderboard": "리더보드 · 인샘플 기간으로 순위를 매긴 전략",
+  "results.gapObjectiveSharpe": "학습 구간 − 검증 구간 격차: 투자 목표",
+  "results.positiveInSampleStronger": "양수면 학습 구간이 더 강함을 의미",
+  "results.championLeaderboard":
+    "리더보드 · 학습 구간 기간으로 순위를 매긴 방안",
   "results.leaderboardTitleOutOfSample":
-    "리더보드 · 아웃오브샘플 기간으로 순위를 매긴 전략",
+    "리더보드 · 검증 구간 기간으로 순위를 매긴 방안",
   "results.leaderboardTitleFull":
-    "리더보드 · 전체 표본 기간으로 순위를 매긴 전략",
+    "리더보드 · 전체 표본 기간으로 순위를 매긴 방안",
   "results.leaderboardTitleGap":
-    "리더보드 · 인샘플−아웃오브샘플 격차로 순위를 매긴 전략",
+    "리더보드 · 학습 구간−검증 구간 격차로 순위를 매긴 방안",
   "results.sortTableBy": "표 정렬 기준",
-  "results.inSampleSelection": "인샘플(선택)",
-  "results.gapSelection": "격차(인샘플 − 아웃오브샘플)",
+  "results.inSampleSelection": "학습 구간(선택)",
+  "results.gapSelection": "격차(학습 구간 − 검증 구간)",
   "results.engine": "엔진",
-  "results.warmStartExact": "이전 챔피언 {code}에서 최적화 재개 (job {job})",
-  "results.warmStartFuzzy": "이전 챔피언 {code}에서 최적화 재개 (job {job}; 기간 종료일 다름)",
-  "results.warmStartImproved": "새 챔피언이 캐시 기준을 상회",
-  "results.warmStartKept": "캐시 챔피언이 여전히 경쟁력 있음",
+  "results.warmStartExact":
+    "이전 추천 방안 {code}에서 최적화 재개 (실행 기록 {job})",
+  "results.warmStartFuzzy":
+    "이전 추천 방안 {code}에서 최적화 재개 (실행 기록 {job}; 기간 종료일 다름)",
+  "results.warmStartImproved": "새 추천 방안이 캐시 기준을 상회",
+  "results.warmStartKept": "캐시 추천 방안이 여전히 경쟁력 있음",
   "results.holdings": "보유 종목",
   "results.cap": "상한",
-  "results.weightChartMayListMore": "보유 종목 차트에는 리밸런싱 전반에 걸쳐 더 많은 종목이 표시될 수 있음",
+  "results.weightChartMayListMore":
+    "보유 종목 차트에는 리밸런싱 전반에 걸쳐 더 많은 종목이 표시될 수 있음",
   "results.maxWeight": "최대 비중",
   "results.runCap": "실행 상한",
   "results.effective": "유효",
   "results.observed": "실측",
-  "results.selectionHint": "인샘플로 선택; 아웃오브샘플은 실전 검증 역할",
+  "results.selectionHint": "학습 구간로 선택; 검증 구간은 실전 검증 역할",
   "results.weightCapBreach": "비중 상한 초과: 실측",
   "results.vsEffectiveCap": "유효 상한 대비",
   "results.firstOn": "최초 등장",
@@ -3036,7 +3219,25 @@ const ko: Dict = {
   "results.generatingComparison": "비교 생성 중…",
   "results.noComparisonYet": "아직 사용 가능한 비교가 없습니다",
   "results.benchmark": "벤치마크",
-  "results.champion": "챔피언",
+  "results.champion": "추천 방안",
+  "results.needsFloorLegend": "⚠ 고객 낙폭 허용선 초과",
+  "results.proposalSetTitle": "방안 비교",
+  "results.proposalLabel.recommended": "추천 방안",
+  "results.proposalLabel.defensive": "방어형",
+  "results.proposalLabel.growth": "성장형",
+  "results.needsTable.drawdown": "낙폭 하한",
+  "results.needsTable.singleName": "단일 종목 상한",
+  "results.needsTable.theme": "테마 노출 상한",
+  "results.needsTable.cash": "현금 비중",
+  "results.needsTable.income": "수익 수요",
+  "results.needsTable.mustInclude": "필수 편입 종목",
+  "results.needsTable.drift": "맞춤화 편차",
+  "results.needsMustIncludeFail": "최종 포트폴리오에 없는 오버레이 종목: {tickers}",
+  "results.needsDriftFail": "앵커 대비 편차 {actual} (한도 {cap})",
+  "results.needsTable.pass": "충족",
+  "results.needsTable.fail": "미충족",
+  "results.addToUniverseCta": "보유 종목을 후보 목록에 추가하고 재실행",
+  "results.cashSleeveLabel": "현금",
   "results.cagrPct": "CAGR %",
   "results.maxDdPct": "최대 낙폭 %",
   "results.dynamicObjectives": "동적 목표",
@@ -3045,16 +3246,16 @@ const ko: Dict = {
   "results.loadingTrajectory": "{model} 불러오는 중…",
   "results.walkForwardHint":
     "기간에 따른 시장 국면과 활성 목표로, 성과 및 보유 종목 차트와 정렬됩니다.",
-  "results.proChampionScorePrefix": "Pro 우승자는 인샘플 기준",
+  "results.proChampionScorePrefix": "Pro 우승자는 학습 구간 기준",
   "results.comprehensiveScore": "종합 점수",
   "results.proChampionScoreFormula":
     "0.45×샤프 + 0.25×소르티노 + 0.20×(5×CAGR) − 0.35×|최대 낙폭| − 0.10×회전율.",
   "results.dynamicScoreTitle": "동적 종합 점수 — 이것이 순위 기준입니다",
   "results.dynamicScoreExplain":
-    "동적 모드에서는 샤프나 수익률만으로 순위를 매기지 않습니다. 위험조정수익, 성장, 낙폭, 거래비용을 결합한 하나의 종합 점수로 순위를 매깁니다. 그래서 챔피언(★)은 아래의 어떤 단일 열에서도 1위가 아니면서 전체적으로 이길 수 있습니다.",
-  "results.championWhyTitle": "★ {code}가 챔피언인 이유",
+    "동적 모드에서는 샤프나 수익률만으로 순위를 매기지 않습니다. 위험조정수익, 성장, 낙폭, 거래비용을 결합한 하나의 종합 점수로 순위를 매깁니다. 그래서 추천 방안(★)은 아래의 어떤 단일 열에서도 1위가 아니면서 전체적으로 이길 수 있습니다.",
+  "results.championWhyTitle": "★ {code}가 추천 방안인 이유",
   "results.championWhyHorizonNote":
-    "★는 선정 구간(OOS 홀드아웃이 켜져 있으면 인샘플, 아니면 전체 샘플)에서 골라집니다. 보고서 표의 전체 기간 지표는 다를 수 있으며, 더 높은 Full Sharpe가 인샘플 투자 목표 승자를 밀어내지는 않습니다. 인샘플/아웃오브샘플 격차는 진단용입니다.",
+    "★는 선정 구간(OOS 홀드아웃이 켜져 있으면 학습 구간, 아니면 전체 샘플)에서 골라집니다. 보고서 표의 전체 기간 지표는 다를 수 있으며, 더 높은 Full Sharpe가 학습 구간 투자 목표 승자를 밀어내지는 않습니다. 학습 구간/검증 구간 격차는 진단용입니다.",
   "results.championWhyFallbackLead":
     "투자 목표 “{objective}” 기준으로 {code}가 {horizon} 선정 구간에서 우승했습니다(IS 샤프 {sharpe}, CAGR {cagr}, 최대낙폭 {mdd}). 전체 기간: 샤프 {fullSharpe}, CAGR {fullCagr}.",
   "results.championWhyFallbackLeadFull":
@@ -3063,26 +3264,27 @@ const ko: Dict = {
     "차순위 {alt}는 같은 선정 구간에서 점수가 더 낮습니다(IS 샤프 {altSharpe}, CAGR {altCagr}). 전체 기간 샤프({altFullSharpe})가 더 높아 보여도 마찬가지입니다.",
   "results.championWhyFallbackAltFull":
     "차순위 {alt} 대비(샤프 {altSharpe}, CAGR {altCagr}).",
-  "results.championHorizonInSample": "인샘플",
+  "results.championHorizonInSample": "학습 구간",
   "results.championHorizonFullSample": "전체 샘플",
   "results.anchorBenchmarkNote":
-    "앵커 모델 포트폴리오: {anchor}. 성과 벤치마크 티커(가격 시계열): {ticker} — 차트는 이 티커 수익률과 비교하며, 앵커 보유 종목을 그대로 복제하지는 않습니다.",
+    "기준 모델 포트폴리오: {anchor}. 성과 벤치마크 티커(가격 시계열): {ticker} — 차트는 이 티커 수익률과 비교하며, 기준 구성 보유 종목을 그대로 복제하지는 않습니다.",
   "results.anchorPortfolioBaselineNote":
-    "비교 기준선: 앵커 모델 포트폴리오({anchor})의 정적 리플레이 성과이며, 시장 티커만 쓰지 않습니다.",
+    "비교 기준선: 기준 모델 포트폴리오({anchor})의 정적 리플레이 성과이며, 시장 티커만 쓰지 않습니다.",
   "results.championFullSharpe": "전체 기간 샤프",
   "results.championFullMaxDd": "전체 기간 최대 낙폭",
   "results.championFullCagr": "전체 기간 CAGR",
   "results.leaderboardDynamicNote":
-    "값은 각 기간의 동적 종합 점수입니다(높을수록 좋음). 챔피언(★)은 선정 구간의 목표로 순위가 매겨집니다(OOS가 켜져 있으면 인샘플). OOS/과적합 지표는 참고용이며 목표 승자를 강등하지 않습니다.",
-  "results.selectTrialHint": "위에서 전략을 선택하면 성과와 보유 종목을 볼 수 있습니다.",
+    "값은 각 기간의 동적 종합 점수입니다(높을수록 좋음). 추천 방안(★)은 선정 구간의 목표로 순위가 매겨집니다(OOS가 켜져 있으면 학습 구간). OOS/과적합 지표는 참고용이며 목표 승자를 강등하지 않습니다.",
+  "results.selectTrialHint":
+    "위에서 방안을 선택하면 성과와 보유 종목을 볼 수 있습니다.",
   "results.efficientFrontierHint":
-    "파란 점은 Jasper가 시도한 전략이고, 주황 점은 보고서에 표시된 추천 전략입니다.",
+    "파란 점은 Jasper가 시도한 방안이고, 주황 점은 보고서에 표시된 추천 방안입니다.",
   "results.annVol": "연 변동성(%)",
   "results.annReturn": "연 수익률(%)",
-  "results.outputModel": "추천 전략",
-  "results.searchTrial": "테스트한 전략",
-  "results.paramSamples": "시도한 전략 수",
-  "results.outputModels": "추천 전략",
+  "results.outputModel": "추천 방안",
+  "results.searchTrial": "테스트한 방안",
+  "results.paramSamples": "시도한 방안 수",
+  "results.outputModels": "추천 방안",
   "results.universeFilter": "유니버스 필터",
   "results.universeFilterHint": "다른 자산군은 검색에서 제외됩니다.",
   "results.targetNamesRegime": "목표 종목({regime} 국면)",
@@ -3092,10 +3294,10 @@ const ko: Dict = {
   "results.actualClassWeights": "실제 자산군 구성(보유 종목)",
   "results.actualClassWeightsRegime": "실제 구성({regime} 리밸런싱 기간 평균)",
   "results.classBreakdownChampion":
-    "챔피언의 자산군 구성을 표시합니다 — 이 전략은 압축 버전만 저장했습니다.",
+    "추천 방안의 자산군 구성을 표시합니다 — 이 방안은 압축 버전만 저장했습니다.",
   "results.weightPct": "비중 %",
   "results.factorAttributionChampion":
-    "챔피언의 팩터 분해를 표시합니다 — 이 전략은 전체 세부 정보를 저장하지 않았습니다.",
+    "추천 방안의 팩터 분해를 표시합니다 — 이 방안은 전체 세부 정보를 저장하지 않았습니다.",
   "results.noFactorAttribution": "사용 가능한 팩터 분해가 없습니다",
   "results.contribPct": "기여도 %",
   "results.observations": "관측치",
@@ -3103,9 +3305,9 @@ const ko: Dict = {
   "results.factorMetricLogic": "팩터를 어떻게 측정했는지",
   "results.noMetricLogic": "사용 가능한 팩터 세부 정보가 없습니다",
   "results.summaryOnlyModel":
-    "이 전략은 요약만 있습니다 — 상세 보유 종목이나 차트가 없습니다. 더 살펴보려면 전체 보고서가 있는 전략을 선택하세요.",
+    "이 방안은 요약만 있습니다 — 상세 보유 종목이나 차트가 없습니다. 더 살펴보려면 전체 보고서가 있는 방안을 선택하세요.",
   "results.analyticsFallback":
-    "롤링·익스포저·수익률 표는 챔피언에서 가져오며, 헤드라인 지표는 선택한 전략과 일치합니다.",
+    "롤링·익스포저·수익률 표는 추천 방안에서 가져오며, 헤드라인 지표는 선택한 방안과 일치합니다.",
   "results.aiParameterRationale": "AI가 이 설정을 선택한 이유",
   "results.generation": "세대",
   "results.noAiRationale": "이번 실행에 대한 AI 설명이 없습니다.",
@@ -3121,17 +3323,18 @@ const ko: Dict = {
   "results.chart.latestAllocation": "현재 배분",
   "results.chart.reproducibleParameters": "이 실행을 재현하기 위한 설정",
   "report.group.summary": "핵심 요약",
-  "report.group.summaryHint": "AI 결론, 챔피언 선택 및 주요 지표",
+  "report.group.summaryHint": "AI 결론, 추천 방안 선택 및 주요 지표",
   "report.group.performance": "성과",
   "report.group.performanceHint": "벤치마크 대비 모델 비교",
   "report.group.journey": "포트폴리오 여정",
   "report.group.journeyHint": "자산 성장과 시간에 따른 보유 종목 변화",
   "report.group.holdings": "보유 종목 및 리스크",
   "report.group.holdingsHint": "포트폴리오 보유 종목과 자산군 구성",
-  "report.group.strategy": "전략 심층 분석",
+  "report.group.strategy": "방안 심층 분석",
   "report.group.strategyHint": "위험/수익 트레이드오프와 팩터 요인",
   "report.group.institutional": "기관급 분석",
-  "report.group.institutionalHint": "벤치마크, 익스포저, 롤링 리스크 및 드로다운",
+  "report.group.institutionalHint":
+    "벤치마크, 익스포저, 롤링 리스크 및 드로다운",
   "report.group.reproducibility": "재현성",
   "report.group.reproducibilityHint": "이 실행의 전체 설정 및 파라미터",
   "results.factor.momentum": "모멘텀",
@@ -3140,10 +3343,9 @@ const ko: Dict = {
   "results.factor.lowvol": "저변동성",
   "results.factor.trend": "추세",
   "results.factor.drawdown": "낙폭",
-
   // Constraints — offline + hints
   "config.runOfflineHint":
-    "지금은 분석 서비스가 오프라인이라 백테스트를 실행할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+    "지금은 분석 서비스가 오프라인이라 시뮬레이션를 실행할 수 없습니다. 잠시 후 다시 시도해 주세요.",
   "config.assetClassSyncHint":
     "선택한 자산군과 목표 비중은 서로 동기화됩니다 — 포함하지 않은 항목은 0으로 유지됩니다.",
   "config.enforceClassWeights": "자산군 목표 비중 강제 적용",
@@ -3154,24 +3356,25 @@ const ko: Dict = {
   "config.quantMode": "전문가 모드",
   "config.quantModeHint": "고급 포트폴리오 엔지니어링 컨트롤 표시",
   "config.objectiveHint.dynamic":
-    "동적 모드는 시장 국면에 따라 포트폴리오를 조정합니다: 위험이 높으면 방어적으로, 여건이 강하면 성장 추구로, 그 사이에서는 균형을 맞춥니다. 챔피언은 단일 지표가 아니라 하나의 종합 점수(위험조정 수익 + 성장 + 낙폭 + 거래비용)로 순위가 매겨집니다. 최대 CAGR 같은 단일 목표로 순위를 매기면서도 국면에 따라 전환하려면, 그 목표를 선택하고 아래의 '국면 적응형 배분'을 켜세요.",
+    "동적 모드는 시장 국면에 따라 포트폴리오를 조정합니다: 위험이 높으면 방어적으로, 여건이 강하면 성장 추구로, 그 사이에서는 균형을 맞춥니다. 추천 방안은 단일 지표가 아니라 하나의 종합 점수(위험조정 수익 + 성장 + 낙폭 + 거래비용)로 순위가 매겨집니다. 최대 CAGR 같은 단일 목표로 순위를 매기면서도 국면에 따라 전환하려면, 그 목표를 선택하고 아래의 '국면 적응형 배분'을 켜세요.",
   "config.objectiveHint.default":
-    "홀드아웃을 켜면 전략이 최적화 기간으로 순위가 매겨지며, 홀드아웃과 전체 기간 결과는 비교용으로만 표시됩니다.",
+    "홀드아웃을 켜면 방안이 최적화 기간으로 순위가 매겨지며, 홀드아웃과 전체 기간 결과는 비교용으로만 표시됩니다.",
   "config.regimeAdaptive": "국면 적응형 배분",
   "config.regimeAdaptiveHint.dynamic":
     "동적 목표에서는 항상 켜져 있습니다: 배분기가 리밸런스마다 시장 국면(방어 / 균형 / 성장)에 따라 프리셋을 전환합니다.",
   "config.regimeAdaptiveHint.on":
-    "켜짐: 배분기가 리밸런스마다 시장 국면(위험 회피 / 중립 / 위험 선호)에 따라 프리셋을 전환하며, 위에서 선택한 목표는 여전히 전략 순위를 결정합니다.",
+    "켜짐: 배분기가 리밸런스마다 시장 국면(위험 회피 / 중립 / 위험 선호)에 따라 프리셋을 전환하며, 위에서 선택한 목표는 여전히 방안 순위를 결정합니다.",
   "config.regimeAdaptiveHint.off":
     "꺼짐: 모든 시장 상황에서 하나의 배분 방식이 사용됩니다. 켜면 위의 순위 목표는 유지하면서 배분이 국면에 따라 조정됩니다.",
   "config.customObjectivePlaceholder":
     "예: 낙폭을 먼저 낮추고, 그다음 수익, 회전율은 적정 수준 유지",
-  "config.customObjectiveHint": "Jasper가 이를 최적화할 수 있는 목표로 바꿔 줍니다.",
-  "config.trialsHint.pro": "Pro 모드가 위의 라운드 설정을 사용해 대신 관리합니다.",
+  "config.customObjectiveHint":
+    "Jasper가 이를 최적화할 수 있는 목표로 바꿔 줍니다.",
+  "config.trialsHint.pro":
+    "Pro 모드가 위의 라운드 설정을 사용해 대신 관리합니다.",
   "config.trialsHint.standard":
-    "테스트할 전략 수. 표준 모드에서는 모든 트라이얼이 AI 생성 시드를 사용합니다(랜덤 채우기 없음). 보고서 크기는 아래에서 설정하세요.",
+    "테스트할 방안 수. 표준 모드에서는 모든 트라이얼이 AI 생성 초기안를 사용합니다(랜덤 채우기 없음). 보고서 크기는 아래에서 설정하세요.",
   "config.benchmarkLine": "벤치마크: {benchmark} · 무위험 수익률: 4%",
-
   // Constraints — advanced controls
   "config.advanced.title": "전문가 설정(선택)",
   "config.advanced.maxWeightNote":
@@ -3184,7 +3387,6 @@ const ko: Dict = {
   "config.advanced.searchHint":
     "AI가 모든 옵션을 고려하며, 선택한 값은 시작 선호도로만 사용됩니다",
   "config.advanced.fixedHint": "이 신호의 고정 스타일",
-
   // Optimization objectives (dropdown)
   "objective.dynamic": "동적 — 시장 국면에 적응",
   "objective.max_sharpe": "최고 위험 조정 수익",
@@ -3196,28 +3398,31 @@ const ko: Dict = {
   "objective.max_diversification": "분산 효과 최대화",
   "objective.mean_variance_utility": "수익과 위험의 균형",
   "objective.custom": "사용자 지정 목표",
-
   // Allocator modes (dropdown)
   "allocator.auto": "자동(Jasper가 선택)",
   "allocator.mean_variance": "수익-위험 균형",
   "allocator.min_var": "최저 변동성",
   "allocator.risk_parity": "균등 위험 기여",
   "allocator.max_diversification": "최대 분산",
-
   // Factor indicators — factor name + friendly description
   "factorInd.mom_indicator.label": "모멘텀",
-  "factorInd.mom_indicator.hint": "수익 수준, 변동성 조정 수익, 또는 12-1 스킵 모멘텀",
+  "factorInd.mom_indicator.hint":
+    "수익 수준, 변동성 조정 수익, 또는 12-1 스킵 모멘텀",
   "factorInd.reversal_indicator.label": "리버설",
-  "factorInd.reversal_indicator.hint": "단기 반전, 고점 대비 하락폭, 또는 RSI 과매도",
+  "factorInd.reversal_indicator.hint":
+    "단기 반전, 고점 대비 하락폭, 또는 RSI 과매도",
   "factorInd.value_indicator.label": "가치",
-  "factorInd.value_indicator.hint": "이동평균 하회, 구간 내 저평가, 또는 장기 역발상 수익",
+  "factorInd.value_indicator.hint":
+    "이동평균 하회, 구간 내 저평가, 또는 장기 역발상 수익",
   "factorInd.lowvol_indicator.label": "저변동성",
-  "factorInd.lowvol_indicator.hint": "총 변동성, 하방 변동성, 또는 동일가중 지수 대비 저베타",
+  "factorInd.lowvol_indicator.hint":
+    "총 변동성, 하방 변동성, 또는 동일가중 지수 대비 저베타",
   "factorInd.trend_indicator.label": "추세",
-  "factorInd.trend_indicator.hint": "가격 대비 이동평균, 이동평균 기울기, 또는 단·장기 이동평균 교차",
+  "factorInd.trend_indicator.hint":
+    "가격 대비 이동평균, 이동평균 기울기, 또는 단·장기 이동평균 교차",
   "factorInd.drawdown_indicator.label": "낙폭",
-  "factorInd.drawdown_indicator.hint": "낙폭 깊이, 고점 이후 경과, 또는 얼서 지수",
-
+  "factorInd.drawdown_indicator.hint":
+    "낙폭 깊이, 고점 이후 경과, 또는 얼서 지수",
   // Factor indicator options (dropdown values)
   "factorOpt.cumulative_return": "누적 수익",
   "factorOpt.risk_adjusted_return": "위험 조정 수익",
@@ -3237,12 +3442,10 @@ const ko: Dict = {
   "factorOpt.max_drawdown_depth": "최대 낙폭 깊이",
   "factorOpt.time_since_peak": "고점 이후 경과",
   "factorOpt.ulcer_index": "얼서 지수",
-
   // Constraints — categorical labels
   "config.categorical.objective_mode": "투자 목표",
   "config.categorical.allocator_mode": "포트폴리오 엔진",
   "config.categorical.rebalance_freq": "포트폴리오 검토 주기",
-
   // Constraints — advanced numeric control labels
   "config.control.subPrefix": "{label} 하위 포트폴리오",
   "config.control.lookback_days": "시장 기억(일)",
@@ -3257,6 +3460,7 @@ const ko: Dict = {
   "config.control.no_trade_tol": "재검토 임계값",
   "config.control.turnover_penalty_mult": "거래 비용 압력",
   "config.control.max_turnover_actual": "검토 시 최대 회전율",
+  "config.control.customization_drift_actual": "맞춤화 편차",
   "config.control.w_mom": "모멘텀 신호",
   "config.control.w_reversal": "리버설 신호",
   "config.control.w_value": "가치 신호",
@@ -3268,7 +3472,6 @@ const ko: Dict = {
   "config.control.w_commodity": "원자재 하위 포트폴리오",
   "config.control.w_real_estate": "REIT 하위 포트폴리오",
   "config.control.w_alternative": "대체 하위 포트폴리오",
-
   // Quick refinements
   "refinements.bond-tilt.label": "채권 기울이기",
   "refinements.bond-tilt.desc": "주식＋채권 중심, 낙폭 고려 목표",
@@ -3282,19 +3485,18 @@ const ko: Dict = {
   "refinements.defensive.desc": "채권, REIT, 원자재, 대체자산",
   "refinements.equity-only.label": "주식만",
   "refinements.equity-only.desc": "주식 ETF 내에서만 최적화",
-
   // Pro rounds — banner, seed panel, prefix
   "pro.roundN": "{n}라운드",
   "pro.banner.title": "이번 라운드가 벤치마크에 못 미침",
   "pro.banner.body":
-    "이 표본에서 포트폴리오 수익률이 벤치마크({benchmark})를 밑돌았습니다. 다음 라운드에서는 탐색 범위를 넓히거나 전략을 조정해 보세요.",
+    "이 표본에서 포트폴리오 수익률이 벤치마크({benchmark})를 밑돌았습니다. 다음 라운드에서는 탐색 범위를 넓히거나 방안을 조정해 보세요.",
   "pro.banner.stats":
     "포트폴리오 수익률 {portfolio} · 벤치마크 {benchmark} · 알파 {alpha}",
   "pro.seed.regimeMatrix": "시장 국면 프리셋(국면별 포트폴리오 엔진)",
   "pro.seed.regimeQuotas": "시장 국면 하위 포트폴리오 목표(국면별 자산군 구성)",
   "pro.seed.assessment": "AI 성과 평가",
-  "pro.seed.strategy": "AI 최적화 전략",
-  "pro.seed.roundSetup": "라운드 설정(이번 라운드의 모든 전략에 적용)",
+  "pro.seed.strategy": "AI 최적화 방안",
+  "pro.seed.roundSetup": "라운드 설정(이번 라운드의 모든 방안에 적용)",
   "pro.seed.factorSearch": "신호 탐색(Jasper가 탐색한 범위)",
   "pro.seed.fixed": "고정",
   "pro.prefix.improved": "라운드 우승자 — 기존 선두를 교체함",
@@ -3310,6 +3512,7 @@ const ko: Dict = {
   "pro.param.max_weight_actual": "단일 종목 한도",
   "pro.param.top_n_actual": "후보 종목 수",
   "pro.param.max_turnover_actual": "최대 회전율",
+  "pro.param.customization_drift_actual": "맞춤화 편차",
   "pro.param.no_trade_tol": "재검토 임계값",
   "pro.param.turnover_penalty_mult": "거래 비용 압력",
   "pro.param.factor_lookback_days": "신호 기간",
@@ -3332,18 +3535,17 @@ const ko: Dict = {
   "pro.param.lowvol_indicator": "저변동성 신호",
   "pro.param.trend_indicator": "추세 신호",
   "pro.param.drawdown_indicator": "낙폭 품질 신호",
-
   // Institutional report — extended
   "institutional.loadingFor": "({model})",
   "institutional.through": "{date}까지",
   "institutional.horizonNote":
-    "홀드아웃이 켜져 있으면 시뮬레이션 선택은 인샘플을 사용합니다. 인샘플과 아웃오브샘플 행은 동일한 연속 전체 시뮬레이션의 구간이며, 각각 새로 시작한 별개의 실행이 아닙니다. 대시보드의 순위 샤프는 이 행들과 약간 다를 수 있습니다.",
+    "홀드아웃이 켜져 있으면 시뮬레이션 선택은 학습 구간을 사용합니다. 학습 구간과 검증 구간 행은 동일한 연속 전체 시뮬레이션의 구간이며, 각각 새로 시작한 별개의 실행이 아닙니다. 대시보드의 순위 샤프는 이 행들과 약간 다를 수 있습니다.",
   "institutional.gapNote":
-    "인샘플 − 아웃오브샘플 격차: 투자 목표 {objective}, 샤프 {sharpe}(양수면 인샘플이 더 강함).",
+    "학습 구간 − 검증 구간 격차: 투자 목표 {objective}, 샤프 {sharpe}(양수면 학습 구간이 더 강함).",
   "institutional.vsBenchmark": "vs {benchmark}",
   "institutional.rmCompactHint": "고객 설명용 벤치마크·배분 핵심",
   "institutional.benchmarkStaleNote":
-    "아래 Beta·Alpha·IR은 {computed} 대비로 계산되었습니다. 선택한 기준 벤치마크로 갱신하려면 백테스트를 다시 실행하세요.",
+    "아래 Beta·Alpha·IR은 {computed} 대비로 계산되었습니다. 선택한 기준 벤치마크로 갱신하려면 시뮬레이션를 다시 실행하세요.",
   "institutional.trackingErr": "추적 오차",
   "institutional.ir": "정보 비율",
   "institutional.upCapture": "상승 포착",
@@ -3352,30 +3554,33 @@ const ko: Dict = {
   "institutional.rollingSharpe": "롤링 샤프(252일)",
   "institutional.rollingVol": "롤링 변동성(252일)",
   "institutional.inSampleNote":
-    "선택과 순위는 인샘플만 사용하며, 아래 기간은 아웃오브샘플 구간을 제외합니다.",
+    "선택과 순위는 학습 구간만 사용하며, 아래 기간은 검증 구간 구간을 제외합니다.",
   "institutional.ddStart": "시작",
   "institutional.ddTrough": "저점",
   "institutional.ddEnd": "종료",
   "institutional.ddDepth": "깊이",
   "institutional.ddDays": "일수",
-
   // Anchor / benchmark personalization
   "anchor.title": "기준 구성",
   "anchor.subtitle":
-    "자산운용사(AM)가 발행한 테마 모델 포트폴리오를 고객의 시작 벤치마크로 선택하세요.",
-  "anchor.universeNote": "데모 유니버스: 주요 ETF {count}개 (SPY, IVV, QQQ, VTI, AGG 등)",
-  "anchor.placeholderHoldingsHint": "구성은 모두 해당 운용사 ETF",
+    "하우스 모델을 시작 벤치마크로 선택하거나, 모델을 참조하지 않고 현재 보유를 기준으로 하세요.",
+  "anchor.universeNote":
+    "데모 유니버스: 주요 ETF {count}개 (SPY, IVV, QQQ, VTI, AGG 등)",
+  "anchor.placeholderHoldingsHint":
+    "하우스 모델 카탈로그의 ETF·뮤추얼펀드·개별주 혼합",
+  "anchor.currentHoldingsHint":
+    "모델이 아닌 개별주/위성 구간만 최적화할 때는 「현재 보유(모델 미참조)」를 선택하세요.",
+  "anchor.noModelBadge": "모델 미참조",
   "anchor.selected": "선택된 기준",
   "anchor.continue": "다음: 고객 니즈",
   "anchor.am": "자산운용사",
   "anchor.theme": "테마",
-
   "overlay.skipToConfig": "건너뛰고 고급 설정으로",
-  "overlay.continueToConfig": "백테스트 설정으로",
+  "overlay.continueToConfig": "시뮬레이션 설정으로",
   "overlay.contextSummaryTitle": "확정된 맞춤화 컨텍스트",
   "overlay.contextGroups": "맞춤화할 그룹",
   "overlay.contextGroupsFallback": "현재 선택은 활성 범위를 그대로 사용합니다.",
-  "overlay.contextAnchor": "목표 모델 포트폴리오",
+  "overlay.contextAnchor": "기준 구성(출발점)",
   "overlay.interpret.error.apiKeyMissing":
     "고객 니즈 해석 불가: AI API 키가 설정되지 않았습니다.",
   "overlay.interpret.error.aiUnavailable":
@@ -3388,7 +3593,8 @@ const ko: Dict = {
     "해석 실패: AI 응답을 사용할 수 없습니다. 다시 시도하세요.",
   "overlay.interpret.error.generic":
     "고객 니즈 해석에 실패했습니다. 잠시 후 다시 시도하거나 지원팀에 문의하세요.",
-  "overlay.thinking.label": "Jasper가 고객 니즈를 분석 중입니다(보통 10–30초 소요)…",
+  "overlay.thinking.label":
+    "Jasper가 고객 니즈를 분석 중입니다(보통 10–30초 소요)…",
   "overlay.thinking.step1": "의도 파악 중…",
   "overlay.thinking.step2": "리스크 성향과 목표 추출 중…",
   "overlay.thinking.step3": "투자 유니버스 대조 중…",
@@ -3397,13 +3603,13 @@ const ko: Dict = {
   "overlay.proposedTickers.all": "모두 선택",
   "overlay.proposedTickers.none": "선택 해제",
   "overlay.proposedTickers.addSelected": "선택한 {count}개 종목 추가",
-  "overlay.proposedTickers.confirmMessage": "{tickers} 종목을 유니버스에 추가했습니다.",
+  "overlay.proposedTickers.confirmMessage":
+    "{tickers} 종목을 유니버스에 추가했습니다.",
   "chat.speakerYou": "나:",
   "chat.speakerJasper": "JASPER:",
   "chat.speakerSystem": "시스템:",
-
   "compare.title": "기준 vs 맞춤 구성",
-  "compare.subtitle": "병렬 백테스트 성과 비교.",
+  "compare.subtitle": "병렬 시뮬레이션 성과 비교.",
   "compare.col.metric": "지표",
   "compare.col.delta": "차이",
   "compare.metric.cagr": "연환산 수익",
@@ -3413,7 +3619,6 @@ const ko: Dict = {
   "compare.chart.title": "자산 곡선",
   "compare.chart.anchor": "기준",
   "compare.chart.customized": "맞춤",
-
   "rm.mode.label": "모드",
   "rm.mode.rm": "RM 모드",
   "rm.mode.advanced": "고급 모드",
@@ -3423,20 +3628,20 @@ const ko: Dict = {
   "rm.step.execute": "실행",
   "rm.step.report": "RM 보고서",
   "rm.step.skipped": "건너뜀",
-  "rm.run.title": "백테스트 실행 준비",
+  "rm.run.title": "시뮬레이션 실행 준비",
   "rm.run.subtitle":
-    "서명된 고객 오버레이를 확인한 뒤 기준 vs 맞춤 이중 백테스트를 실행하세요.",
+    "서명된 고객 오버레이를 확인한 뒤 기준 vs 맞춤 이중 시뮬레이션를 실행하세요.",
   "rm.run.clientNeeds": "고객 니즈 요약",
   "rm.run.whatWillRun": "실행 내용",
   "rm.run.period": "기간: {start} → {end}",
   "rm.run.dualTrack": "이중: 기준 재현 + 맞춤 최적화",
   "rm.run.proSearchTitle": "Jasper Pro Search",
   "rm.run.proSearchHint":
-    "Pro Search를 켜면 AI 다중 라운드 파라미터 최적화(챔피언–챌린저)가 실행되며, 보통 더 오래 걸립니다.",
+    "Pro Search를 켜면 AI 다중 라운드 파라미터 최적화(추천 방안–챌린저)가 실행되며, 보통 더 오래 걸립니다.",
   "rm.run.proSearchOn": "Jasper Pro Search: ON (다중 라운드 AI 최적화)",
   "rm.run.proSearchOff":
-    "Jasper Pro Search: OFF (단일 패스 — 모든 트라이얼이 AI 시드 사용)",
-  "rm.run.execute": "백테스트 실행",
+    "Jasper Pro Search: OFF (단일 패스 — 모든 트라이얼이 AI 초기안 사용)",
+  "rm.run.execute": "포트폴리오 시뮬레이션 시작",
   "rm.run.showAdvanced": "고급 설정",
   "rm.run.hideAdvanced": "고급 설정 숨기기",
   "rm.universe.fixedTitle": "투자 유니버스 (고정됨)",
@@ -3446,8 +3651,28 @@ const ko: Dict = {
     "기본 유니버스는 목표 모델 포트폴리오 보유종목입니다. 고객 요건은 특정 종목만 추가/제거할 수 있으며 전체 펀드 풀을 열지 않습니다.",
   "rm.universe.lockedCount": "모델 보유 ± 요건 기준 {n}개 종목 잠금",
   "rm.report.title": "RM 고객 보고서",
-  "rm.report.tabRm": "RM 요약",
-  "rm.report.tabQuant": "퀀트 분석",
+  "rm.report.subtitle": "고객 니즈 → 제약 이행 → 권장 포트폴리오",
+  "rm.report.tabRm": "고객 보고서",
+  "rm.report.tabQuant": "엔진 상세",
+  "rm.report.quantTabHint":
+    "탐색 라운드·리더보드·팩터 진단 — RM 심화용이며 고객 미팅 메인 화면이 아닙니다.",
+  "rm.report.heroEyebrow": "권장 포트폴리오",
+  "rm.report.heroTitle": "{code}{star}",
+  "rm.report.heroHint": "앵커 「{anchor}」 대비 주요 제안",
+  "rm.report.needsTitle": "니즈 이행 점검",
+  "rm.report.needsHint": "이번 실행이 오버레이에서 서명한 약속을 지켰는지 확인합니다.",
+  "rm.report.needsOverallPass": "전부 충족",
+  "rm.report.needsOverallFail": "서명 니즈와 차이 있음",
+  "rm.report.needsColConstraint": "약속 항목",
+  "rm.report.needsColDetail": "실제 / 한도",
+  "rm.report.needsColStatus": "상태",
+  "rm.report.needsDetailHint":
+    "필수 편입 미달 시 누락 티커를, 통과 시 필수 목록을 표시합니다.",
+  "rm.report.altsTitle": "의미 있는 대안",
+  "rm.report.altsHint": "거의 동일한 복제는 숨깁니다. 카드를 눌러 해당 방안을 확인하세요.",
+  "rm.report.expand": "펼치기",
+  "rm.report.collapse": "접기",
+  "rm.report.talkingCollapsedHint": "고객 미팅용 설명 포인트",
   "rm.report.executiveTitle": "요약",
   "rm.report.executiveHint": "고객 미팅 핵심 포인트",
   "rm.report.metricsSummary":
@@ -3460,35 +3685,38 @@ const ko: Dict = {
   "rm.report.metricsHint": "녹색 = 해당 지표에서 기준보다 우수",
   "rm.report.holdingsTitle": "보유 종목 변화",
   "rm.report.holdingsHint": "기준 대비 주요 조정",
-  "rm.report.talkingTitle": "전략 요약",
-  "rm.report.talkingLoading": "AI가 전략 요약을 작성 중입니다…",
-  "rm.report.performanceFlag": "백테스트 결과가 기대에 미치지 못합니다",
-  "rm.report.rerun": "백테스트 다시 실행",
+  "rm.report.holdingsPrecisionHint":
+    "비중은 기말 배분(소수 둘째 자리). 거의 등비이면 종목당 상한이 보유 수·자산군 슬리브와 충돌한 경우가 많습니다(예: 상한 8%인데 8종목만 보유 → 최소 13종목 필요). 상한 완화, 보유 수 확대, 또는 자산군 예산을 조정하세요.",
+  "rm.report.talkingTitle": "방안 요약",
+  "rm.report.talkingLoading": "AI가 방안 요약을 작성 중입니다…",
+  "rm.report.performanceFlag": "시뮬레이션 결과가 기대에 미치지 못합니다",
+  "rm.report.rerun": "시뮬레이션 다시 실행",
   "compliance.badgeCompact": "내부 검토용",
   "compliance.badgeDefault":
     "내부 검토용 — 투자 권유가 아닙니다. 고객 사용 전 책임자 승인이 필요합니다.",
   "rm.report.disclaimerTitle": "컴플라이언스 및 검토声明",
   "rm.report.disclaimerBody":
-    "RM 내부 검토용. 이 문서는 어떠한 증권의 매매 제안, 권유 또는 권고도 아닙니다. 모든 수치는 역사적 시뮬레이션 결과이며, 전략이 모델링된 그대로 정확히 실행되었다고 가정합니다. 과거 성과는 미래 성과를 보장하지 않습니다. 고객 대면 자료로 사용하기 전에 적절한 권한을 가진 책임자의 검토와 승인이 필요합니다.",
-  "rm.report.openQuant": "퀀트 분석 열기",
+    "RM 내부 검토용. 이 문서는 어떠한 증권의 매매 제안, 권유 또는 권고도 아닙니다. 모든 수치는 역사적 시뮬레이션 결과이며, 방안이 모델링된 그대로 정확히 실행되었다고 가정합니다. 과거 성과는 미래 성과를 보장하지 않습니다. 고객 대면 자료로 사용하기 전에 적절한 권한을 가진 책임자의 검토와 승인이 필요합니다.",
+  "rm.report.openQuant": "엔진 상세 열기",
   "rm.report.revise": "고객 니즈 수정",
   "rm.report.candidateTitle": "후보 모델",
   "rm.report.candidateHint":
     "맞춤 실행의 후보 모델을 비교합니다. 기본값은 선도 모델입니다.",
-  "rm.report.candidateLabel": "테스트 포트폴리오",
+  "rm.report.candidateLabel": "포트폴리오 보기",
   "rm.report.candidateChampion": "★",
-  "rm.quant.championWhyTitle": "챔피언 전략으로 선정된 이유",
-  "rm.quant.championWhyCode": "챔피언 전략: {code}",
+  "rm.quant.championWhyTitle": "추천 방안으로 선정된 이유",
+  "rm.quant.championWhyCode": "추천 방안: {code}",
   "proposal.ctaTitle": "Investment Proposal",
   "proposal.ctaHint":
-    "이번 백테스트 AI 최추천 포트폴리오를 투자제안서로 작성합니다",
+    "이번 시뮬레이션 AI 최추천 포트폴리오를 투자제안서로 작성합니다",
   "proposal.generate": "Investment Proposal 생성",
   "proposal.title": "Investment Proposal (초안)",
-  "proposal.subtitle": "RM 내부 초안 — 수치는 듀얼 백테스트 기반; 고객 전달 전 검토 필요",
+  "proposal.subtitle":
+    "RM 내부 초안 — 수치는 듀얼 시뮬레이션 기반; 고객 전달 전 검토 필요",
   "proposal.print": "인쇄 / PDF로 저장",
   "proposal.close": "닫기",
   "proposal.draftBanner":
-    "작업용 초안입니다. JASPER는 주문을 실행하지 않습니다. 정식 고객 문서는 RM/컴플라이언스 검토가 필요합니다.",
+    "실행용 초안입니다. JASPER는 주문을 실행하지 않습니다. 정식 고객 문서는 RM/컴플라이언스 검토가 필요합니다.",
   "proposal.toc": "목차 Contents",
   "proposal.cover.docTitle": "Investment Proposal",
   "proposal.cover.firm": "Private Banking · RM Copilot",
@@ -3497,10 +3725,10 @@ const ko: Dict = {
   "proposal.cover.rmFallback": "담당 RM",
   "proposal.cover.amountPending": "확인 예정",
   "proposal.cover.strategyLine":
-    "앵커: {am} · {theme}. 권장 경로: {customized}.",
+    "기준 구성: {am} · {theme}. 권장 경로: {customized}.",
   "proposal.letter.dear": "{client} 님께,",
   "proposal.letter.thanks":
-    "{strategy}를 앵커로 한 약 {amount} 투자 논의를 감사드립니다. 아래는 제안 포트폴리오와 분석입니다.",
+    "{strategy}를 기준 구성로 한 약 {amount} 투자 논의를 감사드립니다. 아래는 제안 포트폴리오와 분석입니다.",
   "proposal.letter.recommend":
     "{anchor}에서 맞춤 배분({customized})으로 진행하시길 권고드리며, 최종 확인과 은행 적합성 심사가 필요합니다.",
   "proposal.letter.close": "감사합니다,",
@@ -3530,62 +3758,70 @@ const ko: Dict = {
   "proposal.table.total": "합계",
   "proposal.table.metric": "지표",
   "proposal.table.delta": "차이",
-  "proposal.table.anchorPct": "앵커 %",
+  "proposal.table.anchorPct": "기준 구성 %",
   "proposal.table.customPct": "제안 %",
   "proposal.section.executive": "요약 Executive Summary",
   "proposal.section.profile": "고객 프로필 및 목표 Client Profile & Objectives",
   "proposal.section.current": "현재 상황 / 보유 Current Situation / Holdings",
-  "proposal.section.strategy": "권장 전략 Recommended Strategy",
+  "proposal.section.strategy": "권장 방안 Recommended Strategy",
   "proposal.section.allocation": "제안 배분 Proposed Allocation",
-  "proposal.section.rationale": "근거 및 설명 포인트 Rationale & Talking Points",
+  "proposal.section.rationale":
+    "근거 및 설명 포인트 Rationale & Talking Points",
   "proposal.section.performance": "리스크·성과 예시 Risk & Performance",
   "proposal.section.implementation": "실행 Implementation",
   "proposal.section.disclaimers": "면책 및 적합성 Disclaimers & Suitability",
-  "proposal.section.market": "시장 맥락 및 제안 근거 Market Context & Rationale",
-  "proposal.section.construction": "전략 구성 및 제약 Strategy Construction & Constraints",
+  "proposal.section.market":
+    "시장 맥락 및 제안 근거 Market Context & Rationale",
+  "proposal.section.construction":
+    "방안 구성 및 제약 Strategy Construction & Constraints",
   "proposal.section.validation": "역사적 시뮬레이션",
   "proposal.section.risk": "리스크 분석 Risk Analysis",
   "proposal.body.letterIntro":
-    "본 제안서는 {client}의 맞춤 ETF 포트폴리오 초안이며(참고 규모 {amount}), {am} · {theme}를 모델 포트폴리오 앵커로 사용합니다.",
+    "본 제안서는 {client}의 맞춤 ETF 포트폴리오 초안이며(참고 규모 {amount}), {am} · {theme}를 모델 포트폴리오 기준 구성로 사용합니다.",
   "proposal.body.executive":
-    "권장 방향: {anchor}를 {customized}로 맞춤화하고 듀얼 백테스트로 검증.",
+    "권장 방향: {anchor}를 {customized}로 맞춤화하고 듀얼 시뮬레이션로 검증.",
   "proposal.body.metricsPending": "핵심 성과 차이는 지표 로드 후 표시됩니다.",
-  "proposal.body.profileFallback": "고객 선호는 오버레이 워크플로에서 확인되었습니다.",
-  "proposal.body.currentAnchor": "출발점(앵커 모델 포트폴리오): {anchor}",
+  "proposal.body.profileFallback":
+    "고객 선호는 오버레이 워크플로에서 확인되었습니다.",
+  "proposal.body.currentAnchor": "출발점(기준 모델 포트폴리오): {anchor}",
   "proposal.body.currentFootnote":
     "현재 보유 스냅샷 기준일 {asOf}. 데모 데이터 — 커스터디 피드가 아닙니다.",
   "proposal.body.market":
     "조정 근거는 서명된 고객 니즈를 존중하며 {anchor}에서 {customized}로 이동하는 데 초점을 둡니다.",
   "proposal.body.strategyAnchor":
-    "앵커 모델 포트폴리오: {am} · {theme} (리스크 밴드: {risk}). AM 테마 상품 출발점입니다.",
+    "기준 모델 포트폴리오: {am} · {theme} (리스크 밴드: {risk}). AM 테마 상품 출발점입니다.",
   "proposal.body.strategyCustomize":
-    "맞춤 권고({customized})는 서명된 오버레이 제약으로 앵커({anchor})를 개인화하고 듀얼 백테스트로 검증합니다.",
-  "proposal.body.allocationFallback": "맞춤 보유 종목은 가중치 해석 후 표시됩니다.",
+    "맞춤 권고({customized})는 서명된 오버레이 제약으로 기준 구성({anchor})를 개인화하고 듀얼 시뮬레이션로 검증합니다.",
+  "proposal.body.allocationFallback":
+    "맞춤 보유 종목은 가중치 해석 후 표시됩니다.",
   "proposal.body.allocationFootnote":
-    "가중치는 맞춤 챔피언(또는 선택 트라이얼) 기준입니다. 금액은 고객 현금/AUM 스냅샷의 예시입니다.",
+    "가중치는 맞춤 추천 방안(또는 선택 트라이얼) 기준입니다. 금액은 고객 현금/AUM 스냅샷의 예시입니다.",
   "proposal.body.constructionFallback":
     "시뮬레이션 구간 {start} → {end}; 목표 {objective}. 맞춤 프롬프트와 제외 종목이 적용됩니다.",
   "proposal.body.excludes": "제외 티커: {tickers}",
   "proposal.body.objectiveLine": "투자 목표: {objective}",
   "proposal.body.validationNote":
-    "수치는 엔진 듀얼 백테스트(앵커 vs 맞춤)에서 오며 AI가 만들어 낸 것이 아닙니다. 과거 성과는 미래 성과의 신뢰할 수 있는 지표가 아닙니다.",
+    "수치는 엔진 듀얼 시뮬레이션(기준 구성 vs 맞춤)에서 오며 AI가 만들어 낸 것이 아닙니다. 과거 성과는 미래 성과의 신뢰할 수 있는 지표가 아닙니다.",
   "proposal.body.chartCaption":
     "듀얼 에쿼티 예시(100 리베이스), 구간 {start} → {end}. 실제 계좌 가치는 수수료·세금·타이밍에 따라 달라집니다.",
-  "proposal.body.riskMdd": "맞춤 최대낙폭 {customized}, 앵커 {anchor}.",
+  "proposal.body.riskMdd": "맞춤 최대낙폭 {customized}, 기준 구성 {anchor}.",
   "proposal.body.riskFallback": "퀀트 탭에서 낙폭과 집중도를 검토하세요.",
   "proposal.body.implDca":
     "일시 투자 타이밍이 우려되면 주식 슬리브에 DCA(분할 매수)를 고려하세요.",
   "proposal.body.implRebalance":
-    "리밸런싱은 서명된 백테스트 가정({start} → {end})을 따르며, 은행 정책이 우선합니다.",
+    "리밸런싱은 서명된 시뮬레이션 가정({start} → {end})을 따르며, 은행 정책이 우선합니다.",
   "proposal.body.implLiquidity":
     "전액 투입 전 단기 현금 수요에 맞는 유동성 버퍼를 유지하세요.",
   "proposal.body.implClientLiquidity": "고객 유동성 메모: {note}",
   "proposal.body.impl1": "유동성·시장충격이 우려되면 분할 진입을 고려하세요.",
-  "proposal.body.impl2": "고객 전달 전 수수료·세금·적합성(은행 정책)을 확인하세요.",
-  "proposal.body.impl3": "리밸런싱 주기는 별도 수정이 없으면 서명된 백테스트 설정을 따릅니다.",
+  "proposal.body.impl2":
+    "고객 전달 전 수수료·세금·적합성(은행 정책)을 확인하세요.",
+  "proposal.body.impl3":
+    "리밸런싱 주기는 별도 수정이 없으면 서명된 시뮬레이션 설정을 따릅니다.",
   "proposal.body.signOffNote": "RM 서명 메모: {note}",
   "proposal.body.disclaimer1": "과거 성과가 미래 결과를 보장하지 않습니다.",
-  "proposal.body.disclaimer2": "본 초안은 컴플라이언스 승인 전까지 RM 내부용입니다.",
+  "proposal.body.disclaimer2":
+    "본 초안은 컴플라이언스 승인 전까지 RM 내부용입니다.",
   "proposal.body.disclaimerSuitability":
     "적합성·KYC·상품 승인은 은행 프로세스이며, JASPER는 규제 적합성을 인증하지 않습니다.",
   "proposal.body.nextSteps":
@@ -3596,8 +3832,7 @@ const ko: Dict = {
     "경고: 투자 가치는 하락할 수 있으며 원금 일부 또는 전부를 잃을 수 있습니다.",
   "proposal.warning.currency":
     "경고: 수익률은 환율 변동의 영향을 받을 수 있습니다.",
-  "proposal.warning.estimates":
-    "경고: 수치는 추정/백테스트 예시일 뿐입니다.",
+  "proposal.warning.estimates": "경고: 수치는 추정/시뮬레이션 예시일 뿐입니다.",
   "proposal.warning.noAdvice":
     "경고: 본 자료는 정보·논의 목적이며 청약/투자 권유가 아닙니다.",
   "rm.holdings.change": "변화",
@@ -3648,16 +3883,16 @@ const ko: Dict = {
   "rm.talking.tradeoffMdd": "최대 낙폭 {delta} 개선",
   "rm.talking.tradeoffVol": "변동성 {delta} 감소",
   "rm.talking.tradeoffSharpe": "샤프 비율 기준 대비 개선",
-  "rm.talking.tradeoffGeneric": "기준 대비 전반적 리스크가 낮고 경로가 더 안정적",
+  "rm.talking.tradeoffGeneric":
+    "기준 대비 전반적 리스크가 낮고 경로가 더 안정적",
   "rm.talking.performanceSimilar":
     "수익은 기준과 유사합니다({highlights}) — 서명된 고객 니즈에 더 잘 맞는 배분에 초점을 맞추세요.",
   "rm.talking.similarGeneric": "소폭 수익 차이보다 배분 적합성이 더 중요",
   "rm.talking.compliance":
-    "참고: 위 내용은 논의용 백테스트 시연일 뿐이며 투자 권유가 아닙니다. 실행 전 적합성·컴플라이언스를 확인하세요.",
+    "참고: 위 내용은 논의용 시뮬레이션 시연일 뿐이며 투자 권유가 아닙니다. 실행 전 적합성·컴플라이언스를 확인하세요.",
 
-  "progress.dual.anchor": "기준 백테스트",
-  "progress.dual.customized": "맞춤 백테스트",
-
+  "progress.dual.anchor": "기준 시뮬레이션",
+  "progress.dual.customized": "맞춤 시뮬레이션",
   "nav.aria": "주 메뉴",
   "nav.menu": "탐색 메뉴 열기",
   "nav.clients": "고객 대시보드",
@@ -3665,17 +3900,18 @@ const ko: Dict = {
   "nav.models": "모델 포트폴리오",
   "nav.personalization": "포트폴리오 맞춤화",
   "nav.settings": "관리자 설정",
-
   "settings.subtitle": "가져오기 · 내보내기",
-  "settings.hint": "투자 유니버스와 모델 포트폴리오 CSV는 여기서 관리합니다. 목록·활성 설정은 각 페이지에서 하세요.",
+  "settings.hint":
+    "투자 유니버스와 모델 포트폴리오 CSV는 여기서 관리합니다. 목록·활성 설정은 각 페이지에서 하세요.",
   "settings.poolTitle": "투자 유니버스",
   "settings.poolHint": "전역 상품 선반 CSV를 가져오거나 내보냅니다.",
   "settings.modelsTitle": "모델 포트폴리오",
-  "settings.modelsHint": "AM 모델 포트폴리오 CSV를 가져오거나 내보냅니다(보유 1행).",
-
+  "settings.modelsHint":
+    "AM 모델 포트폴리오 CSV를 가져오거나 내보냅니다(보유 1행).",
   "clients.listTitle": "고객 대시보드",
   "clients.listSubtitle": "데모 고객",
-  "clients.listHint": "고객을 선택해 프로필·보유를 확인한 뒤 포트폴리오 맞춤화를 시작하세요.",
+  "clients.listHint":
+    "고객을 선택해 프로필·보유를 확인한 뒤 포트폴리오 맞춤화를 시작하세요.",
   "clients.detailSubtitle": "고객 프로필",
   "clients.backToList": "고객 목록으로",
   "clients.notFound": "고객을 찾을 수 없습니다.",
@@ -3709,12 +3945,13 @@ const ko: Dict = {
   "clients.chart.performance": "성과 추이",
   "clients.chart.allocation": "보유 구성",
   "clients.chart.nav": "순자산가치",
-  "clients.holdings.individual": "개별 투자 종목",
+  "clients.holdings.individual": "개별주/위성 구간",
   "clients.holdings.cash": "현금",
   "clients.holdings.groupSubtotal": "소계",
   "clients.holdings.total": "합계",
   "clients.chart.includeGroups": "차트에 포함할 그룹",
-  "clients.chart.noGroupsSelected": "차트를 보려면 그룹을 하나 이상 선택하세요.",
+  "clients.chart.noGroupsSelected":
+    "차트를 보려면 그룹을 하나 이상 선택하세요.",
   "clients.add": "추가",
   "clients.add.content": "내용",
   "clients.add.date": "날짜",
@@ -3724,29 +3961,32 @@ const ko: Dict = {
   "clients.add.notePlaceholder": "메모 추가…",
   "clients.add.eventPlaceholder": "일정 제목…",
   "clients.add.noEvents": "다가오는 일정이 없습니다.",
-
+  "clients.history.title": "맞춤 포트폴리오 기록",
+  "clients.history.record": "결과 {count}개",
+  "clients.history.records": "결과 {count}개",
+  "clients.history.empty":
+    "이 고객을 위해 생성한 맞춤 포트폴리오가 여기에 표시됩니다.",
+  "clients.history.open": "열기",
+  "clients.history.untitled": "맞춤 포트폴리오",
   "customization.optimizeScopeTitle": "다음 보유 구간 최적화",
-  "customization.optimizeScopeHint": "이번 맞춤화에 포함할 보유 그룹을 조정하세요.",
+  "customization.optimizeScopeHint":
+    "이번 맞춤화에 포함할 보유 그룹을 조정하세요.",
   "customization.multiModelNotice":
     "여러 모델 포트폴리오가 선택되었습니다. 하나의 포트폴리오로 함께 맞춤화됩니다. 변경하지 않을 슬리브는 체크를 해제하세요.",
   "customization.portfolioName": "포트폴리오 이름",
   "customization.portfolioNamePlaceholder": "이번 맞춤 포트폴리오 이름",
-
   "enum.risk.conservative": "보수적",
   "enum.risk.moderate": "중립",
   "enum.risk.aggressive": "공격적",
   "enum.risk.moderate_conservative": "다소 보수적",
   "enum.risk.moderate_aggressive": "다소 공격적",
-
   "enum.esg.none": "없음",
   "enum.esg.light": "약함",
   "enum.esg.moderate": "보통",
   "enum.esg.strong": "강함",
   "enum.esg.strict": "엄격",
-
   "institutional.cash": "현금",
   "institutional.fixed_income": "채권",
-
   "pool.title": "투자 유니버스",
   "pool.subtitle": "전역 상품 선반",
   "pool.countBadge": "활성 {enabled} / {total}",
@@ -3774,18 +4014,20 @@ const ko: Dict = {
   "pool.product.etf": "ETF",
   "pool.product.stock": "주식",
   "pool.product.fund": "펀드",
+  "pool.product.cash": "현금",
   "pool.product.structured": "구조화",
   "pool.product.bond": "채권",
   "pool.product.other": "기타",
-
   "models.title": "모델 포트폴리오",
   "models.subtitle": "하우스 모델 카탈로그",
-  "models.hint": "포트폴리오 맞춤화용 모델 포트폴리오를 관리합니다. ETF·뮤추얼펀드·개별주를 혼합할 수 있으며, 구성 종목은 활성 투자 유니버스에 있어야 합니다. CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
+  "models.hint":
+    "포트폴리오 맞춤화용 모델 포트폴리오를 관리합니다. ETF·뮤추얼펀드·개별주를 혼합할 수 있으며, 구성 종목은 활성 투자 유니버스에 있어야 합니다. CSV: portfolio_id, portfolio_name, asset_manager, am_id, theme, risk_profile, ticker, weight, benchmark_ticker, enabled.",
   "models.countBadge": "사용가능 {ready} / 전체 {total}",
   "models.resetBundled": "기본 모델로 재설정",
   "models.importCsv": "CSV 가져오기",
   "models.exportCsv": "CSV 내보내기",
-  "models.importReport": "가져오기: 포트폴리오 {count}개, 행 {skipped}개 건너뜀",
+  "models.importReport":
+    "가져오기: 포트폴리오 {count}개, 행 {skipped}개 건너뜀",
   "models.conflict": "유니버스 충돌",
   "models.conflictBadge": "충돌",
   "models.conflictTickers": "활성 유니버스에 없음",
@@ -3797,7 +4039,8 @@ const ko: Dict = {
   "models.col.theme": "테마",
   "models.risk": "위험",
   "models.benchmark": "벤치마크",
-  "models.issuerHoldingsHint": "구성은 모두 해당 운용사 ETF",
+  "models.issuerHoldingsHint":
+    "하우스 모델 카탈로그의 ETF·뮤추얼펀드·개별주 혼합",
   "models.filter.am": "자산운용사 필터",
   "models.filter.risk": "리스크 필터",
   "models.filter.theme": "투자 테마 필터",
@@ -3810,23 +4053,34 @@ const ko: Dict = {
   "models.sort.risk": "정렬: 리스크",
   "models.sort.theme": "정렬: 테마",
   "models.empty": "필터 조건에 맞는 모델 포트폴리오가 없습니다.",
-
-  "anchor.poolConflicts": "유니버스 충돌로 {count}개 모델이 숨겨졌습니다 — Pool 또는 Models를 수정하세요.",
-  "anchor.empty": "선택 가능한 앵커가 없습니다. 활성 유니버스에 구성이 있는 모델을 활성화하세요.",
+  "anchor.poolConflicts":
+    "유니버스 충돌로 {count}개 모델이 숨겨졌습니다 — Pool 또는 Models를 수정하세요.",
+  "anchor.empty":
+    "선택 가능한 기준 구성가 없습니다. 활성 유니버스에 구성이 있는 모델을 활성화하세요.",
 };
 
 const DICTS: Record<Lang, Dict> = { en, zh, ko };
 
-function interpolate(template: string, params?: Record<string, string | number>): string {
+function interpolate(
+  template: string,
+  params?: Record<string, string | number>,
+): string {
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (match, key: string) =>
     key in params ? String(params[key]) : match,
   );
 }
 
-export type TFn = (key: string, params?: Record<string, string | number>) => string;
+export type TFn = (
+  key: string,
+  params?: Record<string, string | number>,
+) => string;
 
-export function translate(lang: Lang, key: string, params?: Record<string, string | number>): string {
+export function translate(
+  lang: Lang,
+  key: string,
+  params?: Record<string, string | number>,
+): string {
   const template = DICTS[lang]?.[key] ?? DICTS.en[key] ?? key;
   return interpolate(template, params);
 }
@@ -3900,10 +4154,12 @@ export function rebalanceFreqLabel(t: TFn, code?: string | null): string {
   if (!code) return "";
   const c = String(code).trim().toUpperCase();
   if (c.startsWith("W")) return t("results.freq.weekly");
-  if (c === "ME" || c === "M" || c === "MS" || c.startsWith("MON")) return t("results.freq.monthly");
+  if (c === "ME" || c === "M" || c === "MS" || c.startsWith("MON"))
+    return t("results.freq.monthly");
   if (c.startsWith("Q")) return t("results.freq.quarterly");
   if (c.startsWith("Y") || c.startsWith("A")) return t("results.freq.yearly");
-  if (c === "D" || c.startsWith("DAY") || c === "B") return t("results.freq.daily");
+  if (c === "D" || c.startsWith("DAY") || c === "B")
+    return t("results.freq.daily");
   return String(code);
 }
 

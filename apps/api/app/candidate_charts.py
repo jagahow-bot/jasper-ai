@@ -38,6 +38,7 @@ from app.engine.portfolio import (
 )
 from app.engine.report_sim_cache import TrialReportCache
 from app.engine.spec import BacktestSpec
+from app.engine.weights import WEIGHT_EPS, round_weights_largest_remainder
 from app.models import BacktestRequest, BacktestResult, CandidateChartsPayload, PortfolioCandidate
 from app.profiles import (
     assert_locked_universe,
@@ -344,6 +345,7 @@ def _load_price_panel(
         min_valid_tickers=min_valid_tickers_for_universe(
             len(tickers), bool(req.universe_tickers)
         ),
+        pinned_tickers=guaranteed_supplements or None,
     )
     tickers = [t for t in tickers if t in prices.columns]
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
@@ -417,7 +419,7 @@ def rebuild_candidate_charts(
     )
     resolver = dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
 
-    trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
+    trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, customization_drift_actual, class_budget, f_params = (
         _sim_inputs_from_params(params, req, rebalance_rule, spec)
     )
     sim_kw = apply_allocator_resolver(
@@ -433,6 +435,8 @@ def rebuild_candidate_charts(
             max_turnover=max_turnover_actual,
             universe_by_ticker=universe_by_ticker,
             class_budget=class_budget,
+            anchor_weights=req.anchor_weights,
+            customization_drift=customization_drift_actual,
         ),
         prices,
         resolver,
@@ -569,9 +573,64 @@ def merge_charts_into_candidate(
     if payload.institutional:
         for key, value in payload.institutional.items():
             analytics[key] = value
-    return candidate.model_copy(
-        update={
-            "equity_curve": payload.equity_curve,
-            "analytics": analytics,
+    # Sync holdings map with full-period terminal weights (OOS packaging may
+    # otherwise leave holdout-fresh-start last_weights that look artificially round).
+    update: dict[str, Any] = {
+        "equity_curve": payload.equity_curve,
+        "analytics": analytics,
+    }
+    synced = _weights_from_history_row(
+        payload.weight_history[-1] if payload.weight_history else None,
+        min_weight=WEIGHT_EPS,
+    )
+    # Ignore chart rows that dumped residual mass into CASH (truncated ticker set).
+    if synced:
+        risky = {
+            k: v
+            for k, v in synced.items()
+            if str(k).upper() not in {"CASH"}
         }
+        if float(sum(risky.values())) >= 0.99:
+            update["weights"] = risky
+    return candidate.model_copy(update=update)
+
+
+def _weights_from_history_row(
+    row: dict[str, Any] | None,
+    *,
+    min_weight: float = WEIGHT_EPS,
+) -> dict[str, float]:
+    if not isinstance(row, dict):
+        return {}
+    skip = {"date", "OTHER", "other", "__OTHER__"}
+    selected: dict[str, float] = {}
+    residual = 0.0
+    for key, raw in row.items():
+        if key in skip:
+            try:
+                residual += max(0.0, float(raw))
+            except (TypeError, ValueError):
+                pass
+            continue
+        try:
+            w = float(raw)
+        except (TypeError, ValueError):
+            continue
+        if not np.isfinite(w) or w <= 0.0:
+            continue
+        if w >= float(min_weight) - 1e-12:
+            selected[str(key).upper()] = w
+        else:
+            residual += w
+    if not selected:
+        return {}
+    # Fold sub-threshold / OTHER dust only; large OTHER means truncated chart row.
+    if residual > max(float(min_weight), 1e-3) + 1e-12:
+        return round_weights_largest_remainder(
+            selected, ndigits=4, target=float(sum(selected.values()))
+        )
+    return round_weights_largest_remainder(
+        selected,
+        ndigits=4,
+        target=float(sum(selected.values()) + residual),
     )

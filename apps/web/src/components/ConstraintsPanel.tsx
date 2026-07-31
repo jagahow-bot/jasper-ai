@@ -23,6 +23,10 @@ import {
   type TFn,
 } from "@/lib/i18n";
 import type { BacktestRequest, Objective, ParamControl } from "@/lib/types";
+import {
+  ensureMaxHoldingsForCap,
+  minHoldingsForCap,
+} from "@/lib/min-holdings-for-cap";
 
 /** Human-readable label for a categorical parameter option code. */
 function formatCategoricalOption(key: string, op: string, t: TFn): string {
@@ -81,7 +85,7 @@ export function ConstraintsPanel({
       step: 0.01,
     },
     { key: "top_n_actual", label: t("config.control.top_n_actual"), min: 5, max: Math.min(120, runTopN), step: 1 },
-    { key: "max_holdings_actual", label: t("config.control.max_holdings_actual"), min: 1, max: value.max_holdings ?? 30, step: 1 },
+    { key: "max_holdings_actual", label: t("config.control.max_holdings_actual"), min: minHoldingsForCap(runMaxWeight, 2), max: value.max_holdings ?? 30, step: 1 },
     { key: "factor_lookback_days", label: t("config.control.factor_lookback_days"), min: 126, max: 504, step: 21 },
     { key: "reversal_lookback_days", label: t("config.control.reversal_lookback_days"), min: 63, max: 252, step: 21 },
     { key: "value_lookback_days", label: t("config.control.value_lookback_days"), min: 63, max: 252, step: 21 },
@@ -92,6 +96,13 @@ export function ConstraintsPanel({
       label: t("config.control.max_turnover_actual"),
       min: 0.05,
       max: Math.max(0.05, runMaxTurnover),
+      step: 0.05,
+    },
+    {
+      key: "customization_drift_actual",
+      label: t("config.control.customization_drift_actual"),
+      min: 0,
+      max: Math.max(0, value.customization_drift ?? 0.5),
       step: 0.05,
     },
     { key: "w_mom", label: t("config.control.w_mom"), min: 0, max: 2, step: 0.1 },
@@ -108,7 +119,7 @@ export function ConstraintsPanel({
     ...subAssetControlSpecs,
   ];
     },
-    [runMaxWeight, runTopN, runMaxTurnover, value.max_holdings, t],
+    [runMaxWeight, runTopN, runMaxTurnover, value.max_holdings, value.customization_drift, t],
   );
   const controls = value.param_controls ?? {};
   const categoricalSpecs = [
@@ -214,9 +225,17 @@ export function ConstraintsPanel({
           min={0}
           max={100}
           value={Math.round(value.max_weight * 100)}
-          onChange={(e) =>
-            onChange({ ...value, max_weight: Number(e.target.value) / 100 })
-          }
+          onChange={(e) => {
+            const max_weight = Number(e.target.value) / 100;
+            onChange({
+              ...value,
+              max_weight,
+              max_holdings: ensureMaxHoldingsForCap(
+                max_weight,
+                value.max_holdings ?? 30,
+              ),
+            });
+          }}
           className="w-full"
         />
       </label>
@@ -259,25 +278,27 @@ export function ConstraintsPanel({
         <p className="ui-hint">{t("config.maxTurnoverHint")}</p>
       </label>
 
-      <label className="block space-y-2">
-        <span className="ui-label">
-          {t("config.customizationDrift", {
-            pct: Math.round((value.customization_drift ?? 0.5) * 100),
-          })}
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          value={Math.round((value.customization_drift ?? 0.5) * 100)}
-          onChange={(e) =>
-            onChange({ ...value, customization_drift: Number(e.target.value) / 100 })
-          }
-          className="w-full"
-        />
-        <p className="ui-hint">{t("config.customizationDriftHint")}</p>
-      </label>
+      {!universeReadOnly ? (
+        <label className="block space-y-2">
+          <span className="ui-label">
+            {t("config.customizationDrift", {
+              pct: Math.round((value.customization_drift ?? 0.5) * 100),
+            })}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={Math.round((value.customization_drift ?? 0.5) * 100)}
+            onChange={(e) =>
+              onChange({ ...value, customization_drift: Number(e.target.value) / 100 })
+            }
+            className="w-full"
+          />
+          <p className="ui-hint">{t("config.customizationDriftHint")}</p>
+        </label>
+      ) : null}
 
       <p className="ui-hint">{t("config.limitsHint")}</p>
 
@@ -287,16 +308,30 @@ export function ConstraintsPanel({
         </span>
         <input
           type="range"
-          min={1}
+          min={minHoldingsForCap(value.max_weight, 2)}
           max={50}
           step={1}
-          value={value.max_holdings ?? 30}
+          value={Math.max(
+            value.max_holdings ?? 30,
+            minHoldingsForCap(value.max_weight, 2),
+          )}
           onChange={(e) =>
-            onChange({ ...value, max_holdings: Number(e.target.value) })
+            onChange({
+              ...value,
+              max_holdings: ensureMaxHoldingsForCap(
+                value.max_weight,
+                Number(e.target.value),
+              ),
+            })
           }
           className="w-full"
         />
-        <p className="ui-hint">{t("config.maxHoldingsHint")}</p>
+        <p className="ui-hint">
+          {t("config.maxHoldingsHint", {
+            min: minHoldingsForCap(value.max_weight, 2),
+            pct: Math.round(value.max_weight * 100),
+          })}
+        </p>
       </label>
 
       <label className="block space-y-2">

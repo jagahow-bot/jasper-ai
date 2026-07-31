@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { AppNav } from "@/components/AppNav";
 import { ChartTooltip } from "@/components/ChartTooltip";
+import { ClientCustomizedHistoryPanel } from "@/components/ClientCustomizedHistoryPanel";
 import {
   buildClientHoldingsPie,
   buildClientPerformanceSeries,
@@ -37,6 +38,7 @@ import {
   isCashHolding,
   localizedText,
   resolveAnchorIdFromScope,
+  resolveHoldingProductType,
   selectedGroupsWeightScale,
   type ClientHoldingsGroup,
   type ClientUpcomingEvent,
@@ -48,11 +50,10 @@ import {
   getExtraNotes,
   type ClientExtraNote,
 } from "@/lib/demo-clients-store";
-import { SPY_ANCHOR_ID } from "@/lib/model-portfolios";
-import { getSelectableAnchorPortfolios } from "@/lib/model-portfolios-store";
+import { CURRENT_HOLDINGS_ANCHOR_ID } from "@/lib/model-portfolios";
 import {
-  assetClassLabel,
   esgPreferenceLabel,
+  productTypeLabel,
   riskProfileLabel,
   useI18n,
   type Lang,
@@ -170,8 +171,7 @@ export default function ClientDashboardPage() {
       selectedGroupIds.length > 0
         ? selectedGroupIds
         : groups.map((g) => g.id);
-    const fallback =
-      getSelectableAnchorPortfolios()[0]?.id ?? SPY_ANCHOR_ID;
+    const fallback = CURRENT_HOLDINGS_ANCHOR_ID;
     const anchor = resolveAnchorIdFromScope(groups, ids, fallback);
     const name = defaultCustomizationPortfolioName(client, lang);
     const q = new URLSearchParams({
@@ -558,7 +558,7 @@ export default function ClientDashboardPage() {
                   <tr className="border-b border-[var(--border)] text-[var(--text-dim)]">
                     <th className="py-2 pr-3 font-medium">{t("pool.col.ticker")}</th>
                     <th className="py-2 pr-3 font-medium">{t("pool.col.name")}</th>
-                    <th className="py-2 pr-3 font-medium">{t("pool.col.assetClass")}</th>
+                    <th className="py-2 pr-3 font-medium">{t("pool.col.productType")}</th>
                     <th className="py-2 pr-3 font-medium text-right">
                       {t("clients.amount")}
                     </th>
@@ -637,7 +637,7 @@ export default function ClientDashboardPage() {
                               {holdingDisplayName(h, t, lang)}
                             </td>
                             <td className="py-2.5 pr-3">
-                              {assetClassLabel(t, h.asset_class)}
+                              {productTypeLabel(t, resolveHoldingProductType(h))}
                             </td>
                             <td className="py-2.5 pr-3 text-right tabular-nums">
                               {formatHoldingAmount(
@@ -804,6 +804,8 @@ export default function ClientDashboardPage() {
             </div>
           </section>
           </div>
+
+          <ClientCustomizedHistoryPanel clientId={client.client_id} />
         </div>
       </main>
     </div>
@@ -931,7 +933,9 @@ function HoldingsGroupRows({
             >
               {holdingDisplayName(h, t, lang)}
             </td>
-            <td className="py-2.5 pr-3">{assetClassLabel(t, h.asset_class)}</td>
+            <td className="py-2.5 pr-3">
+              {productTypeLabel(t, resolveHoldingProductType(h))}
+            </td>
             <td className="py-2.5 pr-3 text-right tabular-nums">
               {muted ? blank : formatHoldingAmount(aumUsd, h.weight, lang)}
             </td>

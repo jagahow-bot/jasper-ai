@@ -71,6 +71,25 @@ def _needs_full_with_weights(full_m: dict[str, Any] | None) -> bool:
     return not wh
 
 
+def _merge_sim_prefer_series(
+    existing: dict[str, Any] | None,
+    incoming: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Prefer incoming scalars but keep equity/port_ret series from existing when richer."""
+    if incoming is None:
+        return existing
+    if existing is None:
+        return incoming
+    series_keys = ("equity", "port_ret", "weight_history", "weight_history_tickers")
+    if existing.get("equity") is not None and incoming.get("equity") is None:
+        merged = dict(existing)
+        for k, v in incoming.items():
+            if k not in series_keys:
+                merged[k] = v
+        return merged
+    return incoming
+
+
 @dataclass
 class ReportSimBundle:
     train_m: dict[str, Any] | None = None
@@ -188,18 +207,31 @@ class TrialReportCache:
     def refresh_from_record_metrics(
         self, params: dict[str, Any], metrics: dict[str, Any]
     ) -> None:
-        """Re-stash per-trial IS/OOS from optimizer snapshots keyed by model_code."""
+        """Re-stash per-trial IS/OOS from optimizer snapshots keyed by model_code.
+
+        Scalar ``train_metrics`` / ``validation_metrics`` snapshots must not
+        drop equity/port_ret already stashed during the Optuna trial — that
+        forced assembly to re-simulate every candidate ("cache incomplete").
+        """
         code = params.get("model_code")
         train_snap = metrics.get("train_metrics")
         if not code or not isinstance(train_snap, dict) or not train_snap:
             return
         val_snap = metrics.get("validation_metrics")
-        val_m = copy.deepcopy(val_snap) if isinstance(val_snap, dict) else None
+        val_incoming = copy.deepcopy(val_snap) if isinstance(val_snap, dict) else None
         existing = self.get_bundle(params)
         full_m = existing.full_m if existing else None
+        train_m = _merge_sim_prefer_series(
+            existing.train_m if existing else None,
+            copy.deepcopy(train_snap),
+        )
+        val_m = _merge_sim_prefer_series(
+            existing.val_m if existing else None,
+            val_incoming,
+        )
         self.stash_from_trial(
             params,
-            train_m=copy.deepcopy(train_snap),
+            train_m=train_m,
             val_m=val_m,
             full_m=full_m,
         )

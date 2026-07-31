@@ -1,4 +1,5 @@
 import {
+  anchorHoldingsFromRequest,
   buildLockedCustomUniverse,
   isLockedModelUniverse,
   resolveStrictLockedAdds,
@@ -7,16 +8,24 @@ import {
 import {
   overlayToBacktestRequest,
   type ClientOverlay,
+  type OverlayProposedTicker,
   type OverlayToBacktestOptions,
 } from "@/lib/overlay-schema";
 import { pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import type { AssetClass } from "@/lib/constants";
 import type { BacktestRequest } from "@/lib/types";
+import { getUniverseItems } from "@/lib/universe";
 
 type UniverseFilterResponse = {
   supplement_tickers?: string[];
   per_rule_llm_logs?: LlmAuditEntry[];
   error?: string;
+};
+
+export type ResolveOverlayUniverseResult = {
+  request: BacktestRequest;
+  /** AI filter matches for locked models — RM must confirm via proposed_tickers. */
+  filterProposedTickers?: OverlayProposedTicker[];
 };
 
 async function fetchUniverseSupplements(
@@ -42,27 +51,53 @@ async function fetchUniverseSupplements(
   return (data.supplement_tickers ?? []).filter(Boolean);
 }
 
+function mapTickersToProposed(
+  tickers: readonly string[],
+  rationale?: string,
+): OverlayProposedTicker[] {
+  const metaByTicker = new Map(
+    getUniverseItems().map((u) => [u.ticker.toUpperCase(), u]),
+  );
+  return uniqueTickers(tickers).map((ticker) => {
+    const meta = metaByTicker.get(ticker);
+    return {
+      ticker,
+      name: meta?.name,
+      category: meta?.category,
+      rationale,
+    };
+  });
+}
+
 /**
  * Map overlay → BacktestRequest and resolve universe filter prompts via
  * /api/universe/filter so RM sign-off does not require manual RUN SEARCH.
  *
  * When the base is an anchor/model portfolio, the usable universe is strictly
  * (model holdings − excludes) ∪ explicit adds (supplement_tickers + tickers
- * literally named in prompts). NL filter / fund-pool matching is NOT used to
- * expand the locked set.
+ * literally named in prompts). NL filter matches are surfaced as
+ * `filterProposedTickers` for RM confirmation — they are NOT auto-merged.
  */
 export async function resolveOverlayUniverse(
   base: BacktestRequest,
   overlay: ClientOverlay,
-  opts?: OverlayToBacktestOptions & { reportLanguage?: string },
-): Promise<BacktestRequest> {
+  opts?: OverlayToBacktestOptions & {
+    reportLanguage?: string;
+    /**
+     * When true, skip `/api/universe/filter` proposal surfacing (locked path still
+     * builds the strict universe). Use when suggestions were already shown or the
+     * prompts-key gate already fired once for this session.
+     */
+    skipFilterProposals?: boolean;
+  },
+): Promise<ResolveOverlayUniverseResult> {
   const reportLanguage = opts?.reportLanguage ?? "en";
+  const skipFilterProposals = Boolean(opts?.skipFilterProposals);
   let req = overlayToBacktestRequest(base, overlay, opts);
   const prompts = overlay.universe.prompts.filter(Boolean);
   const lockedMode = isLockedModelUniverse(base);
 
   if (lockedMode) {
-    // Rebuild from base so prompt-named tickers are included without AI expand.
     const adds = resolveStrictLockedAdds({
       explicitSupplements: overlay.universe.supplement_tickers,
       prompts,
@@ -71,18 +106,55 @@ export async function resolveOverlayUniverse(
       addTickers: adds,
       excludeTickers: overlay.universe.exclude_tickers,
     });
+
+    let filterProposedTickers: OverlayProposedTicker[] | undefined;
+    if (prompts.length && !skipFilterProposals) {
+      try {
+        const filterSupplements = await fetchUniverseSupplements(
+          prompts,
+          req.asset_classes,
+          reportLanguage,
+        );
+        if (filterSupplements.length) {
+          const lockedSet = new Set(locked.map((t) => t.toUpperCase()));
+          const explicitAdds = new Set(
+            uniqueTickers([
+              ...anchorHoldingsFromRequest(base),
+              ...(overlay.universe.supplement_tickers ?? []),
+              ...adds,
+            ]).map((t) => t.toUpperCase()),
+          );
+          const novel = filterSupplements.filter((t) => {
+            const key = t.toUpperCase();
+            return !lockedSet.has(key) && !explicitAdds.has(key);
+          });
+          if (novel.length) {
+            filterProposedTickers = mapTickersToProposed(
+              novel,
+              prompts.join("; "),
+            );
+          }
+        }
+      } catch {
+        // Keep strict locked universe when filter fails.
+      }
+    }
+
     return {
-      ...req,
-      universe_tickers: locked,
-      universe_supplement_tickers: locked,
-      max_holdings: Math.max(locked.length, 1),
-      universe_filter_prompts: prompts.length ? prompts : req.universe_filter_prompts,
-      universe_filter_text: prompts.length ? prompts.join("; ") : req.universe_filter_text,
+      request: {
+        ...req,
+        universe_tickers: locked,
+        universe_supplement_tickers: locked,
+        max_holdings: Math.max(locked.length, 1),
+        universe_filter_prompts: prompts.length ? prompts : req.universe_filter_prompts,
+        universe_filter_text: prompts.length ? prompts.join("; ") : req.universe_filter_text,
+      },
+      filterProposedTickers,
     };
   }
 
   if (!prompts.length) {
-    return req;
+    return { request: req };
   }
 
   try {
@@ -92,7 +164,7 @@ export async function resolveOverlayUniverse(
       reportLanguage,
     );
     if (!filterSupplements.length) {
-      return req;
+      return { request: req };
     }
 
     req = {
@@ -109,5 +181,5 @@ export async function resolveOverlayUniverse(
     // Keep overlayToBacktestRequest defaults (open-pool path).
   }
 
-  return req;
+  return { request: req };
 }

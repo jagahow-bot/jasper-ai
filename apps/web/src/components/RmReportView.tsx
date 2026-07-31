@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BenchmarkComparePanel } from "@/components/BenchmarkComparePanel";
 import { ComplianceBadge } from "@/components/ComplianceBadge";
 import { InvestmentProposalPreview } from "@/components/InvestmentProposalPreview";
+import { NeedsFulfillmentPanel } from "@/components/NeedsFulfillmentPanel";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 import { formatOverlaySummary } from "@/lib/overlay-schema";
@@ -11,13 +12,16 @@ import type { ClientOverlay } from "@/lib/overlay-schema";
 import type { DemoClient } from "@/lib/clients";
 import type { ModelPortfolio } from "@/lib/model-portfolios";
 import { useI18n } from "@/lib/i18n";
+import { needsAllPassed } from "@/lib/needs-fulfillment";
 import {
   candidateModelKey,
   candidateRowKey,
   resolveChampionModelKey,
   resolveDefaultSelectedRowKey,
 } from "@/lib/performance-compare-chart";
+import { dedupeProposalSet } from "@/lib/proposal-set";
 import { resolveRunObjective } from "@/lib/resolve-run-objective";
+import { formatWeightPct } from "@/lib/candidate-weights";
 import {
   buildHoldingsDiff,
   buildMetricCompareRows,
@@ -28,6 +32,7 @@ import type {
   BacktestRequest,
   BacktestResult,
   PersonalizationCompare,
+  PortfolioCandidate,
 } from "@/lib/types";
 
 type TabId = "rm" | "quant";
@@ -50,6 +55,7 @@ type Props = {
     extraTrials?: number;
   }) => void;
   continueLoading?: boolean;
+  onPromoteTickers?: (tickers: string[]) => void;
 };
 
 function changeLabel(
@@ -63,6 +69,22 @@ function changeLabel(
     decreased: "rm.holdings.decreased",
   };
   return t(keys[change] ?? "rm.holdings.unchanged");
+}
+
+function proposalLabelI18nKey(label: string): string | null {
+  if (label === "recommended" || label === "defensive" || label === "growth") {
+    return `results.proposalLabel.${label}`;
+  }
+  return null;
+}
+
+function metricValue(
+  candidate: PortfolioCandidate | null | undefined,
+  key: "sharpe" | "cagr" | "max_drawdown",
+): number | null {
+  if (!candidate) return null;
+  const v = candidate[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
 export function RmReportView({
@@ -79,10 +101,13 @@ export function RmReportView({
   onQuickTweakAndRun,
   onContinueRefinement,
   continueLoading = false,
+  onPromoteTickers,
 }: Props) {
   const { t, lang } = useI18n();
   const [tab, setTab] = useState<TabId>("rm");
   const [proposalOpen, setProposalOpen] = useState(false);
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const [talkingOpen, setTalkingOpen] = useState(false);
 
   const candidateEpoch = useMemo(
     () =>
@@ -122,17 +147,32 @@ export function RmReportView({
     [compare.adjustedResult.candidates],
   );
 
-  const selectedModelCode = useMemo(() => {
-    const match = candidateOptions.find((o) => o.rowKey === selectedRowKey);
-    return match?.c.model_code ?? null;
-  }, [candidateOptions, selectedRowKey]);
+  const selectedOption = useMemo(
+    () => candidateOptions.find((o) => o.rowKey === selectedRowKey) ?? null,
+    [candidateOptions, selectedRowKey],
+  );
+
+  const selectedCandidate = selectedOption?.c ?? null;
+  const selectedModelCode = selectedCandidate?.model_code ?? null;
 
   const candidatePick = useMemo(
     () => ({ customizedModelCode: selectedModelCode }),
     [selectedModelCode],
   );
 
-  const showCandidateSelector = compare.adjustedResult.candidates.length > 1;
+  const proposalCards = useMemo(
+    () =>
+      dedupeProposalSet(
+        compare.adjustedResult.proposal_set,
+        compare.adjustedResult.candidates,
+      ),
+    [compare.adjustedResult.proposal_set, compare.adjustedResult.candidates],
+  );
+
+  const alternativeCards = useMemo(
+    () => proposalCards.filter((p) => !p.is_recommended),
+    [proposalCards],
+  );
 
   const metrics = useMemo(
     () =>
@@ -193,24 +233,23 @@ export function RmReportView({
 
   const signedAt = overlay?.audit.rm_sign_off?.signed_at;
 
-  const executiveBullets = useMemo(() => {
-    const bullets: string[] = [];
+  const needs = selectedCandidate?.needs_attainment ?? null;
+  const needsOk = needsAllPassed(needs);
 
-    const cagr = metrics.find((m) => m.key === "cagr");
-    const mdd = metrics.find((m) => m.key === "mdd");
-    if (cagr && mdd) {
-      bullets.push(
-        t("rm.report.metricsSummary", {
-          cagrDelta: cagr.deltaDisplay,
-          mddDelta: mdd.deltaDisplay,
-          anchor: compare.anchorLabel,
-        }),
-      );
-    }
+  const sharpe = metricValue(selectedCandidate, "sharpe");
+  const cagr = metricValue(selectedCandidate, "cagr");
+  const mdd = metricValue(selectedCandidate, "max_drawdown");
+  const isChampion =
+    selectedCandidate != null &&
+    candidateModelKey(selectedCandidate) === championModelKey;
 
-    bullets.push(...talkingSummary.summary.slice(0, 2));
-    return bullets.slice(0, 5);
-  }, [metrics, talkingSummary.summary, t, compare.anchorLabel]);
+  const selectProposalModel = (modelCode: string) => {
+    const match = candidateOptions.find(
+      (o) =>
+        (o.c.model_code || "").toUpperCase() === modelCode.toUpperCase(),
+    );
+    if (match) setSelectedRowKey(match.rowKey);
+  };
 
   const quantDashboard =
     result.pro_rounds && result.pro_rounds.length > 0 ? (
@@ -231,6 +270,7 @@ export function RmReportView({
         anchorBaselineLabel={compare.anchorLabel}
         selectedRowKey={selectedRowKey}
         onSelectedRowKeyChange={setSelectedRowKey}
+        onPromoteTickers={onPromoteTickers}
       />
     ) : (
       <ResultsDashboard
@@ -251,64 +291,17 @@ export function RmReportView({
         anchorBaselineLabel={compare.anchorLabel}
         selectedRowKey={selectedRowKey}
         onSelectedRowKeyChange={setSelectedRowKey}
+        onPromoteTickers={onPromoteTickers}
       />
     );
-
-  const candidateSelector = showCandidateSelector ? (
-    <section className="pixel-panel">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="ui-panel-title">{t("rm.report.candidateTitle")}</h3>
-          <p className="ui-hint mt-1">{t("rm.report.candidateHint")}</p>
-        </div>
-        <label className="ui-body flex shrink-0 items-center gap-2 whitespace-nowrap text-dim">
-          {t("rm.report.candidateLabel")}
-          <select
-            value={selectedRowKey}
-            onChange={(e) => setSelectedRowKey(e.target.value)}
-            className="pixel-input ui-body py-1"
-          >
-            {candidateOptions.map(({ c, rowKey }) => (
-              <option key={rowKey} value={rowKey}>
-                {c.model_code ?? `M?${c.rank}`}
-                {candidateModelKey(c) === championModelKey
-                  ? ` ${t("rm.report.candidateChampion")}`
-                  : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      {candidateOptions.length <= 8 ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {candidateOptions.map(({ c, rowKey }) => {
-            const isChampion = candidateModelKey(c) === championModelKey;
-            const active = rowKey === selectedRowKey;
-            return (
-              <button
-                key={rowKey}
-                type="button"
-                onClick={() => setSelectedRowKey(rowKey)}
-                className={`pixel-chip ${active ? "pixel-chip-active !border-[var(--neon)] !text-[var(--neon)]" : ""}`}
-              >
-                {c.model_code ?? `M?${c.rank}`}
-                {isChampion ? (
-                  <span className="ml-1 text-[var(--amber)]" aria-hidden>
-                    ★
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-    </section>
-  ) : null;
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 shadow-sm">
-        <h2 className="ui-panel-title">{t("rm.report.title")}</h2>
+        <div>
+          <h2 className="ui-panel-title">{t("rm.report.title")}</h2>
+          <p className="ui-hint mt-0.5">{t("rm.report.subtitle")}</p>
+        </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -328,55 +321,148 @@ export function RmReportView({
       </div>
 
       {tab === "quant" ? (
-        quantDashboard
+        <div className="space-y-4">
+          <p className="ui-hint rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2">
+            {t("rm.report.quantTabHint")}
+          </p>
+          {quantDashboard}
+        </div>
       ) : (
         <div className="space-y-5">
           <ComplianceBadge />
+
+          {/* 1. Recommended portfolio — one conclusion */}
+          <section className="pixel-panel border-2 border-[var(--primary)]/35 bg-[var(--primary)]/5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="ui-hint text-[var(--primary)]">
+                  {t("rm.report.heroEyebrow")}
+                </p>
+                <h3 className="ui-panel-title mt-1 text-[var(--primary)]">
+                  {t("rm.report.heroTitle", {
+                    code: selectedModelCode ?? "—",
+                    star: isChampion ? " ★" : "",
+                  })}
+                </h3>
+                <p className="ui-hint mt-1">
+                  {t("rm.report.heroHint", { anchor: compare.anchorLabel })}
+                </p>
+              </div>
+              {needsOk != null ? (
+                <span
+                  className={`pixel-badge text-xs ${
+                    needsOk ? "pixel-badge-cyan" : "pixel-badge-warn"
+                  }`}
+                >
+                  {needsOk
+                    ? t("rm.report.needsOverallPass")
+                    : t("rm.report.needsOverallFail")}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+                <div className="ui-hint text-dim">{t("compare.metric.sharpe")}</div>
+                <div className="ui-panel-title mt-1 tabular-nums">
+                  {sharpe != null ? sharpe.toFixed(3) : "—"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+                <div className="ui-hint text-dim">{t("compare.metric.cagr")}</div>
+                <div className="ui-panel-title mt-1 tabular-nums">
+                  {cagr != null ? `${(cagr * 100).toFixed(2)}%` : "—"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
+                <div className="ui-hint text-dim">{t("compare.metric.mdd")}</div>
+                <div className="ui-panel-title mt-1 tabular-nums">
+                  {mdd != null ? `${(mdd * 100).toFixed(2)}%` : "—"}
+                </div>
+              </div>
+            </div>
+
+            {metrics.length > 0 ? (
+              <p className="ui-body mt-3 text-dim">
+                {t("rm.report.metricsSummary", {
+                  cagrDelta:
+                    metrics.find((m) => m.key === "cagr")?.deltaDisplay ?? "—",
+                  mddDelta:
+                    metrics.find((m) => m.key === "mdd")?.deltaDisplay ?? "—",
+                  anchor: compare.anchorLabel,
+                })}
+              </p>
+            ) : null}
+
+            {candidateOptions.length > 1 ? (
+              <label className="ui-body mt-4 flex flex-wrap items-center gap-2 text-dim">
+                <span>{t("rm.report.candidateLabel")}</span>
+                <select
+                  value={selectedRowKey}
+                  onChange={(e) => setSelectedRowKey(e.target.value)}
+                  className="pixel-input ui-body min-w-[8rem] py-1"
+                >
+                  {candidateOptions.map(({ c, rowKey }) => (
+                    <option key={rowKey} value={rowKey}>
+                      {c.model_code ?? `M?${c.rank}`}
+                      {candidateModelKey(c) === championModelKey
+                        ? ` ${t("rm.report.candidateChampion")}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </section>
+
+          {/* 2. Needs fulfillment ledger */}
+          <NeedsFulfillmentPanel needs={needs} />
+
+          {/* 3. Signed client needs — compact / collapsible */}
           {overlay && overlayBullets.length > 0 ? (
             <section className="pixel-panel border-emerald-100 bg-emerald-50/30">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="ui-panel-title text-[var(--primary)]">
-                  {t("rm.report.overlayTitle")}
-                </h3>
-                {signedAt ? (
-                  <span className="pixel-badge-cyan text-xs">
-                    {t("rm.report.overlaySigned", {
-                      date: new Date(signedAt).toLocaleString(
-                        lang === "zh" ? "zh-TW" : lang === "ko" ? "ko-KR" : "en-US",
-                        { dateStyle: "medium", timeStyle: "short" },
-                      ),
-                    })}
+              <button
+                type="button"
+                onClick={() => setOverlayOpen((v) => !v)}
+                className="flex w-full flex-wrap items-center justify-between gap-2 text-left"
+              >
+                <div>
+                  <h3 className="ui-panel-title text-[var(--primary)]">
+                    {t("rm.report.overlayTitle")}
+                  </h3>
+                  <p className="ui-hint mt-1">{t("rm.report.overlayHint")}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {signedAt ? (
+                    <span className="pixel-badge-cyan text-xs">
+                      {t("rm.report.overlaySigned", {
+                        date: new Date(signedAt).toLocaleString(
+                          lang === "zh" ? "zh-TW" : lang === "ko" ? "ko-KR" : "en-US",
+                          { dateStyle: "medium", timeStyle: "short" },
+                        ),
+                      })}
+                    </span>
+                  ) : null}
+                  <span className="ui-hint text-dim">
+                    {overlayOpen ? t("rm.report.collapse") : t("rm.report.expand")}
                   </span>
-                ) : null}
-              </div>
-              <p className="ui-hint mt-1">{t("rm.report.overlayHint")}</p>
-              <ul className="ui-body mt-3 list-disc space-y-1.5 pl-5">
-                {overlayBullets.map((line, i) => (
-                  <li key={i}>{line}</li>
-                ))}
-              </ul>
+                </div>
+              </button>
+              {overlayOpen ? (
+                <ul className="ui-body mt-3 list-disc space-y-1.5 pl-5">
+                  {overlayBullets.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="ui-hint mt-2 line-clamp-2 text-dim">
+                  {overlayBullets.slice(0, 2).join(" · ")}
+                </p>
+              )}
             </section>
           ) : null}
 
-          <section className="pixel-panel border-indigo-100 bg-indigo-50/50">
-            <h3 className="ui-panel-title text-[var(--primary)]">
-              {t("rm.report.executiveTitle")}
-            </h3>
-            <p className="ui-hint mt-1">{t("rm.report.executiveHint")}</p>
-            <ul className="ui-body mt-4 list-none space-y-3">
-              {executiveBullets.map((bullet, i) => (
-                <li key={i} className="flex gap-3 border-l-2 border-[var(--primary)] pl-3">
-                  <span className="text-xs font-semibold tabular-nums text-[var(--amber)]">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <span>{bullet}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {candidateSelector}
-
+          {/* 4. Performance vs anchor */}
           <BenchmarkComparePanel
             anchorLabel={compare.anchorLabel}
             customizedLabel={compare.customizedLabel}
@@ -386,10 +472,14 @@ export function RmReportView({
             candidatePick={candidatePick}
           />
 
+          {/* 5. Holdings changes */}
           {holdingsDiff.length > 0 && (
             <section className="pixel-panel">
               <h3 className="ui-panel-title">{t("rm.report.holdingsTitle")}</h3>
               <p className="ui-hint mt-1">{t("rm.report.holdingsHint")}</p>
+              <p className="ui-hint mt-0.5 text-xs opacity-80">
+                {t("rm.report.holdingsPrecisionHint")}
+              </p>
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full min-w-[520px] text-left ui-body">
                   <thead className="text-dim">
@@ -410,11 +500,11 @@ export function RmReportView({
                           {resolveTickerDisplayName(row.ticker, lang)}
                         </td>
                         <td className="py-2 pr-3 text-right text-dim">
-                          {row.anchorPct > 0.1 ? `${row.anchorPct.toFixed(1)}%` : "—"}
+                          {row.anchorPct > 0.1 ? formatWeightPct(row.anchorPct) : "—"}
                         </td>
                         <td className="py-2 pr-3 text-right text-[var(--primary)]">
                           {row.customizedPct > 0.1
-                            ? `${row.customizedPct.toFixed(1)}%`
+                            ? formatWeightPct(row.customizedPct)
                             : "—"}
                         </td>
                         <td
@@ -423,7 +513,7 @@ export function RmReportView({
                           }`}
                         >
                           {row.deltaPct > 0 ? "+" : ""}
-                          {row.deltaPct.toFixed(1)}%
+                          {formatWeightPct(row.deltaPct)}
                         </td>
                         <td className="py-2 text-dim">
                           {changeLabel(row.change, t)}
@@ -436,48 +526,114 @@ export function RmReportView({
             </section>
           )}
 
-          <section className="pixel-panel border-amber-200 bg-amber-50/40">
-            <h3 className="ui-panel-title text-[var(--amber)]">
-              {t("rm.report.talkingTitle")}
-              {talkingSummary.source === "kimi" && (
-                <span className="ml-2 rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--primary)]">
-                  AI
-                </span>
-              )}
-            </h3>
-            {talkingSummary.loading && (
-              <p className="ui-hint mt-3 text-dim">{t("rm.report.talkingLoading")}</p>
-            )}
-            {talkingSummary.error && !talkingSummary.loading && (
-              <p className="ui-hint mt-3 text-red-600">{talkingSummary.error}</p>
-            )}
-            {talkingSummary.rerunRecommended && (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                <p className="text-sm font-medium text-red-800">
-                  {t("rm.report.performanceFlag")}
-                </p>
-                {talkingSummary.rerunReason && (
-                  <p className="mt-1 text-xs text-red-700">
-                    {talkingSummary.rerunReason}
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={onRerun}
-                  className="mt-2 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
-                >
-                  {t("rm.report.rerun")}
-                </button>
+          {/* 6. Meaningful alternatives only */}
+          {alternativeCards.length > 0 ? (
+            <section className="pixel-panel">
+              <h3 className="ui-panel-title">{t("rm.report.altsTitle")}</h3>
+              <p className="ui-hint mt-1">{t("rm.report.altsHint")}</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {alternativeCards.map((proposal) => {
+                  const labelKey = proposalLabelI18nKey(proposal.label);
+                  const labelText = labelKey ? t(labelKey) : proposal.label;
+                  const active =
+                    (selectedModelCode || "").toUpperCase() ===
+                    proposal.model_code.toUpperCase();
+                  return (
+                    <button
+                      key={proposal.model_code}
+                      type="button"
+                      onClick={() => selectProposalModel(proposal.model_code)}
+                      className={`rounded-lg border-2 bg-[var(--surface-2)] p-3 text-left transition-colors ${
+                        active
+                          ? "border-[var(--primary)] ring-1 ring-[var(--primary)]"
+                          : "border-[var(--border)] hover:border-[var(--primary-muted)]"
+                      }`}
+                    >
+                      <div className="ui-section-title text-[var(--primary)]">
+                        {labelText}
+                      </div>
+                      <p className="ui-hint mt-1 text-dim">{proposal.model_code}</p>
+                      <div className="mt-2 grid grid-cols-3 gap-1 ui-body">
+                        <div>
+                          <div className="text-dim">Sharpe</div>
+                          <div>{proposal.sharpe.toFixed(3)}</div>
+                        </div>
+                        <div>
+                          <div className="text-dim">CAGR</div>
+                          <div>{(proposal.cagr * 100).toFixed(2)}%</div>
+                        </div>
+                        <div>
+                          <div className="text-dim">MDD</div>
+                          <div>{(proposal.max_drawdown * 100).toFixed(2)}%</div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            )}
-            <ul
-              className="ui-body mt-3 list-disc space-y-2 pl-5"
-              key={`talking-${selectedRowKey || selectedModelCode || "champ"}`}
+            </section>
+          ) : null}
+
+          {/* 7. Talking points — secondary / collapsed by default */}
+          <section className="pixel-panel border-amber-200 bg-amber-50/40">
+            <button
+              type="button"
+              onClick={() => setTalkingOpen((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 text-left"
             >
-              {talkingSummary.summary.map((point, i) => (
-                <li key={`${selectedRowKey}-${i}`}>{point}</li>
-              ))}
-            </ul>
+              <h3 className="ui-panel-title text-[var(--amber)]">
+                {t("rm.report.talkingTitle")}
+                {talkingSummary.source === "kimi" && (
+                  <span className="ml-2 rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--primary)]">
+                    AI
+                  </span>
+                )}
+              </h3>
+              <span className="ui-hint text-dim">
+                {talkingOpen ? t("rm.report.collapse") : t("rm.report.expand")}
+              </span>
+            </button>
+            {talkingOpen ? (
+              <>
+                {talkingSummary.loading && (
+                  <p className="ui-hint mt-3 text-dim">{t("rm.report.talkingLoading")}</p>
+                )}
+                {talkingSummary.error && !talkingSummary.loading && (
+                  <p className="ui-hint mt-3 text-red-600">{talkingSummary.error}</p>
+                )}
+                {talkingSummary.rerunRecommended && (
+                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                    <p className="text-sm font-medium text-red-800">
+                      {t("rm.report.performanceFlag")}
+                    </p>
+                    {talkingSummary.rerunReason && (
+                      <p className="mt-1 text-xs text-red-700">
+                        {talkingSummary.rerunReason}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={onRerun}
+                      className="mt-2 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                    >
+                      {t("rm.report.rerun")}
+                    </button>
+                  </div>
+                )}
+                <ul
+                  className="ui-body mt-3 list-disc space-y-2 pl-5"
+                  key={`talking-${selectedRowKey || selectedModelCode || "champ"}`}
+                >
+                  {talkingSummary.summary.map((point, i) => (
+                    <li key={`${selectedRowKey}-${i}`}>{point}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="ui-hint mt-2 line-clamp-2 text-dim">
+                {talkingSummary.summary[0] ?? t("rm.report.talkingCollapsedHint")}
+              </p>
+            )}
           </section>
 
           <section className="pixel-panel border-2 border-[var(--primary)]/30 bg-[var(--primary)]/5">

@@ -130,6 +130,31 @@ export function RmRunPanel({
 
         <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
           <label className="block space-y-2">
+            <span className="ui-label">
+              {t("config.customizationDrift", {
+                pct: Math.round((request.customization_drift ?? 0.5) * 100),
+              })}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round((request.customization_drift ?? 0.5) * 100)}
+              onChange={(e) =>
+                onChange({
+                  ...request,
+                  customization_drift: Number(e.target.value) / 100,
+                })
+              }
+              className="w-full"
+            />
+            <p className="ui-hint">{t("config.customizationDriftHint")}</p>
+          </label>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
+          <label className="block space-y-2">
             <span className="ui-label">{t("config.notifyEmail")}</span>
             <input
               type="email"

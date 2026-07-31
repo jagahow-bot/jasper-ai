@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class Objective(str, Enum):
@@ -26,6 +26,48 @@ class OptimizationMode(str, Enum):
 
     standard = "standard"
     pro_auto = "pro_auto"
+
+
+class ClientContext(BaseModel):
+    """Structured client needs forwarded from the signed RM overlay.
+
+    Drives soft scoring penalties (drawdown / concentration / cash / income)
+    and the CLIENT NEEDS block in AI seed / learning prompts. Every field is
+    optional; an absent context keeps legacy behavior bit-for-bit.
+    """
+
+    risk_tolerance: Literal["conservative", "moderate", "aggressive"] | None = None
+    investment_horizon_years: float | None = Field(default=None, ge=1, le=50)
+    max_drawdown_tolerance: float | None = Field(
+        default=None,
+        gt=0.0,
+        lt=1.0,
+        description="Client's max tolerable drawdown (0–1). Breaching trials are penalized.",
+    )
+    income_need_pct: float | None = Field(default=None, ge=0.0, le=1.0)
+    max_single_name_pct: float | None = Field(
+        default=None,
+        ge=0.05,
+        le=0.40,
+        description="Soft cap on any single holding weight (0–1).",
+    )
+    theme_exposure_cap_pct: float | None = Field(
+        default=None,
+        ge=0.05,
+        le=0.60,
+        description="Soft cap on concentrated theme / growth-equity sleeve weight.",
+    )
+    cash_reserve_pct: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=0.40,
+        description="Minimum uninvested cash sleeve the client wants retained.",
+    )
+    needs_summary: str | None = Field(
+        default=None,
+        max_length=300,
+        description="Plain-language summary of the client view, shown to AI prompts only.",
+    )
 
 
 class JobStatus(str, Enum):
@@ -165,8 +207,10 @@ class BacktestRequest(BaseModel):
         ge=0.0,
         le=1.0,
         description=(
-            "Maximum deviation from anchor weights (0 = hold anchor exactly, "
-            "1 = full customization)."
+            "Run-level ceiling for deviation from anchor weights "
+            "(0 = hold anchor exactly, 1 = full customization). "
+            "AI/Optuna may search customization_drift_actual within [0, this] "
+            "unless param_controls fixes it."
         ),
     )
     anchor_weights: dict[str, float] | None = Field(
@@ -180,6 +224,41 @@ class BacktestRequest(BaseModel):
     objective_custom_text: str | None = Field(
         default=None,
         description="Optional natural-language objective when objective=custom",
+    )
+    client_context: ClientContext | None = Field(
+        default=None,
+        description=(
+            "Structured client needs from the signed overlay: soft scoring "
+            "penalties plus context for AI seed prompts."
+        ),
+    )
+    cash_reserve_pct: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=0.40,
+        description="Permanent uninvested cash sleeve (sum of risky weights = 1 − this).",
+    )
+    cash_return_mode: Literal["risk_free", "zero"] = Field(
+        default="risk_free",
+        description="How the cash sleeve earns in the equity curve.",
+    )
+    risk_free_rate: float = Field(
+        default=0.04,
+        ge=0.0,
+        le=0.20,
+        description="Annual risk-free rate used for cash returns and Sharpe excess.",
+    )
+    deployment_months: int | None = Field(
+        default=None,
+        ge=1,
+        le=24,
+        description="DCA horizon in months; None = lump-sum at t0.",
+    )
+    deployment_tranches: int | None = Field(
+        default=None,
+        ge=1,
+        le=24,
+        description="Equal DCA steps; defaults to deployment_months when omitted.",
     )
     param_controls: dict[str, ParamControl] | None = Field(
         default=None,
@@ -240,6 +319,24 @@ class BacktestRequest(BaseModel):
             "blocks the run."
         ),
     )
+    client_ref: str | None = Field(
+        default=None,
+        description=(
+            "Optional demo/client id for UI deep links (email return to the "
+            "customized portfolio report). Ignored by the engine."
+        ),
+    )
+    anchor_job_id: str | None = Field(
+        default=None,
+        description=(
+            "Paired anchor static-replay job id for dual-track customization "
+            "reports. Used by the web app to rebuild RmReportView after email."
+        ),
+    )
+    anchor_portfolio_id: str | None = Field(
+        default=None,
+        description="UI id of the model / holdings anchor used for customization.",
+    )
     continue_from_job_id: str | None = Field(
         default=None,
         description="Prior job to warm-start from (continuation refinement).",
@@ -284,6 +381,19 @@ class BacktestRequest(BaseModel):
             return None
         text = str(v).strip()
         return text or None
+
+    @model_validator(mode="after")
+    def _ensure_holdings_exceed_cap_floor(self) -> "BacktestRequest":
+        """Holdings must be > 1/max_weight so books are not forced to equal-at-cap."""
+        from math import floor
+
+        w = float(self.max_weight or 0.0)
+        if w <= 0.0 or w >= 1.0 - 1e-12:
+            return self
+        need = max(floor(1.0 / w) + 1, 2)
+        if int(self.max_holdings) < need:
+            self.max_holdings = min(need, 50)
+        return self
 
     def resolved_universe_filter_prompts(self) -> list[str]:
         """Merged stacked prompts + legacy single-line filter."""
@@ -373,6 +483,26 @@ class PortfolioCandidate(BaseModel):
     alpha_annual: float | None = None
     tracking_error: float | None = None
     information_ratio: float | None = None
+    needs_attainment: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Client-floor checks vs signed overlay (drawdown, concentration, "
+            "cash, income). None when no client_context was provided."
+        ),
+    )
+
+
+class ProposalCard(BaseModel):
+    """One of 2–3 trade-off proposals surfaced for RM comparison."""
+
+    model_code: str
+    label: str
+    is_recommended: bool = False
+    sharpe: float = 0.0
+    cagr: float = 0.0
+    max_drawdown: float = 0.0
+    objective_score: float | None = None
+    needs_attainment: dict[str, Any] | None = None
 
 
 class DynamicObjectiveTimelinePoint(BaseModel):
@@ -449,6 +579,10 @@ class BacktestResult(BaseModel):
     dynamic_objective_benchmark_series: list[dict[str, Any]] | None = None
     # Full LLM I/O audit trail captured during this job (backend + merged frontend).
     llm_logs: list[dict[str, Any]] | None = None
+    proposal_set: list[ProposalCard] | None = Field(
+        default=None,
+        description="2–3 trade-off proposals (recommended / defensive / growth) for RM comparison.",
+    )
 
 
 class ScenarioCard(BaseModel):

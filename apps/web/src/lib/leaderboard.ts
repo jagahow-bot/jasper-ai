@@ -55,16 +55,34 @@ export function sortLeaderboardRows(
   );
 }
 
+/** Packaged candidate horizons — preferred over search-time leaderboard rows. */
+export type LeaderboardHorizons = {
+  in_sample_objective?: number;
+  out_of_sample_objective?: number;
+  full_sample_objective?: number;
+  gap_objective?: number;
+};
+
 export function buildHoldoutLeaderboard(
   rawRows: LeaderboardRow[],
   sort: LeaderboardSort,
   fullByCode?: Map<string, number>,
+  horizonsByCode?: Map<string, LeaderboardHorizons>,
 ): LeaderboardRow[] {
-  const enriched = rawRows.map((row) => ({
-    ...row,
-    full_sample_objective:
-      row.full_sample_objective ??
-      fullByCode?.get(String(row.model_code ?? "")),
-  }));
+  const enriched = rawRows.map((row) => {
+    const code = String(row.model_code ?? "");
+    const h = horizonsByCode?.get(code);
+    return {
+      ...row,
+      in_sample_objective: h?.in_sample_objective ?? row.in_sample_objective,
+      out_of_sample_objective:
+        h?.out_of_sample_objective ?? row.out_of_sample_objective,
+      gap_objective: h?.gap_objective ?? row.gap_objective,
+      full_sample_objective:
+        h?.full_sample_objective ??
+        row.full_sample_objective ??
+        fullByCode?.get(code),
+    };
+  });
   return sortLeaderboardRows(dedupeLeaderboardRows(enriched), sort);
 }

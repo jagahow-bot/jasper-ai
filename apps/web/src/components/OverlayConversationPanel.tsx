@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -17,6 +17,10 @@ import {
   type OverlayConversationMessage,
   type OverlayProposedTicker,
 } from "@/lib/overlay-schema";
+import {
+  shouldPushUpToParent,
+  shouldSyncDownFromParent,
+} from "@/lib/overlay-session-sync";
 
 type ContextPosition = {
   ticker: string;
@@ -30,11 +34,16 @@ type ContextGroup = {
   holdings: ContextPosition[];
 };
 
+/** `true` advances; `false` stays; `ClientOverlay` stays and applies merged proposals. */
+type OverlayConfirmResult = void | boolean | ClientOverlay;
+
 type Props = {
   rmId?: string;
   clientRef?: string;
   baseScenarioId?: string;
-  onConfirm?: (overlay: ClientOverlay) => void;
+  onConfirm?: (
+    overlay: ClientOverlay,
+  ) => OverlayConfirmResult | Promise<OverlayConfirmResult>;
   selectedGroups?: ContextGroup[];
   anchorPositions?: ContextPosition[];
   anchorLabel?: string;
@@ -98,31 +107,48 @@ type ProposedTickersPanelProps = {
   onConfirm: (tickers: string[]) => void;
 };
 
+const EMPTY_PROPOSED: OverlayProposedTicker[] = [];
+const EMPTY_MESSAGES: OverlayConversationMessage[] = [];
+const EMPTY_GROUPS: ContextGroup[] = [];
+const EMPTY_POSITIONS: ContextPosition[] = [];
+
 function ProposedTickersPanel({ candidates, onConfirm }: ProposedTickersPanelProps) {
   const { t } = useI18n();
+  const list = candidates.length ? candidates : EMPTY_PROPOSED;
+  const candidateKey = list.map((c) => c.ticker).join("\0");
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(candidates.map((c) => c.ticker)),
+    () => new Set(list.map((c) => c.ticker)),
   );
-  const candidateIds = useMemo(() => candidates.map((c) => c.ticker), [candidates]);
 
   useEffect(() => {
-    setSelected(new Set(candidateIds));
-  }, [candidateIds]);
+    setSelected((prev) => {
+      const nextTickers = candidateKey ? candidateKey.split("\0") : [];
+      if (
+        prev.size === nextTickers.length &&
+        nextTickers.every((t) => prev.has(t))
+      ) {
+        return prev;
+      }
+      return new Set(nextTickers);
+    });
+  }, [candidateKey]);
 
-  const allSelected = selected.size === candidates.length && candidates.length > 0;
+  if (!list.length) return null;
+
+  const allSelected = selected.size === list.length && list.length > 0;
 
   const toggleAll = () => {
-    setSelected(allSelected ? new Set() : new Set(candidates.map((c) => c.ticker)));
+    setSelected(allSelected ? new Set() : new Set(list.map((c) => c.ticker)));
   };
 
   const toggleOne = (ticker: string) => {
-    const next = new Set(selected);
-    if (next.has(ticker)) next.delete(ticker);
-    else next.add(ticker);
-    setSelected(next);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticker)) next.delete(ticker);
+      else next.add(ticker);
+      return next;
+    });
   };
-
-  if (!candidates.length) return null;
 
   return (
     <div className="space-y-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
@@ -139,7 +165,7 @@ function ProposedTickersPanel({ candidates, onConfirm }: ProposedTickersPanelPro
         </button>
       </div>
       <div className="space-y-2">
-        {candidates.map((c) => (
+        {list.map((c) => (
           <label key={c.ticker} className="flex cursor-pointer items-start gap-2">
             <input
               type="checkbox"
@@ -173,10 +199,10 @@ export function OverlayConversationPanel({
   clientRef,
   baseScenarioId,
   onConfirm,
-  selectedGroups = [],
-  anchorPositions = [],
+  selectedGroups = EMPTY_GROUPS,
+  anchorPositions = EMPTY_POSITIONS,
   anchorLabel,
-  initialMessages = [],
+  initialMessages = EMPTY_MESSAGES,
   onMessagesChange,
   initialOverlay = null,
   onOverlayChange,
@@ -187,6 +213,7 @@ export function OverlayConversationPanel({
   const [messages, setMessages] = useState<OverlayConversationMessage[]>(initialMessages);
   const [overlay, setOverlay] = useState<ClientOverlay | null>(initialOverlay);
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<{
     message: string;
     code?: string;
@@ -195,25 +222,46 @@ export function OverlayConversationPanel({
   const [confirmed, setConfirmed] = useState(false);
   const [overlayLang, setOverlayLang] = useState<typeof lang>(lang);
 
-  // Sync local messages when the parent resets the conversation (e.g. new client).
+  // Echo-guard refs: last value pushed up (or accepted from parent). Prevents the
+  // sync-down ↔ push-up oscillation that hits "Maximum update depth exceeded".
+  const lastPushedMessagesRef = useRef(initialMessages);
+  const lastPushedOverlayRef = useRef(initialOverlay);
+  const onMessagesChangeRef = useRef(onMessagesChange);
+  const onOverlayChangeRef = useRef(onOverlayChange);
+  onMessagesChangeRef.current = onMessagesChange;
+  onOverlayChangeRef.current = onOverlayChange;
+
+  // Sync local messages when the parent resets/restores (e.g. new client).
   useEffect(() => {
+    if (!shouldSyncDownFromParent(initialMessages, lastPushedMessagesRef.current)) {
+      return;
+    }
+    lastPushedMessagesRef.current = initialMessages;
     setMessages(initialMessages);
   }, [initialMessages]);
 
-  // Sync local overlay when the parent restores a previous session.
+  // Sync local overlay when the parent restores/updates the session.
   useEffect(() => {
+    if (!shouldSyncDownFromParent(initialOverlay, lastPushedOverlayRef.current)) {
+      return;
+    }
+    lastPushedOverlayRef.current = initialOverlay;
     setOverlay(initialOverlay);
   }, [initialOverlay]);
 
   // Propagate conversation history and overlay state back to the parent so both
   // survive phase changes.
   useEffect(() => {
-    onMessagesChange?.(messages);
-  }, [messages, onMessagesChange]);
+    if (!shouldPushUpToParent(messages, lastPushedMessagesRef.current)) return;
+    lastPushedMessagesRef.current = messages;
+    onMessagesChangeRef.current?.(messages);
+  }, [messages]);
 
   useEffect(() => {
-    onOverlayChange?.(overlay);
-  }, [overlay, onOverlayChange]);
+    if (!shouldPushUpToParent(overlay, lastPushedOverlayRef.current)) return;
+    lastPushedOverlayRef.current = overlay;
+    onOverlayChangeRef.current?.(overlay);
+  }, [overlay]);
 
   // If no overlay has been generated yet, keep the overlay language aligned with
   // the current UI locale. Once we generate an overlay, we keep the detected
@@ -324,12 +372,46 @@ export function OverlayConversationPanel({
     await interpret(nextMessages);
   };
 
-  const handleConfirm = () => {
-    if (!overlay) return;
+  const handleConfirm = async () => {
+    if (!overlay || loading || confirming) return;
     const signed = signOffOverlay(overlay, rmId);
-    setOverlay(signed);
+    // Do not setOverlay(signed) before onConfirm returns — parent may inject
+    // filter proposed_tickers and return false. Pushing signed first races the
+    // parent update and remounts ProposedTickersPanel in a loop.
+    if (onConfirm) {
+      setConfirming(true);
+      setError(null);
+      try {
+        const result = await Promise.resolve(onConfirm(signed));
+        if (
+          result &&
+          typeof result === "object" &&
+          "universe" in result &&
+          "audit" in result
+        ) {
+          setOverlay(result);
+          setConfirmed(false);
+          return;
+        }
+        if (result === false) {
+          setConfirmed(false);
+          return;
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error && err.message.trim()
+            ? err.message
+            : t("overlay.interpret.error.generic");
+        setError({ message });
+        setConfirmed(false);
+        return;
+      } finally {
+        setConfirming(false);
+      }
+    } else {
+      setOverlay(signed);
+    }
     setConfirmed(true);
-    onConfirm?.(signed);
   };
 
   const confirmProposedTickers = (tickers: string[]) => {
@@ -339,8 +421,9 @@ export function OverlayConversationPanel({
       ...(overlay.universe.supplement_tickers ?? []),
       ...normalized,
     ]);
+    const selectedSet = new Set(normalized.map((t) => t.toUpperCase()));
     const remainingProposed = overlay.universe.proposed_tickers?.filter(
-      (p) => !normalized.includes(p.ticker),
+      (p) => !selectedSet.has(p.ticker.toUpperCase()),
     );
     const updatedOverlay: ClientOverlay = {
       ...overlay,
@@ -382,7 +465,7 @@ export function OverlayConversationPanel({
             ? "客戶需求對話"
             : lang === "ko"
               ? "고객 니즈 대화"
-              : "Conversational Overlay"}
+              : "Client needs conversation"}
         </h3>
         <p className="mt-2 text-sm text-dim">
           {lang === "zh"
@@ -479,13 +562,17 @@ export function OverlayConversationPanel({
           ) : null}
           <p className="text-xs text-dim">{overlay.rationale}</p>
           <ProposedTickersPanel
-            candidates={overlay.universe.proposed_tickers ?? []}
+            candidates={
+              confirmed
+                ? EMPTY_PROPOSED
+                : (overlay.universe.proposed_tickers ?? EMPTY_PROPOSED)
+            }
             onConfirm={confirmProposedTickers}
           />
           <button
             type="button"
-            onClick={handleConfirm}
-            disabled={confirmed || loading}
+            onClick={() => void handleConfirm()}
+            disabled={confirmed || loading || confirming}
             className="pixel-btn w-full disabled:opacity-40"
           >
             {confirmed
@@ -494,6 +581,12 @@ export function OverlayConversationPanel({
                 : lang === "ko"
                   ? "확인 및 서명 완료"
                   : "Confirmed & signed off"
+              : confirming
+                ? lang === "zh"
+                  ? "簽核中…"
+                  : lang === "ko"
+                    ? "서명 중…"
+                    : "Signing off…"
               : lang === "zh"
                 ? "確認 Overlay 並簽核"
                 : lang === "ko"

@@ -51,8 +51,8 @@ def test_merge_charts_into_candidate_applies_institutional():
     payload = CandidateChartsPayload(
         model_code="M0005",
         equity_curve=[{"date": "2020-01-02", "value": 1.0}],
-        weight_history=[{"date": "2020-01-02", "SPY": 1.0}],
-        weight_history_tickers=["SPY"],
+        weight_history=[{"date": "2020-01-02", "SPY": 0.62, "QQQ": 0.38}],
+        weight_history_tickers=["SPY", "QQQ"],
         benchmark_equity_curve=[],
         institutional={
             "rolling": {
@@ -86,6 +86,7 @@ def test_merge_charts_into_candidate_applies_institutional():
     assert analytics.get("risk_contribution")
     assert analytics.get("drawdown_episodes")
     assert (merged.analytics or {}).get("sample_metrics") is not None
+    assert merged.weights == {"SPY": 0.62, "QQQ": 0.38}
 
 
 def test_build_institutional_analytics_with_oos_train_slice():

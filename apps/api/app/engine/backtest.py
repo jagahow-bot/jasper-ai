@@ -19,7 +19,7 @@ from app.job_continuation import (
     continuation_runtime_state,
     extract_continuation_snapshot,
 )
-from app.engine.data import fetch_prices
+from app.engine.data import fetch_dividends, fetch_prices
 from app.engine.asset_class_policy import (
     class_budget_from_params,
     enforce_param_controls_for_asset_classes,
@@ -31,7 +31,13 @@ from app.engine.param_bounds import (
     normalize_param_controls,
 )
 from app.engine.mutable_params import GEMINI_LEARNING_MUTABLE_FIELDS
-from app.engine.objectives import metrics_snapshot, objective_label
+from app.engine.customization import derive_must_include_tickers
+from app.engine.objectives import (
+    metrics_snapshot,
+    needs_attainment,
+    objective_label,
+    pick_pareto_proposals,
+)
 from app.engine.optimizer import run_optuna_search
 from app.engine.portfolio import (
     anchor_weight_history_to_date,
@@ -52,6 +58,7 @@ from app.models import (
     DynamicObjectiveTimelinePoint,
     OptimizationMode,
     PortfolioCandidate,
+    ProposalCard,
     ProRoundSnapshot,
 )
 from app.profiles import (
@@ -83,10 +90,12 @@ from app.engine.refinement import (
     assign_search_model_codes,
     best_record_in_pool,
     build_round_seed_learning_payload,
+    client_needs_prompt_block,
     compute_round_benchmark_fields,
     merge_round_seed_budget_fields,
     build_round_champion_ai_payload,
     build_round_competition_pool,
+    attach_full_period_objective,
     horizon_snapshots_from_full_path,
     record_for_model_code,
     record_objective_sort_value,
@@ -199,13 +208,27 @@ def _champion_report_horizons(
 def _weights_dict(
     tickers: list[str], w: np.ndarray, *, min_weight: float = WEIGHT_EPS
 ) -> dict[str, float]:
+    from app.engine.weights import round_weights_largest_remainder
+
     floor = float(max(min_weight, WEIGHT_EPS))
     w_vec = np.atleast_1d(np.asarray(w, dtype=float)).ravel()
-    return {
-        tickers[i]: round(float(w_vec[i]), 4)
-        for i in range(len(tickers))
-        if i < len(w_vec) and w_vec[i] >= floor - 1e-12
-    }
+    selected: dict[str, float] = {}
+    residual = 0.0
+    for i in range(len(tickers)):
+        if i >= len(w_vec):
+            break
+        wi = float(w_vec[i])
+        if not np.isfinite(wi) or wi <= 0.0:
+            continue
+        if wi >= floor - 1e-12:
+            selected[tickers[i]] = wi
+        else:
+            residual += wi
+    if not selected:
+        return {}
+    # Fold tiny below-floor mass into the kept book so packaging does not leak %.
+    target = float(sum(selected.values()) + residual)
+    return round_weights_largest_remainder(selected, ndigits=4, target=target)
 
 
 def _history_point(
@@ -530,6 +553,7 @@ def _run_iterative_search(
     dynamic_ctx: dict[str, Any] | None = None,
     initial_champion_record: tuple[float, dict, dict] | None = None,
     continuation_state: dict[str, Any] | None = None,
+    dividend_panel: pd.DataFrame | None = None,
 ) -> tuple[list[tuple[float, dict, dict]], list[dict[str, Any]], dict[str, Any]]:
     """Champion-challenger rounds until plateau or max rounds."""
     trial_objective = trial_scoring_objective(objective_effective)
@@ -687,6 +711,7 @@ def _run_iterative_search(
                 "rebalance_freq": rebalance_rule,
                 "max_weight_cap": req.max_weight,
                 "max_turnover_cap": req.max_turnover,
+                "customization_drift_cap": req.customization_drift,
                 "top_n_cap": req.top_n,
                 "tradable_count": int(prices_train.shape[1]),
             }
@@ -705,6 +730,11 @@ def _run_iterative_search(
             trials_per_round=n_trials,
             total_trial_budget=est_trials,
         )
+        client_needs = client_needs_prompt_block(
+            req.client_context.model_dump() if req.client_context else None
+        )
+        if client_needs:
+            learning_context["client_needs"] = client_needs
         if use_regime_matrix:
             learning_context["dynamic_regime_matrix"] = True
         if champion_record and round_idx > 0:
@@ -743,6 +773,7 @@ def _run_iterative_search(
             progress_cb=ai_progress,
             learning_context=learning_context,
             language=req.report_language,
+            customization_drift_cap=req.customization_drift,
         )
         round_setup = ai_generation.get("round_setup") or {}
         regime_setups = ai_generation.get("regime_setups") or {}
@@ -934,6 +965,10 @@ def _run_iterative_search(
             ),
             active_regime_resolver=active_regime_resolver,
             enforce_class_weights=req.enforce_class_weights,
+            client_context=(
+                req.client_context.model_dump() if req.client_context else None
+            ),
+            dividend_panel=dividend_panel,
         )
 
         tagged_round_records: list[tuple[float, dict, dict]] = []
@@ -1070,6 +1105,7 @@ def _run_iterative_search(
                 universe_by_ticker=universe_by_ticker,
                 trial_report_cache=trial_report_cache,
                 dynamic_ctx=dynamic_ctx,
+                dividend_panel=dividend_panel,
             )
             champ_payload = build_round_champion_ai_payload(
                 pool_records,
@@ -1081,6 +1117,9 @@ def _run_iterative_search(
                 trial_report_cache=trial_report_cache,
                 spec=spec,
                 is_split_idx=is_split_idx,
+                client_needs=client_needs_prompt_block(
+                    req.client_context.model_dump() if req.client_context else None
+                ),
             )
             deterministic_champion = _round_champion_fallback_code(champ_payload)
             round_best = (
@@ -1429,6 +1468,7 @@ def _ensure_pool_full_sims_for_champion(
     universe_by_ticker: dict[str, dict[str, Any]],
     trial_report_cache: TrialReportCache | None,
     dynamic_ctx: dict[str, Any] | None,
+    dividend_panel: pd.DataFrame | None = None,
 ) -> None:
     """Run full-period backtests for champion pool when cache lacks port_ret."""
     if trial_report_cache is None or not pool_records:
@@ -1453,7 +1493,7 @@ def _ensure_pool_full_sims_for_champion(
             bundle.train_m, bundle.val_m, bundle.full_m
         ):
             continue
-        trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
+        trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, customization_drift_actual, class_budget, f_params = (
             _sim_inputs_from_params(params, req, rebalance_rule, spec)
         )
         sim_kw = apply_allocator_resolver(
@@ -1470,7 +1510,8 @@ def _ensure_pool_full_sims_for_champion(
                 universe_by_ticker=universe_by_ticker,
                 class_budget=class_budget,
                 anchor_weights=req.anchor_weights,
-                customization_drift=req.customization_drift,
+                customization_drift=customization_drift_actual,
+                dividend_panel=dividend_panel,
             ),
             prices,
             resolver,
@@ -1611,13 +1652,19 @@ def _build_candidate(
     min_weight: float = WEIGHT_EPS,
     is_split_idx: int | None = None,
     include_charts: bool = True,
+    client_context: dict[str, Any] | None = None,
+    anchor_weights: dict[str, float] | None = None,
+    customization_drift: float | None = None,
 ) -> PortfolioCandidate:
     primary = train_m if oos_enabled else full_m
+    # Full-book terminal weights for drift / must-include checks. Chart weight_history
+    # may fold small names into CASH and must not be used for needs_attainment.
     weights = _weights_dict(
         tickers,
         np.atleast_1d(np.asarray(full_m.get("last_weights"), dtype=float)).ravel(),
         min_weight=min_weight,
     )
+    needs_holdings = dict(weights)
     sample_metrics = _build_sample_metrics_block(
         train_m=train_m,
         val_m=val_m,
@@ -1673,6 +1720,39 @@ def _build_candidate(
         wh, wht = trim_weight_history_for_response(wh_raw, tickers=wht_raw or tickers)
         analytics["weight_history"] = wh
         analytics["weight_history_tickers"] = wht
+        # Prefer terminal rebalance row over OOS-stitched last_weights when present,
+        # but only when the row still covers nearly the full book (chart rows may
+        # dump residuals into CASH and would corrupt holdings / drift display).
+        if wh:
+            from app.engine.weights import round_weights_largest_remainder
+
+            synced_raw: dict[str, float] = {}
+            synced_residual = 0.0
+            skip = {"date", "OTHER", "other", "__OTHER__", "CASH", "cash"}
+            for k, v in wh[-1].items():
+                if k in skip or not isinstance(v, (int, float)):
+                    if k in {"OTHER", "other", "__OTHER__"} and isinstance(
+                        v, (int, float)
+                    ):
+                        synced_residual += max(0.0, float(v))
+                    continue
+                fv = float(v)
+                if not np.isfinite(fv) or fv <= 0.0:
+                    continue
+                if fv >= float(min_weight) - 1e-12:
+                    synced_raw[str(k).upper()] = fv
+                else:
+                    synced_residual += fv
+            # Only redistribute chart-truncation dust; large OTHER means incomplete row.
+            if synced_raw and synced_residual <= max(float(min_weight), 1e-3) + 1e-12:
+                synced = round_weights_largest_remainder(
+                    synced_raw,
+                    ndigits=4,
+                    target=float(sum(synced_raw.values()) + synced_residual),
+                )
+                synced_mass = float(sum(synced.values())) if synced else 0.0
+                if synced and synced_mass >= 0.99:
+                    weights = synced
         if full_m.get("weight_cap_audit"):
             analytics["weight_cap_audit"] = full_m["weight_cap_audit"]
         analytics["factor_summary"] = full_m.get("factor_summary", {})
@@ -1738,6 +1818,27 @@ def _build_candidate(
         alpha_annual=rel.get("alpha_annual") or rel.get("alpha"),
         tracking_error=rel.get("tracking_error"),
         information_ratio=rel.get("information_ratio"),
+        needs_attainment=needs_attainment(
+            primary,
+            client_context,
+            holdings=needs_holdings,
+            ticker_meta=universe_by_ticker,
+            must_include_tickers=derive_must_include_tickers(
+                tickers, anchor_weights
+            ),
+            anchor_weights=anchor_weights,
+            # Always score against the run-level slider ceiling when present so RM
+            # "客製化空間" is the reported commitment (trial actual may be lower).
+            customization_drift=(
+                float(customization_drift)
+                if customization_drift is not None
+                else (
+                    float(params["customization_drift_actual"])
+                    if params.get("customization_drift_actual") is not None
+                    else None
+                )
+            ),
+        ),
     )
 
 
@@ -1826,6 +1927,11 @@ def _sim_inputs_from_params(
     no_trade_tol = float(params.get("no_trade_tol", 0.0))
     turnover_penalty_mult = float(params.get("turnover_penalty_mult", 1.0))
     max_turnover_actual = float(params.get("max_turnover_actual", req.max_turnover))
+    # Hard ceiling is the RM slider; trial actual may be lower but never higher.
+    customization_drift_actual = min(
+        float(params.get("customization_drift_actual", req.customization_drift)),
+        float(req.customization_drift),
+    )
     class_budget = (
         {}
         if params.get("regime_class_quota_matrix")
@@ -1840,6 +1946,7 @@ def _sim_inputs_from_params(
         no_trade_tol,
         turnover_penalty_mult,
         max_turnover_actual,
+        customization_drift_actual,
         class_budget,
         f_params,
     )
@@ -1884,6 +1991,7 @@ def _assemble_candidates_from_records(
     trial_report_cache: TrialReportCache | None = None,
     dynamic_ctx: dict[str, Any] | None = None,
     full_payload_codes: set[str] | None = None,
+    dividend_panel: pd.DataFrame | None = None,
 ) -> list[PortfolioCandidate]:
     """Build report-ready PortfolioCandidate rows for top trials.
 
@@ -1911,7 +2019,7 @@ def _assemble_candidates_from_records(
         include_charts = (
             full_payload_codes is None or model_code in full_payload_codes
         )
-        trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, class_budget, f_params = (
+        trial_spec, alloc, cap, top_n_actual, no_trade_tol, turnover_penalty_mult, max_turnover_actual, customization_drift_actual, class_budget, f_params = (
             _sim_inputs_from_params(params, req, rebalance_rule, spec)
         )
         sim_kw = apply_allocator_resolver(
@@ -1928,7 +2036,8 @@ def _assemble_candidates_from_records(
                 universe_by_ticker=universe_by_ticker,
                 class_budget=class_budget,
                 anchor_weights=req.anchor_weights,
-                customization_drift=req.customization_drift,
+                customization_drift=customization_drift_actual,
+                dividend_panel=dividend_panel,
             ),
             prices,
             resolver,
@@ -2100,6 +2209,11 @@ def _assemble_candidates_from_records(
                 min_weight=req.min_weight,
                 is_split_idx=len(prices_train) if oos else None,
                 include_charts=include_charts,
+                client_context=(
+                    req.client_context.model_dump() if req.client_context else None
+                ),
+                anchor_weights=req.anchor_weights,
+                customization_drift=req.customization_drift,
             )
         )
         if dynamic_ctx:
@@ -2196,7 +2310,15 @@ def _leaderboard_row_from_record(
         "rank": rank,
         "in_sample_objective": is_obj,
         "out_of_sample_objective": oos_obj,
-        "full_sample_objective": metrics.get("objective_value_full"),
+        "full_sample_objective": (
+            metrics.get("objective_value_full")
+            if metrics.get("objective_value_full") is not None
+            else (
+                (metrics.get("full_metrics") or {}).get("objective_value")
+                if isinstance(metrics.get("full_metrics"), dict)
+                else None
+            )
+        ),
         "gap_objective": gap,
         "in_sample_sharpe": (
             train_m.get("sharpe") if isinstance(train_m, dict) else None
@@ -2208,6 +2330,37 @@ def _leaderboard_row_from_record(
         "objective_label": objective_label(objective_effective),
         "selection_basis": "in_sample",
     }
+
+
+def _enrich_records_full_period_objective(
+    records: list[tuple[float, dict, dict]],
+    *,
+    trial_report_cache: TrialReportCache | None,
+    spec: BacktestSpec,
+    objective_mode: str,
+) -> list[tuple[float, dict, dict]]:
+    """Ensure every search record carries objective_value_full for the leaderboard."""
+    enriched: list[tuple[float, dict, dict]] = []
+    for score, params, metrics in records:
+        m = dict(metrics) if isinstance(metrics, dict) else {}
+        train_m = val_m = full_m = None
+        if trial_report_cache is not None and isinstance(params, dict):
+            bundle = trial_report_cache.get_bundle(params)
+            if bundle is not None:
+                train_m = bundle.train_m
+                val_m = bundle.val_m
+                full_m = bundle.full_m
+        attach_full_period_objective(
+            m,
+            objective_mode=objective_mode,
+            train_m=train_m,
+            val_m=val_m,
+            full_m=full_m,
+            spec=spec,
+            overwrite=bool(full_m is not None and full_m.get("port_ret") is not None),
+        )
+        enriched.append((score, params, slim_search_metrics(m)))
+    return enriched
 
 
 def _oos_leaderboard(
@@ -2222,16 +2375,17 @@ def _oos_leaderboard(
     the same AI seed evaluated under multiple model codes, or a champion
     re-simulated in every round) do not appear as many identical rows in the UI
     table. Candidate rows overwrite record rows for the same model_code because
-    they carry the full-sample enrichment from the packaged report payload.
+    they carry the report-assembly horizons (full-path slices) that the UI
+    summary cards use — search-time IS scores must not win on magnitude alone.
     """
     by_code: dict[str, dict[str, Any]] = {}
 
-    def _add(row: dict[str, Any] | None) -> None:
+    def _add(row: dict[str, Any] | None, *, prefer: bool = False) -> None:
         if row is None or not row.get("model_code"):
             return
         code = str(row["model_code"])
         existing = by_code.get(code)
-        if existing is None or _leaderboard_is_better_row(row, existing):
+        if existing is None or prefer or _leaderboard_is_better_row(row, existing):
             by_code[code] = row
 
     for _score, params, metrics in records or []:
@@ -2250,7 +2404,8 @@ def _oos_leaderboard(
             _leaderboard_row_from_candidate(
                 c,
                 objective_effective=objective_effective,
-            )
+            ),
+            prefer=True,
         )
 
     # Collapse rows that would render the exact same numbers. This prevents a
@@ -2490,7 +2645,9 @@ def _run_static_replay_backtest(
     total_w = sum(weights_map.values())
     if total_w <= 0:
         raise ValueError("static_replay_holdings must sum to a positive weight")
+    # Always normalize target mix to 1; cash/DCA applied by simulation overlay.
     weights_map = {k: v / total_w for k, v in weights_map.items()}
+    cash_reserve = float(getattr(req, "cash_reserve_pct", 0.0) or 0.0)
 
     bench = _resolve_request_benchmark_ticker(req)
     # Fetch prices for holdings + benchmark
@@ -2500,6 +2657,11 @@ def _run_static_replay_backtest(
         fee_bps=req.fee_bps,
         rebalance_rule=rebalance_rule,
         max_holdings=max(len(tickers), int(req.max_holdings)),
+        risk_free_rate=float(getattr(req, "risk_free_rate", 0.04) or 0.04),
+        cash_reserve_pct=cash_reserve,
+        cash_return_mode=str(getattr(req, "cash_return_mode", "risk_free") or "risk_free"),
+        deployment_months=getattr(req, "deployment_months", None),
+        deployment_tranches=getattr(req, "deployment_tranches", None),
     )
 
     def report_progress(trial: int, total: int, message: str) -> None:
@@ -2613,6 +2775,11 @@ def _run_static_replay_backtest(
         min_weight=req.min_weight,
         is_split_idx=is_split_idx,
         include_charts=True,
+        client_context=(
+            req.client_context.model_dump() if req.client_context else None
+        ),
+        anchor_weights=req.anchor_weights,
+        customization_drift=req.customization_drift,
     )
     candidate.is_champion = True
 
@@ -2773,11 +2940,23 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
 
     rebalance_rule = _normalize_rebalance_rule(req.rebalance_freq)
     bench = _resolve_request_benchmark_ticker(req, universe_plan=universe_plan)
+    cash_reserve = float(getattr(req, 'cash_reserve_pct', 0.0) or 0.0)
+    if req.client_context is not None:
+        ctx_cash = getattr(req.client_context, 'cash_reserve_pct', None)
+        if ctx_cash is None and isinstance(req.client_context, dict):
+            ctx_cash = req.client_context.get('cash_reserve_pct')
+        if ctx_cash is not None:
+            cash_reserve = max(cash_reserve, float(ctx_cash))
     spec = BacktestSpec(
         benchmark_ticker=bench,
         fee_bps=req.fee_bps,
         rebalance_rule=rebalance_rule,
         max_holdings=int(req.max_holdings),
+        risk_free_rate=float(getattr(req, 'risk_free_rate', 0.04) or 0.04),
+        cash_reserve_pct=cash_reserve,
+        cash_return_mode=str(getattr(req, 'cash_return_mode', 'risk_free') or 'risk_free'),
+        deployment_months=getattr(req, 'deployment_months', None),
+        deployment_tranches=getattr(req, 'deployment_tranches', None),
     )
 
     try:
@@ -2789,6 +2968,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             min_valid_tickers=min_valid_tickers_for_universe(
                 len(tickers), bool(req.universe_tickers)
             ),
+            pinned_tickers=guaranteed_supplements or None,
         )
     except Exception as exc:
         logger.error(
@@ -2801,6 +2981,24 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         raise ValueError(
             f"Failed to load prices: {exc}. Check network, date range, and API is running."
         ) from exc
+
+    dividend_panel = pd.DataFrame()
+    try:
+        div_start = str(
+            data_meta.get("warmup_download_start") or prices.index[0].date()
+        )
+        dividend_panel = fetch_dividends(tickers, div_start, req.end_date)
+        if not dividend_panel.empty:
+            dividend_panel = dividend_panel.reindex(
+                index=prices.index, columns=tickers, fill_value=0.0
+            )
+    except Exception as exc:
+        logger.warning(
+            "Dividend load failed (income factor disabled): %s | tickers=%d",
+            exc,
+            len(tickers),
+        )
+        dividend_panel = pd.DataFrame()
 
     tickers = [t for t in tickers if t in prices.columns]
     assert_locked_universe(
@@ -2822,6 +3020,10 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         )
     prices_full = prices
     prices_sim_panel = prices_full[tickers]
+    if not dividend_panel.empty:
+        dividend_panel = dividend_panel.reindex(
+            index=prices_full.index, columns=tickers, fill_value=0.0
+        )
     prices = trim_prices_to_report_window(prices_full[tickers].copy(), req.start_date)
     universe_by_ticker = {u["ticker"]: u for u in universe if u["ticker"] in tickers}
 
@@ -3021,6 +3223,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             dynamic_ctx=dynamic_ctx,
             initial_champion_record=initial_champion_record,
             continuation_state=continuation_state,
+            dividend_panel=dividend_panel,
         )
         ai_generation = {
             "enabled": True,
@@ -3040,6 +3243,12 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             req.trials,
             f"Starting AI — planning param seeds for {req.trials} trials…",
         )
+        std_learning: dict[str, Any] = {}
+        client_needs = client_needs_prompt_block(
+            req.client_context.model_dump() if req.client_context else None
+        )
+        if client_needs:
+            std_learning["client_needs"] = client_needs
         ai_generation = generate_ai_param_sets(
             n=req.trials,
             objective=trial_objective,
@@ -3051,7 +3260,9 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             tradable_count=len(tickers),
             param_controls=param_controls_dict,
             progress_cb=ai_progress,
+            learning_context=std_learning or None,
             all_ai_seeds=True,
+            customization_drift_cap=req.customization_drift,
         )
         ai_param_sets = ai_generation.get("param_sets", []) if ai_generation else []
         # Standard mode: evaluate only AI-generated seeds (no Optuna-random filler).
@@ -3130,6 +3341,10 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             ),
             enforce_class_weights=req.enforce_class_weights,
             champion_seed=standard_champion_seed,
+            client_context=(
+                req.client_context.model_dump() if req.client_context else None
+            ),
+            dividend_panel=dividend_panel,
         )
         assign_search_model_codes(records, next_model_no=[1])
         for _, params, _ in records:
@@ -3220,6 +3435,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         trial_report_cache=trial_report_cache,
         dynamic_ctx=dynamic_ctx,
         full_payload_codes=final_full_codes,
+        dividend_panel=dividend_panel,
     )
     candidates = _rerank_candidates_by_objective(
         candidates, trial_objective if dynamic_mode else objective_effective
@@ -3349,6 +3565,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
                 trial_report_cache=trial_report_cache,
                 dynamic_ctx=dynamic_ctx,
                 full_payload_codes=pr_full_codes,
+                dividend_panel=dividend_panel,
             )
             pro_round_assembly_progress("ranking packaged models by objective…")
             pr_candidates = _rerank_candidates_by_objective(
@@ -3525,6 +3742,10 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
     best_no_trade_tol = float(best_params.get("no_trade_tol", 0.0))
     best_turnover_penalty_mult = float(best_params.get("turnover_penalty_mult", 1.0))
     best_max_turnover = float(best_params.get("max_turnover_actual", req.max_turnover))
+    best_customization_drift = min(
+        float(best_params.get("customization_drift_actual", req.customization_drift)),
+        float(req.customization_drift),
+    )
     best_class_budget = class_budget_from_params(
         zero_disallowed_class_params(best_params, req.asset_classes),
         asset_classes=req.asset_classes,
@@ -3553,7 +3774,8 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             universe_by_ticker=universe_by_ticker,
             class_budget=best_class_budget,
             anchor_weights=req.anchor_weights,
-            customization_drift=req.customization_drift,
+            customization_drift=best_customization_drift,
+            dividend_panel=dividend_panel,
         ),
         prices,
         dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None,
@@ -3620,6 +3842,32 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         ai_champion_model_code = champion_model_code
     portfolio_catalog = all_record_catalog
     bench = benchmark_metrics(prices, spec.benchmark_ticker, spec)
+
+    leaderboard_objective = trial_objective if dynamic_mode else objective_effective
+    if oos and len(prices_val) > 60 and records:
+        report_progress(
+            trials_completed,
+            trials_completed,
+            f"Recording full-period metrics for {len(records)} ranked portfolios…",
+        )
+        _ensure_pool_full_sims_for_champion(
+            records,
+            req=req,
+            prices=prices,
+            prices_sim_panel=prices_sim_panel,
+            rebalance_rule=rebalance_rule,
+            spec=spec,
+            universe_by_ticker=universe_by_ticker,
+            trial_report_cache=trial_report_cache,
+            dynamic_ctx=dynamic_ctx,
+            dividend_panel=dividend_panel,
+        )
+        records = _enrich_records_full_period_objective(
+            list(records),
+            trial_report_cache=trial_report_cache,
+            spec=spec,
+            objective_mode=leaderboard_objective,
+        )
 
     # Labels mirror the web objective selector (OBJECTIVE_LABELS) so the AI summary
     # states the same user-facing objective the user picked (e.g. "Max CAGR").
@@ -3721,7 +3969,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             _oos_leaderboard(
                 candidates,
                 records=records,
-                objective_effective=trial_objective if dynamic_mode else objective_effective,
+                objective_effective=leaderboard_objective,
             )
             if oos and len(prices_val) > 60
             else None
@@ -3887,6 +4135,40 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         if std_snap is not None:
             narrative_facts["continuation_snapshot"] = std_snap
 
+    proposal_rows = [
+        {
+            "model_code": c.model_code,
+            "sharpe": c.sharpe,
+            "cagr": c.cagr,
+            "max_drawdown": c.max_drawdown,
+            "is_champion": c.is_champion,
+            "needs_attainment": c.needs_attainment,
+            "weights": c.weights,
+            "objective_score": (
+                (c.analytics or {}).get("sample_metrics", {}).get("in_sample", {}) or {}
+            ).get("objective_value")
+            if oos
+            else None,
+        }
+        for c in candidates
+        if c.model_code
+    ]
+    for row, c in zip(proposal_rows, [x for x in candidates if x.model_code]):
+        if row.get("objective_score") is None:
+            row["objective_score"] = float(c.sharpe)
+    champ_code = None
+    for c in candidates:
+        if c.is_champion and c.model_code:
+            champ_code = c.model_code
+            break
+
+    proposal_set = [
+        ProposalCard(**card)
+        for card in pick_pareto_proposals(
+            proposal_rows, max_n=3, champion_code=champ_code
+        )
+    ] or None
+
     result = BacktestResult(
         job_id=job_id,
         scenario_id=req.scenario_id,
@@ -3900,6 +4182,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         experimental=None,
         dynamic_objective_timeline=dynamic_timeline,
         dynamic_objective_benchmark_series=dynamic_benchmark_series,
+        proposal_set=proposal_set,
     )
     if champion_record is not None and isinstance(champion_record[1], dict):
         try:

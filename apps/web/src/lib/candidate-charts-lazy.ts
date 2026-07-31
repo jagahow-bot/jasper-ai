@@ -1,3 +1,4 @@
+import { weightsFromLatestHistory } from "./candidate-weights";
 import type { CandidateAnalytics, CandidateChartsPayload, PortfolioCandidate } from "./types";
 
 export function candidateHasFullCharts(c: PortfolioCandidate | undefined): boolean {
@@ -38,8 +39,11 @@ export function mergeCandidateCharts(
   charts: CandidateChartsPayload,
 ): PortfolioCandidate {
   const institutional = charts.institutional as Partial<CandidateAnalytics> | undefined;
+  const syncedWeights = weightsFromLatestHistory(charts.weight_history);
   return {
     ...candidate,
+    // Keep holdings tables / donuts aligned with the full-period rebalance path.
+    ...(syncedWeights ? { weights: syncedWeights } : {}),
     equity_curve: charts.equity_curve,
     analytics: {
       ...candidate.analytics,

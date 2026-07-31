@@ -29,8 +29,35 @@ CAP_EPS = 1e-4
 
 
 def min_holdings_for_cap(max_weight: float, floor: int = 5) -> int:
+    """Minimum names so optimization is not forced to all-at-cap equal weights.
 
-    return max(int(np.ceil(1.0 / max_weight)), floor)
+    Requires holdings strictly greater than ``1 / max_weight``:
+    ``floor(1/w) + 1``. When ``1/w`` is an integer (e.g. w=0.20 → 5),
+    ``ceil(1/w)=5`` admits only the equal-at-cap book; we need ≥6.
+    """
+    w = float(max(max_weight, 1e-12))
+    if w >= 1.0 - 1e-12:
+        return max(1, int(floor))
+    return max(int(np.floor(1.0 / w)) + 1, int(floor))
+
+
+
+
+
+def feasible_max_weight(max_weight: float, n_active: int) -> float:
+
+    """Per-name cap that still admits a fully invested book of ``n_active`` names.
+
+    When ``max_weight * n_active < 1``, the capped simplex is empty and naive
+    clip-then-renormalize collapses every name to exact ``1/n``. Relaxing the
+    effective cap preserves allocator-differentiated relative weights.
+    """
+
+    cap = float(max(max_weight, 1e-12))
+
+    n = int(max(n_active, 1))
+
+    return float(max(cap, 1.0 / float(n)))
 
 
 
@@ -172,18 +199,24 @@ def project_max_weight(w: np.ndarray, max_weight: float, max_iter: int = 100) ->
 
 
 
-    required_names = int(np.ceil(1.0 / cap))
-    min_names = min(required_names, n)
+    # Feasibility depends on ambient universe size. Sparse active books in a
+    # large enough universe should expand support; if even the full universe
+    # cannot satisfy the cap, keep relative weights (do not force 1/N).
+    n_active = int((w > WEIGHT_EPS).sum()) or n
+    required_names = int(np.ceil(1.0 / cap - 1e-12))
     if n < required_names:
         logger.warning(
-            "max_weight cap %.4f infeasible with %d tradable names (need >= %d)",
+            "max_weight cap %.4f infeasible with %d tradable names "
+            "(need >= %d); keeping relative weights instead of equal-weight collapse",
             cap,
             n,
             required_names,
         )
         return w
 
-    if int((w > WEIGHT_EPS).sum()) < min_names:
+    min_names = min(required_names, n)
+
+    if n_active < min_names:
 
         order = np.argsort(-w)
 
@@ -215,14 +248,13 @@ def project_max_weight(w: np.ndarray, max_weight: float, max_iter: int = 100) ->
 
         if not under.any():
 
-            order = np.argsort(-w)
-
-            w[:] = 0.0
-
-            k = min(min_names, n)
-
-            w[order[:k]] = 1.0 / k
-
+            # Should be rare once the active-count guard above passes; avoid
+            # forcing exact 1/k which destroys allocator differentiation.
+            logger.warning(
+                "max_weight projection stalled at cap=%.4f with no under-weight "
+                "names; keeping current relative weights",
+                cap,
+            )
             break
 
         under_sum = float(w[under].sum())
@@ -251,19 +283,9 @@ def project_max_weight(w: np.ndarray, max_weight: float, max_iter: int = 100) ->
 
     if w.max() > cap + 1e-6:
 
-        if n < required_names:
-
-            return w
-
-        order = np.argsort(-w)
-
-        w[:] = 0.0
-
-        k = min(required_names, n)
-
-        w[order[:k]] = 1.0 / k
-
-        return project_max_weight(w, cap, max_iter=max_iter)
+        # Best-effort: do not force equal 1/k (that erases allocator signal).
+        # Cap audit reports residual breaches when the book stays infeasible.
+        return w
 
     return w
 
@@ -356,24 +378,40 @@ def apply_max_holdings(
     max_holdings: int | None,
     *,
     max_weight: float | None = None,
+    prefer_keep: list[int] | None = None,
 ) -> np.ndarray:
-    """Keep at most max_holdings positive weights; zero the rest and renormalize."""
+    """Keep at most max_holdings positive weights; zero the rest and renormalize.
+
+    ``prefer_keep`` indices (e.g. overlay must-includes) are retained preferentially
+    when trimming excess names.
+    """
     if max_holdings is None or int(max_holdings) <= 0:
         return np.asarray(w, dtype=float).copy()
-    cap = int(max_holdings)
+    hold_cap = int(max_holdings)
     w = np.asarray(w, dtype=float).copy()
     w = np.maximum(w, 0.0)
     active = np.where(w > WEIGHT_EPS)[0]
-    if len(active) <= cap:
-        return w
-    keep_idx = active[np.argsort(w[active])[::-1][:cap]]
-    out = np.zeros_like(w)
-    out[keep_idx] = w[keep_idx]
-    s = float(out.sum())
-    if s > 1e-12:
-        out /= s
+    if len(active) <= hold_cap:
+        out = w
+    else:
+        prefer = {int(i) for i in (prefer_keep or []) if int(i) in set(active.tolist())}
+        prefer_list = [i for i in active if i in prefer]
+        rest = [i for i in active if i not in prefer]
+        rest_sorted = sorted(rest, key=lambda i: float(w[i]), reverse=True)
+        slots = max(0, hold_cap - len(prefer_list))
+        keep_idx = prefer_list[:hold_cap] + rest_sorted[:slots]
+        out = np.zeros_like(w)
+        out[keep_idx] = w[keep_idx]
+        s = float(out.sum())
+        if s > 1e-12:
+            out /= s
     if max_weight is not None and float(max_weight) < 1.0 - 1e-12:
-        out = project_max_weight(out, float(max_weight))
+        n_keep = int((out > WEIGHT_EPS).sum()) or hold_cap
+        # Only re-project when the holdings count can actually satisfy the cap;
+        # otherwise project_max_weight would either no-op or (historically)
+        # equalize — both wrong for an already-differentiated book.
+        if n_keep * float(max_weight) >= 1.0 - 1e-9:
+            out = project_max_weight(out, float(max_weight))
     return out
 
 
@@ -405,5 +443,75 @@ def apply_min_holding_weight(
     if max_weight is not None and float(max_weight) < 1.0 - 1e-12:
         w = project_max_weight(w, float(max_weight))
     return w
+
+
+def scale_invested_weights(w: np.ndarray, invested_frac: float) -> np.ndarray:
+    """Scale a fully-invested weight vector so sum(w) == invested_frac (cash sleeve).
+
+    Does not renormalize afterward — residual 1 − invested_frac is uninvested cash.
+    """
+    f = float(np.clip(invested_frac, 0.0, 1.0))
+    w = np.asarray(w, dtype=float)
+    w = np.maximum(w, 0.0)
+    if f >= 1.0 - 1e-12:
+        return w
+    if f <= 1e-12:
+        return np.zeros_like(w)
+    return w * f
+
+
+def round_weights_largest_remainder(
+    weights: dict[str, float],
+    *,
+    ndigits: int = 4,
+    target: float | None = None,
+) -> dict[str, float]:
+    """Round weights to ``ndigits`` so the rounded map still sums to ``target``.
+
+    Independent ``round(w, ndigits)`` on equal sleeves (e.g. 1/3) yields 0.9999;
+    Hamilton / largest-remainder keeps the packaged book at the intended mass.
+    """
+    items = [(str(k), float(v)) for k, v in weights.items() if float(v) > 0.0 and np.isfinite(v)]
+    if not items:
+        return {}
+    # Stable order: larger weight first, then ticker (deterministic remainders).
+    items.sort(key=lambda kv: (-kv[1], kv[0]))
+    tgt = float(sum(v for _, v in items) if target is None else target)
+    if tgt <= 0.0:
+        return {}
+    # Near-fully-invested books: absorb float/rounding dust into target=1.
+    if abs(tgt - 1.0) <= 5e-4:
+        tgt = 1.0
+    scale = 10 ** int(max(ndigits, 0))
+    exact = [v * scale for _, v in items]
+    floors = [int(np.floor(x + 1e-12)) for x in exact]
+    target_units = int(round(tgt * scale))
+    assigned = int(sum(floors))
+    order = sorted(
+        range(len(items)),
+        key=lambda i: (-(exact[i] - floors[i]), -items[i][1], items[i][0]),
+    )
+    units = floors[:]
+    need = target_units - assigned
+    if need > 0:
+        for j in range(need):
+            units[order[j % len(order)]] += 1
+    elif need < 0:
+        # Floors already exceed target — trim names with smallest remainders first.
+        trim_order = sorted(
+            range(len(items)),
+            key=lambda i: ((exact[i] - floors[i]), items[i][1], items[i][0]),
+        )
+        for i in trim_order:
+            if need >= 0:
+                break
+            if units[i] > 0:
+                units[i] -= 1
+                need += 1
+    out: dict[str, float] = {}
+    for (ticker, _), u in zip(items, units):
+        if u > 0:
+            out[ticker] = u / scale
+    return out
 
 

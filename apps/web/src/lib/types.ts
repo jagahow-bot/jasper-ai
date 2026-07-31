@@ -52,6 +52,27 @@ export interface ScenarioCard {
   suggested_asset_classes?: AssetClass[];
 }
 
+/**
+ * Structured client needs forwarded from the signed RM overlay.
+ * Drives the soft drawdown-tolerance penalty in trial scoring and the
+ * CLIENT NEEDS block in AI seed / learning prompts.
+ */
+export interface ClientContext {
+  risk_tolerance?: "conservative" | "moderate" | "aggressive" | null;
+  investment_horizon_years?: number | null;
+  /** Client's max tolerable drawdown (0–1); breaching trials are penalized. */
+  max_drawdown_tolerance?: number | null;
+  income_need_pct?: number | null;
+  /** Soft cap on any single holding weight (0–1). */
+  max_single_name_pct?: number | null;
+  /** Soft cap on concentrated theme / growth-equity sleeve. */
+  theme_exposure_cap_pct?: number | null;
+  /** Minimum uninvested cash sleeve the client wants retained. */
+  cash_reserve_pct?: number | null;
+  /** Plain-language client view, shown to AI prompts only. */
+  needs_summary?: string | null;
+}
+
 export interface BacktestRequest {
   scenario_id: string;
   max_weight: number;
@@ -101,6 +122,12 @@ export interface BacktestRequest {
   report_language?: string;
   /** Optional email to notify when the (server-side) job finishes or fails. */
   notify_email?: string | null;
+  /** Demo/client id so email deep links can restore the customized report. */
+  client_ref?: string | null;
+  /** Paired anchor static-replay job for dual-track RmReportView restore. */
+  anchor_job_id?: string | null;
+  /** UI id of the model / holdings anchor used for customization. */
+  anchor_portfolio_id?: string | null;
   /** Prior job to continue refinement from (server-side warm start). */
   continue_from_job_id?: string | null;
   extra_refinement_rounds?: number | null;
@@ -117,6 +144,17 @@ export interface BacktestRequest {
   customization_drift?: number;
   /** Anchor model portfolio weights used by the drift constraint. */
   anchor_weights?: Record<string, number> | null;
+  /** Structured client needs from the signed overlay (soft constraints + AI context). */
+  client_context?: ClientContext | null;
+  /** Permanent uninvested cash sleeve (risky weights sum to 1 − this). */
+  cash_reserve_pct?: number;
+  cash_return_mode?: "risk_free" | "zero";
+  /** Annual risk-free rate for cash returns and Sharpe excess. */
+  risk_free_rate?: number;
+  /** DCA horizon in months; omit for lump-sum. */
+  deployment_months?: number | null;
+  /** Equal DCA steps; defaults to deployment_months. */
+  deployment_tranches?: number | null;
 }
 
 export interface ConvergencePreviewPoint {
@@ -200,6 +238,43 @@ export interface PortfolioCandidate {
   alpha_annual?: number | null;
   tracking_error?: number | null;
   information_ratio?: number | null;
+  /** Client-floor check vs signed overlay (drawdown tolerance). */
+  needs_attainment?: {
+    max_drawdown_tolerance?: number;
+    max_drawdown_actual?: number;
+    within_drawdown_tolerance?: boolean;
+    drawdown_breach_pct?: number;
+    max_single_name_pct?: number;
+    max_single_name_actual?: number;
+    within_single_name_cap?: boolean;
+    theme_exposure_cap_pct?: number;
+    theme_exposure_actual?: number;
+    within_theme_cap?: boolean;
+    cash_reserve_pct?: number;
+    cash_weight_actual?: number;
+    within_cash_reserve?: boolean;
+    income_need_pct?: number;
+    income_actual?: number;
+    within_income_need?: boolean;
+    must_include_tickers?: string[];
+    missing_must_include?: string[];
+    within_must_include?: boolean;
+    customization_drift_cap?: number;
+    customization_drift_l1?: number;
+    within_customization_drift?: boolean;
+    all_floors_met?: boolean;
+  } | null;
+}
+
+export interface ProposalCard {
+  model_code: string;
+  label: string;
+  is_recommended: boolean;
+  sharpe: number;
+  cagr: number;
+  max_drawdown: number;
+  objective_score?: number | null;
+  needs_attainment?: PortfolioCandidate["needs_attainment"];
 }
 
 /** Lazy-loaded trajectory/holdings payload for one candidate trial. */
@@ -343,6 +418,8 @@ export interface BacktestResult {
     regime_labels_sample?: string[];
     evaluation?: Record<string, unknown>;
   } | null;
+  /** 2–3 trade-off proposals (recommended / defensive / growth) for RM comparison. */
+  proposal_set?: ProposalCard[] | null;
 }
 
 export type WizardPhase =

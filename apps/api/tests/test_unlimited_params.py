@@ -146,6 +146,7 @@ def test_refinement_without_patience_runs_all_rounds(price_panel: pd.DataFrame):
     ):
         _records, _history, meta = _run_iterative_search(
             req,
+            prices=prices_train,
             prices_train=prices_train,
             prices_sim_panel=prices_train,
             prices_val=None,

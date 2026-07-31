@@ -24,12 +24,12 @@ def resolve_ai_provider(model_id: str) -> Literal["google", "moonshot"]:
 
 
 def default_ai_model() -> str:
-    """Default model for routine structured AI calls (Gemini 3.6 Flash)."""
+    """Default model for routine structured AI calls (Gemini Flash / GEMINI_MODEL)."""
     return settings.gemini_model
 
 
 def reasoning_ai_model() -> str:
-    """Default model for high-value reasoning tasks (Kimi K3)."""
+    """Kimi K3 for non-interactive / heavy reasoning (not real-time overlay)."""
     return settings.ai_reasoning_model
 
 

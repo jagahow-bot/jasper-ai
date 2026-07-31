@@ -44,6 +44,9 @@ DRAWDOWN_INDICATOR_CHOICES: tuple[str, ...] = (
     "time_since_peak",
     "ulcer_index",
 )
+INCOME_INDICATOR_CHOICES: tuple[str, ...] = (
+    "trailing_12m_yield",
+)
 
 INDICATOR_LOGIC_BY_KEY: dict[str, dict[str, str]] = {
     "momentum": {
@@ -76,6 +79,9 @@ INDICATOR_LOGIC_BY_KEY: dict[str, dict[str, str]] = {
         "time_since_peak": "Negative normalized days since last peak (recent peak better)",
         "ulcer_index": "Negative sqrt(mean(drawdown%²)) ulcer proxy",
     },
+    "income": {
+        "trailing_12m_yield": "Sum(dividends over last 252 sessions) / last price in window",
+    },
 }
 
 DEFAULT_MOM_INDICATOR = "cumulative_return"
@@ -84,6 +90,7 @@ DEFAULT_VALUE_INDICATOR = "ma_price_ratio"
 DEFAULT_LOWVOL_INDICATOR = "negative_vol"
 DEFAULT_TREND_INDICATOR = "price_ma_ratio"
 DEFAULT_DRAWDOWN_INDICATOR = "max_drawdown_depth"
+DEFAULT_INCOME_INDICATOR = "trailing_12m_yield"
 
 _SKIP_MONTH_DAYS = 21
 _SHORT_MA_DAYS = 21
@@ -101,6 +108,7 @@ class FactorParams:
     w_lowvol: float = 1.0
     w_trend: float = 0.5
     w_drawdown: float = 0.5
+    w_income: float = 0.0
 
     mom_indicator: str = DEFAULT_MOM_INDICATOR
     reversal_indicator: str = DEFAULT_REVERSAL_INDICATOR
@@ -108,6 +116,7 @@ class FactorParams:
     lowvol_indicator: str = DEFAULT_LOWVOL_INDICATOR
     trend_indicator: str = DEFAULT_TREND_INDICATOR
     drawdown_indicator: str = DEFAULT_DRAWDOWN_INDICATOR
+    income_indicator: str = DEFAULT_INCOME_INDICATOR
 
 
 def factor_params_from_dict(
@@ -128,6 +137,7 @@ def factor_params_from_dict(
         w_lowvol=float(params.get("w_lowvol", 1.0)),
         w_trend=float(params.get("w_trend", 0.5)),
         w_drawdown=float(params.get("w_drawdown", 0.5)),
+        w_income=float(params.get("w_income", 0.0)),
         mom_indicator=_resolve_indicator(
             params.get("mom_indicator"), MOM_INDICATOR_CHOICES, DEFAULT_MOM_INDICATOR
         ),
@@ -155,6 +165,11 @@ def factor_params_from_dict(
             params.get("drawdown_indicator"),
             DRAWDOWN_INDICATOR_CHOICES,
             DEFAULT_DRAWDOWN_INDICATOR,
+        ),
+        income_indicator=_resolve_indicator(
+            params.get("income_indicator"),
+            INCOME_INDICATOR_CHOICES,
+            DEFAULT_INCOME_INDICATOR,
         ),
     )
 
@@ -315,6 +330,48 @@ def _dd_ulcer(px: pd.DataFrame) -> np.ndarray:
     return -ulcer
 
 
+def _income_trailing_12m_yield(
+    prices_window: pd.DataFrame,
+    dividend_panel: pd.DataFrame,
+    *,
+    lookback_days: int = 252,
+) -> np.ndarray:
+    tickers = list(prices_window.columns)
+    aligned = dividend_panel.reindex(
+        index=prices_window.index, columns=tickers, fill_value=0.0
+    )
+    n = prices_window.shape[0]
+    d = int(max(1, min(int(lookback_days), n)))
+    ttm_div = aligned.iloc[-d:].sum(axis=0).to_numpy(dtype=float)
+    price_ref = prices_window.iloc[-1].to_numpy(dtype=float)
+    return ttm_div / np.maximum(price_ref, 1e-12)
+
+
+def _compute_income_raw(
+    prices_window: pd.DataFrame,
+    dividend_panel: pd.DataFrame | None,
+    params: FactorParams,
+) -> np.ndarray | None:
+    if float(params.w_income) == 0.0:
+        return None
+    if dividend_panel is None or dividend_panel.empty:
+        return None
+    income_key = _resolve_indicator(
+        params.income_indicator, INCOME_INDICATOR_CHOICES, DEFAULT_INCOME_INDICATOR
+    )
+    if income_key == "trailing_12m_yield":
+        return _income_trailing_12m_yield(
+            prices_window,
+            dividend_panel,
+            lookback_days=params.lookback_days,
+        )
+    return _income_trailing_12m_yield(
+        prices_window,
+        dividend_panel,
+        lookback_days=params.lookback_days,
+    )
+
+
 def _compute_raw_factors(
     prices_window: pd.DataFrame,
     returns_window: pd.DataFrame,
@@ -413,6 +470,8 @@ def score_assets(
     prices_window: pd.DataFrame,
     returns_window: pd.DataFrame,
     params: FactorParams,
+    *,
+    dividend_panel: pd.DataFrame | None = None,
 ) -> pd.Series:
     """Return cross-sectional scores indexed by ticker (higher is better)."""
     if prices_window.shape[0] < 60:
@@ -427,6 +486,9 @@ def score_assets(
         + params.w_trend * _zscore(raw["trend"])
         + params.w_drawdown * _zscore(raw["drawdown"])
     )
+    income_raw = _compute_income_raw(prices_window, dividend_panel, params)
+    if income_raw is not None:
+        s = s + params.w_income * _zscore(income_raw)
     return pd.Series(s, index=prices_window.columns, dtype=float)
 
 
@@ -434,6 +496,8 @@ def score_assets_with_details(
     prices_window: pd.DataFrame,
     returns_window: pd.DataFrame,
     params: FactorParams,
+    *,
+    dividend_panel: pd.DataFrame | None = None,
 ) -> tuple[pd.Series, dict[str, Any]]:
     """Return score plus per-factor contribution details."""
     if prices_window.shape[0] < 60:
@@ -449,6 +513,14 @@ def score_assets_with_details(
         "trend": float(params.w_trend),
         "drawdown": float(params.w_drawdown),
     }
+    income_raw = _compute_income_raw(prices_window, dividend_panel, params)
+    if income_raw is not None:
+        income_key = _resolve_indicator(
+            params.income_indicator, INCOME_INDICATOR_CHOICES, DEFAULT_INCOME_INDICATOR
+        )
+        z["income"] = _zscore(income_raw)
+        weights["income"] = float(params.w_income)
+        logic["income"] = INDICATOR_LOGIC_BY_KEY["income"][income_key]
     contrib = {k: weights[k] * z[k] for k in z}
     total = np.zeros(len(prices_window.columns), dtype=float)
     for k in contrib:
@@ -467,6 +539,7 @@ def score_assets_with_details(
             "lowvol_indicator": params.lowvol_indicator,
             "trend_indicator": params.trend_indicator,
             "drawdown_indicator": params.drawdown_indicator,
+            "income_indicator": params.income_indicator,
         },
     }
     return pd.Series(total, index=prices_window.columns, dtype=float), details

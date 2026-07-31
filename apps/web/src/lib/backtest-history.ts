@@ -1,4 +1,10 @@
-import type { BacktestRequest, BacktestResult, JobSummary } from "./types";
+import type {
+  BacktestRequest,
+  BacktestResult,
+  JobSummary,
+  PersonalizationCompare,
+} from "./types";
+import type { ClientOverlay } from "./overlay-schema";
 import { resolveChampionCandidateIndex } from "./performance-compare-chart";
 
 export const BACKTEST_HISTORY_STORAGE_KEY = "jasper_backtest_history_v1";
@@ -7,6 +13,10 @@ const MAX_LOCAL_ENTRIES = 30;
 export type LocalHistoryEntry = JobSummary & {
   request?: BacktestRequest;
   result?: BacktestResult;
+  /** Dual-track customization payload for RmReportView restore. */
+  personalizationCompare?: PersonalizationCompare;
+  signedOverlay?: ClientOverlay;
+  clientId?: string;
 };
 
 function readRaw(): LocalHistoryEntry[] {
@@ -69,13 +79,27 @@ export function buildLocalJobSummary(
   };
 }
 
+export type RecordCompletedOptions = {
+  personalizationCompare?: PersonalizationCompare;
+  signedOverlay?: ClientOverlay | null;
+  clientId?: string | null;
+};
+
 export function recordCompletedBacktest(
   jobId: string,
   request: BacktestRequest,
   result: BacktestResult,
+  opts?: RecordCompletedOptions,
 ) {
   const summary = buildLocalJobSummary(jobId, request, result);
-  upsertLocalBacktestHistory({ ...summary, request, result });
+  upsertLocalBacktestHistory({
+    ...summary,
+    request,
+    result,
+    personalizationCompare: opts?.personalizationCompare,
+    signedOverlay: opts?.signedOverlay ?? undefined,
+    clientId: opts?.clientId ?? request.client_ref ?? undefined,
+  });
 }
 
 /** Merge API summaries with local rows (dedupe by job_id; prefer local full payload). */
@@ -107,6 +131,43 @@ export function mergeHistoryLists(
 
 export function findLocalHistoryEntry(jobId: string): LocalHistoryEntry | undefined {
   return readLocalBacktestHistory().find((e) => e.job_id === jobId);
+}
+
+/** Resolve which client a local history row belongs to (if any). */
+export function resolveHistoryClientId(
+  entry: LocalHistoryEntry,
+): string | undefined {
+  const fromField = entry.clientId?.trim();
+  if (fromField) return fromField;
+  const fromRequest = entry.request?.client_ref?.trim();
+  if (fromRequest) return fromRequest;
+  const fromOverlay = entry.signedOverlay?.audit?.client_ref?.trim();
+  if (fromOverlay) return fromOverlay;
+  return undefined;
+}
+
+/** Local customized runs recorded for a specific client (newest first). */
+export function listLocalHistoryForClient(
+  clientId: string,
+): LocalHistoryEntry[] {
+  const id = clientId.trim();
+  if (!id) return [];
+  return readLocalBacktestHistory().filter(
+    (e) => resolveHistoryClientId(e) === id,
+  );
+}
+
+/** Prefer customized portfolio name, then champion / scenario labels. */
+export function historyEntryDisplayLabel(
+  entry: LocalHistoryEntry,
+): string | undefined {
+  const customized =
+    entry.personalizationCompare?.customizedLabel?.trim() || undefined;
+  if (customized) return customized;
+  const champion = entry.champion_model_code?.trim() || undefined;
+  if (champion) return champion;
+  const scenario = entry.scenario_id?.trim() || undefined;
+  return scenario || undefined;
 }
 
 export function formatHistoryDate(iso: string): string {

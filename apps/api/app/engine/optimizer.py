@@ -38,9 +38,17 @@ from app.engine.factors import (
     FactorParams,
 )
 from app.engine.portfolio import simulate_dynamic_portfolio
+from app.engine.customization import (
+    derive_must_include_tickers,
+    min_holdings_for_customization,
+)
 from app.engine.weights import min_holdings_for_cap
-from app.engine.objectives import compute_objective_score, metrics_snapshot
-from app.engine.refinement import assess_overfitting, model_signature
+from app.engine.objectives import (
+    compute_client_needs_penalty,
+    compute_objective_score,
+    metrics_snapshot,
+)
+from app.engine.refinement import assess_overfitting, attach_full_period_objective, model_signature
 from app.engine.param_bounds import (
     RunBlueprint,
     cap_search_high,
@@ -129,6 +137,8 @@ def run_optuna_search(
     class_budget_resolver: Callable[[pd.Timestamp], dict[str, float]] | None = None,
     prices_sim_panel: pd.DataFrame | None = None,
     enforce_class_weights: bool = True,
+    client_context: dict | None = None,
+    dividend_panel: pd.DataFrame | None = None,
 ) -> list[tuple[float, dict, dict]]:
     records: list[tuple[float, dict, dict]] = []
     trial_records: dict[int, tuple[float, dict, dict]] = {}
@@ -140,11 +150,17 @@ def run_optuna_search(
         top_n_cap = min_top
     ai_seed_param_sets = ai_seed_param_sets or []
     pro_round_mode = bool(round_setup)
+    incoming_param_controls = dict(param_controls or {})
+    drift_cap = (
+        float(customization_drift) if customization_drift is not None else 1.0
+    )
+    drift_cap = float(max(0.0, min(1.0, drift_cap)))
     blueprint = RunBlueprint(
         max_weight=float(max_weight),
         max_turnover=float(max_turnover),
         top_n=int(top_n) if top_n is not None else None,
         max_holdings=int(spec.max_holdings),
+        customization_drift=drift_cap,
     )
     if pro_round_mode:
         param_controls = build_pro_round_param_controls(
@@ -160,6 +176,20 @@ def run_optuna_search(
         )
     else:
         param_controls = normalize_param_controls(param_controls, blueprint)
+    # Customization runs: if RM did not explicitly set customization_drift_actual,
+    # fix it to the committed slider (normalize alone would leave mode=search with
+    # an auto-filled max=ceiling, which looks like an intentional search range).
+    if anchor_weights:
+        user_drift_ctrl = (incoming_param_controls or {}).get(
+            "customization_drift_actual"
+        )
+        if not user_drift_ctrl:
+            pc = dict(param_controls or {})
+            pc["customization_drift_actual"] = {
+                "mode": "fixed",
+                "fixed": float(drift_cap),
+            }
+            param_controls = pc
     regime_factor_active = bool(
         pro_round_mode
         and has_regime_matrix(regime_setups)
@@ -420,6 +450,13 @@ def run_optuna_search(
                     0.0,
                     1.5,
                 )
+                w_income_r = _seed_or_suggest_float(
+                    trial,
+                    seed,
+                    regime_factor_param_key(regime, "w_income"),
+                    0.0,
+                    0.40,
+                )
                 factor_by_regime[regime] = FactorParams(
                     lookback_days=int(factor_lb),
                     reversal_lookback_days=int(reversal_lb),
@@ -430,6 +467,7 @@ def run_optuna_search(
                     w_lowvol=float(w_lowvol_r),
                     w_trend=float(w_trend_r),
                     w_drawdown=float(w_drawdown_r),
+                    w_income=float(w_income_r),
                     mom_indicator=str(mom_indicator),
                     reversal_indicator=str(reversal_indicator),
                     value_indicator=str(value_indicator),
@@ -447,6 +485,7 @@ def run_optuna_search(
                     ("w_lowvol", w_lowvol_r),
                     ("w_trend", w_trend_r),
                     ("w_drawdown", w_drawdown_r),
+                    ("w_income", w_income_r),
                 ):
                     regime_factor_flat[regime_factor_param_key(regime, fk)] = val
             f_params = factor_by_regime.get("neutral") or FactorParams()
@@ -464,6 +503,7 @@ def run_optuna_search(
             w_lowvol = float(f_params.w_lowvol)
             w_trend = float(f_params.w_trend)
             w_drawdown = float(f_params.w_drawdown)
+            w_income = float(f_params.w_income)
         else:
             factor_lb = _seed_or_suggest_int(
                 trial, seed, "factor_lookback_days", 126, 504, step=21
@@ -480,6 +520,7 @@ def run_optuna_search(
             w_lowvol = _seed_or_suggest_float(trial, seed, "w_lowvol", 0.0, 2.0)
             w_trend = _seed_or_suggest_float(trial, seed, "w_trend", 0.0, 1.5)
             w_drawdown = _seed_or_suggest_float(trial, seed, "w_drawdown", 0.0, 1.5)
+            w_income = _seed_or_suggest_float(trial, seed, "w_income", 0.0, 0.40)
         regime_quota_flat: dict[str, float] = {}
         if regime_quota_active:
             for regime in REGIME_KEYS:
@@ -513,22 +554,29 @@ def run_optuna_search(
         # - max_holdings_actual: AI-tunable final position cap (<= run slider)
         # - no-trade band (reduce rebalancing churn)
         # - turnover penalty multiplier (extra cost pressure)
+        min_names_for_cap = min(
+            min_holdings_for_cap(actual_cap, floor=2), n_assets
+        )
+        hold_hi = min(int(spec.max_holdings), n_assets)
+        hold_lo = min(max(min_names_for_cap, 1), hold_hi)
         top_n_actual = _seed_or_suggest_int(
             trial, seed, "top_n_actual", min_top, top_n_cap
         )
         max_holdings_actual = _seed_or_suggest_int(
-            trial, seed, "max_holdings_actual", 1, int(spec.max_holdings)
-        )
-        min_names_for_cap = min(
-            min_holdings_for_cap(actual_cap, floor=2), n_assets
+            trial, seed, "max_holdings_actual", hold_lo, hold_hi
         )
         top_n_actual = int(
             np.clip(max(int(top_n_actual), min_names_for_cap), min_top, top_n_cap)
         )
         max_holdings_actual = int(
             np.clip(
-                max_holdings_actual, 1, min(int(spec.max_holdings), n_assets)
+                max(int(max_holdings_actual), min_names_for_cap),
+                hold_lo,
+                hold_hi,
             )
+        )
+        top_n_actual = int(
+            np.clip(max(int(top_n_actual), max_holdings_actual), min_top, top_n_cap)
         )
         no_trade_tol = _seed_or_suggest_float(trial, seed, "no_trade_tol", 0.0, 0.02)
         turnover_penalty_mult = _seed_or_suggest_float(
@@ -538,6 +586,31 @@ def run_optuna_search(
         max_turnover_actual = _seed_or_suggest_float(
             trial, seed, "max_turnover_actual", 0.05, turnover_cap
         )
+        customization_drift_actual = _seed_or_suggest_float(
+            trial, seed, "customization_drift_actual", 0.0, drift_cap
+        )
+        if anchor_weights:
+            must_n = len(
+                derive_must_include_tickers(
+                    list(prices_train.columns), anchor_weights
+                )
+            )
+            need_h = min_holdings_for_customization(
+                n_must_include=must_n,
+                max_weight=float(actual_cap),
+                customization_drift=float(customization_drift_actual),
+                n_assets=n_assets,
+            )
+            max_holdings_actual = int(
+                max(
+                    max_holdings_actual,
+                    min(need_h, n_assets, int(spec.max_holdings)),
+                    min_names_for_cap,
+                )
+            )
+            top_n_actual = int(
+                np.clip(max(top_n_actual, max_holdings_actual), min_top, top_n_cap)
+            )
 
         if allocator_mode != "auto":
             mode = allocator_mode
@@ -574,6 +647,7 @@ def run_optuna_search(
                 w_lowvol=float(w_lowvol),
                 w_trend=float(w_trend),
                 w_drawdown=float(w_drawdown),
+                w_income=float(w_income),
                 mom_indicator=str(mom_indicator),
                 reversal_indicator=str(reversal_indicator),
                 value_indicator=str(value_indicator),
@@ -651,7 +725,8 @@ def run_optuna_search(
             allocator_resolver=allocator_resolver,
             factor_params_resolver=factor_params_resolver,
             anchor_weights=anchor_weights,
-            customization_drift=customization_drift,
+            customization_drift=float(customization_drift_actual),
+            dividend_panel=dividend_panel,
         )
         try:
             metrics = simulate_dynamic_portfolio(
@@ -666,6 +741,24 @@ def run_optuna_search(
             return INFEASIBLE_SCORE
 
         score = compute_objective_score(objective_mode, metrics)
+        if client_context:
+            last_w = np.atleast_1d(
+                np.asarray(metrics.get("last_weights"), dtype=float)
+            ).ravel()
+            holdings = {
+                str(t): float(last_w[i])
+                for i, t in enumerate(sim_panel.columns)
+                if i < len(last_w) and float(last_w[i]) > 1e-12
+            }
+            needs_penalty = compute_client_needs_penalty(
+                metrics,
+                client_context,
+                holdings=holdings,
+                ticker_meta=universe_by_ticker,
+            )
+            if needs_penalty > 0.0:
+                score -= needs_penalty
+                metrics["client_needs_penalty"] = round(needs_penalty, 6)
         params = {
             "mode": mode,
             "lookback_days": int(lookback),
@@ -680,12 +773,14 @@ def run_optuna_search(
             "no_trade_tol": float(no_trade_tol),
             "turnover_penalty_mult": float(turnover_penalty_mult),
             "max_turnover_actual": float(max_turnover_actual),
+            "customization_drift_actual": float(customization_drift_actual),
             "w_mom": float(w_mom),
             "w_reversal": float(w_reversal),
             "w_value": float(w_value),
             "w_lowvol": float(w_lowvol),
             "w_trend": float(w_trend),
             "w_drawdown": float(w_drawdown),
+            "w_income": float(w_income),
             "mom_indicator": str(mom_indicator),
             "reversal_indicator": str(reversal_indicator),
             "value_indicator": str(value_indicator),
@@ -771,6 +866,20 @@ def run_optuna_search(
         metrics["raw_score"] = float(score)
         metrics["adjusted_score"] = float(adjusted)
         metrics["overfitting_penalty_applied"] = float(penalty_applied)
+
+        full_sim_for_attach: dict | None = None
+        if not has_holdout:
+            full_sim_for_attach = metrics
+        elif not use_is_only:
+            full_sim_for_attach = metrics
+        attach_full_period_objective(
+            metrics,
+            objective_mode=objective_mode,
+            train_m=train_m_holdout or (metrics if not has_holdout else None),
+            val_m=val_m if has_holdout else None,
+            full_m=full_sim_for_attach,
+            spec=trial_spec,
+        )
 
         params["raw_score"] = float(score)
         params["adjusted_score"] = float(adjusted)

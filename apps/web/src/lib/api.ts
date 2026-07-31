@@ -21,19 +21,19 @@ function getApiBase(): string {
 }
 
 const API_UNAVAILABLE_MSG =
-  "Cannot reach quant API. From repo root run npm run dev and confirm api is on 127.0.0.1:8001 (no WinError 10013).";
+  "The analysis service is temporarily unavailable. Please try again in a moment.";
 
 function resStatusLabel(status: number): string {
   if (status === 404) return "Resource not found";
-  if (status === 409) return "Job still running";
+  if (status === 409) return "Analysis still running";
   if (status === 422) return "Invalid request";
   if (status === 502 || status === 503 || status === 504) {
     return (
-      "Quant API is temporarily unavailable (server may have restarted after heavy load). " +
-      "Wait 30–60 seconds and try again, or reduce search trials."
+      "The analysis service is temporarily unavailable (it may be restarting). " +
+      "Please wait 30–60 seconds and try again."
     );
   }
-  return `Request failed (${status})`;
+  return "The request could not be completed. Please try again.";
 }
 
 function formatApiError(status: number, body: string): string {

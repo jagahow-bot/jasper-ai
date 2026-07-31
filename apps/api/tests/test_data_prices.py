@@ -86,3 +86,25 @@ def test_all_late_listings_raises():
     prices = _make_panel(early_start="2021-03-01", late_start="2021-06-01")
     with pytest.raises(ValueError, match="No tickers have prices near"):
         _exclude_late_listing_columns(prices, "2015-01-01")
+
+
+def test_pinned_late_listing_is_kept():
+    """Overlay-confirmed adds survive late-listing exclusion (job d3972fe2 / AIQ)."""
+    prices = _make_panel()
+    trimmed, excluded = _exclude_late_listing_columns(
+        prices, "2015-01-01", keep_tickers=["LATE"]
+    )
+    assert "LATE" in trimmed.columns
+    assert "LATE" not in excluded
+    assert list(trimmed.columns) == ["SPY", "LATE"]
+
+
+def test_empty_column_not_kept_unless_pinned():
+    idx = pd.bdate_range("2015-01-02", "2024-12-31")
+    prices = pd.DataFrame(
+        {"SPY": 100.0, "SOXX": np.nan},
+        index=idx,
+    )
+    trimmed, excluded = _exclude_late_listing_columns(prices, "2018-01-01")
+    assert excluded == ["SOXX"]
+    assert list(trimmed.columns) == ["SPY"]

@@ -175,3 +175,58 @@ def test_sim_inputs_from_params_clamps_max_holdings_actual_to_run_cap():
     }
     trial_spec, *_ = _sim_inputs_from_params(params, req, "QE", spec)
     assert trial_spec.max_holdings == 8
+
+
+def test_sim_inputs_from_params_returns_ten_including_customization_drift():
+    """Regression: charts/backtest unpack expect customization_drift as 8th value."""
+    from app.engine.backtest import _sim_inputs_from_params
+    from app.engine.spec import BacktestSpec
+    from app.models import BacktestRequest, Objective, BacktestMode
+
+    req = BacktestRequest(
+        scenario_id="custom",
+        max_weight=0.5,
+        objective=Objective.max_sharpe,
+        backtest_mode=BacktestMode.static,
+        max_holdings=8,
+        customization_drift=0.2,
+        anchor_weights={"SPY": 0.6, "TLT": 0.4},
+    )
+    spec = BacktestSpec(max_holdings=8)
+    params = {
+        "mode": "min_var",
+        "lookback_days": 126,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 8,
+        "max_holdings_actual": 5,
+        "no_trade_tol": 0.0,
+        "turnover_penalty_mult": 1.0,
+        "max_turnover_actual": 0.5,
+        "customization_drift_actual": 0.15,
+    }
+    out = _sim_inputs_from_params(params, req, "QE", spec)
+    assert len(out) == 10
+    (
+        trial_spec,
+        alloc,
+        cap,
+        top_n_actual,
+        no_trade_tol,
+        turnover_penalty_mult,
+        max_turnover_actual,
+        customization_drift_actual,
+        class_budget,
+        f_params,
+    ) = out
+    assert abs(float(customization_drift_actual) - 0.15) < 1e-9
+    assert trial_spec.max_holdings == 5
+    assert float(cap) == 0.25
+    assert int(top_n_actual) == 8
+    assert abs(float(max_turnover_actual) - 0.5) < 1e-9
+    assert alloc is not None
+    assert no_trade_tol is not None
+    assert turnover_penalty_mult is not None
+    assert isinstance(class_budget, dict)
+    assert f_params is not None

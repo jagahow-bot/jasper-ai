@@ -50,11 +50,13 @@ def price_panel() -> pd.DataFrame:
 def test_taxonomy_helpers():
     assert is_setup_key("lookback_days")
     assert is_setup_key("w_equity")
+    assert is_setup_key("customization_drift_actual")
     assert not is_setup_key("w_mom")
     assert is_factor_key("w_mom")
     assert is_factor_key("mom_indicator")
     assert not is_setup_key("objective_mode")
     assert "lookback_days" in SETUP_PARAM_KEYS
+    assert "customization_drift_actual" in SETUP_PARAM_KEYS
 
 
 def test_build_pro_round_param_controls_forces_setup_fixed():

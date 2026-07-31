@@ -203,6 +203,33 @@ def test_pin_guaranteed_supplements_after_refine_dedupe():
     assert "BTAL" in tickers
 
 
+def test_get_universe_whitelist_pins_unknown_overlay_ticker():
+    """Job d3972fe2 regression: AIQ was not in universe.json and vanished silently."""
+    locked = get_universe(
+        asset_classes=["equity", "bond", "commodity"],
+        tickers=["IVV", "TLT", "AIQ", "BOTZ", "SOXX"],
+        supplement_tickers=["IVV", "TLT", "AIQ", "BOTZ", "SOXX"],
+    )
+    tickers = {u["ticker"] for u in locked}
+    assert "AIQ" in tickers
+    assert "BOTZ" in tickers
+    assert "SOXX" in tickers
+    aiq = next(u for u in locked if u["ticker"] == "AIQ")
+    assert aiq.get("overlay_synthetic") is True
+
+
+def test_pin_guaranteed_supplements_synthesizes_missing_catalog_ticker():
+    from app.profiles import pin_guaranteed_supplements
+
+    refined = [{"ticker": "IVV", "asset_class": "equity", "category": "us_broad"}]
+    pinned = pin_guaranteed_supplements(
+        refined, ["IVV", "AIQ", "CASH"], asset_classes=["equity"]
+    )
+    tickers = {u["ticker"] for u in pinned}
+    assert "AIQ" in tickers
+    assert "CASH" not in tickers  # pseudo sleeve, not a price series
+
+
 def test_resolve_universe_filter_prompts_ignores_joined_duplicate_text():
     from app.models import BacktestRequest, BacktestMode, Objective
 

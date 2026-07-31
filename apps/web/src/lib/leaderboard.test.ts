@@ -50,4 +50,34 @@ describe("leaderboard", () => {
     );
     expect(out[0].full_sample_objective).toBe(0.77);
   });
+
+  it("buildHoldoutLeaderboard prefers packaged candidate horizons over raw rows", () => {
+    const horizonsByCode = new Map([
+      [
+        "M0018",
+        {
+          in_sample_objective: 0.4715,
+          out_of_sample_objective: 1.1606,
+          full_sample_objective: 0.6555,
+          gap_objective: -0.6891,
+        },
+      ],
+    ]);
+    const out = buildHoldoutLeaderboard(
+      [
+        {
+          model_code: "M0018",
+          in_sample_objective: 0.6538,
+          out_of_sample_objective: 1.1606,
+          full_sample_objective: 0.6555,
+          gap_objective: -0.5068,
+        },
+      ],
+      "in_sample",
+      undefined,
+      horizonsByCode,
+    );
+    expect(out[0].in_sample_objective).toBe(0.4715);
+    expect(out[0].gap_objective).toBe(-0.6891);
+  });
 });

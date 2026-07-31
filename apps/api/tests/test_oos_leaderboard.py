@@ -114,6 +114,40 @@ def test_oos_leaderboard_dedupes_duplicate_model_code_from_champion_resim():
     assert m16["in_sample_objective"] == 0.55
 
 
+def test_oos_leaderboard_prefers_candidate_packaged_is_over_higher_record():
+    """Search-time IS can disagree with full-path slices; UI summary uses packaged."""
+    records = [
+        _record(
+            model_code="M0018",
+            trial_no=17,
+            objective_is=0.6538,
+            objective_oos=1.1606,
+        ),
+    ]
+    candidates = [
+        _candidate(
+            rank=1,
+            model_code="M0018",
+            is_champion=True,
+            sample_metrics={
+                "in_sample": {"objective_value": 0.4715, "sharpe": 0.471},
+                "out_of_sample": {"objective_value": 1.1606, "sharpe": 1.161},
+                "full_sample": {"objective_value": 0.6555, "sharpe": 0.655},
+                "gap": {"objective": -0.6891},
+            },
+        ),
+    ]
+    rows = _oos_leaderboard(
+        candidates,
+        records=records,
+        objective_effective="max_sharpe",
+    )
+    m18 = next(r for r in rows if r["model_code"] == "M0018")
+    assert m18["in_sample_objective"] == 0.4715
+    assert m18["full_sample_objective"] == 0.6555
+    assert m18["gap_objective"] == -0.6891
+
+
 def test_leaderboard_row_from_record_falls_back_to_train_validation_metrics():
     row = _leaderboard_row_from_record(
         {"model_code": "M0003", "optuna_trial_number": 2},

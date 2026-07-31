@@ -8,7 +8,7 @@ import {
   type PoolItem,
 } from "@/lib/investment-pool";
 
-export const MODEL_PORTFOLIOS_STORAGE_KEY = "jasper_model_portfolios_v3";
+export const MODEL_PORTFOLIOS_STORAGE_KEY = "jasper_model_portfolios_v4";
 
 export type ManagedModelPortfolio = ModelPortfolio & {
   enabled: boolean;

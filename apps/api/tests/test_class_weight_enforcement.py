@@ -104,6 +104,18 @@ def test_weights_dict_accepts_zero_d_scalar() -> None:
     assert out == {"SPY": 1.0}
 
 
+def test_weights_dict_largest_remainder_sums_to_one() -> None:
+    """Equal sleeves rounded to 4dp must still package to 1.0 (not 0.9999)."""
+    tickers = ["GLD", "VWELX", "AGG", "SHY", "PG", "IVV", "TLT"]
+    w = np.array([0.15, 0.15, 0.15, 0.15, 0.4 / 3, 0.4 / 3, 0.4 / 3])
+    assert abs(float(w.sum()) - 1.0) < 1e-12
+    naive = {t: round(float(x), 4) for t, x in zip(tickers, w)}
+    assert abs(sum(naive.values()) - 1.0) > 1e-9  # independent round drifts
+    out = _weights_dict(tickers, w)
+    assert abs(sum(out.values()) - 1.0) < 1e-12
+    assert all(abs(v - round(v, 4)) < 1e-12 for v in out.values())
+
+
 def test_enforce_class_weight_budget_final_pass_respects_max_weight() -> None:
     """Alternating sleeve targets + cap must not leave post-normalize cap breaches."""
     universe = _universe()

@@ -538,6 +538,39 @@ describe("buildTalkingPoints", () => {
     expect(points.at(-1)).toContain("回測示意");
   });
 
+  it("prefers terminal weight_history over package weights for holdings diff", () => {
+    const anchor = mockResult({ cagr: 0.1, fullCagr: 0.1, equity: [] });
+    const customized = mockResult({ cagr: 0.1, fullCagr: 0.1, equity: [] });
+    customized.candidates[0].weights = {
+      SMH: 0.2,
+      SOXX: 0.2,
+      SPY: 0.2,
+      RSP: 0.15,
+      USMV: 0.15,
+    };
+    customized.candidates[0].analytics = {
+      weight_history: [
+        {
+          date: "2026-06-30",
+          SMH: 0.1751,
+          SOXX: 0.0995,
+          SPY: 0.2,
+          RSP: 0.1037,
+          USMV: 0.1565,
+          SCHD: 0.149,
+          XLV: 0.1161,
+        },
+      ],
+    };
+
+    const rows = buildHoldingsDiff(anchor, customized, [
+      { ticker: "SPY", weight: 0.4 },
+    ]);
+    const smh = rows.find((r) => r.ticker === "SMH");
+    expect(smh?.customizedPct).toBeCloseTo(17.51, 2);
+    expect(smh?.customizedPct).not.toBeCloseTo(20, 1);
+  });
+
   it("recomputes talking points when customizedModelCode changes", () => {
     const anchor = mockResult({
       cagr: 0.12,

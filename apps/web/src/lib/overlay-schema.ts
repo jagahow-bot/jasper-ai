@@ -9,6 +9,7 @@ import {
 } from "@/lib/locked-universe";
 import type {
   BacktestRequest,
+  ClientContext,
   ExperimentRequest,
   Objective,
   OptimizationMode,
@@ -112,13 +113,22 @@ export const marketViewOverlaySchema = z
   })
   .strip();
 
+export const deploymentScheduleSchema = z
+  .object({
+    months: z.number().int().min(1).max(24),
+    tranches: z.number().int().min(1).max(24).optional(),
+    liquidity_buffer_pct: z.number().min(0).max(0.4).optional(),
+  })
+  .strip()
+  .optional();
+
 export const allocationOverlaySchema = z
   .object({
     asset_classes: z.array(z.enum(ASSET_CLASSES)).min(1).max(5),
     sleeve_targets: z.record(z.string(), z.number().min(0).max(1)).optional(),
     sub_sleeve_targets: z.record(z.string(), z.number().min(0).max(1)).optional(),
     enforce_class_weights: z.boolean().optional(),
-    max_single_position_pct: z.number().min(0.05).max(0.25).optional(),
+    max_single_position_pct: z.number().min(0.05).max(0.40).optional(),
   })
   .strip();
 
@@ -159,6 +169,7 @@ export const overlayExtractSchema = z
     allocation: allocationOverlaySchema,
     universe: universeRuleOverlaySchema,
     optimization: optimizationOverlaySchema,
+    deployment_schedule: deploymentScheduleSchema,
     param_adjustments: z.record(z.string(), paramControlSchema).optional(),
     experiment: experimentOverlaySchema.optional(),
     clarification_questions: z.array(z.string().min(4).max(200)).max(5),
@@ -175,6 +186,7 @@ export const clientOverlaySchema = z.object({
   allocation: allocationOverlaySchema,
   universe: universeRuleOverlaySchema,
   optimization: optimizationOverlaySchema,
+  deployment_schedule: deploymentScheduleSchema,
   param_adjustments: z.record(z.string(), paramControlSchema).optional(),
   experiment: experimentOverlaySchema.optional(),
   clarification_questions: z.array(z.string()).optional(),
@@ -272,6 +284,8 @@ export function wrapExtractAsOverlay(
     allocation,
     universe: extract.universe,
     optimization: extract.optimization,
+    deployment_schedule:
+      extract.deployment_schedule ?? prior?.deployment_schedule,
     param_adjustments: extract.param_adjustments,
     experiment: extract.experiment,
     clarification_questions: extract.clarification_questions,
@@ -349,6 +363,81 @@ export type OverlayToBacktestOptions = {
   reportLanguage?: string;
 };
 
+const DEFAULT_DRAWDOWN_TOLERANCE: Record<string, number> = {
+  conservative: 0.1,
+  moderate: 0.18,
+  aggressive: 0.3,
+};
+
+const DEFAULT_CASH_RESERVE: Record<string, number> = {
+  conservative: 0.1,
+  moderate: 0.05,
+  aggressive: 0.0,
+};
+
+const THEME_CAP_HINTS = [
+  "tech",
+  "growth",
+  "concentration",
+  "nasdaq",
+  "semi",
+  "ai",
+  "科技",
+  "成長",
+  "集中",
+];
+
+/**
+ * Compile the overlay's client profile + market view into the engine's
+ * ClientContext. Returns null when nothing usable was captured, so legacy
+ * runs without a profile keep their exact previous behavior.
+ */
+export function clientContextFromOverlay(
+  overlay: ClientOverlay,
+): ClientContext | null {
+  const profile = overlay.client_profile;
+  const risk = profile.risk_tolerance ?? null;
+  const horizon = profile.investment_horizon_years ?? null;
+  const income = profile.income_need_pct ?? null;
+  const summary = overlay.market_view?.narrative_summary?.trim() || null;
+  const tolerance = risk ? DEFAULT_DRAWDOWN_TOLERANCE[risk] : null;
+  const singleCap = overlay.allocation?.max_single_position_pct ?? null;
+  const themes = overlay.market_view?.themes ?? [];
+  const themeHit = themes.some((t) =>
+    THEME_CAP_HINTS.some((h) => t.toLowerCase().includes(h)),
+  );
+  const themeCap = themeHit ? 0.25 : null;
+  const hasLiquidity = Boolean(profile.liquidity_need);
+  const scheduleBuffer = overlay.deployment_schedule?.liquidity_buffer_pct;
+  let cashReserve: number | null = null;
+  if (typeof scheduleBuffer === "number") {
+    cashReserve = scheduleBuffer;
+  } else if (hasLiquidity && risk) {
+    cashReserve = DEFAULT_CASH_RESERVE[risk] ?? 0.05;
+  }
+  if (
+    !risk &&
+    !horizon &&
+    !income &&
+    !summary &&
+    singleCap == null &&
+    themeCap == null &&
+    cashReserve == null
+  ) {
+    return null;
+  }
+  return {
+    risk_tolerance: risk,
+    investment_horizon_years: horizon,
+    max_drawdown_tolerance: tolerance,
+    income_need_pct: income,
+    max_single_name_pct: singleCap,
+    theme_exposure_cap_pct: themeCap,
+    cash_reserve_pct: cashReserve,
+    needs_summary: summary ? summary.slice(0, 300) : null,
+  };
+}
+
 /**
  * Map a confirmed ClientOverlay onto a base BacktestRequest (adjusted run).
  * Call after RM sign-off; does not mutate the overlay.
@@ -372,6 +461,31 @@ export function overlayToBacktestRequest(
   const prompts = overlay.universe.prompts.filter(Boolean);
   const filterText = prompts.length ? prompts.join("; ") : base.universe_filter_text;
   const fromAnchor = isLockedModelUniverse(base);
+  // Anchored customization: commit the RM drift slider as Fixed unless the
+  // overlay already set an explicit search range for customization_drift_actual.
+  const driftCtrl = enforcedControls.customization_drift_actual;
+  const driftMode = driftCtrl?.mode ?? "search";
+  const explicitDriftSearch =
+    driftMode === "search" &&
+    (driftCtrl?.min != null || driftCtrl?.max != null);
+  const anchoredDriftControls =
+    fromAnchor && driftMode === "search" && !explicitDriftSearch
+      ? {
+          ...enforcedControls,
+          customization_drift_actual: {
+            mode: "fixed" as const,
+            fixed: base.customization_drift ?? 0.5,
+          },
+        }
+      : enforcedControls;
+  const clientContext = clientContextFromOverlay(overlay);
+  const cashReserve =
+    clientContext?.cash_reserve_pct ??
+    overlay.deployment_schedule?.liquidity_buffer_pct ??
+    0;
+  const deployMonths = overlay.deployment_schedule?.months ?? null;
+  const deployTranches =
+    overlay.deployment_schedule?.tranches ?? deployMonths;
 
   // Target model portfolio present → lock searchable universe to
   // (model holdings − excludes) ∪ explicit adds. Never open the fund pool.
@@ -409,10 +523,14 @@ export function overlayToBacktestRequest(
         ? prompts
         : base.universe_filter_prompts,
       universe_filter_text: filterText,
-      param_controls: enforcedControls,
+      param_controls: anchoredDriftControls,
       experiment: inferExperiment(overlay) ?? base.experiment,
       report_language: opts?.reportLanguage ?? base.report_language,
       static_replay_holdings: null,
+      client_context: clientContext,
+      cash_reserve_pct: cashReserve,
+      deployment_months: deployMonths,
+      deployment_tranches: deployTranches,
     };
   }
 
@@ -436,10 +554,14 @@ export function overlayToBacktestRequest(
     universe_supplement_tickers: overlay.universe.supplement_tickers?.length
       ? overlay.universe.supplement_tickers
       : base.universe_supplement_tickers,
-    param_controls: enforcedControls,
+    param_controls: anchoredDriftControls,
     experiment: inferExperiment(overlay) ?? base.experiment,
     report_language: opts?.reportLanguage ?? base.report_language,
     static_replay_holdings: null,
+    client_context: clientContext,
+    cash_reserve_pct: cashReserve,
+    deployment_months: deployMonths,
+    deployment_tranches: deployTranches,
   };
 }
 

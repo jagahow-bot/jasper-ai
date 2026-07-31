@@ -39,6 +39,7 @@ type Props = {
   anchorBaselineLabel?: string | null;
   selectedRowKey?: string;
   onSelectedRowKeyChange?: (rowKey: string) => void;
+  onPromoteTickers?: (tickers: string[]) => void;
 };
 
 function mergeRoundIntoResult(
@@ -111,6 +112,7 @@ const PARAM_LABEL_KEYS = new Set([
   "max_weight_actual",
   "top_n_actual",
   "max_turnover_actual",
+  "customization_drift_actual",
   "no_trade_tol",
   "turnover_penalty_mult",
   "factor_lookback_days",
@@ -430,7 +432,7 @@ export function ProResultsWithTabs(props: Props) {
               onClick={() => setTab(r.round)}
               className={`pixel-chip ${tab === r.round ? "pixel-chip-active !border-[var(--amber)] !text-[var(--amber)]" : ""}`}
             >
-              R{r.round}
+              {t("pro.roundChip", { n: r.round })}
               {r.improved && <span className="ml-1">↑</span>}
             </button>
           ))}

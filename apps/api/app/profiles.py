@@ -69,6 +69,27 @@ def get_universe(
     return items
 
 
+_PSEUDO_TICKERS = frozenset({"CASH"})
+
+
+def _synthetic_supplement_item(ticker: str) -> dict[str, Any]:
+    """Stub catalog row so overlay-confirmed adds can leave the UI → backtest pool.
+
+    Overlay AI may propose tickers absent from ``universe.json``; without a row,
+    ``get_universe`` / ``pin_guaranteed_supplements`` silently drop them and they
+    never reach price download or must-include pinning.
+    """
+    t = str(ticker).strip().upper()
+    return {
+        "ticker": t,
+        "name": t,
+        "asset_class": "equity",
+        "category": "overlay_supplement",
+        "region": "unknown",
+        "overlay_synthetic": True,
+    }
+
+
 def _union_supplement_items(
     base: list[dict[str, Any]],
     all_items: list[dict[str, Any]],
@@ -78,21 +99,37 @@ def _union_supplement_items(
     bypass_asset_class_filter: bool = False,
 ) -> list[dict[str, Any]]:
     """Union AI-filter supplement tickers onto the asset-class base pool."""
-    sup_set = {str(t).upper() for t in supplement_tickers}
+    sup_list = [
+        str(t).strip().upper()
+        for t in supplement_tickers
+        if str(t).strip() and str(t).strip().upper() not in _PSEUDO_TICKERS
+    ]
+    sup_set = set(sup_list)
     seen = {str(u.get("ticker", "")).upper() for u in base}
     out = list(base)
-    for u in all_items:
-        t = str(u.get("ticker", "")).upper()
-        if t not in sup_set or t in seen:
+    catalog_by_ticker = {
+        str(u.get("ticker", "")).upper(): u
+        for u in all_items
+        if str(u.get("ticker", "")).strip()
+    }
+    for t in sup_list:
+        if t in seen:
             continue
-        if (
-            not bypass_asset_class_filter
-            and allowed_asset_classes
-            and str(u.get("asset_class", "")) not in allowed_asset_classes
-        ):
+        u = catalog_by_ticker.get(t)
+        if u is not None:
+            if (
+                not bypass_asset_class_filter
+                and allowed_asset_classes
+                and str(u.get("asset_class", "")) not in allowed_asset_classes
+            ):
+                continue
+            out.append(u)
+            seen.add(t)
             continue
-        out.append(u)
-        seen.add(t)
+        # Confirmed overlay add not in the static catalog — still pin it.
+        if bypass_asset_class_filter or not allowed_asset_classes:
+            out.append(_synthetic_supplement_item(t))
+            seen.add(t)
     return out
 
 

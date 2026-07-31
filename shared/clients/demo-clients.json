@@ -246,7 +246,7 @@
       ],
       "notes": {
         "en": "Tech-heavy book mixing model ETF sleeves, growth mutual fund, and mega-cap stocks. RM to discuss concentration vs US Large Cap Core anchor.",
-        "zh": "科技偏重：模型 ETF 袖口 + 成長型基金 + 大型科技股。可對照「美國大型股核心」討論集中度。",
+        "zh": "科技偏重：模型 ETF 部位 + 成長型基金 + 大型科技股。可對照「美國大型股核心」討論集中度。",
         "ko": "테크 비중 높음: 모델 ETF + 성장 펀드 + 메가캡 주식. 미국 대형주 코어와 집중도 논의."
       },
       "upcoming_events": [
@@ -535,7 +535,7 @@
           "type": "individual",
           "label": {
             "en": "ESG / quality stock sleeve",
-            "zh": "ESG／優質個股袖口",
+            "zh": "ESG／優質個股衛星部位",
             "ko": "ESG·우량주 슬리브"
           },
           "holdings": [
@@ -599,7 +599,7 @@
       ],
       "notes": {
         "en": "Strong ESG preference; global three-fund core plus quality/ESG stock sleeve. Suggest Three-Fund Plus as anchor.",
-        "zh": "ESG 偏好強；三基金核心 + ESG／優質個股袖口。建議以「三基金加強版」為錨點。",
+        "zh": "ESG 偏好強；三基金核心 + ESG／優質個股衛星部位。建議以「三基金強化」為錨點。",
         "ko": "ESG 선호 강함; 3펀드 코어 + ESG·우량주. Three-Fund Plus를 앵커로 제안."
       },
       "upcoming_events": [

@@ -441,6 +441,7 @@ const OVERLAY_EXTRACT_KEYS = new Set([
   "allocation",
   "universe",
   "optimization",
+  "deployment_schedule",
   "param_adjustments",
   "experiment",
   "clarification_questions",
@@ -750,6 +751,48 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
         : "Structured overlay extracted from RM conversation; please confirm with the client.";
   } else {
     root.rationale = root.rationale.trim().slice(0, 600);
+  }
+
+  // Infer DCA schedule from existing field or phased_deployment language.
+  const existingDeploy = root.deployment_schedule;
+  if (
+    existingDeploy &&
+    typeof existingDeploy === "object" &&
+    typeof (existingDeploy as { months?: unknown }).months === "number"
+  ) {
+    const months = Math.min(
+      24,
+      Math.max(1, Math.round(Number((existingDeploy as { months: number }).months))),
+    );
+    const tranchesRaw = (existingDeploy as { tranches?: unknown }).tranches;
+    const tranches =
+      typeof tranchesRaw === "number"
+        ? Math.min(24, Math.max(1, Math.round(Number(tranchesRaw))))
+        : months;
+    const bufRaw = (existingDeploy as { liquidity_buffer_pct?: unknown }).liquidity_buffer_pct;
+    root.deployment_schedule = {
+      months,
+      tranches,
+      ...(typeof bufRaw === "number"
+        ? { liquidity_buffer_pct: Math.min(0.4, Math.max(0, Number(bufRaw))) }
+        : {}),
+    };
+  } else {
+    const rationaleText = String(root.rationale || "");
+    const themes = ((root.market_view as { themes?: string[] } | undefined)?.themes ||
+      []) as string[];
+    const phased =
+      themes.includes("phased_deployment") ||
+      /phased|gradual|dca|分批|逐步|달러코스트/i.test(rationaleText);
+    if (phased) {
+      const monthMatch = rationaleText.match(
+        /(\d+)\s*(?:[-–]?\s*)?(?:month|months|個月|개월)/i,
+      );
+      const months = monthMatch
+        ? Math.min(24, Math.max(1, Number.parseInt(monthMatch[1], 10)))
+        : 6;
+      root.deployment_schedule = { months, tranches: months };
+    }
   }
 
   return stripOverlayExtractKeys(root);

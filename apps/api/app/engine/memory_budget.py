@@ -141,7 +141,12 @@ def slim_search_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
     for k, v in metrics.items():
         if k in _HEAVY_METRIC_KEYS:
             continue
-        if k in {"overfitting_assessment", "train_metrics", "validation_metrics"}:
+        if k in {
+            "overfitting_assessment",
+            "train_metrics",
+            "validation_metrics",
+            "full_metrics",
+        }:
             out[k] = copy.deepcopy(v) if isinstance(v, dict) else v
         else:
             out[k] = v

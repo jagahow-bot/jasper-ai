@@ -24,10 +24,65 @@ from app.engine.weights import (
     max_weight_violation_amount,
     min_holdings_for_cap,
     project_max_weight,
+    scale_invested_weights,
+)
+from app.engine.customization import (
+    apply_must_include_floor,
+    derive_must_include_tickers,
+    min_holdings_for_customization,
+    pin_must_include_into_chosen,
+    project_anchor_l1_drift,
 )
 
 logger = logging.getLogger(__name__)
 from app.engine.factors import FactorParams, pick_top_n, score_assets_with_details
+
+
+def deployment_fraction(
+    dt: pd.Timestamp,
+    start: pd.Timestamp,
+    months: int | None,
+    tranches: int | None,
+) -> float:
+    """Fraction of the *target invested book* deployed by ``dt`` (0→1).
+
+    Lump-sum (months is None) returns 1.0. With DCA, day-0 is undeployed (0);
+    equal tranches step up across ``months`` calendar months.
+    """
+    if months is None or int(months) <= 0:
+        return 1.0
+    n_months = int(months)
+    n_tranches = int(tranches) if tranches and int(tranches) > 0 else n_months
+    n_tranches = max(1, n_tranches)
+    elapsed = (int(dt.year) - int(start.year)) * 12 + (int(dt.month) - int(start.month))
+    if elapsed < 0:
+        return 0.0
+    step = max(float(n_months) / float(n_tranches), 1e-9)
+    k = int(elapsed // step)
+    return float(min(1.0, max(0.0, k / float(n_tranches))))
+
+
+def _apply_execution_overlay(
+    schedule: pd.DataFrame, spec: BacktestSpec
+) -> pd.DataFrame:
+    """Scale fully-invested schedule rows by cash reserve × DCA deployment fraction.
+
+    Allocator still solves on sum(w)=1; this is the execution overlay so residual
+    weight is true uninvested cash.
+    """
+    target = float(getattr(spec, "target_invested_frac", 1.0))
+    months = getattr(spec, "deployment_months", None)
+    if target >= 1.0 - 1e-12 and not months:
+        return schedule
+    start = pd.Timestamp(schedule.index[0])
+    tranches = getattr(spec, "deployment_tranches", None)
+    out = schedule.copy()
+    for dt in out.index:
+        dep = deployment_fraction(pd.Timestamp(dt), start, months, tranches)
+        frac = float(np.clip(dep * target, 0.0, 1.0))
+        row = np.asarray(out.loc[dt].to_numpy(dtype=float), dtype=float)
+        out.loc[dt] = scale_invested_weights(row, frac)
+    return out
 
 
 def scalar_float(value: Any) -> float:
@@ -191,7 +246,9 @@ def _schedule_weight_row(
         v = float(w_row.get(t, 0.0))
         row[t] = v
         keep_sum += v
-    row["OTHER"] = max(0.0, float(1.0 - keep_sum))
+    row["CASH"] = max(0.0, float(1.0 - keep_sum))
+    if "OTHER" in row:
+        del row["OTHER"]
     return row
 
 
@@ -598,6 +655,8 @@ def _rebalance_schedule_dynamic(
     report_start: str | None = None,
     anchor_weights: dict[str, float] | None = None,
     customization_drift: float | None = None,
+    must_include_tickers: list[str] | None = None,
+    dividend_panel: pd.DataFrame | None = None,
 ) -> tuple[
     pd.DataFrame,
     np.ndarray,
@@ -620,12 +679,37 @@ def _rebalance_schedule_dynamic(
         if total > 0:
             anchor_w /= total
     drift = float(customization_drift) if customization_drift is not None else None
+    must_include = derive_must_include_tickers(
+        list(prices.columns),
+        anchor_weights,
+        explicit=must_include_tickers,
+    )
+    must_set = {str(t).upper() for t in must_include}
+    if must_include or (drift is not None and anchor_weights):
+        need_h = min_holdings_for_customization(
+            n_must_include=len(must_include),
+            max_weight=max_weight,
+            customization_drift=drift,
+            n_assets=n,
+        )
+        if max_holdings is None or int(max_holdings) < need_h:
+            max_holdings = need_h
 
     schedule = pd.DataFrame(
         index=prices.index, columns=prices.columns, dtype=float
     )
-    w = project_max_weight(np.ones(n) / max(n, 1), max_weight)
+    # Start at the (capped) anchor when present so skipped early rebalances
+    # cannot leave an equal-weight book that already violates customization_drift.
+    if anchor_weights and float(np.sum(anchor_w)) > 1e-12:
+        w = project_max_weight(anchor_w.copy(), max_weight)
+        if drift is not None:
+            w = project_anchor_l1_drift(w, anchor_w, float(drift), max_weight)
+    else:
+        w = project_max_weight(np.ones(n) / max(n, 1), max_weight)
     w = apply_min_holding_weight(w, min_weight, max_weight=max_weight)
+    if drift is not None and anchor_weights:
+        # min-weight pass can reopen L1 slightly — re-close before day-0.
+        w = project_anchor_l1_drift(w, anchor_w, float(drift), max_weight)
     schedule.iloc[0] = w
     cap_audit_rows.append(
         audit_weight_cap(
@@ -691,7 +775,12 @@ def _rebalance_schedule_dynamic(
             f_start = max(0, end_loc - f_lb)
             px_w = prices.iloc[f_start:end_loc]
             rt_w = rets.iloc[f_start:end_loc]
-            scores, factor_detail = score_assets_with_details(px_w, rt_w, factor_step)
+            div_w = None
+            if dividend_panel is not None and not dividend_panel.empty:
+                div_w = dividend_panel.iloc[f_start:end_loc]
+            scores, factor_detail = score_assets_with_details(
+                px_w, rt_w, factor_step, dividend_panel=div_w
+            )
             factor_logic = factor_detail.get("indicator_logic", {}) or factor_logic
             sleeve_n = resolve_candidate_top_n(top_n, len(scores))
             chosen = _pick_top_n_with_budget(
@@ -709,6 +798,95 @@ def _rebalance_schedule_dynamic(
                 tickers=list(prices.columns),
                 max_holdings=max_holdings,
             )
+            # Confirmed overlay adds must remain in the investable set (not
+            # silently dropped by Top-N / drift-floor swaps). Skip names that
+            # still lack a finite price on this rebalance (late IPO / warmup).
+            active_must = [
+                t
+                for t in must_include
+                if t in col_index
+                and np.isfinite(float(prices.iloc[max(end_loc - 1, 0), col_index[t]]))
+            ]
+            if active_must:
+                sleeve_n = max(int(sleeve_n), len(active_must))
+                if max_holdings is not None:
+                    sleeve_n = max(sleeve_n, int(max_holdings))
+                chosen = pin_must_include_into_chosen(
+                    chosen,
+                    active_must,
+                    scores,
+                    max_holdings=max_holdings,
+                    n_assets=n,
+                )
+            # Anchor-drift floor: when a drift budget is active, the Top-N subset
+            # must keep enough anchor names for the L1 drift constraint to be
+            # attainable. Otherwise factor selection can drop every anchor
+            # holding and no allocator output can stay within the agreed drift.
+            if drift is not None and 0.0 < drift < 1.0 and anchor_weights:
+                cap = float(max_weight)
+                col_of = {t: col_index[t] for t in chosen if t in col_index}
+                anchor_mass = (
+                    float(sum(anchor_w[col_of[t]] for t in col_of)) if col_of else 0.0
+                )
+                # Under a per-name cap, each anchor ticker can contribute at most
+                # `cap` to the final book; the subset must cover enough anchor
+                # mass for (1 - drift) to remain attainable.
+                required_anchor_mass = 1.0 - float(drift)
+                non_chosen_anchor = [
+                    (i, float(anchor_w[i]))
+                    for i in range(n)
+                    if str(prices.columns[i]) not in set(chosen) and anchor_w[i] > 0.0
+                ]
+                non_chosen_anchor.sort(key=lambda x: -x[1])
+                # Never evict confirmed overlay adds to make room for anchors —
+                # expand holdings instead when possible.
+                replaceable = sorted(
+                    [
+                        t
+                        for t in chosen
+                        if anchor_w[col_index[t]] <= 0.0
+                        and str(t).upper() not in must_set
+                    ],
+                    key=lambda x: float(scores.get(x, 0.0)),
+                )
+                add: list[str] = []
+                hold_cap = int(max_holdings) if max_holdings is not None else n
+                if anchor_mass + 1e-9 < required_anchor_mass and len(chosen) < n:
+                    need = required_anchor_mass - anchor_mass
+                    for i, w_anchor in non_chosen_anchor:
+                        if need <= 1e-9:
+                            break
+                        can_replace = len(add) < len(replaceable)
+                        can_expand = len(chosen) + len(add) < hold_cap
+                        if not can_replace and not can_expand:
+                            break
+                        add.append(str(prices.columns[i]))
+                        need -= min(float(w_anchor), cap)
+                # Even when raw anchor mass is sufficient, a cap can make the
+                # drift floor unattainable if the subset holds too few anchor
+                # names (each capped at `cap`). Ensure enough anchor slots.
+                anchor_names_in_chosen = sum(
+                    1 for t in chosen if anchor_w[col_index[t]] > 0.0
+                )
+                min_anchor_slots = int(np.ceil(required_anchor_mass / cap - 1e-9))
+                while (
+                    anchor_names_in_chosen < min_anchor_slots
+                    and non_chosen_anchor
+                    and len(add) < len(non_chosen_anchor)
+                ):
+                    can_replace = len(add) < len(replaceable)
+                    can_expand = len(chosen) + len(add) < hold_cap
+                    if not can_replace and not can_expand:
+                        break
+                    nxt = non_chosen_anchor[len(add)]
+                    add.append(str(prices.columns[nxt[0]]))
+                    anchor_names_in_chosen += 1
+                if add:
+                    n_drop = min(len(add), len(replaceable))
+                    drop = set(replaceable[:n_drop])
+                    # Extra adds beyond replaceable slots expand the book.
+                    chosen = [t for t in chosen if t not in drop] + add
+
             for fk, s in factor_detail.get("contrib", {}).items():
                 try:
                     sv = s.reindex(chosen).astype(float)
@@ -738,6 +916,23 @@ def _rebalance_schedule_dynamic(
             for i, t in enumerate(chosen):
                 w[col_index[t]] = float(w_sub_flat[i])
             w = project_max_weight(w, max_weight)
+            active_must_indices = [
+                col_index[t] for t in active_must if t in col_index
+            ]
+            # Soft must-hold: share the drift budget across overlay adds so they stay visible.
+            if active_must_indices and drift is not None and drift > 0.0:
+                floor = min(
+                    float(max_weight),
+                    float(drift) / max(len(active_must_indices), 1),
+                )
+                if min_weight > 0:
+                    floor = max(floor, float(min_weight))
+                w = apply_must_include_floor(
+                    w,
+                    active_must_indices,
+                    floor=floor,
+                    max_weight=max_weight,
+                )
             w = _finalize_rebalance_weights(
                 w,
                 w_prev,
@@ -750,7 +945,21 @@ def _rebalance_schedule_dynamic(
                 w,
                 max_holdings,
                 max_weight=max_weight,
+                prefer_keep=active_must_indices,
             )
+            if active_must_indices and drift is not None and drift > 0.0:
+                floor = min(
+                    float(max_weight),
+                    float(drift) / max(len(active_must_indices), 1),
+                )
+                if min_weight > 0:
+                    floor = max(floor, float(min_weight))
+                w = apply_must_include_floor(
+                    w,
+                    active_must_indices,
+                    floor=floor,
+                    max_weight=max_weight,
+                )
             if (
                 enforce_class_weights
                 and budget_step
@@ -764,6 +973,9 @@ def _rebalance_schedule_dynamic(
                     active_tickers=chosen,
                     max_weight=max_weight,
                 )
+            # Hard customization_drift last — nothing after this may expand L1 vs anchor.
+            if drift is not None and anchor_weights:
+                w = project_anchor_l1_drift(w, anchor_w, float(drift), max_weight)
             row_audit = audit_weight_cap(
                 w,
                 max_weight,
@@ -900,10 +1112,15 @@ def stitch_full_path_from_slices(
         out["last_weights"] = val_m["last_weights"]
     elif train_m.get("last_weights") is not None:
         out["last_weights"] = train_m["last_weights"]
-    if train_m.get("weight_history"):
+    # Prefer holdout terminal history so chart sync matches OOS last_weights.
+    if val_m.get("weight_history"):
+        out["weight_history"] = val_m.get("weight_history")
+        if val_m.get("weight_history_tickers"):
+            out["weight_history_tickers"] = val_m.get("weight_history_tickers")
+    elif train_m.get("weight_history"):
         out["weight_history"] = train_m.get("weight_history")
-    if train_m.get("weight_history_tickers"):
-        out["weight_history_tickers"] = train_m.get("weight_history_tickers")
+        if train_m.get("weight_history_tickers"):
+            out["weight_history_tickers"] = train_m.get("weight_history_tickers")
     return out
 
 
@@ -1032,6 +1249,8 @@ def _simulate_pandas(
     report_start: str | None = None,
     anchor_weights: dict[str, float] | None = None,
     customization_drift: float | None = None,
+    must_include_tickers: list[str] | None = None,
+    dividend_panel: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     holdings_top_n = effective_top_n(top_n, spec, n_assets=len(prices.columns))
     if dynamic:
@@ -1065,6 +1284,8 @@ def _simulate_pandas(
             report_start=report_start,
             anchor_weights=anchor_weights,
             customization_drift=customization_drift,
+            must_include_tickers=must_include_tickers,
+            dividend_panel=dividend_panel,
         )
     else:
         schedule = _rebalance_schedule(prices, weights, spec.rebalance_rule)
@@ -1075,13 +1296,27 @@ def _simulate_pandas(
         applied_rebalances = len(rebalance_dates)
         factor_summary = {}
 
+    # Execution overlay: permanent cash sleeve + optional DCA deployment path.
+    schedule = _apply_execution_overlay(schedule, spec)
+    last_w = schedule.iloc[-1].to_numpy(dtype=float)
+    avg_w = schedule.mean(axis=0).to_numpy(dtype=float)
+
     rets = _safe_returns(prices)
 
     lagged = schedule.shift(1)
     lagged.iloc[0] = schedule.iloc[0]
 
-    port_ret = (rets * lagged).sum(axis=1)
+    risky_ret = (rets * lagged).sum(axis=1)
+    invested = lagged.sum(axis=1).clip(lower=0.0, upper=1.0)
+    cash_w = (1.0 - invested).clip(lower=0.0, upper=1.0)
+    daily_rf = (1.0 + float(spec.risk_free_rate)) ** (1.0 / 252.0) - 1.0
+    cash_mode = str(getattr(spec, "cash_return_mode", "risk_free") or "risk_free")
+    cash_ret = cash_w * (daily_rf if cash_mode == "risk_free" else 0.0)
+    port_ret = risky_ret + cash_ret
     turnover = schedule.diff().abs().sum(axis=1).fillna(0.0)
+    # Cash↔risk transfers from DCA / reserve changes also incur fees.
+    cash_turn = cash_w.diff().abs().fillna(0.0)
+    turnover = turnover + cash_turn
     port_ret = port_ret - turnover * spec.fee_rate * float(turnover_penalty_mult)
     port_ret = port_ret.clip(-MAX_DAILY_RETURN, MAX_DAILY_RETURN)
 
@@ -1093,11 +1328,14 @@ def _simulate_pandas(
     metrics["equity"] = equity
     metrics["last_weights"] = last_w
     metrics["avg_weights"] = avg_w
+    metrics["cash_weight"] = float(max(0.0, 1.0 - float(np.sum(last_w))))
     metrics["turnover_avg"] = float(turnover.mean())
     metrics["turnover_median"] = float(turnover.median())
     metrics["turnover_total"] = float(turnover.sum())
     metrics["turnover_max"] = float(turnover.max())
     metrics["port_ret"] = port_ret
+    metrics["deployment_months"] = getattr(spec, "deployment_months", None)
+    metrics["cash_reserve_pct"] = float(getattr(spec, "cash_reserve_pct", 0.0) or 0.0)
     reb_count, reb_applied, reb_skipped = _rebalance_counts_for_scope(
         rebalance_dates,
         applied_rebalance_dates,
@@ -1189,6 +1427,8 @@ def simulate_dynamic_portfolio(
     report_start: str | None = None,
     anchor_weights: dict[str, float] | None = None,
     customization_drift: float | None = None,
+    must_include_tickers: list[str] | None = None,
+    dividend_panel: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     w0 = np.ones(len(prices.columns), dtype=float) / max(len(prices.columns), 1)
     return _simulate_pandas(
@@ -1213,6 +1453,8 @@ def simulate_dynamic_portfolio(
         report_start=report_start,
         anchor_weights=anchor_weights,
         customization_drift=customization_drift,
+        must_include_tickers=must_include_tickers,
+        dividend_panel=dividend_panel,
     )
 
 

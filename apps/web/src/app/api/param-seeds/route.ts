@@ -28,6 +28,7 @@ const ParamSetSchema = z.object({
   no_trade_tol: z.number().min(0).max(0.02),
   turnover_penalty_mult: z.number().min(0.5).max(3),
   max_turnover_actual: z.number().min(0.05).max(2),
+  customization_drift_actual: z.number().min(0).max(1).optional(),
   w_mom: z.number().min(0).max(2),
   w_reversal: z.number().min(0).max(2),
   w_value: z.number().min(0).max(2),
@@ -117,6 +118,7 @@ export async function POST(req: Request) {
 - rebalance_freq=${body.rebalance_freq}
 - max_weight_actual in [0.05, ${body.max_weight_cap}]
 - max_turnover_actual in [0.05, ${body.max_turnover_cap}]
+- customization_drift_actual in [0, 1] (anchor deviation room; optional)
 - top_n_actual in [5, ${topNBound}]
 - max_holdings_actual in [1, ${maxHoldingsBound}]
 - asset-class preference weights: w_equity,w_bond,w_commodity,w_real_estate,w_alternative in [0,1]
