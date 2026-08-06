@@ -18,6 +18,7 @@ import {
 import { AppNav } from "@/components/AppNav";
 import { ChartTooltip } from "@/components/ChartTooltip";
 import { ClientCustomizedHistoryPanel } from "@/components/ClientCustomizedHistoryPanel";
+import { FinancialGoalSimulator } from "@/components/FinancialGoalSimulator";
 import {
   buildClientHoldingsPie,
   buildClientPerformanceSeries,
@@ -135,6 +136,7 @@ export default function ClientDashboardPage() {
   const [addingEvent, setAddingEvent] = useState(false);
   const [eventDateDraft, setEventDateDraft] = useState("");
   const [eventLabelDraft, setEventLabelDraft] = useState("");
+  const [goalSimOpen, setGoalSimOpen] = useState(false);
 
   useEffect(() => {
     if (!client) {
@@ -162,6 +164,7 @@ export default function ClientDashboardPage() {
     setNoteDraft("");
     setEventDateDraft("");
     setEventLabelDraft("");
+    setGoalSimOpen(false);
   }, [id]);
 
   const launchHref = useMemo(() => {
@@ -548,10 +551,29 @@ export default function ClientDashboardPage() {
           <section className="pixel-panel min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="ui-section-title">{t("clients.holdings")}</h2>
-              <Link href={launchHref} className="pixel-btn shrink-0 px-3 py-1.5">
-                {t("clients.launchCta")}
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
+                  onClick={() => setGoalSimOpen((v) => !v)}
+                >
+                  {t("clients.goalSimCta")}
+                </button>
+                <Link href={launchHref} className="pixel-btn shrink-0 px-3 py-1.5">
+                  {t("clients.launchCta")}
+                </Link>
+              </div>
             </div>
+            {goalSimOpen ? (
+              <div className="mt-4">
+                <FinancialGoalSimulator
+                  client={client}
+                  launchHref={launchHref}
+                  open={goalSimOpen}
+                  onOpenChange={setGoalSimOpen}
+                />
+              </div>
+            ) : null}
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>

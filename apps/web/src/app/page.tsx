@@ -45,6 +45,8 @@ import {
   DEFAULT_BACKTEST_START,
   lastCompletedMonthEnd,
 } from "@/lib/default-backtest-dates";
+import { parseGoalHandoffFromSearch } from "@/lib/financial-goal";
+import { seedOverlayFromFinancialGoals } from "@/lib/financial-goal-handoff";
 import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
 import { etfDisplayName } from "@/lib/etf-display-name";
@@ -199,6 +201,9 @@ export default function HomePage() {
   >(null);
   const [continueLoading, setContinueLoading] = useState(false);
   const clientLaunchApplied = useRef(false);
+  /** Prefill Overlay after client/anchor deep-link (survives the reset effect). */
+  const pendingGoalHandoffRef =
+    useRef<ReturnType<typeof parseGoalHandoffFromSearch>>(null);
   /** Prompts fingerprint after suggestions were shown (chat or filter interrupt). */
   const filterProposalsSurfacedKeyRef = useRef<string | null>(null);
 
@@ -552,8 +557,12 @@ export default function HomePage() {
     const anchorParam = params.get("anchor");
     const groupsParam = params.get("groups");
     const portfolioNameParam = params.get("portfolioName");
-    if (!clientId && !anchorParam) return;
+    const goalHandoff = parseGoalHandoffFromSearch(params);
+    if (!clientId && !anchorParam && !goalHandoff) return;
     clientLaunchApplied.current = true;
+    if (goalHandoff) {
+      pendingGoalHandoffRef.current = goalHandoff;
+    }
 
     const client = clientId ? getDemoClientById(clientId) : null;
     if (client) {
@@ -614,6 +623,22 @@ export default function HomePage() {
       }
     }
   }, [loadHistoricalJob, lang, syncRequestFromAnchor]);
+
+  // Apply goal-simulator handoff after client/anchor reset clears overlay state.
+  useEffect(() => {
+    const pending = pendingGoalHandoffRef.current;
+    if (!pending?.goals.length || !activeClient) return;
+    pendingGoalHandoffRef.current = null;
+    const seeded = seedOverlayFromFinancialGoals(
+      pending.goals,
+      pending.assumptions,
+      activeClient.client_id,
+      lang,
+    );
+    setOverlaySession(seeded.overlay);
+    setOverlayMessages(seeded.messages);
+    setPhase("overlay");
+  }, [activeClient?.client_id, anchorPortfolioId, lang, activeClient]);
 
   const runBacktest = useCallback(
     async (reqOverride?: BacktestRequest) => {
