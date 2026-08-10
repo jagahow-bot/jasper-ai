@@ -15,22 +15,13 @@ type ChatLogProps = {
   variant?: "activity" | "conversation";
 };
 
-function getScrollParent(el: HTMLElement): HTMLElement {
-  let node: HTMLElement | null = el.parentElement;
-  while (node) {
-    const { overflowY } = getComputedStyle(node);
-    if (overflowY === "auto" || overflowY === "scroll") return node;
-    node = node.parentElement;
-  }
-  return el;
-}
-
 /**
  * Activity log (`variant="activity"`): newest-first at top; auto-pins to top
  * unless the user scrolls down to read older lines.
  *
  * Conversation (`variant="conversation"`): chronological IM layout with speaker
- * labels; auto-scrolls to the latest message at the bottom.
+ * labels; auto-scrolls to the latest message at the bottom when content changes
+ * and the user is still near the bottom.
  */
 export function ChatLog({ messages, variant = "activity" }: ChatLogProps) {
   const { t } = useI18n();
@@ -42,42 +33,40 @@ export function ChatLog({ messages, variant = "activity" }: ChatLogProps) {
     [messages, variant],
   );
 
+  // Content fingerprint — ignore new array refs with identical messages so
+  // parent re-renders (typing, health polls, etc.) do not thrash scrollTop.
+  const scrollKey = useMemo(
+    () => ordered.map((m) => `${m.id}\0${m.role}\0${m.content}`).join("\n"),
+    [ordered],
+  );
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !pinnedRef.current) return;
     if (variant === "conversation") {
-      const scroller = getScrollParent(el);
-      scroller.scrollTop = scroller.scrollHeight;
+      el.scrollTop = el.scrollHeight;
     } else {
       el.scrollTop = 0;
     }
-  }, [ordered, variant]);
+  }, [scrollKey, variant]);
 
   const handleScroll = () => {
     const el = containerRef.current;
     if (!el) return;
-    pinnedRef.current = el.scrollTop <= 24;
-  };
-
-  useEffect(() => {
-    if (variant !== "conversation") return;
-    const el = containerRef.current;
-    if (!el) return;
-    const scroller = getScrollParent(el);
-    if (scroller === el) return;
-    const onScroll = () => {
+    if (variant === "conversation") {
       pinnedRef.current =
-        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= 24;
-    };
-    scroller.addEventListener("scroll", onScroll);
-    return () => scroller.removeEventListener("scroll", onScroll);
-  }, [variant]);
+        el.scrollHeight - el.scrollTop - el.clientHeight <= 24;
+    } else {
+      pinnedRef.current = el.scrollTop <= 24;
+    }
+  };
 
   if (variant === "conversation") {
     return (
       <div
         ref={containerRef}
-        className="flex min-h-0 flex-col gap-3 px-1 py-1 text-sm"
+        onScroll={handleScroll}
+        className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto px-1 py-1 text-sm"
       >
         {ordered.map((m) => {
           const isUser = m.role === "user";

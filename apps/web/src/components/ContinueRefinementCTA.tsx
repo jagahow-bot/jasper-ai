@@ -7,7 +7,8 @@ import type { BacktestRequest } from "@/lib/types";
 type Props = {
   jobId: string;
   request: BacktestRequest;
-  benchmarkTicker: string;
+  /** Display name for the baseline this run is judged against (anchor model or ticker). */
+  benchmarkLabel: string;
   onContinue: (options: {
     extraRefinementRounds: number;
     extraTrialsPerRound: number;
@@ -20,7 +21,7 @@ type Props = {
 export function ContinueRefinementCTA({
   jobId,
   request,
-  benchmarkTicker,
+  benchmarkLabel,
   onContinue,
   onAdjustConfig,
   loading = false,
@@ -52,7 +53,7 @@ export function ContinueRefinementCTA({
         {t("results.continueRefinementTitle")}
       </p>
       <p className="ui-body">
-        {t("results.continueRefinementBody", { benchmark: benchmarkTicker })}
+        {t("results.continueRefinementBody", { benchmark: benchmarkLabel })}
       </p>
       {nextRoundLabel ? (
         <p className="ui-hint mt-1">{nextRoundLabel}</p>

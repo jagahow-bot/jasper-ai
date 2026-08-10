@@ -31,6 +31,37 @@ const initial: AiTalkingSummary = {
   error: null,
 };
 
+/** Template fallback once returned raw i18n keys when server `t` was a no-op. */
+function looksLikeTalkingI18nKey(line: string): boolean {
+  const s = line.trim();
+  return s.startsWith("rm.talking.") && !/\s/.test(s);
+}
+
+function localTalkingPoints(input: UseAiTalkingSummaryInput): string[] {
+  return buildTalkingPoints({
+    metrics: input.metrics,
+    holdingsDiff: input.holdingsDiff,
+    overlay: input.overlay,
+    adjustedResult: input.adjustedResult,
+    anchorLabel: input.anchorLabel,
+    objectiveKey: input.objectiveKey,
+    lang: input.lang,
+    t: input.t,
+    customizedModelCode: input.customizedModelCode,
+  } as TalkingPointsInput);
+}
+
+function resolveSummaryLines(
+  lines: string[] | undefined,
+  input: UseAiTalkingSummaryInput,
+): string[] {
+  const raw = (lines ?? []).map((s) => String(s).trim()).filter(Boolean);
+  if (raw.length === 0 || raw.some(looksLikeTalkingI18nKey)) {
+    return localTalkingPoints(input);
+  }
+  return raw;
+}
+
 export type UseAiTalkingSummaryInput = {
   metrics: MetricCompareRow[];
   holdingsDiff: HoldingDiffRow[];
@@ -86,7 +117,7 @@ export function useAiTalkingSummary(
         }
         if (cancelled) return;
         setState({
-          summary: data.summary || [],
+          summary: resolveSummaryLines(data.summary, input),
           performanceFlag: data.performance_flag ?? null,
           rerunRecommended: data.rerun_recommended ?? false,
           rerunReason: data.rerun_reason ?? null,
@@ -96,19 +127,8 @@ export function useAiTalkingSummary(
         });
       } catch (err) {
         if (cancelled) return;
-        const fallback = buildTalkingPoints({
-          metrics: input.metrics,
-          holdingsDiff: input.holdingsDiff,
-          overlay: input.overlay,
-          adjustedResult: input.adjustedResult,
-          anchorLabel: input.anchorLabel,
-          objectiveKey: input.objectiveKey,
-          lang: input.lang,
-          t: input.t,
-          customizedModelCode: input.customizedModelCode,
-        } as TalkingPointsInput);
         setState({
-          summary: fallback,
+          summary: localTalkingPoints(input),
           performanceFlag: null,
           rerunRecommended: false,
           rerunReason: null,

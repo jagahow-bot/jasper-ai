@@ -30,6 +30,7 @@ import {
   regimeBandRanges,
 } from "@/lib/benchmark-chart-scale";
 import type { DynamicObjectiveTimelinePoint } from "@/lib/types";
+import { alignAndRebaseEquityCurves } from "@/lib/rm-report-utils";
 import { ChartTooltip, type RechartsTooltipContentProps } from "@/components/ChartTooltip";
 import {
   Area,
@@ -136,20 +137,30 @@ export function LinkedEquityWeightChart({
   const timeline = regimeTimeline;
 
   const equityChartData = useMemo(() => {
-    const benchByDate = new Map(
-      (benchmarkCurve ?? []).map((r) => [r.date, Number(r.value)]),
-    );
-    return equityCurve.map((row) => {
-      const portNorm = Number(row.value);
-      const benchNorm = benchByDate.get(row.date);
-      return {
-        date: row.date,
-        ts: parseDateTs(row.date),
-        portfolio: portNorm - 100,
-        benchmark:
-          benchNorm != null && Number.isFinite(benchNorm) ? benchNorm - 100 : null,
-      };
-    });
+    if (!equityCurve.length) return [];
+
+    // Both series must share a 100→rebase window; raw NAV / SPY levels - 100
+    // made the benchmark start far above 0% and blew the Y-axis scale.
+    if (benchmarkCurve?.length) {
+      const aligned = alignAndRebaseEquityCurves(benchmarkCurve, equityCurve);
+      if (aligned?.length) {
+        return aligned.map((row) => ({
+          date: row.date,
+          ts: parseDateTs(row.date),
+          portfolio: row.customized - 100,
+          benchmark: row.anchor - 100,
+        }));
+      }
+    }
+
+    const base = Number(equityCurve[0]?.value);
+    if (!(base > 0)) return [];
+    return equityCurve.map((row) => ({
+      date: row.date,
+      ts: parseDateTs(row.date),
+      portfolio: (Number(row.value) / base) * 100 - 100,
+      benchmark: null as number | null,
+    }));
   }, [equityCurve, benchmarkCurve]);
 
   const weightChartData = useMemo(() => {
@@ -324,7 +335,12 @@ export function LinkedEquityWeightChart({
                   hasTimeline ? (
                     <PortfolioEquityTooltip timeline={timeline} />
                   ) : (
-                    <ChartTooltip valueDecimals={2} valueIsPct={false} />
+                    <ChartTooltip
+                      valueDecimals={2}
+                      valueIsPct={false}
+                      valueSuffix="%"
+                      sortByValue
+                    />
                   )
                 }
                 labelFormatter={formatChartTooltipLabel}

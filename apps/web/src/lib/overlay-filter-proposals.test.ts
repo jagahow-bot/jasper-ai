@@ -93,48 +93,19 @@ describe("overlay-filter-proposals", () => {
     expect(merged.universe.proposed_tickers?.[0]?.ticker).toBe("BOTZ");
   });
 
-  it("first confirm with novel filter matches interrupts once", () => {
+  it("sign-off never interrupts even with novel filter matches", () => {
+    // Confirm must leave propose flow — filter novels must not reopen suggestions.
     const overlay = baseOverlay();
-    const first = decideFilterProposalInterrupt({
-      overlay,
-      filterProposedTickers: [AI, AI2],
-      surfacedKey: null,
-    });
-    expect(first.action).toBe("interrupt");
-    if (first.action !== "interrupt") return;
-    expect(first.overlay.universe.proposed_tickers?.map((p) => p.ticker)).toEqual([
-      "BOTZ",
-      "IRBO",
-    ]);
-    expect(first.promptsKey).toBe(overlayPromptsKey(overlay));
-  });
-
-  it("re-confirm with same prompts proceeds even if filter invents new tickers", () => {
-    const overlay = baseOverlay({ proposed_tickers: [AI, AI2] });
-    const promptsKey = overlayPromptsKey(overlay);
-    const second = decideFilterProposalInterrupt({
-      overlay,
-      // Non-deterministic filter returns yet another novel ticker
-      filterProposedTickers: [AI, AI2, GOLD],
-      surfacedKey: promptsKey,
-    });
-    expect(second.action).toBe("proceed");
-    expect(second.overlay.universe.proposed_tickers).toBeUndefined();
-  });
-
-  it("does not reopen when filter only returns already-pending proposed", () => {
-    const overlay = baseOverlay({ proposed_tickers: [AI, AI2] });
     const decision = decideFilterProposalInterrupt({
       overlay,
-      filterProposedTickers: [AI, AI2],
+      filterProposedTickers: [AI, AI2, GOLD],
       surfacedKey: null,
     });
     expect(decision.action).toBe("proceed");
     expect(decision.overlay.universe.proposed_tickers).toBeUndefined();
   });
 
-  it("proceeds when overlay already lists proposed tickers even if filter invents more", () => {
-    // Chat already showed「建議參考標的」— confirm must not open another filter pass.
+  it("sign-off clears already-listed proposed tickers and proceeds", () => {
     const overlay = baseOverlay({
       proposed_tickers: [
         { ticker: "BND", name: "Total Bond" },
@@ -146,8 +117,6 @@ describe("overlay-filter-proposals", () => {
     const decision = decideFilterProposalInterrupt({
       overlay,
       filterProposedTickers: [
-        { ticker: "BND" },
-        { ticker: "AGG" },
         { ticker: "IEF", name: "7-10 Year Treasury" },
         { ticker: "LQD", name: "Investment Grade Corp" },
       ],
@@ -155,6 +124,18 @@ describe("overlay-filter-proposals", () => {
     });
     expect(decision.action).toBe("proceed");
     expect(decision.overlay.universe.proposed_tickers).toBeUndefined();
+  });
+
+  it("re-confirm with prior surfacedKey still proceeds", () => {
+    const overlay = baseOverlay({ proposed_tickers: [AI, AI2] });
+    const promptsKey = overlayPromptsKey(overlay);
+    const second = decideFilterProposalInterrupt({
+      overlay,
+      filterProposedTickers: [AI, AI2, GOLD],
+      surfacedKey: promptsKey,
+    });
+    expect(second.action).toBe("proceed");
+    expect(second.overlay.universe.proposed_tickers).toBeUndefined();
   });
 
   it("overlayAlreadyShowsProposedTickers detects summary listing", () => {

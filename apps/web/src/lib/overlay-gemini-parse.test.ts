@@ -35,9 +35,10 @@ describe("overlay-gemini-parse", () => {
     expect(typeof part?.text).toBe("string");
   });
 
-  it("normalizes percent-style max_single_position_pct (35 → 0.25 cap)", () => {
-    expect(normalizePositionPct(35)).toBe(0.25);
-    expect(normalizePositionPct(0.35)).toBe(0.25);
+  it("normalizes percent-style max_single_position_pct (35 → 0.35 within 40% cap)", () => {
+    expect(normalizePositionPct(35)).toBe(0.35);
+    expect(normalizePositionPct(0.35)).toBe(0.35);
+    expect(normalizePositionPct(45)).toBe(0.4);
     expect(normalizePositionPct(8)).toBe(0.08);
   });
 
@@ -69,7 +70,7 @@ describe("overlay-gemini-parse", () => {
     expect(extract.optimization.objective).toBe("min_max_drawdown");
     expect(extract.client_profile.liquidity_need?.amount_usd).toBe(1_500_000);
     expect(extract.client_profile.liquidity_need?.within_months).toBe(12);
-    expect(extract.allocation.max_single_position_pct).toBe(0.25);
+    expect(extract.allocation.max_single_position_pct).toBe(0.35);
     expect(extract.clarification_questions).toHaveLength(4);
     expect(extract.clarification_questions[0]).toContain("target split");
     expect(extract.rationale).toContain("$1.5M");
@@ -101,7 +102,7 @@ describe("overlay-gemini-parse", () => {
     expect(extract.client_profile.liquidity_need?.within_months).toBe(12);
     expect(extract.client_profile.investment_horizon_years).toBe(5);
     expect(extract.client_profile.age).toBeUndefined();
-    expect(extract.allocation.max_single_position_pct).toBe(0.25);
+    expect(extract.allocation.max_single_position_pct).toBe(0.35);
     expect(extract.allocation.sleeve_targets).toBeUndefined();
     expect(extract.clarification_questions).toHaveLength(3);
     expect(extract.clarification_questions[0]).toContain("fixed allocation split");
@@ -124,7 +125,7 @@ describe("overlay-gemini-parse", () => {
     expect(overlay.client_profile.liquidity_need?.within_months).toBe(12);
     expect(overlay.clarification_questions).toHaveLength(3);
     expect(overlay.rationale).toContain("USD 1.5M");
-    expect(overlay.allocation.max_single_position_pct).toBe(0.25);
+    expect(overlay.allocation.max_single_position_pct).toBe(0.35);
   });
 
   it("validates ai_studio_code (47) Gemini API response through Zod", () => {
@@ -194,7 +195,7 @@ describe("overlay-gemini-parse", () => {
     expect(normalized.market_view.themes.length).toBeGreaterThan(0);
     expect(normalized.market_view.narrative_summary.length).toBeGreaterThanOrEqual(8);
     expect(normalized.allocation.asset_classes).toEqual(["equity", "bond"]);
-    expect(normalized.allocation.max_single_position_pct).toBe(0.25);
+    expect(normalized.allocation.max_single_position_pct).toBe(0.4);
     expect(normalized.allocation.sleeve_targets).toBeUndefined();
     expect(normalized.universe.exclude_tickers).toEqual(["QQQ"]);
     expect(normalized.optimization.objective).toBe("max_sharpe");
@@ -208,7 +209,7 @@ describe("overlay-gemini-parse", () => {
     const overlay = wrapExtractAsOverlay(extract, "ovl-test-chen", 1, "gemini");
     expect(overlay.client_profile.risk_tolerance).toBe("aggressive");
     expect(overlay.client_profile.liquidity_need).toBeUndefined();
-    expect(overlay.allocation.max_single_position_pct).toBe(0.25);
+    expect(overlay.allocation.max_single_position_pct).toBe(0.4);
     expect(overlay.market_view.stance).toBe("risk_on");
   });
 });

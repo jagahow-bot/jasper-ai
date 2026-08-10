@@ -2,12 +2,22 @@
 
 const META_KEYS = new Set(["date", "OTHER", "other", "__OTHER__"]);
 
-/** Chart / packaging bucket for truncated or sub-threshold mass. */
+/** Chart / packaging bucket for truncated mass — never invent as a holdings ticker. */
 export const WEIGHT_REMAINDER_TICKER = "OTHER";
+
+/** Drop only numerical dust; keep every real named holding for RM tables. */
+export const HOLDINGS_WEIGHT_EPS = 1e-6;
+
+/** Chart-truncation OTHER above this means the history row is incomplete. */
+const CHART_OTHER_INCOMPLETE = 1e-3;
 
 function asFiniteWeight(raw: unknown): number | null {
   const w = typeof raw === "number" ? raw : Number(raw);
   return Number.isFinite(w) ? w : null;
+}
+
+function isMetaKey(key: string): boolean {
+  return META_KEYS.has(key) || key.toUpperCase() === WEIGHT_REMAINDER_TICKER;
 }
 
 /** Hamilton / largest-remainder percents so displayed rows sum exactly to target. */
@@ -63,44 +73,22 @@ export function largestRemainderPercents(
 }
 
 /**
- * Build table rows from raw weights: keep names ≥ minWeight, fold the rest
- * (and meaningful cash gap to 1.0) into OTHER/CASH, then assign display
- * percents that sum to 100.00 when the book is fully invested.
+ * Build table rows from raw weights: keep every named holding, optionally keep
+ * an engine CASH sleeve, then assign display percents that sum to 100.00 when
+ * the book is fully invested. Never invent an OTHER ticker row.
  */
 export function buildAllocationRows(
   weights: Record<string, number> | null | undefined,
-  minWeight = 0.001,
+  minWeight = HOLDINGS_WEIGHT_EPS,
 ): Array<{ ticker: string; weight: number; pct: number; isRemainder: boolean }> {
   const raw = weights ?? {};
   const kept: Record<string, number> = {};
-  let tiny = 0;
   for (const [ticker, rawW] of Object.entries(raw)) {
     const w = asFiniteWeight(rawW);
-    if (w == null || w <= 0) continue;
+    if (w == null || w < minWeight) continue;
+    if (isMetaKey(ticker)) continue;
     const key = ticker.toUpperCase();
-    if (key === "CASH") {
-      kept.CASH = (kept.CASH ?? 0) + w;
-      continue;
-    }
-    if (key === WEIGHT_REMAINDER_TICKER || META_KEYS.has(ticker)) {
-      tiny += w;
-      continue;
-    }
-    if (w >= minWeight) kept[key] = w;
-    else tiny += w;
-  }
-  const keptSum = Object.values(kept).reduce((s, w) => s + w, 0);
-  // Packaging round(w, 4) dust (~0.01%) should not become its own row.
-  const cashGap = Math.max(0, 1 - keptSum - tiny);
-  const meaningfulCashGap = cashGap > 5e-4;
-  const remainderMass = tiny + (meaningfulCashGap ? cashGap : 0);
-  if (remainderMass > 1e-9) {
-    if (kept.CASH != null || meaningfulCashGap) {
-      kept.CASH = (kept.CASH ?? 0) + remainderMass;
-    } else {
-      kept[WEIGHT_REMAINDER_TICKER] =
-        (kept[WEIGHT_REMAINDER_TICKER] ?? 0) + remainderMass;
-    }
+    kept[key] = (kept[key] ?? 0) + w;
   }
 
   const pcts = largestRemainderPercents(kept, 2);
@@ -110,41 +98,55 @@ export function buildAllocationRows(
       ticker,
       weight,
       pct: pcts[ticker] ?? 0,
-      isRemainder: ticker === WEIGHT_REMAINDER_TICKER || ticker === "CASH",
+      isRemainder: ticker === "CASH",
     }));
 }
 
-/** Latest rebalance weights from weight_history (as-of end of report window). */
+/**
+ * Terminal weight_history row as named holdings.
+ * Returns null when chart OTHER mass is large (truncated ticker set) so callers
+ * can fall back to packaged last_weights.
+ */
 export function weightsFromLatestHistory(
   history: Array<{ date?: string } & Record<string, unknown>> | null | undefined,
-  minWeight = 0.001,
+  minWeight = HOLDINGS_WEIGHT_EPS,
 ): Record<string, number> | null {
   if (!Array.isArray(history) || history.length === 0) return null;
   const last = history[history.length - 1];
   if (!last || typeof last !== "object") return null;
   const out: Record<string, number> = {};
-  let residual = 0;
+  let chartOther = 0;
   for (const [key, raw] of Object.entries(last)) {
     if (key === "date") continue;
     const w = asFiniteWeight(raw);
     if (w == null || w <= 0) continue;
-    if (META_KEYS.has(key)) {
-      residual += w;
+    if (isMetaKey(key)) {
+      chartOther += w;
       continue;
     }
-    if (w < minWeight) {
-      residual += w;
-      continue;
-    }
+    if (w < minWeight) continue;
     out[key.toUpperCase()] = w;
   }
-  if (residual > 0) {
-    out[WEIGHT_REMAINDER_TICKER] = (out[WEIGHT_REMAINDER_TICKER] ?? 0) + residual;
-  }
+  // Large OTHER = truncated chart payload; do not invent a fake ticker.
+  if (chartOther > CHART_OTHER_INCOMPLETE) return null;
   return Object.keys(out).length > 0 ? out : null;
 }
 
-/** Prefer terminal weight_history; fall back to packaged candidate.weights. */
+function weightsFromPackaged(
+  raw: Record<string, number> | null | undefined,
+  minWeight: number,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [t, rawW] of Object.entries(raw ?? {})) {
+    const w = asFiniteWeight(rawW);
+    if (w == null || w < minWeight) continue;
+    if (isMetaKey(t)) continue;
+    out[t.toUpperCase()] = w;
+  }
+  return out;
+}
+
+/** Prefer complete terminal weight_history; fall back to packaged candidate.weights. */
 export function resolveCandidateWeights(
   candidate:
     | {
@@ -155,28 +157,17 @@ export function resolveCandidateWeights(
       }
     | null
     | undefined,
-  minWeight = 0.001,
+  minWeight = HOLDINGS_WEIGHT_EPS,
 ): Record<string, number> {
   const fromHist = weightsFromLatestHistory(candidate?.analytics?.weight_history, minWeight);
-  if (fromHist) return fromHist;
-  const raw = candidate?.weights ?? {};
-  const out: Record<string, number> = {};
-  let residual = 0;
-  for (const [t, rawW] of Object.entries(raw)) {
-    const w = asFiniteWeight(rawW);
-    if (w == null || w <= 0) continue;
-    const key = t.toUpperCase();
-    if (key === WEIGHT_REMAINDER_TICKER) {
-      residual += w;
-      continue;
-    }
-    if (w >= minWeight) out[key] = w;
-    else residual += w;
+  if (fromHist) {
+    const riskySum = Object.entries(fromHist)
+      .filter(([k]) => k !== "CASH")
+      .reduce((s, [, w]) => s + w, 0);
+    // Truncated schedule rows dump unnamed mass into CASH; prefer packaged book.
+    if (riskySum >= 0.99 - 5e-4) return fromHist;
   }
-  if (residual > 0) {
-    out[WEIGHT_REMAINDER_TICKER] = (out[WEIGHT_REMAINDER_TICKER] ?? 0) + residual;
-  }
-  return out;
+  return weightsFromPackaged(candidate?.weights, minWeight);
 }
 
 /** Format portfolio weight as percent with 2 decimals (avoids fake "20.0%" clarity). */

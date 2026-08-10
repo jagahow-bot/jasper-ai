@@ -13,6 +13,7 @@ from app.candidate_charts import (
     resolve_candidate_charts,
 )
 from app.engine.backtest import run_backtest, _is_pro_mode
+from app.engine.constrained_customization import estimate_constrained_trial_count
 from app.engine.memory_budget import is_render_runtime
 from app.engine.report_sim_cache import TrialReportCache
 from app.job_history import list_job_summaries, load_persisted_job, persist_completed_job
@@ -116,6 +117,9 @@ def _is_static_replay(req: BacktestRequest) -> bool:
 def _estimated_trials_total(req: BacktestRequest) -> int:
     if _is_static_replay(req):
         return 1
+    constrained_n = estimate_constrained_trial_count(req)
+    if constrained_n is not None:
+        return int(constrained_n)
     if _is_pro_mode(req):
         batch0 = int(req.refinement_batch_size)
         challengers = int(req.refinement_challengers_per_round)
@@ -136,9 +140,13 @@ def create_job(req: BacktestRequest, *, continuation_snapshot: dict | None = Non
                     "Static replay job queued…"
                     if _is_static_replay(req)
                     else (
-                        "Pro convergence job queued…"
-                        if _is_pro_mode(req)
-                        else "Backtest job queued…"
+                        "Constrained customization job queued…"
+                        if estimate_constrained_trial_count(req) is not None
+                        else (
+                            "Pro convergence job queued…"
+                            if _is_pro_mode(req)
+                            else "Backtest job queued…"
+                        )
                     )
                 ),
                 trials_total=trials_total,

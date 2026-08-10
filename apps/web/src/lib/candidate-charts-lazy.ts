@@ -40,10 +40,18 @@ export function mergeCandidateCharts(
 ): PortfolioCandidate {
   const institutional = charts.institutional as Partial<CandidateAnalytics> | undefined;
   const syncedWeights = weightsFromLatestHistory(charts.weight_history);
+  // Only overwrite packaged last_weights when the history row covers the book
+  // (chart truncation dumps residual into OTHER/CASH and would invent fake rows).
+  const riskySum = syncedWeights
+    ? Object.entries(syncedWeights)
+        .filter(([k]) => k !== "CASH")
+        .reduce((s, [, w]) => s + w, 0)
+    : 0;
+  const syncHoldings = Boolean(syncedWeights && riskySum >= 0.99 - 5e-4);
   return {
     ...candidate,
     // Keep holdings tables / donuts aligned with the full-period rebalance path.
-    ...(syncedWeights ? { weights: syncedWeights } : {}),
+    ...(syncHoldings && syncedWeights ? { weights: syncedWeights } : {}),
     equity_curve: charts.equity_curve,
     analytics: {
       ...candidate.analytics,

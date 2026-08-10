@@ -140,7 +140,7 @@ Field rules:
 - allocation.asset_classes: 1–5 from equity,bond,commodity,real_estate,alternative (required).
 - allocation.sleeve_targets: optional object of w_* keys with 0–1 fractions summing ≈1. Omit if unknown; never emit {}.
 - allocation.sub_sleeve_targets: optional regional weights (0–1). Omit if unknown; never emit {}.
-- allocation.max_single_position_pct: 0–1 FRACTION in [0.05, 0.25]. Prefer 0.35→0.25 (schema cap). Accept 35 only if you must; prefer 0.25.
+- allocation.max_single_position_pct: 0–1 FRACTION in [0.15, 0.40]. For locked model books (~≤15 names) prefer 0.20–0.25 so scenarios are not forced to equal weight. Prefer 0.35→0.25 if concentration is a concern; only go below 0.15 when the client explicitly demands tight single-name caps AND the universe has many names.
 - allocation.enforce_class_weights: boolean when RM wants hard sleeve enforcement.
 - universe.prompts: optional short notes for RM display only. Do NOT use prompts to invent broad ETF baskets — locked model runs ignore thematic/category matching.
 - universe.supplement_tickers: explicit symbols the client (or RM) wants to ADD beyond the target model portfolio (e.g. "GLD", "BTAL"). Only add tickers here when the RM has explicitly confirmed them.
@@ -199,7 +199,8 @@ Example (aggressive growth HNWI, US multi-cap anchor, reduce QQQ concentration, 
 }`;
 }
 
-function parseMessages(body: InterpretBody): OverlayConversationMessage[] {
+function parseMessages(body: InterpretBody | null | undefined): OverlayConversationMessage[] {
+  if (!body || typeof body !== "object") return [];
   if (body.messages?.length) {
     return body.messages.filter((m) => m.content?.trim());
   }
@@ -235,8 +236,33 @@ function attachAuditFields(
   return overlay;
 }
 
+function logInterpretFailure(
+  classified: ReturnType<typeof classifyOverlayAiFailure>,
+): void {
+  if (process.env.NODE_ENV === "production") return;
+  console.warn("[overlay/interpret] error", {
+    code: classified.code,
+    status: classified.status,
+    error: classified.error,
+    detail: classified.detail,
+  });
+}
+
 export async function POST(req: Request) {
-  const body = (await req.json()) as InterpretBody;
+  let body: InterpretBody;
+  try {
+    body = (await req.json()) as InterpretBody;
+  } catch (error) {
+    const detail =
+      error instanceof Error ? error.message.slice(0, 500) : "Request body must be JSON";
+    return buildOverlayInterpretError(
+      OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID,
+      "Invalid JSON request body",
+      detail,
+      400,
+    );
+  }
+
   const messages = parseMessages(body);
 
   if (!messages.length) {
@@ -308,6 +334,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ overlay, source: "rules", llm_log: llmLog });
       }
       const classified = classifyOverlayAiFailure(parseError);
+      logInterpretFailure(classified);
       return buildOverlayInterpretError(
         classified.code,
         classified.error,
@@ -333,6 +360,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ overlay, source: "rules", llm_log: llmLog });
     }
     const classified = classifyOverlayAiFailure(error);
+    logInterpretFailure(classified);
     return buildOverlayInterpretError(
       classified.code,
       classified.error,

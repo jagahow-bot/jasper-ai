@@ -331,11 +331,23 @@ def _load_price_panel(
         if getattr(req, "benchmark_ticker", None)
         else (benchmark or str(universe_plan.get("benchmark_ticker", "SPY")))
     )
+    cash_reserve = float(getattr(req, "cash_reserve_pct", 0.0) or 0.0)
+    if req.client_context is not None:
+        ctx_cash = getattr(req.client_context, "cash_reserve_pct", None)
+        if ctx_cash is None and isinstance(req.client_context, dict):
+            ctx_cash = req.client_context.get("cash_reserve_pct")
+        if ctx_cash is not None:
+            cash_reserve = max(cash_reserve, float(ctx_cash))
     spec = BacktestSpec(
         benchmark_ticker=bench_ticker,
         fee_bps=req.fee_bps,
         rebalance_rule=rebalance_rule,
         max_holdings=int(req.max_holdings),
+        risk_free_rate=float(getattr(req, "risk_free_rate", 0.04) or 0.04),
+        cash_reserve_pct=cash_reserve,
+        cash_return_mode=str(getattr(req, "cash_return_mode", "risk_free") or "risk_free"),
+        deployment_months=getattr(req, "deployment_months", None),
+        deployment_tranches=getattr(req, "deployment_tranches", None),
     )
     prices, _meta = fetch_prices(
         tickers,

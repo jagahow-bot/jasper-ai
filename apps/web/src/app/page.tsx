@@ -6,14 +6,18 @@ import { AnchorPortfolioSelector } from "@/components/AnchorPortfolioSelector";
 import { AppNav } from "@/components/AppNav";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
 import { CustomizationScopePanel } from "@/components/CustomizationScopePanel";
+import { LaunchScopeConfirm } from "@/components/LaunchScopeConfirm";
 import { RmRunPanel } from "@/components/RmRunPanel";
 import { RmReportView } from "@/components/RmReportView";
+import { RmWizardStepIndicator } from "@/components/RmWizardStepIndicator";
 import { OptimizationObjectiveBanner } from "@/components/OptimizationObjectiveBanner";
 import { OverlayConversationPanel } from "@/components/OverlayConversationPanel";
+import { OverlayContextSummary } from "@/components/OverlayContextSummary";
 import { DualProgressPanel } from "@/components/DualProgressPanel";
 import { ProgressPanel } from "@/components/ProgressPanel";
 import { ProResultsWithTabs } from "@/components/ProResultsWithTabs";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
+import { ResultsWithAuditTabs } from "@/components/ResultsWithAuditTabs";
 import {
   continueJob,
   createJob,
@@ -31,6 +35,7 @@ import {
   applyScopeToBacktestRequest,
   buildScopeHoldings,
   defaultCustomizationPortfolioName,
+  effectiveScopeGroupIds,
   getDemoClientById,
   getClientHoldingsGroups,
   holdingDisplayName,
@@ -47,6 +52,7 @@ import {
 } from "@/lib/default-backtest-dates";
 import { parseGoalHandoffFromSearch } from "@/lib/financial-goal";
 import { seedOverlayFromFinancialGoals } from "@/lib/financial-goal-handoff";
+import { loadGoalInsights } from "@/lib/financial-goal-store";
 import { buildJobNarrativeFacts } from "@/lib/narrative-slim";
 import { resolveChampionCandidateIndex } from "@/lib/performance-compare-chart";
 import { etfDisplayName } from "@/lib/etf-display-name";
@@ -73,7 +79,7 @@ import {
   type OverlayConversationMessage,
 } from "@/lib/overlay-schema";
 import {
-  decideFilterProposalInterrupt,
+  clearProposedTickers,
   overlayAlreadyShowsProposedTickers,
   overlayPromptsKey,
 } from "@/lib/overlay-filter-proposals";
@@ -97,47 +103,6 @@ function asModelPortfolio(
   delete rest.conflict_tickers;
   delete rest.enabled;
   return rest as ModelPortfolio;
-}
-
-const OVERLAY_CONTEXT_SECTION_LABEL_CLASS =
-  "text-xs font-semibold uppercase tracking-[0.18em] text-dim";
-const OVERLAY_CONTEXT_CARD_CLASS =
-  "rounded-md border border-[var(--border)] bg-white px-2 py-1.5";
-const OVERLAY_CONTEXT_NAME_CLASS =
-  "text-xs font-semibold text-[var(--ui-color-body)]";
-const OVERLAY_CONTEXT_CHIP_CLASS =
-  "rounded border border-[var(--border)]/70 bg-[var(--surface-2)] px-1.5 py-0.5 text-xs leading-4";
-
-type OverlayContextHolding = {
-  id: string;
-  ticker: string;
-  label: string;
-  weightLabel: string;
-};
-
-function renderOverlayContextHoldingChip(holding: OverlayContextHolding) {
-  return (
-    <div key={holding.id} className={OVERLAY_CONTEXT_CHIP_CLASS}>
-      <span className="font-semibold text-[var(--ui-color-body)]">
-        {holding.ticker}
-      </span>
-      <span className="ml-1 text-dim">{holding.label}</span>
-      <span className="ml-2 tabular-nums text-dim">{holding.weightLabel}</span>
-    </div>
-  );
-}
-
-function renderOverlayContextCard(name: string, holdings: OverlayContextHolding[]) {
-  return (
-    <div className={OVERLAY_CONTEXT_CARD_CLASS}>
-      <p className={OVERLAY_CONTEXT_NAME_CLASS}>{name}</p>
-      {holdings.length > 0 ? (
-        <div className="mt-1 flex flex-wrap gap-1.5">
-          {holdings.map((holding) => renderOverlayContextHoldingChip(holding))}
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 function buildDefaultRequest(): BacktestRequest {
@@ -180,6 +145,9 @@ export default function HomePage() {
   const [activeClient, setActiveClient] = useState<DemoClient | null>(null);
   const [scopeGroupIds, setScopeGroupIds] = useState<string[]>([]);
   const [portfolioName, setPortfolioName] = useState("");
+  /** True when launched via ?client= from the dashboard (confirm-first handoff). */
+  const [launchedFromDashboard, setLaunchedFromDashboard] = useState(false);
+  const [scopeEditorsOpen, setScopeEditorsOpen] = useState(true);
   const [signedOverlay, setSignedOverlay] = useState<ClientOverlay | null>(null);
   const [overlaySession, setOverlaySession] = useState<ClientOverlay | null>(null);
   const [overlayMessages, setOverlayMessages] =
@@ -231,8 +199,7 @@ export default function HomePage() {
 
   const scopeHoldings = useMemo(() => {
     if (!activeClient) return [];
-    const ids =
-      scopeGroupIds.length > 0 ? scopeGroupIds : scopeGroups.map((g) => g.id);
+    const ids = effectiveScopeGroupIds(scopeGroups, scopeGroupIds);
     return buildScopeHoldings(scopeGroups, ids);
   }, [activeClient, scopeGroupIds, scopeGroups]);
 
@@ -259,8 +226,7 @@ export default function HomePage() {
   }, [portfolioName, anchorPortfolio, lang]);
 
   const selectedScopeGroups = useMemo(() => {
-    const ids =
-      scopeGroupIds.length > 0 ? scopeGroupIds : scopeGroups.map((g) => g.id);
+    const ids = effectiveScopeGroupIds(scopeGroups, scopeGroupIds);
     const selected = new Set(ids);
     return scopeGroups
       .filter((group) => selected.has(group.id))
@@ -286,6 +252,23 @@ export default function HomePage() {
       })
       .filter((group) => group.holdings.length > 0);
   }, [scopeGroups, scopeGroupIds, t, lang]);
+
+  const overlayAnchorOptions = useMemo(() => {
+    const catalog = getSelectableAnchorPortfolios().map((p) => ({
+      id: p.id,
+      label: getPortfolioLabel(p, lang),
+    }));
+    if (currentHoldingsAnchor) {
+      return [
+        {
+          id: CURRENT_HOLDINGS_ANCHOR_ID,
+          label: getPortfolioLabel(currentHoldingsAnchor, lang),
+        },
+        ...catalog,
+      ];
+    }
+    return catalog;
+  }, [currentHoldingsAnchor, lang]);
 
   const anchorLabel = useMemo(
     () => getPortfolioLabel(anchorPortfolio, lang),
@@ -316,7 +299,7 @@ export default function HomePage() {
   // Keep the synthetic baseline in sync when the RM changes which sleeves are in scope.
   useEffect(() => {
     if (
-      phase !== "anchor" ||
+      (phase !== "anchor" && phase !== "overlay") ||
       anchorPortfolioId !== CURRENT_HOLDINGS_ANCHOR_ID ||
       !currentHoldingsAnchor
     ) {
@@ -567,6 +550,8 @@ export default function HomePage() {
     const client = clientId ? getDemoClientById(clientId) : null;
     if (client) {
       setActiveClient(client);
+      setLaunchedFromDashboard(true);
+      setScopeEditorsOpen(false);
       const groups = getClientHoldingsGroups(client);
       const parsedGroups = groupsParam
         ? groupsParam
@@ -634,6 +619,7 @@ export default function HomePage() {
       pending.assumptions,
       activeClient.client_id,
       lang,
+      loadGoalInsights(activeClient.client_id),
     );
     setOverlaySession(seeded.overlay);
     setOverlayMessages(seeded.messages);
@@ -699,6 +685,13 @@ export default function HomePage() {
               lockedOverlayReq!.universe_supplement_tickers,
             max_holdings: lockedOverlayReq!.max_holdings,
             max_weight: lockedOverlayReq!.max_weight,
+            // Overlay/scope cash sleeve must win over a stale constraints request
+            // that may still have cash_reserve_pct=0 / missing client_context.
+            cash_reserve_pct: lockedOverlayReq!.cash_reserve_pct,
+            cash_return_mode: lockedOverlayReq!.cash_return_mode,
+            client_context: lockedOverlayReq!.client_context,
+            deployment_months: lockedOverlayReq!.deployment_months,
+            deployment_tranches: lockedOverlayReq!.deployment_tranches,
             benchmark_ticker: anchor.benchmark,
             client_ref:
               activeClient?.client_id ??
@@ -720,8 +713,15 @@ export default function HomePage() {
       try {
         // Run anchor (static replay) first so customized Optuna does not overlap peak RAM on API.
         // Do not email for the anchor leg — only the customized job notifies.
+        // Carry the cash sleeve into the anchor replay so the baseline
+        // reflects the client's actual cash drag (dual-track consistency).
+        // Prefer overlay-mapped reserve (max of scope + overlay) when present.
         const baseJob = await createJob({
           ...baseReq,
+          cash_reserve_pct:
+            lockedOverlayReq?.cash_reserve_pct ?? scopedBase.cash_reserve_pct,
+          cash_return_mode:
+            lockedOverlayReq?.cash_return_mode ?? scopedBase.cash_return_mode,
           notify_email: null,
           experiment: undefined,
           report_language: lang,
@@ -776,6 +776,27 @@ export default function HomePage() {
           return;
         }
 
+        // Failed anchor jobs have no result payload — fetching them 500s and
+        // would abort the whole compare even when customized succeeded.
+        if (baseFailed) {
+          const [adjustedRes, adjustedReqStored] = await Promise.all([
+            getJobResult(adjustedJob.job_id),
+            getJobRequest(adjustedJob.job_id).catch(() => adjustedWithAnchor),
+          ]);
+          await presentResult(
+            adjustedJob.job_id,
+            adjustedRes,
+            {
+              ...adjustedReqStored,
+              client_ref: adjustedWithAnchor.client_ref,
+              anchor_job_id: baseJob.job_id,
+              anchor_portfolio_id: anchor.id,
+            },
+            null,
+          );
+          return;
+        }
+
         const [baseRes, adjustedRes, baseReqStored, adjustedReqStored] =
           await Promise.all([
             getJobResult(baseJob.job_id),
@@ -798,11 +819,6 @@ export default function HomePage() {
             anchor_portfolio_id: anchor.id,
           },
         };
-
-        if (baseFailed) {
-          await presentResult(adjustedJob.job_id, adjustedRes, compare.adjustedRequest, null);
-          return;
-        }
 
         recordCompletedBacktest(baseJob.job_id, baseReqStored, baseRes);
         recordCompletedBacktest(
@@ -852,6 +868,23 @@ export default function HomePage() {
     syncRequestFromAnchor(portfolio);
   }, [syncRequestFromAnchor]);
 
+  const onOverlayAnchorChange = useCallback(
+    (id: string) => {
+      if (id === CURRENT_HOLDINGS_ANCHOR_ID) {
+        if (currentHoldingsAnchor) {
+          onAnchorSelect(currentHoldingsAnchor);
+        }
+        return;
+      }
+      const portfolio =
+        getManagedPortfolioById(id) ??
+        getAnchorPortfolioById(id) ??
+        SPY_ANCHOR;
+      onAnchorSelect(asModelPortfolio(portfolio));
+    },
+    [currentHoldingsAnchor, onAnchorSelect],
+  );
+
   const onAnchorContinue = useCallback(() => {
     syncRequestFromAnchor();
     setPhase("overlay");
@@ -866,40 +899,22 @@ export default function HomePage() {
       // Scope first so overlay add/exclude applies on top of locked holdings.
       const scoped = applyScopeToBacktestRequest(base, scopeHoldings);
       const reportLanguage = lang === "zh" ? "zh-TW" : lang;
-      const promptsKey = overlayPromptsKey(overlay);
-      const alreadySurfaced =
-        overlayAlreadyShowsProposedTickers(overlay) ||
-        (filterProposalsSurfacedKeyRef.current !== null &&
-          filterProposalsSurfacedKeyRef.current === promptsKey);
-
-      const { request: resolved, filterProposedTickers } = await resolveOverlayUniverse(
-        scoped,
-        overlay,
-        {
-          scenarioId: `customized-${overlay.audit.session_id}`,
-          reportLanguage,
-          // Avoid a second LLM filter pass once suggestions are already on-screen
-          // (or were earlier and the RM cleared them by acknowledging).
-          skipFilterProposals: alreadySurfaced,
-        },
-      );
-
-      const decision = decideFilterProposalInterrupt({
-        overlay,
-        filterProposedTickers,
-        surfacedKey: filterProposalsSurfacedKeyRef.current,
+      // Sign-off never opens a filter/propose pass — chat ProposedTickersPanel is
+      // the only suggestion UI. Skipping the LLM filter also avoids stale novel
+      // tickers reappearing after「確認 Overlay」.
+      const { request: resolved } = await resolveOverlayUniverse(scoped, overlay, {
+        scenarioId: `customized-${overlay.audit.session_id}`,
+        reportLanguage,
+        skipFilterProposals: true,
       });
 
-      if (decision.action === "interrupt") {
-        filterProposalsSurfacedKeyRef.current = decision.promptsKey;
-        setOverlaySession(decision.overlay);
-        // Return the merged overlay so the child applies it immediately (avoids
-        // a two-way sync race while awaiting the next paint).
-        return decision.overlay;
-      }
-
-      filterProposalsSurfacedKeyRef.current = null;
-      setSignedOverlay(decision.overlay);
+      const finalized = clearProposedTickers(overlay);
+      // Keep prompts fingerprint so returning to overlay (e.g. rerun) cannot
+      // reopen a propose gate for the same rules.
+      filterProposalsSurfacedKeyRef.current = overlayPromptsKey(finalized);
+      // Sync working session so remounting overlay does not revive proposed_tickers.
+      setOverlaySession(finalized);
+      setSignedOverlay(finalized);
       setRequest(resolved);
       setPhase("constraints");
       return true;
@@ -1038,82 +1053,115 @@ export default function HomePage() {
       />
 
       <main className="mx-auto max-w-7xl space-y-5 px-6 py-6">
-        {activeClient ? (
-          <div className="saas-inset flex flex-wrap items-center justify-between gap-2 text-sm">
-            <p>
-              {t("clients.contextBanner", {
-                name: localizedText(activeClient.display_name, lang),
-              })}
-            </p>
-            <Link
-              href={`/clients/${activeClient.client_id}`}
-              className="text-[var(--primary)] hover:underline"
-            >
-              {t("clients.viewDashboard")}
-            </Link>
-          </div>
-        ) : null}
+        <RmWizardStepIndicator
+          phase={phase}
+          hasOverlay={Boolean(signedOverlay) || phase === "overlay"}
+          onStepSelect={(step) => {
+            if (step === "anchor") setPhase("anchor");
+            else if (step === "overlay") setPhase("overlay");
+            else if (step === "execute") setPhase("constraints");
+          }}
+          contextSlot={
+            !activeClient ? (
+              <>
+                <span className="text-dim">{t("clients.noClientBanner")}</span>
+                <Link
+                  href="/clients"
+                  className="font-medium text-[var(--primary)] hover:underline"
+                >
+                  {t("clients.noClientBannerCta")}
+                </Link>
+              </>
+            ) : (
+              <>
+                <span className="text-dim">
+                  {t("clients.contextBanner", {
+                    name: localizedText(activeClient.display_name, lang),
+                  })}
+                </span>
+                <Link
+                  href={`/clients/${activeClient.client_id}`}
+                  className="text-[var(--primary)] hover:underline"
+                >
+                  {t("clients.viewDashboard")}
+                </Link>
+              </>
+            )
+          }
+        />
 
-        {activeClient && phase === "anchor" ? (
-          <CustomizationScopePanel
-            client={activeClient}
-            selectedGroupIds={scopeGroupIds}
-            onSelectedGroupIdsChange={setScopeGroupIds}
-            portfolioName={portfolioName}
-            onPortfolioNameChange={setPortfolioName}
+        {activeClient &&
+        phase === "anchor" &&
+        launchedFromDashboard &&
+        !scopeEditorsOpen ? (
+          <LaunchScopeConfirm
+            title={t("customization.confirmTitle")}
+            hint={t("customization.confirmHint")}
+            groupsLabel={t("customization.scopeGroupsLabel")}
+            groupsValue={
+              selectedScopeGroups.length > 0
+                ? selectedScopeGroups.map((g) => g.name).join(" · ")
+                : "—"
+            }
+            anchorLabel={t("customization.scopeAnchorLabel")}
+            anchorValue={anchorLabel}
+            nameLabel={t("customization.scopeNameLabel")}
+            nameValue={portfolioName}
+            confirmLabel={t("customization.confirmContinue")}
+            editLabel={t("customization.editScope")}
+            onConfirm={onAnchorContinue}
+            onEdit={() => setScopeEditorsOpen(true)}
           />
         ) : null}
 
-        {phase === "anchor" && (
+        {activeClient &&
+        phase === "anchor" &&
+        (!launchedFromDashboard || scopeEditorsOpen) ? (
+          <>
+            <CustomizationScopePanel
+              client={activeClient}
+              selectedGroupIds={scopeGroupIds}
+              onSelectedGroupIdsChange={setScopeGroupIds}
+              portfolioName={portfolioName}
+              onPortfolioNameChange={setPortfolioName}
+            />
+            {launchedFromDashboard ? (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="ui-hint text-[var(--primary)] hover:underline"
+                  onClick={() => setScopeEditorsOpen(false)}
+                >
+                  {t("customization.collapseScope")}
+                </button>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
+        {phase === "anchor" &&
+        (!launchedFromDashboard || scopeEditorsOpen || !activeClient) ? (
           <AnchorPortfolioSelector
             selectedId={anchorPortfolioId}
             onSelect={onAnchorSelect}
             onContinue={onAnchorContinue}
             currentHoldingsAnchor={currentHoldingsAnchor}
           />
-        )}
+        ) : null}
 
         {phase === "overlay" && (
           <div className="space-y-3">
-            <div className="saas-inset space-y-3 p-3 text-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="ui-section-title text-[var(--cyan)]">
-                    {t("overlay.contextSummaryTitle")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="min-w-0">
-                  <p className={OVERLAY_CONTEXT_SECTION_LABEL_CLASS}>
-                    {t("overlay.contextGroups")}
-                  </p>
-                  {selectedScopeGroups.length > 0 ? (
-                    <div className="mt-2 space-y-2">
-                      {selectedScopeGroups.map((group) => (
-                        <div key={group.id}>
-                          {renderOverlayContextCard(group.name, group.holdings)}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-[var(--ui-color-body)]">
-                      {t("overlay.contextGroupsFallback")}
-                    </p>
-                  )}
-                </div>
-
-                <div className="min-w-0">
-                  <p className={OVERLAY_CONTEXT_SECTION_LABEL_CLASS}>
-                    {t("overlay.contextAnchor")}
-                  </p>
-                  <div className="mt-2">
-                    {renderOverlayContextCard(anchorLabel, anchorPositions)}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <OverlayContextSummary
+              groups={scopeGroups}
+              selectedGroupIds={scopeGroupIds}
+              onSelectedGroupIdsChange={setScopeGroupIds}
+              anchorId={anchorPortfolioId}
+              anchorLabel={anchorLabel}
+              anchorHoldings={anchorPositions}
+              anchorOptions={overlayAnchorOptions}
+              onAnchorChange={onOverlayAnchorChange}
+              asOfDate={activeClient?.as_of_date}
+            />
             <OverlayConversationPanel
               baseScenarioId={`anchor-${anchorPortfolioId}`}
               clientRef={activeClient?.client_id}
@@ -1193,39 +1241,45 @@ export default function HomePage() {
               request={request}
               narrativeFacts={result.narrative_facts}
             />
-            {result.pro_rounds && result.pro_rounds.length > 0 ? (
-            <ProResultsWithTabs
+            <ResultsWithAuditTabs
               result={result}
-              narrative={narrative}
               request={request}
-              onRerun={() => {
-                setPhase("constraints");
-              }}
-              onExport={() => downloadCsv(result, "portfolio")}
-              onQuickTweak={onQuickTweak}
-              onQuickTweakAndRun={onQuickTweakAndRun}
-              onContinueRefinement={onContinueRefinement}
-              continueLoading={continueLoading}
-              showRunObjectiveBanner={false}
-              onPromoteTickers={onPromoteTickers}
-            />
-          ) : (
-            <ResultsDashboard
-              result={result}
-              narrative={narrative}
-              request={request}
-              onRerun={() => {
-                setPhase("constraints");
-              }}
-              onExport={() => downloadCsv(result, "portfolio")}
-              onQuickTweak={onQuickTweak}
-              onQuickTweakAndRun={onQuickTweakAndRun}
-              onContinueRefinement={onContinueRefinement}
-              continueLoading={continueLoading}
-              showRunObjectiveBanner={false}
-              onPromoteTickers={onPromoteTickers}
-            />
-          )}
+              overlay={signedOverlay}
+            >
+              {result.pro_rounds && result.pro_rounds.length > 0 ? (
+                <ProResultsWithTabs
+                  result={result}
+                  narrative={narrative}
+                  request={request}
+                  onRerun={() => {
+                    setPhase("constraints");
+                  }}
+                  onExport={() => downloadCsv(result, "portfolio")}
+                  onQuickTweak={onQuickTweak}
+                  onQuickTweakAndRun={onQuickTweakAndRun}
+                  onContinueRefinement={onContinueRefinement}
+                  continueLoading={continueLoading}
+                  showRunObjectiveBanner={false}
+                  onPromoteTickers={onPromoteTickers}
+                />
+              ) : (
+                <ResultsDashboard
+                  result={result}
+                  narrative={narrative}
+                  request={request}
+                  onRerun={() => {
+                    setPhase("constraints");
+                  }}
+                  onExport={() => downloadCsv(result, "portfolio")}
+                  onQuickTweak={onQuickTweak}
+                  onQuickTweakAndRun={onQuickTweakAndRun}
+                  onContinueRefinement={onContinueRefinement}
+                  continueLoading={continueLoading}
+                  showRunObjectiveBanner={false}
+                  onPromoteTickers={onPromoteTickers}
+                />
+              )}
+            </ResultsWithAuditTabs>
           </>
           )
         )}

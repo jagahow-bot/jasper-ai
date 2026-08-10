@@ -28,7 +28,11 @@
       },
       "preferences": {
         "esg": "light",
-        "tags": ["ESG", "capital_preservation", "liquidity"]
+        "tags": [
+          "ESG",
+          "capital_preservation",
+          "liquidity"
+        ]
       },
       "rm_owner": "RM Demo",
       "as_of_date": "2026-07-28",
@@ -81,7 +85,8 @@
             "ko": "분할 투자 집행 점검"
           }
         }
-      ]
+      ],
+      "gender": "male"
     },
     {
       "client_id": "JB-HNWI-002",
@@ -108,7 +113,12 @@
       },
       "preferences": {
         "esg": "none",
-        "tags": ["growth", "tech", "US_equity", "AI"]
+        "tags": [
+          "growth",
+          "tech",
+          "US_equity",
+          "AI"
+        ]
       },
       "rm_owner": "RM Demo",
       "as_of_date": "2026-07-28",
@@ -268,7 +278,8 @@
             "ko": "세금손실수확 창구"
           }
         }
-      ]
+      ],
+      "gender": "female"
     },
     {
       "client_id": "JB-HNWI-003",
@@ -295,7 +306,11 @@
       },
       "preferences": {
         "esg": "moderate",
-        "tags": ["income", "drawdown_control", "bonds"]
+        "tags": [
+          "income",
+          "drawdown_control",
+          "bonds"
+        ]
       },
       "rm_owner": "RM Demo",
       "as_of_date": "2026-07-28",
@@ -357,8 +372,8 @@
               "name": "iShares Core U.S. Aggregate Bond ETF",
               "asset_class": "bond",
               "initial_weight": 0.15,
-              "return_ytd": 1.2,
-              "total_return": 2.5,
+              "return_ytd": -1.2,
+              "total_return": -2.5,
               "region": "us",
               "invested_at": "2023-06-01"
             },
@@ -367,8 +382,8 @@
               "name": "Dodge & Cox Income",
               "asset_class": "bond",
               "initial_weight": 0.1,
-              "return_ytd": 2.8,
-              "total_return": 5.5,
+              "return_ytd": -0.8,
+              "total_return": -1.5,
               "region": "us",
               "invested_at": "2024-01-15"
             },
@@ -434,7 +449,8 @@
             "ko": "채권 래더 만기 구간"
           }
         }
-      ]
+      ],
+      "gender": "male"
     },
     {
       "client_id": "JB-HNWI-004",
@@ -461,7 +477,11 @@
       },
       "preferences": {
         "esg": "strong",
-        "tags": ["ESG", "global", "balanced"]
+        "tags": [
+          "ESG",
+          "global",
+          "balanced"
+        ]
       },
       "rm_owner": "RM Demo",
       "as_of_date": "2026-07-28",
@@ -564,8 +584,8 @@
               "name": "NextEra Energy",
               "asset_class": "equity",
               "initial_weight": 0.03,
-              "return_ytd": 5.0,
-              "total_return": 11.0,
+              "return_ytd": -9.0,
+              "total_return": -18.0,
               "region": "us",
               "invested_at": "2024-04-01"
             },
@@ -574,8 +594,8 @@
               "name": "UnitedHealth",
               "asset_class": "equity",
               "initial_weight": 0.04,
-              "return_ytd": -3.0,
-              "total_return": 6.0,
+              "return_ytd": -18.0,
+              "total_return": -35.0,
               "region": "us",
               "invested_at": "2024-04-01"
             }
@@ -621,7 +641,166 @@
             "ko": "기부·보조금 일정"
           }
         }
-      ]
+      ],
+      "gender": "female"
+    },
+    {
+      "client_id": "JB-HNWI-005",
+      "display_name": {
+        "en": "Mr. Gao",
+        "zh": "高先生",
+        "ko": "가오 씨"
+      },
+      "segment": "HNW",
+      "risk_profile": "aggressive",
+      "currency": "USD",
+      "age": 42,
+      "aum_usd": 2300000,
+      "cash_usd": 280000,
+      "investment_horizon": {
+        "en": "7–10 years",
+        "zh": "7–10 年",
+        "ko": "7–10년"
+      },
+      "liquidity_notes": {
+        "en": "No near-term liquidity need; main concern is underwater legacy positions.",
+        "zh": "近期無流動性需求；主要關切是帳上仍虧損的既有部位。",
+        "ko": "단기 유동성 필요 없음; 주요 관심사는 손실 중인 기존 포지션."
+      },
+      "preferences": {
+        "esg": "none",
+        "tags": ["loss_review", "thematic", "concentrated"]
+      },
+      "rm_owner": "RM Demo",
+      "as_of_date": "2026-07-28",
+      "suggested_model_portfolio_id": "classic-60-40",
+      "holdings": [],
+      "holdings_groups": [
+        {
+          "id": "gao-theme-2021",
+          "type": "individual",
+          "label": {
+            "en": "2021 thematic buys (underwater)",
+            "zh": "2021 高點進場主題部位（仍虧損）",
+            "ko": "2021년 고점 매수 테마(손실 중)"
+          },
+          "holdings": [
+            {
+              "ticker": "ARKK",
+              "name": "ARK Innovation ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.2,
+              "return_ytd": -6.0,
+              "total_return": -52.0,
+              "region": "us",
+              "invested_at": "2021-12-01"
+            },
+            {
+              "ticker": "ARKW",
+              "name": "ARK Next Generation Internet ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.1,
+              "return_ytd": -2.0,
+              "total_return": -38.0,
+              "region": "us",
+              "invested_at": "2021-12-01"
+            },
+            {
+              "ticker": "ICLN",
+              "name": "iShares Global Clean Energy ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.1,
+              "return_ytd": -8.0,
+              "total_return": -48.0,
+              "region": "global",
+              "invested_at": "2021-12-01"
+            },
+            {
+              "ticker": "KWEB",
+              "name": "KraneShares CSI China Internet ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.1,
+              "return_ytd": -5.0,
+              "total_return": -42.0,
+              "region": "asia",
+              "invested_at": "2021-12-01"
+            },
+            {
+              "ticker": "QQQ",
+              "name": "Invesco QQQ Trust",
+              "asset_class": "equity",
+              "initial_weight": 0.1,
+              "return_ytd": 11.0,
+              "total_return": 48.0,
+              "region": "us",
+              "invested_at": "2021-12-01"
+            }
+          ]
+        },
+        {
+          "id": "gao-long-duration",
+          "type": "individual",
+          "label": {
+            "en": "Long-duration & rate-sensitive",
+            "zh": "長天期與利率敏感部位",
+            "ko": "장기 듀레이션·금리 민감"
+          },
+          "holdings": [
+            {
+              "ticker": "TLT",
+              "name": "iShares 20+ Year Treasury Bond ETF",
+              "asset_class": "bond",
+              "initial_weight": 0.2,
+              "return_ytd": -3.0,
+              "total_return": -35.0,
+              "region": "us",
+              "invested_at": "2021-11-15"
+            },
+            {
+              "ticker": "VNQ",
+              "name": "Vanguard Real Estate ETF",
+              "asset_class": "real_estate",
+              "initial_weight": 0.1,
+              "return_ytd": -1.5,
+              "total_return": -18.0,
+              "region": "us",
+              "invested_at": "2021-12-01"
+            }
+          ]
+        },
+        {
+          "id": "gao-cash",
+          "type": "cash",
+          "holdings": [
+            {
+              "ticker": "CASH",
+              "name": "Cash",
+              "asset_class": "cash",
+              "initial_weight": 0.1,
+              "return_ytd": null,
+              "total_return": null,
+              "region": "us"
+            }
+          ]
+        }
+      ],
+      "notes": {
+        "en": "Bought thematic growth, clean energy, China internet, and long-duration near the 2021 peak; book still ~-20% overall. RM goal: review stop-loss / rotation into diversified core.",
+        "zh": "2021 高點附近買進主題成長、潔淨能源、中概互聯網與長天期債券；整體帳面仍約 -20%。RM 目標：檢討停損與轉向分散核心配置。",
+        "ko": "2021년 고점 부근에서 테마 성장·클린에너지·중국 인터넷·장기채 매수; 전체 약 -20% 손실. RM 목표: 손절 검토 및 분산 코어로 전환."
+      },
+      "upcoming_events": [
+        {
+          "id": "gao-loss-review",
+          "date": "2026-09-15",
+          "title": {
+            "en": "Underwater positions review",
+            "zh": "虧損部位檢討會議",
+            "ko": "손실 포지션 검토 미팅"
+          }
+        }
+      ],
+      "gender": "male"
     }
   ]
 }

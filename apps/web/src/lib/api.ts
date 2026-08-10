@@ -8,6 +8,11 @@ import type {
   ObjectiveSwitchLabResult,
   ScenarioCard,
 } from "./types";
+import type { BackcastMonthlyResponse } from "./financial-goal-backcast";
+import type {
+  ClientDailyNavResponse,
+  DailyNavRequestHolding,
+} from "./client-daily-nav";
 
 /** Browser uses same-origin proxy (next.config rewrites) to avoid CORS / Failed to fetch. */
 function getApiBase(): string {
@@ -179,6 +184,48 @@ export async function fetchCandidateCharts(
   return fetchJson<CandidateChartsPayload>(
     `/jobs/${jobId}/candidates/${encoded}/charts${rankQuery}`,
   );
+}
+
+/**
+ * Synthetic monthly history of a fixed target mix for goal-planning returns
+ * (peer-proxy fill + rebalance-to-target; see apps/api goal_backcast).
+ */
+export async function fetchPortfolioBackcastMonthly(
+  weights: Record<string, number>,
+  options?: {
+    years?: number;
+    rebalanceFreq?: string;
+    feeBps?: number;
+  },
+): Promise<BackcastMonthlyResponse> {
+  return fetchJson<BackcastMonthlyResponse>("/backcast/monthly", {
+    method: "POST",
+    body: JSON.stringify({
+      weights,
+      years: options?.years ?? 10,
+      rebalance_freq: options?.rebalanceFreq ?? "QE",
+      fee_bps: options?.feeBps ?? 10,
+    }),
+  });
+}
+
+/**
+ * Real daily NAV index of a client book (initial weights + invested_at),
+ * computed server-side from daily closes — see apps/api client_daily_nav.
+ * Callers handle failure by falling back to the calibrated reported series.
+ */
+export async function fetchClientDailyNav(
+  holdings: DailyNavRequestHolding[],
+  options?: { start?: string; end?: string },
+): Promise<ClientDailyNavResponse> {
+  return fetchJson<ClientDailyNavResponse>("/backcast/daily-nav", {
+    method: "POST",
+    body: JSON.stringify({
+      holdings,
+      ...(options?.start ? { start: options.start } : {}),
+      ...(options?.end ? { end: options.end } : {}),
+    }),
+  });
 }
 
 export async function patchJobNarrativeFacts(

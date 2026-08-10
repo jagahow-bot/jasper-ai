@@ -26,6 +26,8 @@ type Props = RechartsTooltipContentProps & {
   /** Multiply numeric values by 100 and append % */
   valueIsPct?: boolean;
   valueDecimals?: number;
+  /** Appended after formatted number when not using valueIsPct (e.g. "%" for already-% values). */
+  valueSuffix?: string;
   title?: string;
   /** Sort rows by numeric value descending (weights tooltips). */
   sortByValue?: boolean;
@@ -52,6 +54,7 @@ export function ChartTooltip({
   coordinate,
   valueIsPct = false,
   valueDecimals = 2,
+  valueSuffix = "",
   title,
   sortByValue = false,
   usePortal = false,
@@ -74,7 +77,7 @@ export function ChartTooltip({
     const n = Number(v);
     if (!Number.isFinite(n)) return String(v);
     if (valueIsPct) return `${(n * 100).toFixed(valueDecimals)}%`;
-    return n.toFixed(valueDecimals);
+    return `${n.toFixed(valueDecimals)}${valueSuffix}`;
   };
 
   const tipPx = chartTooltipFontSize();

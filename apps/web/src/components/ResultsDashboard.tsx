@@ -20,6 +20,11 @@ import {
   ZAxis,
 } from "recharts";
 import { ChartTooltip } from "@/components/ChartTooltip";
+import {
+  AiParamsDisclosureBlock,
+  AiParamsExpandablePanel,
+  AiParamsSummaryKnobs,
+} from "@/components/AiParamsDisclosure";
 import { InstitutionalReport } from "@/components/InstitutionalReport";
 import { LinkedEquityWeightChart } from "@/components/LinkedEquityWeightChart";
 import { OptimizationObjectiveBanner } from "@/components/OptimizationObjectiveBanner";
@@ -60,6 +65,7 @@ import {
   resolveChampionCandidateIndex,
   resolveChampionModelKey,
   resolveDefaultSelectedRowKey,
+  dedupeCandidatesForPerformanceChart,
   resolveHorizonMetrics,
   resolveOutOfSampleMetrics,
 } from "@/lib/performance-compare-chart";
@@ -92,7 +98,6 @@ import type {
   BenchmarkSeriesPoint,
   CandidateChartsPayload,
   DynamicObjectiveTimelinePoint,
-  PortfolioCandidate,
   ProposalCard,
 } from "@/lib/types";
 import {
@@ -103,12 +108,16 @@ import {
 } from "@/lib/benchmark-chart-scale";
 import { etfDisplayName } from "@/lib/etf-display-name";
 import { rebalanceFreqLabel, regimeLabel, objectiveLabel, useI18n } from "@/lib/i18n";
+import {
+  buildConstrainedParamSetupRationale,
+  isConstrainedParamSetupContext,
+} from "@/lib/constrained-param-rationale";
 import { resolveRunObjective } from "@/lib/resolve-run-objective";
 import {
   buildHoldoutLeaderboard,
   type LeaderboardSort,
 } from "@/lib/leaderboard";
-import { dedupeProposalSet } from "@/lib/proposal-set";
+import { buildDisplayProposalSet, normalizeProposalLabel, resolvePrimaryRecommendationCode } from "@/lib/proposal-set";
 import {
   NEEDS_TABLE_I18N,
   needsFloorRows,
@@ -158,8 +167,17 @@ const COLORS = [
 const SELECTED_STROKE = "#f97316";
 
 function proposalLabelI18nKey(label: string): string | null {
-  if (label === "recommended" || label === "defensive" || label === "growth") {
-    return `results.proposalLabel.${label}`;
+  const normalized = normalizeProposalLabel(label);
+  if (
+    normalized === "recommended" ||
+    normalized === "defensive" ||
+    normalized === "growth" ||
+    normalized === "alternative" ||
+    normalized === "anchor_close" ||
+    normalized === "full_drift" ||
+    normalized === "theme"
+  ) {
+    return `results.proposalLabel.${normalized}`;
   }
   return null;
 }
@@ -272,30 +290,45 @@ export function ResultsDashboard({
     setChartsLoadError(null);
   }, [resultSelectionEpoch, result.narrative_facts]);
 
-  useEffect(() => {
-    if (selectedRowKeyProp != null) return;
-    setSelectedRowKeyState(
-      resolveDefaultSelectedRowKey(
-        result.candidates,
-        championNarrativeFacts,
-      ),
-    );
-  }, [resultSelectionEpoch, result.candidates, championNarrativeFacts, selectedRowKeyProp]);
-
-  const defaultSelectedRowKey = useMemo(
+  const primaryRecommendationCode = useMemo(
     () =>
-      resolveDefaultSelectedRowKey(
-        result.candidates,
-        championNarrativeFacts,
-      ),
-    [result.candidates, championNarrativeFacts],
+      resolvePrimaryRecommendationCode(result.proposal_set, result.candidates),
+    [result.proposal_set, result.candidates],
   );
 
-  const selected = useMemo(() => {
-    const fallbackIdx = resolveChampionCandidateIndex(
+  const defaultSelectedRowKey = useMemo(() => {
+    if (primaryRecommendationCode) {
+      const idx = result.candidates.findIndex(
+        (c) =>
+          candidateModelKey(c).toUpperCase() === primaryRecommendationCode,
+      );
+      if (idx >= 0) return candidateRowKey(result.candidates[idx], idx);
+    }
+    return resolveDefaultSelectedRowKey(
       result.candidates,
       championNarrativeFacts,
     );
+  }, [
+    result.candidates,
+    championNarrativeFacts,
+    primaryRecommendationCode,
+  ]);
+
+  useEffect(() => {
+    if (selectedRowKeyProp != null) return;
+    setSelectedRowKeyState(defaultSelectedRowKey);
+  }, [resultSelectionEpoch, defaultSelectedRowKey, selectedRowKeyProp]);
+
+  const selected = useMemo(() => {
+    const fallbackIdx = primaryRecommendationCode
+      ? result.candidates.findIndex(
+          (c) =>
+            candidateModelKey(c).toUpperCase() === primaryRecommendationCode,
+        )
+      : resolveChampionCandidateIndex(
+          result.candidates,
+          championNarrativeFacts,
+        );
     const fallback =
       fallbackIdx >= 0 ? result.candidates[fallbackIdx] : result.candidates[0];
     if (!fallback) return undefined;
@@ -310,6 +343,7 @@ export function ResultsDashboard({
     championNarrativeFacts,
     selectedRowKey,
     defaultSelectedRowKey,
+    primaryRecommendationCode,
   ]);
   const selectedChartKey = useMemo(() => {
     if (!selected) return "";
@@ -317,10 +351,14 @@ export function ResultsDashboard({
     return candidateRowKey(selected, idx >= 0 ? idx : 0);
   }, [selected, result.candidates]);
 
-  const championModelKey = useMemo(
-    () => resolveChampionModelKey(result.candidates, championNarrativeFacts),
-    [result.candidates, championNarrativeFacts],
-  );
+  const championModelKey = useMemo(() => {
+    if (primaryRecommendationCode) return primaryRecommendationCode;
+    return resolveChampionModelKey(result.candidates, championNarrativeFacts);
+  }, [
+    primaryRecommendationCode,
+    result.candidates,
+    championNarrativeFacts,
+  ]);
 
   const catalogChampionForCompare = useMemo(() => {
     const explicit = championNarrativeFacts.catalog_champion_model_code;
@@ -337,12 +375,23 @@ export function ResultsDashboard({
   }, [result.candidates, championNarrativeFacts, championModelKey]);
 
   const championCandidate = useMemo(() => {
+    if (primaryRecommendationCode) {
+      const match = result.candidates.find(
+        (c) =>
+          candidateModelKey(c).toUpperCase() === primaryRecommendationCode,
+      );
+      if (match) return match;
+    }
     const idx = resolveChampionCandidateIndex(
       result.candidates,
       championNarrativeFacts,
     );
     return idx >= 0 ? result.candidates[idx] : result.candidates[0];
-  }, [result.candidates, championNarrativeFacts]);
+  }, [
+    result.candidates,
+    championNarrativeFacts,
+    primaryRecommendationCode,
+  ]);
 
   const isDynamicObjective =
     request.objective === "dynamic" ||
@@ -360,15 +409,102 @@ export function ResultsDashboard({
       | null
       | undefined;
     const rounds = pr?.per_round ?? [];
+    const champKey = (championModelKey || "").toUpperCase();
+    let fallback: { code: string; text: string; source: "ai" } | null = null;
     for (let i = rounds.length - 1; i >= 0; i--) {
       const row = rounds[i];
       const text = (row?.ai_champion_rationale ?? "").trim();
-      if (row?.ai_champion_model_code && text) {
-        return { code: String(row.ai_champion_model_code), text, source: "ai" as const };
-      }
+      const code = String(row?.ai_champion_model_code ?? "").trim();
+      if (!code || !text) continue;
+      const entry = { code, text, source: "ai" as const };
+      if (champKey && code.toUpperCase() === champKey) return entry;
+      if (!fallback) fallback = entry;
     }
-    return null;
-  }, [result.narrative_facts.pro_refinement]);
+    return fallback;
+  }, [result.narrative_facts.pro_refinement, championModelKey]);
+
+  const paramSetupRationale = useMemo(() => {
+    const aiGen = result.narrative_facts.ai_param_generation as
+      | {
+          rationale?: string | null;
+          rationales_by_round?: unknown;
+          model?: string | null;
+          constrained_customization?: boolean;
+          scenario_styles?: unknown;
+        }
+      | null
+      | undefined;
+    const champParams = (championCandidate?.params ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const storedFromRounds = (() => {
+      const byRound = aiGen?.rationales_by_round;
+      if (Array.isArray(byRound)) {
+        for (let i = byRound.length - 1; i >= 0; i--) {
+          const text = String(byRound[i] ?? "").trim();
+          if (text) return text;
+        }
+      }
+      return String(aiGen?.rationale ?? "").trim() || null;
+    })();
+
+    const constrained = isConstrainedParamSetupContext({
+      constrainedCustomization: result.narrative_facts.constrained_customization,
+      engine: result.narrative_facts.engine,
+      optimizationMode: result.narrative_facts.optimization_mode,
+      aiModel: aiGen?.model,
+      paramSource: champParams.param_source,
+      scenarioStyle: champParams.scenario_style,
+      storedRationale: storedFromRounds,
+    });
+
+    if (constrained) {
+      const needs = championCandidate?.needs_attainment as
+        | { customization_drift_cap?: number | null }
+        | null
+        | undefined;
+      const driftActual =
+        typeof champParams.customization_drift_actual === "number"
+          ? champParams.customization_drift_actual
+          : null;
+      const driftCap =
+        typeof needs?.customization_drift_cap === "number"
+          ? needs.customization_drift_cap
+          : typeof request.customization_drift === "number"
+            ? request.customization_drift
+            : null;
+      const allocator =
+        (typeof champParams.allocator_mode === "string" &&
+          champParams.allocator_mode) ||
+        (typeof champParams.mode === "string" && champParams.mode) ||
+        null;
+      // Always localize from scenario metadata — never show the English technical
+      // mode string (also keeps language switching consistent for cached jobs).
+      return buildConstrainedParamSetupRationale({
+        t,
+        scenarioStyle: champParams.scenario_style,
+        styles:
+          (aiGen?.scenario_styles as unknown[]) ??
+          (result.narrative_facts.constrained_scenarios as unknown[]) ??
+          null,
+        driftActual,
+        driftCap,
+        allocatorMode: allocator,
+      });
+    }
+
+    return storedFromRounds;
+  }, [
+    result.narrative_facts.ai_param_generation,
+    result.narrative_facts.constrained_customization,
+    result.narrative_facts.constrained_scenarios,
+    result.narrative_facts.engine,
+    result.narrative_facts.optimization_mode,
+    championCandidate,
+    request.customization_drift,
+    t,
+  ]);
 
   const selectionHorizon = useMemo(
     () => championSelectionHorizon(championNarrativeFacts),
@@ -713,9 +849,23 @@ export function ResultsDashboard({
   );
 
   const proposalCards = useMemo(
-    () => dedupeProposalSet(result.proposal_set, result.candidates),
+    () => buildDisplayProposalSet(result.proposal_set, result.candidates),
     [result.proposal_set, result.candidates],
   );
+
+  const candidatesByCode = useMemo(() => {
+    const map = new Map<string, (typeof result.candidates)[number]>();
+    for (const c of result.candidates) {
+      const code = (c.model_code || "").toUpperCase();
+      if (code) map.set(code, c);
+    }
+    return map;
+  }, [result.candidates]);
+
+  const baselineCandidate = useMemo(() => {
+    if (!primaryRecommendationCode) return null;
+    return candidatesByCode.get(primaryRecommendationCode) ?? null;
+  }, [candidatesByCode, primaryRecommendationCode]);
 
   const handlePromoteHoldings = useCallback(() => {
     if (!promoteCandidates.length) return;
@@ -1039,7 +1189,22 @@ export function ResultsDashboard({
   const sortByModelCode = true;
 
   const modelSelectOptions = useMemo(() => {
-    const indexed = result.candidates.map((c, i) => ({ c, i }));
+    const raw = result.candidates;
+    const deduped = dedupeCandidatesForPerformanceChart(
+      raw,
+      championModelKey,
+    );
+    const indexed = deduped.flatMap((slim) => {
+      let i = raw.findIndex((c) => c === (slim as (typeof raw)[number]));
+      if (i < 0) {
+        const code = (slim.model_code || "").toUpperCase();
+        i = raw.findIndex(
+          (c) => candidateModelKey(c).toUpperCase() === code,
+        );
+      }
+      if (i < 0) return [];
+      return [{ c: raw[i]!, i }];
+    });
     if (!sortByModelCode) return indexed;
     return [...indexed].sort((a, b) =>
       compareModelCode(
@@ -1047,7 +1212,24 @@ export function ResultsDashboard({
         b.c.model_code ?? `M?${b.c.rank}`,
       ),
     );
-  }, [result.candidates, sortByModelCode]);
+  }, [result.candidates, sortByModelCode, championModelKey]);
+
+  const modelSelectValue = useMemo(() => {
+    if (
+      modelSelectOptions.some(
+        ({ c, i }) => candidateRowKey(c, i) === selectedChartKey,
+      )
+    ) {
+      return selectedChartKey;
+    }
+    if (!selected) return selectedChartKey;
+    const code = candidateModelKey(selected);
+    const match = modelSelectOptions.find(
+      ({ c }) => candidateModelKey(c) === code,
+    );
+    if (!match) return selectedChartKey;
+    return candidateRowKey(match.c, match.i);
+  }, [modelSelectOptions, selectedChartKey, selected]);
 
   const candidateCompare = useMemo(
     () =>
@@ -1264,7 +1446,6 @@ export function ResultsDashboard({
     (displayMetrics.max_drawdown !== 0
       ? displayMetrics.cagr / Math.abs(displayMetrics.max_drawdown)
       : 0);
-  const dataSource = String(result.narrative_facts.data_source ?? "");
   const trustworthy = result.narrative_facts.metrics_trustworthy === true;
   const dq = result.narrative_facts.data_quality as
     | {
@@ -1272,7 +1453,6 @@ export function ResultsDashboard({
         start?: string;
         end?: string;
         requested_start?: string;
-        warning?: string;
         excluded_late_listing_count?: number;
       }
     | undefined;
@@ -1405,22 +1585,6 @@ export function ResultsDashboard({
           narrativeFacts={result.narrative_facts}
         />
       )}
-      {!trustworthy && (
-        <div className="ui-body border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.08)] px-4 py-3 text-[var(--amber)]">
-          {dataSource !== "yfinance"
-            ? t("results.warning.sampleData")
-            : t("results.warning.unrealistic")}
-          {dq?.rows != null && (
-            <span className="ui-body mt-1 block opacity-80">
-              {t("results.dataRange", {
-                start: String(dq.start ?? "—"),
-                end: String(dq.end ?? "—"),
-                rows: Number(dq.rows ?? 0),
-              })}
-            </span>
-          )}
-        </div>
-      )}
       {trustworthy && dq && (
         <div className="pixel-badge-cyan inline-block">
           {t("results.liveData", { start: String(dq.start ?? "—"), end: String(dq.end ?? "—"), rows: Number(dq.rows ?? 0) })}
@@ -1433,11 +1597,6 @@ export function ResultsDashboard({
               )
             </span>
           )}
-        </div>
-      )}
-      {dq?.warning && (
-        <div className="ui-body border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-4 py-2 text-[var(--amber)]">
-          {dq.warning}
         </div>
       )}
       {result.narrative_facts.is_round_view === true && (
@@ -1459,70 +1618,6 @@ export function ResultsDashboard({
             {proRefinement?.stopped_reason === "patience"
               ? t("results.meta.convergedEarly")
               : t("results.meta.fullSearch")}
-          </>
-        ) : isRmCompact ? (
-          <>
-            {championModelKey ? (
-              <span className="text-[var(--primary)]">
-                {t("results.rmChampionLine", {
-                  model: championModelKey,
-                  sharpe: displayMetrics.sharpe.toFixed(3),
-                  cagr: `${(displayMetrics.cagr * 100).toFixed(2)}%`,
-                })}
-              </span>
-            ) : (
-              t("results.meta.search", { trials: trialsRequested })
-            )}
-            {championCandidate?.needs_attainment ? (
-              (() => {
-                const na = championCandidate.needs_attainment;
-                const actualPct = ((na.max_drawdown_actual ?? 0) * 100).toFixed(1);
-                const floorPct = ((na.max_drawdown_tolerance ?? 0) * 100).toFixed(1);
-                const breachPct = ((na.drawdown_breach_pct ?? 0) * 100).toFixed(1);
-                const missing = na.missing_must_include ?? [];
-                const driftFail = na.within_customization_drift === false;
-                const mustFail = na.within_must_include === false;
-                const warn = mustFail || driftFail || !na.within_drawdown_tolerance;
-                return (
-              <div
-                className={`mt-1 text-sm ${
-                  warn ? "text-amber-700" : "text-emerald-700"
-                }`}
-              >
-                {na.max_drawdown_tolerance != null ? (
-                  <p>
-                    <span className="font-medium">{t("results.needsFloorTitle")}: </span>
-                    {na.within_drawdown_tolerance
-                      ? t("results.needsFloorPass", {
-                          actual: `${actualPct}%`,
-                          floor: `${floorPct}%`,
-                        })
-                      : t("results.needsFloorFail", {
-                          actual: `${actualPct}%`,
-                          floor: `${floorPct}%`,
-                          breach: `${breachPct}%`,
-                        })}
-                  </p>
-                ) : null}
-                {mustFail ? (
-                  <p className="mt-0.5">
-                    {t("results.needsMustIncludeFail", {
-                      tickers: missing.join(", "),
-                    })}
-                  </p>
-                ) : null}
-                {driftFail ? (
-                  <p className="mt-0.5">
-                    {t("results.needsDriftFail", {
-                      actual: `${(((na.customization_drift_l1 ?? 0) * 100)).toFixed(1)}%`,
-                      cap: `${(((na.customization_drift_cap ?? 0) * 100)).toFixed(1)}%`,
-                    })}
-                  </p>
-                ) : null}
-              </div>
-                );
-              })()
-            ) : null}
           </>
         ) : (
           <>{t("results.meta.search", { trials: trialsRequested })}</>
@@ -1582,6 +1677,8 @@ export function ResultsDashboard({
               const isActive =
                 activeModelKey.toUpperCase() === proposal.model_code.toUpperCase();
               const floorRows = needsFloorRows(proposal.needs_attainment);
+              const cand =
+                candidatesByCode.get(proposal.model_code.toUpperCase()) ?? null;
               return (
                 <button
                   key={proposal.model_code}
@@ -1620,6 +1717,18 @@ export function ResultsDashboard({
                       <div>{(proposal.max_drawdown * 100).toFixed(2)}%</div>
                     </div>
                   </div>
+                  <AiParamsSummaryKnobs
+                    params={cand?.params}
+                    needs={cand?.needs_attainment ?? proposal.needs_attainment}
+                    weights={cand?.weights}
+                  />
+                  <AiParamsExpandablePanel
+                    params={cand?.params}
+                    baselineParams={baselineCandidate?.params}
+                    baselineCode={primaryRecommendationCode}
+                    isBaseline={Boolean(proposal.is_recommended)}
+                    compact
+                  />
                   {floorRows.length > 0 ? (
                     <table className="mt-3 w-full ui-hint">
                       <tbody>
@@ -1649,6 +1758,19 @@ export function ResultsDashboard({
         </div>
       ) : null}
 
+      {selected ? (
+        <div className="pixel-panel">
+          <AiParamsDisclosureBlock
+            candidate={selected}
+            candidates={result.candidates}
+            proposals={result.proposal_set}
+            baselineCode={primaryRecommendationCode}
+          />
+        </div>
+      ) : null}
+
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="min-w-0 space-y-5">
       <ReportGroup
         index={1}
         title={t("report.group.summary")}
@@ -1670,7 +1792,7 @@ export function ResultsDashboard({
                 {t("results.model")}
               </span>
               <select
-                value={selectedChartKey}
+                value={modelSelectValue}
                 onChange={(e) => setSelectedRowKey(e.target.value)}
                 className="ui-dropdown min-w-[6.5rem] shrink-0 border-0 bg-transparent px-2 py-1.5 focus:outline-none focus:ring-0"
               >
@@ -1787,41 +1909,36 @@ export function ResultsDashboard({
           </div>
         )}
         {displayChampionRationale && (
-          <div className="mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2">
-            <p className="ui-section-title text-[var(--amber)]">
+          <div
+            className={
+              isRmCompact
+                ? "mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2"
+                : "mt-3 border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] px-3 py-2"
+            }
+          >
+            <p
+              className={`ui-section-title ${
+                isRmCompact ? "text-[var(--primary)]" : "text-[var(--amber)]"
+              }`}
+            >
               {isRmCompact
                 ? t("rm.quant.championWhyTitle")
                 : t("results.championWhyTitle", { code: displayChampionRationale.code })}
             </p>
-            {!isRmCompact ? (
-              <p className="ui-hint mt-1 text-dim">{t("results.championWhyHorizonNote")}</p>
+            <p className="ui-section-title mt-3 text-dim">
+              {t("results.championWhyPerfTitle")}
+            </p>
+            <p className="ui-body mt-1 text-slate-700">{displayChampionRationale.text}</p>
+            <p className="ui-section-title mt-3 text-dim">
+              {t("results.championWhyParamsTitle")}
+            </p>
+            {paramSetupRationale ? (
+              <p className="ui-body mt-1 text-slate-700">{paramSetupRationale}</p>
             ) : (
-              <>
-                <p className="ui-hint mt-1 text-dim">
-                  {t("rm.quant.championWhyCode", { code: displayChampionRationale.code })}
-                </p>
-                <p className="ui-hint mt-1 text-dim">{t("results.championWhyHorizonNote")}</p>
-              </>
+              <p className="ui-hint mt-1 text-dim">
+                {t("results.championWhyParamsFallback")}
+              </p>
             )}
-            <div className="mt-2 grid grid-cols-3 gap-2 text-center ui-body">
-              <div>
-                <div className="text-dim">{t("results.championFullSharpe")}</div>
-                <div className="text-[var(--primary)]">{championFullMetrics.sharpe.toFixed(3)}</div>
-              </div>
-              <div>
-                <div className="text-dim">{t("results.championFullMaxDd")}</div>
-                <div className="text-[var(--pink)]">
-                  {(championFullMetrics.max_drawdown * 100).toFixed(2)}%
-                </div>
-              </div>
-              <div>
-                <div className="text-dim">{t("results.championFullCagr")}</div>
-                <div className="text-slate-700">
-                  {(championFullMetrics.cagr * 100).toFixed(2)}%
-                </div>
-              </div>
-            </div>
-            <p className="ui-body mt-2 text-slate-700">{displayChampionRationale.text}</p>
           </div>
         )}
         <p className="ui-hint mt-4">{t("results.fullPeriod")}</p>
@@ -2397,6 +2514,8 @@ export function ResultsDashboard({
       </ChartCard>
       </ReportGroup>
 
+      </div>
+      <div className="min-w-0 space-y-5">
       <ReportGroup
         index={4}
         title={t("report.group.holdings")}
@@ -2408,11 +2527,11 @@ export function ResultsDashboard({
             {t("results.summaryOnlyModel")}
           </p>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4">
             <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
-                  <Pie data={donut} dataKey="value" nameKey="name" innerRadius={50}>
+                  <Pie data={donut} dataKey="value" nameKey="name" innerRadius={45}>
                     {donut.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
@@ -2449,6 +2568,28 @@ export function ResultsDashboard({
         )}
       </ChartCard>
       </ReportGroup>
+
+      <ReportGroup
+        index={6}
+        title={t("report.group.institutional")}
+        subtitle={t("report.group.institutionalHint")}
+      >
+      <InstitutionalReport
+        candidate={institutionalCandidate ?? top}
+        benchmark={benchLabel}
+        benchmarkMetricsStale={benchMetricsStale}
+        isLoadingAnalytics={analyticsLoading}
+        loadingModelCode={selectedModelCode || undefined}
+        analyticsNote={
+          usingChampionAnalyticsFallback
+            ? t("results.analyticsFallback")
+            : undefined
+        }
+        variant={isRmCompact ? "rm" : "default"}
+      />
+      </ReportGroup>
+      </div>
+      </div>
 
       {!isRmCompact && (
       <ReportGroup
@@ -2691,26 +2832,6 @@ export function ResultsDashboard({
       </ReportGroup>
       )}
 
-      <ReportGroup
-        index={6}
-        title={t("report.group.institutional")}
-        subtitle={t("report.group.institutionalHint")}
-      >
-      <InstitutionalReport
-        candidate={institutionalCandidate ?? top}
-        benchmark={benchLabel}
-        benchmarkMetricsStale={benchMetricsStale}
-        isLoadingAnalytics={analyticsLoading}
-        loadingModelCode={selectedModelCode || undefined}
-        analyticsNote={
-          usingChampionAnalyticsFallback
-            ? t("results.analyticsFallback")
-            : undefined
-        }
-        variant={isRmCompact ? "rm" : "default"}
-      />
-      </ReportGroup>
-
       {!isRmCompact && (
       <ReportGroup
         index={7}
@@ -2770,7 +2891,7 @@ export function ResultsDashboard({
           <ContinueRefinementCTA
             jobId={result.job_id}
             request={request}
-            benchmarkTicker={benchTicker}
+            benchmarkLabel={activeBenchLabel}
             onContinue={onContinueRefinement}
             onAdjustConfig={onRerun}
             loading={continueLoading}
@@ -2781,7 +2902,7 @@ export function ResultsDashboard({
               {t("results.belowBenchmarkTitle")}
             </p>
             <p className="ui-body text-slate-700">
-              {t("results.belowBenchmarkBody", { benchmark: benchLabel })}
+              {t("results.belowBenchmarkBody", { benchmark: activeBenchLabel })}
             </p>
             <div className="mt-3">
               <button
@@ -2917,7 +3038,7 @@ function ReportGroup({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-5 border-l-4 border-[var(--border)] pl-3 sm:pl-4">
+    <section className="min-w-0 space-y-4 border-l-4 border-[var(--border)] pl-3 sm:pl-4">
       <header className="rounded-lg border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
         <div className="flex items-baseline gap-3">
           <span className="text-xs font-semibold text-[var(--amber)]">
@@ -2927,7 +3048,7 @@ function ReportGroup({
         </div>
         {subtitle ? <p className="ui-hint mt-1">{subtitle}</p> : null}
       </header>
-      <div className="space-y-5">{children}</div>
+      <div className="space-y-4">{children}</div>
     </section>
   );
 }

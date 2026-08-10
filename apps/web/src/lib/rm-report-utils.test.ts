@@ -8,6 +8,8 @@ import {
   buildHoldingsDiff,
   buildMetricCompareRows,
   buildTalkingPoints,
+  metricsFromRebasedEquitySeries,
+  rebasedEquityToCumulativePct,
   resolveCustomizedEquityCurve,
   type MetricCompareRow,
 } from "./rm-report-utils";
@@ -123,21 +125,55 @@ describe("rm-report-utils benchmark compare", () => {
     expect(aligned!.at(-1)!.anchor).toBeGreaterThan(aligned!.at(-1)!.customized);
   });
 
-  it("buildMetricCompareRows uses full_sample metrics when OOS is enabled", () => {
+  it("alignAndRebaseEquityCurves normalizes mismatched index levels (e.g. SPY price vs NAV 100)", () => {
+    const aligned = alignAndRebaseEquityCurves(
+      [
+        { date: "2020-01-02", value: 320 },
+        { date: "2021-01-04", value: 400 },
+      ],
+      [
+        { date: "2020-01-02", value: 100 },
+        { date: "2021-01-04", value: 110 },
+      ],
+    );
+    expect(aligned).not.toBeNull();
+    expect(aligned![0]!.anchor).toBeCloseTo(100, 6);
+    expect(aligned![0]!.customized).toBeCloseTo(100, 6);
+    // Cumulative % from rebased index: bench +25%, port +10%
+    expect(aligned!.at(-1)!.anchor - 100).toBeCloseTo(25, 6);
+    expect(aligned!.at(-1)!.customized - 100).toBeCloseTo(10, 6);
+  });
+
+  it("rebasedEquityToCumulativePct maps index 100→start to cumulative %", () => {
+    const pct = rebasedEquityToCumulativePct([
+      { date: "2020-01-02", anchor: 100, customized: 100 },
+      { date: "2021-01-04", anchor: 125, customized: 110 },
+    ]);
+    expect(pct[0]).toEqual({ date: "2020-01-02", anchor: 0, customized: 0 });
+    expect(pct[1]).toEqual({ date: "2021-01-04", anchor: 25, customized: 10 });
+  });
+
+  it("buildMetricCompareRows prefers chart-window CAGR over packaged full_sample", () => {
+    // Packaged full_sample says anchor 12% / customized 8%, but overlapping
+    // equity (same dates) ends 120 vs 108 → chart-derived ordering wins.
     const anchor = mockResult({
       cagr: 0.111,
       fullCagr: 0.12,
       equity: [
-        { date: "2020-01-01", value: 100 },
-        { date: "2021-01-01", value: 120 },
+        { date: "2020-01-02", value: 100 },
+        { date: "2020-01-03", value: 105 },
+        { date: "2020-01-06", value: 110 },
+        { date: "2020-01-07", value: 120 },
       ],
     });
     const customized = mockResult({
       cagr: 0.147,
       fullCagr: 0.08,
       equity: [
-        { date: "2020-01-01", value: 100 },
-        { date: "2021-01-01", value: 108 },
+        { date: "2020-01-02", value: 100 },
+        { date: "2020-01-03", value: 102 },
+        { date: "2020-01-06", value: 105 },
+        { date: "2020-01-07", value: 108 },
       ],
     });
 
@@ -149,33 +185,35 @@ describe("rm-report-utils benchmark compare", () => {
     });
 
     const cagr = rows.find((r) => r.key === "cagr")!;
-    expect(cagr.anchorDisplay).toBe("12.00%");
-    expect(cagr.customizedDisplay).toBe("8.00%");
+    expect(cagr.anchorValue).toBeGreaterThan(cagr.customizedValue);
     expect(cagr.trafficLight).toBe("worse");
+    // Not the packaged 12% / 8% — derived from rebased endings.
+    expect(cagr.anchorDisplay).not.toBe("12.00%");
+    expect(cagr.customizedDisplay).not.toBe("8.00%");
   });
 
   it("buildMetricCompareRows MDD delta uses severity (|c|−|a|), green when shallower", () => {
+    // Paths share dates; anchor dips deeper (−34.29%) than customized (−33.49%).
     const anchor = mockResult({
       cagr: 0.1,
       fullCagr: 0.1,
       equity: [
-        { date: "2020-01-01", value: 100 },
-        { date: "2021-01-01", value: 110 },
+        { date: "2020-01-02", value: 100 },
+        { date: "2020-01-03", value: 65.71 },
+        { date: "2020-01-06", value: 80 },
+        { date: "2020-01-07", value: 110 },
       ],
     });
     const customized = mockResult({
       cagr: 0.1,
       fullCagr: 0.1,
       equity: [
-        { date: "2020-01-01", value: 100 },
-        { date: "2021-01-01", value: 110 },
+        { date: "2020-01-02", value: 100 },
+        { date: "2020-01-03", value: 66.51 },
+        { date: "2020-01-06", value: 85 },
+        { date: "2020-01-07", value: 110 },
       ],
     });
-    // Anchor deeper MDD (−34.29%) vs customized shallower (−33.49%).
-    customized.candidates[0].analytics!.sample_metrics!.full_sample!.max_drawdown =
-      -0.3349;
-    anchor.candidates[0].analytics!.sample_metrics!.full_sample!.max_drawdown =
-      -0.3429;
 
     const mdd = buildMetricCompareRows(anchor, customized, {
       cagr: "CAGR",
@@ -186,6 +224,60 @@ describe("rm-report-utils benchmark compare", () => {
 
     expect(mdd.deltaDisplay).toBe("-0.80%");
     expect(mdd.trafficLight).toBe("better");
+  });
+
+  it("buildMetricCompareRows CAGR matches overlapping chart when series start dates differ", () => {
+    // Anchor has longer history (packaged full CAGR ~20%); customized starts later.
+    // Chart rebases at intersection — table must use that window, not packaged.
+    const anchor = mockResult({
+      cagr: 0.15,
+      fullCagr: 0.1993,
+      equity: [
+        { date: "2016-01-04", value: 100 },
+        { date: "2018-01-02", value: 140 },
+        { date: "2020-01-02", value: 160 },
+        { date: "2023-08-11", value: 150 },
+        { date: "2024-08-12", value: 175 },
+        { date: "2025-08-11", value: 195 },
+        { date: "2026-07-30", value: 307.5 }, // → ~205 after rebase at 2023-08-11
+      ],
+    });
+    const customized = mockResult({
+      cagr: 0.28,
+      fullCagr: 0.303,
+      equity: [
+        { date: "2023-08-11", value: 100 },
+        { date: "2024-08-12", value: 130 },
+        { date: "2025-08-11", value: 175 },
+        { date: "2026-07-30", value: 230 },
+      ],
+    });
+
+    const chart = buildBenchmarkCompareChartData(anchor, customized)!;
+    expect(chart[0]!.date).toBe("2023-08-11");
+    expect(chart[0]!.anchor).toBeCloseTo(100, 5);
+    expect(chart.at(-1)!.anchor).toBeCloseTo(205, 0);
+    expect(chart.at(-1)!.customized).toBeCloseTo(230, 0);
+
+    const cagr = buildMetricCompareRows(anchor, customized, {
+      cagr: "CAGR",
+      sharpe: "Sharpe",
+      mdd: "MDD",
+      vol: "Vol",
+    }).find((r) => r.key === "cagr")!;
+
+    // Must NOT show packaged full-period 19.93% (too low for ending ~205).
+    expect(cagr.anchorDisplay).not.toBe("19.93%");
+    expect(cagr.anchorValue).toBeGreaterThan(0.22);
+    // Customized chart ending ~230 ≈ packaged 30.3% over ~3y — still close.
+    expect(cagr.customizedValue).toBeGreaterThan(0.25);
+    expect(cagr.customizedValue).toBeGreaterThan(cagr.anchorValue);
+
+    const fromChart = metricsFromRebasedEquitySeries(
+      chart.map((r) => r.date),
+      chart.map((r) => r.anchor),
+    )!;
+    expect(cagr.anchorValue).toBeCloseTo(fromChart.cagr, 8);
   });
 
   it("buildMetricCompareRows uses selected trial when customizedModelCode is set", () => {
@@ -274,12 +366,35 @@ describe("rm-report-utils benchmark compare", () => {
       { customizedModelCode: "M0007" },
     );
 
-    expect(championRows.find((r) => r.key === "cagr")!.customizedDisplay).toBe(
-      "8.00%",
+    // Champion equity ends 108; M0007 ends 115 — chart-window CAGR follows selection.
+    expect(
+      trialRows.find((r) => r.key === "cagr")!.customizedValue,
+    ).toBeGreaterThan(
+      championRows.find((r) => r.key === "cagr")!.customizedValue,
     );
-    expect(trialRows.find((r) => r.key === "cagr")!.customizedDisplay).toBe(
-      "15.00%",
-    );
+  });
+
+  it("buildMetricCompareRows falls back to packaged full_sample when curves cannot align", () => {
+    const anchor = mockResult({
+      cagr: 0.111,
+      fullCagr: 0.12,
+      equity: [],
+    });
+    const customized = mockResult({
+      cagr: 0.147,
+      fullCagr: 0.08,
+      equity: [],
+    });
+
+    const cagr = buildMetricCompareRows(anchor, customized, {
+      cagr: "CAGR",
+      sharpe: "Sharpe",
+      mdd: "MDD",
+      vol: "Vol",
+    }).find((r) => r.key === "cagr")!;
+
+    expect(cagr.anchorDisplay).toBe("12.00%");
+    expect(cagr.customizedDisplay).toBe("8.00%");
   });
 
   it("buildBenchmarkCompareChartData ending levels match full-sample CAGR ordering", () => {

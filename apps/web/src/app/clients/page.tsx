@@ -23,6 +23,7 @@ export default function ClientsPage() {
     <div className="min-h-screen bg-background text-foreground">
       <AppNav subtitle={t("clients.listSubtitle")} />
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6">
+        <p className="ui-hint max-w-2xl">{t("clients.listHint")}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           {clients.map((c) => {
             const name = localizedText(c.display_name, lang);

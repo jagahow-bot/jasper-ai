@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { ChartTooltip } from "@/components/ChartTooltip";
 import { fetchCandidateCharts } from "@/lib/api";
 import {
   chartLegendFontSize,
@@ -29,6 +30,7 @@ import { resolveRunObjective } from "@/lib/resolve-run-objective";
 import {
   buildBenchmarkCompareChartData,
   buildMetricCompareRows,
+  rebasedEquityToCumulativePct,
   type RmCandidatePick,
 } from "@/lib/rm-report-utils";
 import type {
@@ -178,10 +180,16 @@ export function BenchmarkComparePanel({
     [baseResult, enrichedAdjustedResult, candidatePick],
   );
 
+  // Rebased index (100→…) → cumulative return % from common start (matches LinkedEquityWeightChart).
+  const pctChartData = useMemo(() => {
+    if (!chartData?.length) return null;
+    return rebasedEquityToCumulativePct(chartData);
+  }, [chartData]);
+
   const chartsLoading = Boolean(
     needsLazyCharts &&
       chartsLoadingCode === selectedModelCode &&
-      !chartData?.length,
+      !pctChartData?.length,
   );
 
   if (!rows.length) return null;
@@ -212,11 +220,11 @@ export function BenchmarkComparePanel({
           })}
         </p>
       ) : null}
-      {chartsLoadError && !chartData?.length ? (
+      {chartsLoadError && !pctChartData?.length ? (
         <p className="ui-hint px-1 text-red-400">{chartsLoadError}</p>
       ) : null}
 
-      {chartData && chartData.length > 0 && (
+      {pctChartData && pctChartData.length > 0 && (
         <div className="saas-inset p-2">
           <p className="mb-2 px-1 ui-section-title">
             {t("compare.chart.title")}
@@ -224,7 +232,7 @@ export function BenchmarkComparePanel({
           <ResponsiveContainer width="100%" height={220}>
             <LineChart
               {...JASPER_PERFORMANCE_CHART_SYNC}
-              data={chartData}
+              data={pctChartData}
               margin={LAB_CHART_MARGIN}
             >
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
@@ -240,9 +248,18 @@ export function BenchmarkComparePanel({
                 stroke="#94a3b8"
                 fontSize={tickFont}
                 width={LAB_Y_AXIS_WIDTH}
-                tickFormatter={(v) => `${Number(v).toFixed(0)}`}
+                tickFormatter={(v) => `${Number(v).toFixed(1)}%`}
               />
-              <Tooltip labelFormatter={(v) => String(v)} />
+              <Tooltip
+                content={
+                  <ChartTooltip
+                    valueDecimals={2}
+                    valueIsPct={false}
+                    valueSuffix="%"
+                    sortByValue
+                  />
+                }
+              />
               <Legend wrapperStyle={{ fontSize: legendFont }} />
               <Line
                 type="monotone"

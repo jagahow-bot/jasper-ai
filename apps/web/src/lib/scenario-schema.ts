@@ -6,7 +6,7 @@ export const scenarioAnalyzeSchema = z.object({
   subtitle: z.string().min(2).max(80),
   narrative_points: z.array(z.string()).min(2).max(5),
   defaults: z.object({
-    max_weight: z.number().min(0.05).max(0.15),
+    max_weight: z.number().min(0.1).max(0.25),
     objective: z.enum(["max_sharpe", "min_max_drawdown"]),
     backtest_mode: z.literal("static"),
     start_date: z.string(),

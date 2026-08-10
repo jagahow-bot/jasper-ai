@@ -6,6 +6,8 @@ import {
   isOverlayInterpretErrorBody,
   overlayInterpretErrorI18nKey,
   OVERLAY_INTERPRET_ERROR_CODES,
+  parseOverlayInterpretResponseJson,
+  resolveOverlayInterpretClientFailure,
 } from "./overlay-interpret-errors";
 
 describe("overlay-interpret-errors", () => {
@@ -83,5 +85,50 @@ describe("overlay-interpret-errors", () => {
       }),
     ).toBe(true);
     expect(isOverlayInterpretErrorBody({ overlay: {} })).toBe(false);
+  });
+
+  it("resolves client failures from structured, empty, and plain error bodies", () => {
+    const structured = resolveOverlayInterpretClientFailure({
+      error: "AI overlay response failed schema validation",
+      code: OVERLAY_INTERPRET_ERROR_CODES.VALIDATION_FAILED,
+      detail: "confidence: bad field",
+    });
+    expect(structured.messageKey).toBe("overlay.interpret.error.validationFailed");
+    expect(structured.preferI18n).toBe(true);
+    expect(structured.code).toBe(OVERLAY_INTERPRET_ERROR_CODES.VALIDATION_FAILED);
+    expect(structured.detail).toBe("confidence: bad field");
+
+    const empty = resolveOverlayInterpretClientFailure({}, 422);
+    expect(empty.messageKey).toBe("overlay.interpret.error.generic");
+    expect(empty.preferI18n).toBe(true);
+    expect(empty.code).toBe(OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID);
+    expect(empty.detail).toBe("HTTP 422");
+
+    const plain = resolveOverlayInterpretClientFailure({ error: "Provide messages or text" }, 400);
+    expect(plain.preferI18n).toBe(false);
+    expect(plain.messageFallback).toBe("Provide messages or text");
+    expect(plain.detail).toBe("HTTP 400");
+  });
+
+  it("parses empty and non-JSON interpret response bodies safely", () => {
+    expect(parseOverlayInterpretResponseJson("")).toEqual({});
+    expect(parseOverlayInterpretResponseJson("   ")).toEqual({});
+    expect(
+      parseOverlayInterpretResponseJson(
+        JSON.stringify({
+          error: "bad",
+          code: OVERLAY_INTERPRET_ERROR_CODES.PARSE_FAILED,
+        }),
+      ),
+    ).toEqual({
+      error: "bad",
+      code: OVERLAY_INTERPRET_ERROR_CODES.PARSE_FAILED,
+    });
+
+    const invalid = parseOverlayInterpretResponseJson("<html>nope</html>");
+    expect(isOverlayInterpretErrorBody(invalid)).toBe(true);
+    expect((invalid as { code: string }).code).toBe(
+      OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID,
+    );
   });
 });

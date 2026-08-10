@@ -75,6 +75,8 @@ export type DemoClient = {
   risk_profile: "conservative" | "moderate" | "aggressive";
   currency: string;
   age: number;
+  /** Optional biological sex for longevity-based retirement spend years. */
+  gender?: "male" | "female" | null;
   aum_usd: number;
   cash_usd: number;
   investment_horizon: LocalizedText | string;
@@ -395,11 +397,36 @@ export function holdingsGroupReturnYtd(
 }
 
 /**
+ * Weight-weighted average of cumulative holding-period returns (percent
+ * points). Cash is included at 0% (weight in denominator) so cash dilutes.
+ */
+export function holdingsGroupCumulativeReturn(
+  group: ClientHoldingsGroup,
+  asOfDate: string | null | undefined,
+): number | undefined {
+  let wSum = 0;
+  let retSum = 0;
+  let investedWeight = 0;
+  for (const h of group.holdings) {
+    if (isCashHolding(h)) {
+      wSum += h.weight;
+      continue;
+    }
+    const value = holdingCumulativeReturnDecimal(h, asOfDate);
+    if (typeof value !== "number") continue;
+    wSum += h.weight;
+    investedWeight += h.weight;
+    retSum += h.weight * value * 100;
+  }
+  if (investedWeight <= 0 || wSum <= 0) return undefined;
+  return retSum / wSum;
+}
+
+/**
  * Weight-weighted average of computed constituent CAGRs (percent points).
  * Same cash-dilution rules as holdingsGroupReturnYtd.
  */
-export function holdingsGroupCagr(
-  group: ClientHoldingsGroup,
+export function holdingsGroupCagr(  group: ClientHoldingsGroup,
   asOfDate: string | null | undefined,
 ): number | undefined {
   let wSum = 0;
@@ -442,6 +469,33 @@ export function holdingsFromSelectedGroups(
   return groups
     .filter((g) => selected.has(g.id))
     .flatMap((g) => g.holdings);
+}
+
+/**
+ * Empty selection means “all groups” (launch / confirm summary fallback).
+ * Returns an explicit id list for checkbox UIs and toggle helpers.
+ */
+export function effectiveScopeGroupIds(
+  groups: readonly { id: string }[],
+  selectedIds: readonly string[],
+): string[] {
+  if (selectedIds.length > 0) return [...selectedIds];
+  return groups.map((g) => g.id);
+}
+
+/** Toggle a holdings group in scope; keeps at least one group selected. */
+export function toggleScopeGroupId(
+  selectedIds: readonly string[],
+  groupId: string,
+  allGroupIds: readonly string[],
+): string[] {
+  const current =
+    selectedIds.length > 0 ? [...selectedIds] : [...allGroupIds];
+  const selected = current.includes(groupId);
+  if (selected && current.length <= 1) return current;
+  return selected
+    ? current.filter((id) => id !== groupId)
+    : [...current, groupId];
 }
 
 /**
@@ -531,19 +585,52 @@ export function holdingsToStaticReplay(
   return out;
 }
 
+/** Matches API BacktestRequest.cash_reserve_pct upper bound (pydantic le=0.40). */
+export const MAX_CASH_RESERVE_PCT = 0.4;
+
+/**
+ * Cash share of the selected scope (weights already normalized to 1).
+ * Becomes the request's permanent cash sleeve; cash is a pseudo-ticker the
+ * price engine cannot fetch, so it must never enter the tradable universe.
+ */
+export function scopeCashWeight(scopeHoldings: ClientHolding[]): number {
+  return scopeHoldings
+    .filter(isCashHolding)
+    .reduce((sum, h) => sum + Math.max(0, h.weight), 0);
+}
+
+function withScopeCashReserve(
+  req: BacktestRequest,
+  cashWeight: number,
+): BacktestRequest {
+  if (cashWeight <= 0) return req;
+  const reserve = Math.min(
+    MAX_CASH_RESERVE_PCT,
+    Math.max(req.cash_reserve_pct ?? 0, cashWeight),
+  );
+  return { ...req, cash_reserve_pct: reserve };
+}
+
 /**
  * Apply scope holdings to the backtest universe.
  *
  * When the request already has a locked whitelist (model/anchor holdings),
  * scope tickers are unioned into that whitelist — never used to open the
  * full asset-class fund pool via supplement-union semantics.
+ *
+ * Cash scope holdings become `cash_reserve_pct` (uninvested sleeve earning
+ * `cash_return_mode`) instead of a universe ticker.
  */
 export function applyScopeToBacktestRequest(
   req: BacktestRequest,
   scopeHoldings: ClientHolding[],
 ): BacktestRequest {
   if (!scopeHoldings.length) return req;
-  const scopeTickers = scopeHoldings.map((h) => h.ticker.toUpperCase());
+  const cashWeight = scopeCashWeight(scopeHoldings);
+  const scopeTickers = scopeHoldings
+    .filter((h) => !isCashHolding(h))
+    .map((h) => h.ticker.toUpperCase());
+  if (!scopeTickers.length) return withScopeCashReserve(req, cashWeight);
   const existingWhitelist = (req.universe_tickers ?? []).map((t) =>
     t.toUpperCase(),
   );
@@ -559,23 +646,29 @@ export function applyScopeToBacktestRequest(
 
   if (lockedBase.length > 0) {
     const uniq = [...new Set([...lockedBase, ...scopeTickers])];
-    return {
-      ...req,
-      universe_tickers: uniq,
-      universe_supplement_tickers: uniq,
-      max_holdings: Math.max(req.max_holdings ?? uniq.length, uniq.length),
-    };
+    return withScopeCashReserve(
+      {
+        ...req,
+        universe_tickers: uniq,
+        universe_supplement_tickers: uniq,
+        max_holdings: Math.max(req.max_holdings ?? uniq.length, uniq.length),
+      },
+      cashWeight,
+    );
   }
 
   const uniq = [...new Set(scopeTickers)];
-  return {
-    ...req,
-    universe_tickers: uniq,
-    universe_supplement_tickers: [
-      ...new Set([...(req.universe_supplement_tickers ?? []), ...uniq]),
-    ],
-    max_holdings: Math.max(req.max_holdings ?? 30, uniq.length),
-  };
+  return withScopeCashReserve(
+    {
+      ...req,
+      universe_tickers: uniq,
+      universe_supplement_tickers: [
+        ...new Set([...(req.universe_supplement_tickers ?? []), ...uniq]),
+      ],
+      max_holdings: Math.max(req.max_holdings ?? 30, uniq.length),
+    },
+    cashWeight,
+  );
 }
 
 export function localizedText(
@@ -635,118 +728,28 @@ export function holdingDisplayName(
   return etfDisplayName(holding.ticker, lang);
 }
 
-export type ClientPieSlice = { name: string; value: number };
-export type ClientNavPoint = { date: string; nav: number };
+export type {
+  ClientNavPoint,
+  ClientPerfHolding,
+  ClientPerfTimeframe,
+  ClientPieSlice,
+  ClientReturnPoint,
+} from "@/lib/clients-charts";
 
-/**
- * Pie slices from holdings weights (ticker labels).
- * When renormalize is true, weights are scaled to sum to 1 (for filtered groups).
- */
-export function buildClientHoldingsPie(
-  holdings: ClientHolding[],
-  opts?: { renormalize?: boolean },
-): ClientPieSlice[] {
-  const slices = holdings
-    .filter((h) => h.weight > 0)
-    .map((h) => ({ name: h.ticker, value: h.weight }))
-    .sort((a, b) => b.value - a.value);
-  if (!opts?.renormalize || slices.length === 0) return slices;
-  const total = slices.reduce((s, x) => s + x.value, 0) || 1;
-  return slices.map((x) => ({ ...x, value: x.value / total }));
-}
-
-function hashSeed(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function isGrowthClass(assetClass: string): boolean {
-  const c = assetClass.toLowerCase();
-  return (
-    c.includes("equity") ||
-    c.includes("stock") ||
-    c.includes("commodity") ||
-    c.includes("real_estate") ||
-    c.includes("alternative")
-  );
-}
-
-function isDefensiveClass(assetClass: string, ticker: string): boolean {
-  const c = assetClass.toLowerCase();
-  const t = ticker.toUpperCase();
-  return (
-    t === "CASH" ||
-    c.includes("cash") ||
-    c.includes("bond") ||
-    c.includes("fixed")
-  );
-}
-
-/**
- * Illustrative monthly NAV series ending at as_of_date, shaped by holdings mix
- * and risk profile (deterministic per client_id + holdings fingerprint).
- */
-export function buildClientPerformanceSeries(
-  client: Pick<DemoClient, "client_id" | "as_of_date" | "risk_profile"> & {
-    holdings: ClientHolding[];
-  },
-  months = 18,
-): ClientNavPoint[] {
-  const holdingsKey = client.holdings
-    .map((h) => `${h.ticker}:${h.weight.toFixed(4)}`)
-    .join("|");
-  const rand = mulberry32(hashSeed(`${client.client_id}|${holdingsKey}`));
-  let growthW = 0;
-  let defensiveW = 0;
-  for (const h of client.holdings) {
-    if (isDefensiveClass(h.asset_class, h.ticker)) defensiveW += h.weight;
-    else if (isGrowthClass(h.asset_class)) growthW += h.weight;
-    else growthW += h.weight * 0.5;
-  }
-  const total = growthW + defensiveW || 1;
-  const growthShare = growthW / total;
-
-  const riskBoost =
-    client.risk_profile === "aggressive"
-      ? 1.25
-      : client.risk_profile === "conservative"
-        ? 0.7
-        : 1;
-  const monthlyDrift = (0.002 + growthShare * 0.005) * riskBoost;
-  const monthlyVol = (0.008 + growthShare * 0.028) * riskBoost;
-
-  const end = new Date(`${client.as_of_date}T12:00:00Z`);
-  if (Number.isNaN(end.getTime())) return [];
-
-  const points: ClientNavPoint[] = [];
-  let nav = 100;
-  for (let i = months; i >= 0; i--) {
-    const d = new Date(end);
-    d.setUTCMonth(d.getUTCMonth() - i);
-    const date = d.toISOString().slice(0, 10);
-    if (i < months) {
-      const shock = (rand() * 2 - 1) * monthlyVol;
-      nav = Math.max(40, nav * (1 + monthlyDrift + shock));
-    }
-    points.push({ date, nav: Math.round(nav * 100) / 100 });
-  }
-  return points;
-}
+export {
+  CLIENT_PERF_HISTORY_MONTHS,
+  CLIENT_PERF_TIMEFRAMES,
+  buildClientHoldingsGroupPie,
+  buildClientHoldingsPie,
+  buildClientPerformanceSeries,
+  buildHoldingsCalibratedNavSeries,
+  clientPerfWindowStart,
+  holdingsCurrentWeightYtdDecimal,
+  holdingsHavePerformanceMetrics,
+  holdingGrowthKnots,
+  holdingGrowthOnDate,
+  toClientPerformanceReturnSeries,
+} from "@/lib/clients-charts";
 
 /** Prefill prompt for Overlay conversation from client profile. */
 export function buildClientOverlayPrefill(client: DemoClient, lang: Lang): string {

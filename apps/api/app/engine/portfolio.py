@@ -505,6 +505,87 @@ def _safe_returns(prices: pd.DataFrame) -> pd.DataFrame:
     return rets.clip(-MAX_DAILY_RETURN, MAX_DAILY_RETURN)
 
 
+def _simulate_buy_and_hold_path(
+    rets: pd.DataFrame,
+    target_schedule: pd.DataFrame,
+    *,
+    daily_rf: float,
+    cash_mode: str,
+    fee_rate: float,
+    turnover_penalty_mult: float = 1.0,
+    rebalance_dates: list[pd.Timestamp] | None = None,
+) -> tuple[pd.Series, pd.Series]:
+    """Portfolio path with true buy-and-hold drift between target changes.
+
+    ``target_schedule`` holds *target* invested weights (ffill between rebalances /
+    DCA steps). Between trades, asset weights and the cash sleeve drift with
+    returns. A trade occurs on an explicit rebalance date and/or when the target
+    row changes (e.g. DCA deployment step). That day's return still uses
+    start-of-day (drifted) weights; after prices move, holdings are traded to the
+    new target and a fee is charged on L1 turnover from drifted → target
+    (assets + cash), matching the prior fee accounting shape.
+    """
+    if len(rets) != len(target_schedule) or not rets.index.equals(target_schedule.index):
+        raise ValueError("rets and target_schedule must share the same index")
+    if list(rets.columns) != list(target_schedule.columns):
+        raise ValueError("rets and target_schedule columns must match")
+
+    asset_rets = rets.to_numpy(dtype=float)
+    targets = target_schedule.to_numpy(dtype=float)
+    n_days, n_assets = asset_rets.shape
+    port = np.zeros(n_days, dtype=float)
+    turnover = np.zeros(n_days, dtype=float)
+    cash_r = float(daily_rf) if str(cash_mode) == "risk_free" else 0.0
+    fee_mult = float(fee_rate) * float(turnover_penalty_mult)
+    eps = 1e-12
+
+    reb_set: set[pd.Timestamp] = set()
+    if rebalance_dates:
+        reb_set = {pd.Timestamp(d) for d in rebalance_dates}
+
+    w = np.asarray(targets[0], dtype=float).copy()
+    cash_w = float(np.clip(1.0 - float(np.sum(w)), 0.0, 1.0))
+
+    for t in range(n_days):
+        r_assets = asset_rets[t]
+        risky = float(np.dot(w, r_assets))
+        day_ret = risky + cash_w * cash_r
+
+        # Drift shares / cash after the day's returns (buy-and-hold).
+        v = w * (1.0 + r_assets)
+        c = cash_w * (1.0 + cash_r)
+        total = float(np.sum(v) + c)
+        if total > eps:
+            w = v / total
+            cash_w = float(c / total)
+        else:
+            w = np.zeros(n_assets, dtype=float)
+            cash_w = 1.0
+
+        # End-of-day trade: scheduled rebalance and/or target step (DCA / new book).
+        target_step = t > 0 and (
+            float(np.max(np.abs(targets[t] - targets[t - 1]))) > eps
+        )
+        scheduled = t > 0 and pd.Timestamp(rets.index[t]) in reb_set
+        turn = 0.0
+        if target_step or scheduled:
+            new_w = np.asarray(targets[t], dtype=float)
+            new_cash = float(np.clip(1.0 - float(np.sum(new_w)), 0.0, 1.0))
+            asset_turn = float(np.abs(new_w - w).sum())
+            cash_turn = abs(new_cash - cash_w)
+            turn = asset_turn + cash_turn
+            w = new_w.copy()
+            cash_w = new_cash
+
+        turnover[t] = turn
+        port[t] = day_ret - turn * fee_mult
+
+    idx = rets.index
+    return pd.Series(port, index=idx, dtype=float), pd.Series(
+        turnover, index=idx, dtype=float
+    )
+
+
 def _estimate_mu_sigma(
     rets: pd.DataFrame, *, lookback_days: int, end_loc: int
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -1302,22 +1383,19 @@ def _simulate_pandas(
     avg_w = schedule.mean(axis=0).to_numpy(dtype=float)
 
     rets = _safe_returns(prices)
-
-    lagged = schedule.shift(1)
-    lagged.iloc[0] = schedule.iloc[0]
-
-    risky_ret = (rets * lagged).sum(axis=1)
-    invested = lagged.sum(axis=1).clip(lower=0.0, upper=1.0)
-    cash_w = (1.0 - invested).clip(lower=0.0, upper=1.0)
     daily_rf = (1.0 + float(spec.risk_free_rate)) ** (1.0 / 252.0) - 1.0
     cash_mode = str(getattr(spec, "cash_return_mode", "risk_free") or "risk_free")
-    cash_ret = cash_w * (daily_rf if cash_mode == "risk_free" else 0.0)
-    port_ret = risky_ret + cash_ret
-    turnover = schedule.diff().abs().sum(axis=1).fillna(0.0)
-    # Cash↔risk transfers from DCA / reserve changes also incur fees.
-    cash_turn = cash_w.diff().abs().fillna(0.0)
-    turnover = turnover + cash_turn
-    port_ret = port_ret - turnover * spec.fee_rate * float(turnover_penalty_mult)
+    # Buy-and-hold drift between rebalance / DCA target steps (not constant-mix).
+    # Use applied rebalance dates so skipped dynamic rebalances do not force a trade.
+    port_ret, turnover = _simulate_buy_and_hold_path(
+        rets,
+        schedule,
+        daily_rf=daily_rf,
+        cash_mode=cash_mode,
+        fee_rate=float(spec.fee_rate),
+        turnover_penalty_mult=float(turnover_penalty_mult),
+        rebalance_dates=applied_rebalance_dates,
+    )
     port_ret = port_ret.clip(-MAX_DAILY_RETURN, MAX_DAILY_RETURN)
 
     equity = (1.0 + port_ret).cumprod()

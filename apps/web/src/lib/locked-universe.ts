@@ -61,13 +61,27 @@ export function buildLockedCustomUniverse(
   return uniqueTickers([...holdings, ...adds]);
 }
 
-/** Max single-name weight that can still fill 100% across a locked universe. */
+/**
+ * Max single-name weight for a locked/customized universe.
+ *
+ * AI / scenario defaults often suggest ~8–10%, which with ~10 names collapses
+ * every book to equal weight. We always keep enough headroom above ``1/n`` so
+ * allocator scenarios can differ, and for small books floor at 20%.
+ */
 export function maxWeightForLockedUniverse(
   lockedCount: number,
   preferred?: number | null,
 ): number {
-  const floor = lockedCount > 0 ? 1 / lockedCount : 0.25;
-  return Math.max(preferred ?? 0.25, floor);
+  const n = Math.max(0, Math.floor(lockedCount));
+  const pref =
+    preferred != null && Number.isFinite(preferred) ? Number(preferred) : 0.25;
+  if (n <= 0) return Math.min(1, Math.max(pref, 0.25));
+  if (n === 1) return 1;
+  // Unique equal-at-cap when n × cap = 1; need strictly more than 1/n.
+  const diversifyFloor = 1 / (n - 1);
+  // Small locked books: prefer meaningful concentration room for RM scenarios.
+  const smallBookFloor = n <= 20 ? 0.2 : 0;
+  return Math.min(1, Math.max(pref, diversifyFloor, smallBookFloor));
 }
 
 /**

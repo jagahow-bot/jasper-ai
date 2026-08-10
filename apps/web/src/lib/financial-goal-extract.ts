@@ -3,6 +3,8 @@ import {
   createGoalId,
   DEFAULT_GOAL_ASSUMPTIONS,
   FINANCIAL_GOAL_TYPES,
+  retirementSpendYearsFromLongevity,
+  type ClientGender,
   type FinancialGoal,
   type FinancialGoalType,
   type GoalAssumptions,
@@ -74,7 +76,7 @@ function parseGoal(raw: unknown, index: number): FinancialGoal | null {
     asString(o.name) ??
     `${type}-${index + 1}`;
   const priority = Math.min(5, Math.max(1, Math.round(asNumber(o.priority) ?? 3)));
-  return {
+  const goal: FinancialGoal = {
     id: asString(o.id) ?? createGoalId(),
     type,
     label: label.slice(0, 80),
@@ -82,6 +84,53 @@ function parseGoal(raw: unknown, index: number): FinancialGoal | null {
     withinMonths: Math.min(360, Math.max(1, Math.round(months))),
     priority,
   };
+
+  if (type === "home") {
+    const mortRaw = asRecord(o.mortgage) ?? o;
+    let rate =
+      asNumber(mortRaw.annual_rate) ??
+      asNumber(mortRaw.annualRate) ??
+      asNumber(mortRaw.mortgage_rate) ??
+      asNumber(o.mortgage_rate);
+    if (rate != null && rate > 1) rate = rate / 100;
+    const loan =
+      asNumber(mortRaw.loan_usd) ??
+      asNumber(mortRaw.loanUsd) ??
+      asNumber(o.mortgage_loan_usd) ??
+      asNumber(o.loan_usd);
+    const termYears =
+      asNumber(mortRaw.term_years) ??
+      asNumber(mortRaw.termYears) ??
+      asNumber(o.mortgage_years);
+    const termMonths =
+      asNumber(mortRaw.term_months) ??
+      asNumber(mortRaw.termMonths) ??
+      (termYears != null ? termYears * 12 : null);
+    if (loan != null && loan > 0) {
+      goal.mortgage = {
+        loanUsd: Math.round(loan),
+        annualRate: rate ?? 0.03,
+        termMonths: termMonths ?? 360,
+      };
+    }
+  }
+
+  if (type === "retirement") {
+    const spendYears =
+      asNumber(o.retirement_spend_years) ??
+      asNumber(o.retirementSpendYears) ??
+      asNumber(o.spend_years);
+    if (spendYears != null) {
+      goal.retirementSpendYears = Math.min(
+        40,
+        Math.max(1, Math.round(spendYears)),
+      );
+    } else {
+      goal.retirementSpendYears = 20;
+    }
+  }
+
+  return goal;
 }
 
 function parseAssumptions(raw: unknown): GoalAssumptions {
@@ -119,6 +168,12 @@ function parseAssumptions(raw: unknown): GoalAssumptions {
       0,
     contributionGrowth:
       contributionGrowth ?? DEFAULT_GOAL_ASSUMPTIONS.contributionGrowth,
+    annualLivingSpendUsd:
+      asNumber(o.annual_living_spend_usd) ??
+      asNumber(o.annualLivingSpendUsd) ??
+      asNumber(o.annual_living_expenses) ??
+      asNumber(o.current_living_spend_usd) ??
+      0,
     inflation: inflation ?? 0,
   });
 }
@@ -168,10 +223,201 @@ export function parseGoalExtractFromModel(text: string): GoalExtractResult {
   };
 }
 
+/** Parse target retirement age from notes (e.g. "retire at 60", "60歲退休"). */
+export function parseTargetRetirementAge(notes: string): number | null {
+  const patterns = [
+    /(\d{2})\s*(?:歲|세)\s*(?:以後|以后|之後|之后|後|后|이후)?\s*(?:退休|은퇴)/i,
+    /(?:retire|retirement)\s*(?:at|after)?\s*(?:age\s*)?(\d{2})/i,
+    /(?:after|過了|满)\s*(?:age\s*)?(\d{2})\s*(?:歲|세)?[^\n]{0,12}(?:retire|退休|은퇴)/i,
+    /(?:retire|retirement|退休|은퇴)[^\d]{0,24}(?:at|after|到|至|後|후)?\s*(?:age\s*)?(\d{2})/i,
+  ];
+  for (const re of patterns) {
+    const m = notes.match(re);
+    if (!m?.[1]) continue;
+    const age = Number(m[1]);
+    if (age >= 40 && age <= 85) return age;
+  }
+  return null;
+}
+
+export function monthsUntilAge(
+  currentAge: number,
+  targetAge: number,
+): number | null {
+  if (!(currentAge > 0) || !(targetAge > currentAge)) return null;
+  return Math.min(360, Math.max(1, Math.round((targetAge - currentAge) * 12)));
+}
+
+export type GoalExtractClientContext = {
+  age?: number | null;
+  gender?: ClientGender | null;
+  aum_usd?: number | null;
+  /** Optional name blob (en/zh) to infer Mr/Ms when gender missing. */
+  display_name?: string | null;
+};
+
+/** Infer male/female from notes or honorifics in the client name. */
+export function parseClientGender(
+  notes: string,
+  displayName?: string | null,
+): ClientGender | null {
+  const blob = `${notes}\n${displayName ?? ""}`;
+  if (
+    /(?:\bMs\.|\bMrs\.|\bMiss\b|女士|小姐|女性|\bfemale\b|\bwoman\b)/i.test(blob)
+  ) {
+    return "female";
+  }
+  if (/(?:\bMr\.|先生|男性|\bmale\b|\bman\b)/i.test(blob)) {
+    return "male";
+  }
+  return null;
+}
+
+/**
+ * Fill retirement within_months from client age + notes ("retire at 60"),
+ * set retirementSpendYears from life expectancy − retirement age,
+ * and drop redundant age-clarification questions when age is known.
+ */
+export function enrichGoalExtractWithClientContext(
+  extract: GoalExtractResult,
+  notes: string,
+  client?: GoalExtractClientContext | null,
+  lang: "en" | "zh" | "ko" = "en",
+): GoalExtractResult {
+  const age =
+    typeof client?.age === "number" && Number.isFinite(client.age)
+      ? client.age
+      : null;
+  const gender =
+    client?.gender === "male" || client?.gender === "female"
+      ? client.gender
+      : parseClientGender(notes, client?.display_name);
+  const targetRetire = parseTargetRetirementAge(notes) ?? 60;
+  const months =
+    age != null ? monthsUntilAge(age, targetRetire) : null;
+  const spendYears = retirementSpendYearsFromLongevity(targetRetire, gender);
+  const le =
+    gender === "male" ? 78 : gender === "female" ? 85 : 82;
+
+  let goals = extract.goals;
+  let appliedRetirementTiming = false;
+  let appliedLongevitySpend = false;
+  goals = extract.goals.map((g) => {
+    if (g.type !== "retirement") return g;
+    const next = { ...g, retirementSpendYears: spendYears };
+    appliedLongevitySpend = true;
+    if (months != null) {
+      appliedRetirementTiming = true;
+      next.withinMonths = months;
+    }
+    return next;
+  });
+
+  const questions = extract.clarification_questions.filter((q) => {
+    if (age == null) return true;
+    return !/(目前|當前|当前|實際年齡|实际年龄|current age|how many months.*retir|距離.*退休|거리.*은퇴|나이)/i.test(
+      q,
+    );
+  }).filter((q) => {
+    // Longevity already sets spend years — drop "how many years of expenses" prompts.
+    if (!appliedLongevitySpend) return true;
+    return !/(多少年|幾年|几年|how many years|spend years|생활비.*년|維持)/i.test(q);
+  });
+
+  let rationale = extract.rationale;
+  if (appliedRetirementTiming && age != null) {
+    const note =
+      lang === "zh"
+        ? `退休時點已用客戶年齡 ${age} 歲與目標 ${targetRetire} 歲推算為 ${months} 個月。`
+        : lang === "ko"
+          ? `은퇴 시점은 고객 연령 ${age}세와 목표 ${targetRetire}세로 ${months}개월로 계산했습니다.`
+          : `Retirement timing set to ${months} months from client age ${age} → target ${targetRetire}.`;
+    rationale = `${rationale} ${note}`.trim();
+  }
+  if (appliedLongevitySpend) {
+    const genderLabel =
+      gender === "male"
+        ? lang === "zh"
+          ? "男性"
+          : lang === "ko"
+            ? "남성"
+            : "male"
+        : gender === "female"
+          ? lang === "zh"
+            ? "女性"
+            : lang === "ko"
+              ? "여성"
+              : "female"
+          : lang === "zh"
+            ? "未分性別"
+            : lang === "ko"
+              ? "성별 미상"
+              : "unisex";
+    const note =
+      lang === "zh"
+        ? `退休提領年數以規劃用平均壽命 ${le} 歲（${genderLabel}）− 退休年齡 ${targetRetire} 歲 = ${spendYears} 年。`
+        : lang === "ko"
+          ? `은퇴 인출 연수는 계획용 평균 수명 ${le}세(${genderLabel}) − 은퇴 연령 ${targetRetire}세 = ${spendYears}년입니다.`
+          : `Retirement spend years set to life expectancy ${le} (${genderLabel}) − retire age ${targetRetire} = ${spendYears} years.`;
+    rationale = `${rationale} ${note}`.trim();
+  }
+  const hasRetirement = goals.some((g) => g.type === "retirement");
+  const contrib = extract.assumptions?.annualContributionUsd ?? 0;
+  if (hasRetirement && contrib > 0) {
+    const note =
+      lang === "zh"
+        ? `每年投入僅計算至退休開始前；退休後不再固定加碼投入。`
+        : lang === "ko"
+          ? `연간 추가는 은퇴 시작 전까지만 반영하며, 은퇴 후에는 고정 적립하지 않습니다.`
+          : `Annual contributions apply only until retirement starts; no fixed contributions afterward.`;
+    rationale = `${rationale} ${note}`.trim();
+  }
+
+  let assumptions = extract.assumptions;
+  const retirementSpend = goals.find(
+    (g) => g.type === "retirement" && g.amountUsd > 0,
+  )?.amountUsd;
+  let appliedLivingFromRetirement = false;
+  if (
+    (assumptions.annualLivingSpendUsd ?? 0) <= 0 &&
+    retirementSpend != null &&
+    retirementSpend > 0
+  ) {
+    assumptions = {
+      ...assumptions,
+      annualLivingSpendUsd: retirementSpend,
+    };
+    appliedLivingFromRetirement = true;
+  }
+  if (assumptions.annualLivingSpendUsd > 0) {
+    const note = appliedLivingFromRetirement
+      ? lang === "zh"
+        ? `目前年生活開銷未另述，暫與退休年開銷相同（USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()}），工作期間自資產月提領，退休後改由退休目標提領。`
+        : lang === "ko"
+          ? `현재 생활비가 별도로 없으면 은퇴 연간 생활비와 동일(USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()})로 가정하며, 은퇴 전 자산에서 월 인출합니다.`
+          : `Current living spend not stated separately — defaulted to retirement annual spend (USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()}), drawn monthly from wealth until retirement.`
+      : lang === "zh"
+        ? `目前年生活開銷 USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()} 於退休前自資產月提領。`
+        : lang === "ko"
+          ? `현재 연간 생활비 USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()}는 은퇴 전 자산에서 월 인출됩니다.`
+          : `Current annual living spend USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()} is drawn monthly from wealth until retirement.`;
+    rationale = `${rationale} ${note}`.trim();
+  }
+
+  return {
+    ...extract,
+    goals,
+    assumptions,
+    clarification_questions: questions.slice(0, 5),
+    rationale,
+  };
+}
+
 /** Heuristic fallback when AI is unavailable. */
 export function extractGoalsRulesFallback(
   notes: string,
   lang: "en" | "zh" | "ko",
+  client?: GoalExtractClientContext | null,
 ): GoalExtractResult {
   const text = notes.trim();
   const goals: FinancialGoal[] = [];
@@ -191,6 +437,15 @@ export function extractGoalsRulesFallback(
 
   const type = normalizeType(text);
   if (amount && amount > 0) {
+    const retireAge = parseTargetRetirementAge(text);
+    const age =
+      typeof client?.age === "number" && Number.isFinite(client.age)
+        ? client.age
+        : null;
+    const retireMonths =
+      type === "retirement" && age != null && retireAge != null
+        ? monthsUntilAge(age, retireAge)
+        : null;
     goals.push({
       id: createGoalId(),
       type,
@@ -201,9 +456,41 @@ export function extractGoalsRulesFallback(
             ? "노트에서 인식한 목표"
             : "Goal from notes",
       amountUsd: Math.round(amount),
-      withinMonths: Math.min(360, Math.max(1, months)),
+      withinMonths: Math.min(
+        360,
+        Math.max(1, retireMonths ?? months),
+      ),
       priority: 4,
     });
+  }
+
+  // Explicit retirement from living expenses + age even if amount parser missed.
+  if (
+    !goals.some((g) => g.type === "retirement") &&
+    /retir|退休|은퇴/i.test(text)
+  ) {
+    const age =
+      typeof client?.age === "number" && Number.isFinite(client.age)
+        ? client.age
+        : null;
+    const target = parseTargetRetirementAge(text) ?? 60;
+    const retireMonths = age != null ? monthsUntilAge(age, target) : null;
+    const living = text.match(
+      /(?:living|expenses|生活費|생활비)\s*(?:of|約|약|=|:)?\s*(?:USD|US\$|\$)?\s*([\d,.]+)/i,
+    );
+    const livingAmt = living ? Number(living[1].replace(/,/g, "")) : null;
+    if (livingAmt && livingAmt > 0) {
+      goals.push({
+        id: createGoalId(),
+        type: "retirement",
+        label:
+          lang === "zh" ? "退休生活" : lang === "ko" ? "은퇴 생활" : "Retirement",
+        amountUsd: Math.round(livingAmt),
+        withinMonths: Math.min(360, Math.max(1, retireMonths ?? 120)),
+        priority: 3,
+        retirementSpendYears: 20,
+      });
+    }
   }
 
   const returnMatch = text.match(
@@ -243,16 +530,21 @@ export function extractGoalsRulesFallback(
     );
   }
 
-  return {
-    goals,
-    assumptions,
-    clarification_questions: clarification_questions.slice(0, 5),
-    confidence: goals.length ? 0.45 : 0.25,
-    rationale:
-      lang === "zh"
-        ? "AI 未設定時以規則從筆記粗抽目標／假設，請在表單上確認。"
-        : lang === "ko"
-          ? "AI 미설정 시 규칙으로 노트에서 목표·가정을 추출했습니다. 폼에서 확인하세요."
-          : "Rules fallback extracted goals/assumptions from notes — confirm in the form.",
-  };
+  return enrichGoalExtractWithClientContext(
+    {
+      goals,
+      assumptions,
+      clarification_questions: clarification_questions.slice(0, 5),
+      confidence: goals.length ? 0.45 : 0.25,
+      rationale:
+        lang === "zh"
+          ? "AI 未設定時以規則從筆記粗抽目標／假設，請在表單上確認。"
+          : lang === "ko"
+            ? "AI 미설정 시 규칙으로 노트에서 목표·가정을 추출했습니다. 폼에서 확인하세요."
+            : "Rules fallback extracted goals/assumptions from notes — confirm in the form.",
+    },
+    notes,
+    client,
+    lang,
+  );
 }

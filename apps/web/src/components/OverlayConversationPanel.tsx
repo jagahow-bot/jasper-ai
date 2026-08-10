@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatLog, type ChatMessage } from "@/components/ChatLog";
 import { useI18n } from "@/lib/i18n";
 import {
-  isOverlayInterpretErrorBody,
-  overlayInterpretErrorI18nKey,
+  parseOverlayInterpretResponseJson,
+  resolveOverlayInterpretClientFailure,
 } from "@/lib/overlay-interpret-errors";
 import { pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import { uniqueTickers } from "@/lib/locked-universe";
@@ -17,6 +17,7 @@ import {
   type OverlayConversationMessage,
   type OverlayProposedTicker,
 } from "@/lib/overlay-schema";
+import { clearProposedTickers } from "@/lib/overlay-filter-proposals";
 import {
   shouldPushUpToParent,
   shouldSyncDownFromParent,
@@ -94,9 +95,11 @@ function ThinkingSteps() {
   return (
     <div className="flex items-center gap-3 text-sm text-dim">
       <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--primary)] border-t-transparent" />
-      <div className="flex flex-col">
+      <div className="flex min-h-[2.5rem] flex-col">
         <span>{t("overlay.thinking.label")}</span>
-        <span className="text-xs text-[var(--primary)]">{steps[index]}</span>
+        <span className="min-h-[1.25rem] text-xs text-[var(--primary)]">
+          {steps[index]}
+        </span>
       </div>
     </div>
   );
@@ -230,6 +233,10 @@ export function OverlayConversationPanel({
   const onOverlayChangeRef = useRef(onOverlayChange);
   onMessagesChangeRef.current = onMessagesChange;
   onOverlayChangeRef.current = onOverlayChange;
+  // Invalidate in-flight interpret when confirm starts / completes so a late
+  // LLM response cannot re-inject proposed_tickers after sign-off.
+  const interpretGenerationRef = useRef(0);
+  const confirmLockedRef = useRef(false);
 
   // Sync local messages when the parent resets/restores (e.g. new client).
   useEffect(() => {
@@ -270,8 +277,12 @@ export function OverlayConversationPanel({
     if (!overlay) setOverlayLang(lang);
   }, [lang, overlay]);
 
+  const chatMessages = useMemo(() => toChatMessages(messages), [messages]);
+
   const interpret = useCallback(
     async (nextMessages: OverlayConversationMessage[]) => {
+      if (confirmLockedRef.current) return;
+      const generation = ++interpretGenerationRef.current;
       setLoading(true);
       setError(null);
       try {
@@ -296,7 +307,23 @@ export function OverlayConversationPanel({
             anchor_label: anchorLabel,
           }),
         });
-        const data: unknown = await res.json();
+        // Drop stale responses that finished after a newer send or after confirm.
+        if (
+          generation !== interpretGenerationRef.current ||
+          confirmLockedRef.current
+        ) {
+          return;
+        }
+        // Prefer text→JSON so empty/non-JSON bodies become structured failures
+        // instead of throwing into the generic catch.
+        const rawText = await res.text();
+        if (
+          generation !== interpretGenerationRef.current ||
+          confirmLockedRef.current
+        ) {
+          return;
+        }
+        const data = parseOverlayInterpretResponseJson(rawText);
         const interpretedOverlay =
           data && typeof data === "object" && "overlay" in data
             ? (data as { overlay?: ClientOverlay }).overlay
@@ -308,21 +335,21 @@ export function OverlayConversationPanel({
         pushLlmAuditLog(llmLog);
 
         if (!res.ok || !interpretedOverlay) {
+          const failure = resolveOverlayInterpretClientFailure(data, res.status);
+          // Use warn + a single string: Next.js patches console.error and turns
+          // object args into a red overlay that falsely shows as "{}".
           if (process.env.NODE_ENV !== "production") {
-            console.error("[overlay/interpret] error response", data);
+            console.warn(
+              `[overlay/interpret] HTTP ${res.status}: ${JSON.stringify(data)}`,
+            );
           }
-          const err = isOverlayInterpretErrorBody(data)
-            ? {
-                message: t(overlayInterpretErrorI18nKey(data.code)),
-                code: data.code,
-                detail: data.detail,
-              }
-            : data &&
-                typeof data === "object" &&
-                "error" in data &&
-                typeof (data as { error?: unknown }).error === "string"
-              ? { message: (data as { error: string }).error }
-              : { message: t("overlay.interpret.error.generic") };
+          const err = {
+            message: failure.preferI18n
+              ? t(failure.messageKey)
+              : failure.messageFallback,
+            code: failure.code,
+            detail: failure.detail,
+          };
           setError(err);
           setMessages((prev) => [...prev, { role: "assistant", content: err.message }]);
           return;
@@ -351,11 +378,19 @@ export function OverlayConversationPanel({
           },
         ]);
       } catch {
+        if (
+          generation !== interpretGenerationRef.current ||
+          confirmLockedRef.current
+        ) {
+          return;
+        }
         const err = { message: t("overlay.interpret.error.generic") };
         setError(err);
         setMessages((prev) => [...prev, { role: "assistant", content: err.message }]);
       } finally {
-        setLoading(false);
+        if (generation === interpretGenerationRef.current) {
+          setLoading(false);
+        }
       }
     },
     [overlay, rmId, clientRef, baseScenarioId, selectedGroups, anchorPositions, anchorLabel, t],
@@ -363,7 +398,7 @@ export function OverlayConversationPanel({
 
   const send = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if (!text || loading || confirmLockedRef.current) return;
     const userMsg: OverlayConversationMessage = { role: "user", content: text };
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
@@ -373,8 +408,13 @@ export function OverlayConversationPanel({
   };
 
   const handleConfirm = async () => {
-    if (!overlay || loading || confirming) return;
+    if (!overlay || loading || confirming || confirmLockedRef.current) return;
     const signed = signOffOverlay(overlay, rmId);
+    // Invalidate in-flight interpret before awaiting parent resolve so a late
+    // response cannot reopen proposed_tickers after sign-off.
+    interpretGenerationRef.current += 1;
+    confirmLockedRef.current = true;
+    setLoading(false);
     // Do not setOverlay(signed) before onConfirm returns — parent may inject
     // filter proposed_tickers and return false. Pushing signed first races the
     // parent update and remounts ProposedTickersPanel in a loop.
@@ -389,15 +429,19 @@ export function OverlayConversationPanel({
           "universe" in result &&
           "audit" in result
         ) {
+          // Parent asked to stay on overlay with merged proposals (legacy path).
+          confirmLockedRef.current = false;
           setOverlay(result);
           setConfirmed(false);
           return;
         }
         if (result === false) {
+          confirmLockedRef.current = false;
           setConfirmed(false);
           return;
         }
       } catch (err) {
+        confirmLockedRef.current = false;
         const message =
           err instanceof Error && err.message.trim()
             ? err.message
@@ -408,9 +452,12 @@ export function OverlayConversationPanel({
       } finally {
         setConfirming(false);
       }
-    } else {
-      setOverlay(signed);
     }
+    // Drop any pending proposed_tickers so a late parent↔child sync cannot
+    // revive the suggestions panel after sign-off.
+    const finalized = clearProposedTickers(signed);
+    lastPushedOverlayRef.current = finalized;
+    setOverlay(finalized);
     setConfirmed(true);
   };
 
@@ -457,41 +504,23 @@ export function OverlayConversationPanel({
     overlay?.audit.phase ??
     (overlayLang === "zh" ? "探索" : "discovery");
 
-  return (
-    <div className="pixel-panel flex min-h-0 flex-col gap-4">
-      <div>
-        <h3 className="ui-panel-title">
-          {lang === "zh"
-            ? "客戶需求對話"
-            : lang === "ko"
-              ? "고객 니즈 대화"
-              : "Client needs conversation"}
-        </h3>
-        <p className="mt-2 text-sm text-dim">
-          {lang === "zh"
-            ? "輸入客戶投資需求，Japser AI會引導釐清需求，並著手設計模型參數"
-            : lang === "ko"
-              ? "고객 투자 니즈를 입력하세요. Japser AI가 니즈를 명확히 하고 모델 파라미터 설계를 시작합니다."
-              : "Enter the client's investment needs; Japser AI will guide requirement clarification and begin designing model parameters."}
-        </p>
-      </div>
+  const [chatOpen, setChatOpen] = useState(() => chatMessages.length > 0);
 
-      <div className="max-h-[280px] min-h-40 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
-        <ChatLog variant="conversation" messages={toChatMessages(messages)} />
-      </div>
+  const chatTitle =
+    lang === "zh"
+      ? "客戶需求對話"
+      : lang === "ko"
+        ? "고객 니즈 대화"
+        : "Client needs conversation";
 
-      {loading && (
-        <div className="rounded-lg border border-[var(--primary-muted)] bg-[var(--primary-muted)]/30 p-3">
-          <ThinkingSteps />
-        </div>
-      )}
-
+  const chatInputBlock = (
+    <>
       <div className="flex shrink-0 items-end gap-2">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={loading}
-          rows={6}
+          rows={2}
           placeholder={
             lang === "zh"
               ? "例如：客戶想要增加AI產業布局，未來5年內有資金動用需求，所以不希望投資風險過高。"
@@ -499,7 +528,7 @@ export function OverlayConversationPanel({
                 ? "예: 고객은 AI 산업 비중을 늘리고 싶지만, 향후 5년 내 자금 사용 계획이 있어 투자 위험이 너무 높지 않기를 원합니다."
                 : "e.g. The client wants to increase AI sector exposure, but expects to use funds within the next 5 years, so they do not want investment risk to be too high."
           }
-          className="pixel-input min-h-[160px] flex-1 resize-y"
+          className="pixel-input min-h-[44px] flex-1 resize-y"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -539,12 +568,20 @@ export function OverlayConversationPanel({
           )}
         </div>
       )}
+    </>
+  );
 
+  return (
+    <>
       {overlay && (
-        <div className="space-y-3 rounded-lg border border-[var(--primary-muted)] bg-[var(--primary-muted)]/40 p-3">
+        <div className="pixel-panel min-w-0 space-y-3 border-[var(--primary-muted)] bg-[var(--primary-muted)]/40">
           <div className="flex items-center justify-between gap-2">
             <span className="ui-section-title">
-              {lang === "zh" ? "AI 理解的 Overlay" : "AI overlay summary"}
+              {lang === "zh"
+                ? "AI 解析的調整方案"
+                : lang === "ko"
+                  ? "AI 조정안 요약"
+                  : "AI adjustment summary"}
             </span>
             <span className="text-xs text-dim">
               {lang === "zh" ? "階段" : "Phase"}: {phaseLabel}
@@ -587,14 +624,67 @@ export function OverlayConversationPanel({
                   : lang === "ko"
                     ? "서명 중…"
                     : "Signing off…"
-              : lang === "zh"
-                ? "確認 Overlay 並簽核"
-                : lang === "ko"
-                  ? "Overlay 확인 및 서명"
-                  : "Confirm overlay & sign off"}
+                : lang === "zh"
+                  ? "確認調整方案並簽核"
+                  : lang === "ko"
+                    ? "조정안 확인 및 서명"
+                    : "Confirm adjustments & sign off"}
           </button>
         </div>
       )}
-    </div>
+
+      {chatOpen ? (
+        <div
+          className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3"
+          data-overlay-chat
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="ui-panel-title text-sm">{chatTitle}</h3>
+              <p className="mt-0.5 text-xs text-dim">
+                {lang === "zh"
+                  ? "輸入客戶投資需求，Jasper AI 會引導釐清需求並設計模型參數。"
+                  : lang === "ko"
+                    ? "고객 투자 니즈를 입력하면 Jasper AI가 니즈를 정리하고 모델 파라미터 설계를 시작합니다."
+                    : "Enter the client's investment needs; Jasper AI will clarify requirements and draft model parameters."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChatOpen(false)}
+              aria-label={lang === "zh" ? "收起對話" : "Collapse chat"}
+              className="shrink-0 rounded-md px-2 py-0.5 text-xs text-dim hover:bg-[var(--surface-2)]"
+            >
+              {lang === "zh" ? "收起 ▾" : lang === "ko" ? "접기 ▾" : "Collapse ▾"}
+            </button>
+          </div>
+
+          <div className="h-[200px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
+            <ChatLog variant="conversation" messages={chatMessages} />
+          </div>
+
+          {loading && (
+            <div className="rounded-lg border border-[var(--primary-muted)] bg-[var(--primary-muted)]/30 p-3">
+              <ThinkingSteps />
+            </div>
+          )}
+
+          {chatInputBlock}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setChatOpen(true)}
+          className="w-full rounded-lg border border-[var(--primary)]/40 bg-[var(--primary)]/5 px-4 py-2.5 text-sm font-medium text-[var(--primary)] transition-colors hover:bg-[var(--primary)]/10"
+          data-overlay-chat-open
+        >
+          {lang === "zh"
+            ? "使用 AI 描述客戶需求"
+            : lang === "ko"
+              ? "AI로 고객 니즈 입력"
+              : "Describe client needs with AI"}
+        </button>
+      )}
+    </>
   );
 }

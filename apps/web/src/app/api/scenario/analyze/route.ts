@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 Rules:
 - Short English title (e.g. "Custom: sticky inflation")
 - narrative_points: 3-5 actionable bullets aligned with the view; each should link macro assumption → portfolio implication
-- max_weight 0.05–0.15; defensive/low vol lower, risk-on slightly higher
+- max_weight 0.12–0.25; defensive/low vol toward the low end, risk-on toward 0.20–0.25. Avoid ≤10% unless the universe is large (many names).
 - clear risk-off/recession → objective min_max_drawdown; clear risk-on → max_sharpe
 - suggested_asset_classes: pick 1–5 from equity,bond,commodity,real_estate,alternative; justify sleeve mix in narrative_points
 - dates fixed start_date=2018-01-01, end_date=2024-12-31, backtest_mode=static`,

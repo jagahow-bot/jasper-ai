@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+from dataclasses import replace
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,13 @@ from app.engine.param_bounds import (
 )
 from app.engine.mutable_params import GEMINI_LEARNING_MUTABLE_FIELDS
 from app.engine.customization import derive_must_include_tickers
+from app.engine.constrained_customization import (
+    build_constrained_param_rationale,
+    build_constrained_proposal_set,
+    build_constrained_scenario_seeds,
+    select_constrained_champion_code,
+    should_use_constrained_customization,
+)
 from app.engine.objectives import (
     metrics_snapshot,
     needs_attainment,
@@ -1903,12 +1911,11 @@ def _sim_inputs_from_params(
         params.get("max_holdings_actual", spec.max_holdings)
     )
     max_holdings_actual = max(1, min(max_holdings_actual, int(spec.max_holdings)))
-    trial_spec = BacktestSpec(
-        benchmark_ticker=spec.benchmark_ticker,
-        risk_free_rate=spec.risk_free_rate,
-        fee_bps=spec.fee_bps,
+    # Preserve cash sleeve / DCA from the run spec — rebuilding BacktestSpec
+    # from scratch silently zeroed cash_reserve_pct (overlay 5% cash lost).
+    trial_spec = replace(
+        spec,
         rebalance_rule=trial_rebalance,
-        min_holdings=spec.min_holdings,
         max_holdings=max_holdings_actual,
     )
     alloc = AllocatorParams(
@@ -2626,6 +2633,35 @@ def _resolve_request_benchmark_ticker(
     return fallback
 
 
+_STATIC_CASH_TICKERS = frozenset({"CASH"})
+
+
+def _split_static_cash_line(
+    weights_map: dict[str, float],
+    cash_reserve: float,
+) -> tuple[dict[str, float], float]:
+    """Fold a CASH pseudo-ticker line into the cash sleeve.
+
+    CASH has no price series; without this it would be dropped as "missing
+    from prices" and its weight silently redistributed to the invested book.
+    Returns invested-only weights (renormalized to sum 1) and the cash
+    reserve (the larger of the explicit reserve and the CASH line).
+    """
+    cash_line = sum(
+        w for t, w in weights_map.items() if t in _STATIC_CASH_TICKERS
+    )
+    if cash_line <= 0:
+        return weights_map, cash_reserve
+    invested = {
+        t: w for t, w in weights_map.items() if t not in _STATIC_CASH_TICKERS
+    }
+    invested_total = sum(invested.values())
+    if invested_total <= 0:
+        raise ValueError("static_replay_holdings is cash-only — nothing to replay")
+    invested = {t: w / invested_total for t, w in invested.items()}
+    return invested, max(float(cash_reserve), float(cash_line))
+
+
 def _run_static_replay_backtest(
     req: BacktestRequest,
     job_id: str,
@@ -2640,7 +2676,6 @@ def _run_static_replay_backtest(
     from app.engine.portfolio import _normalize_rebalance_rule
 
     rebalance_rule = _normalize_rebalance_rule(req.rebalance_freq)
-    tickers = [str(t).upper() for t in holdings_raw.keys()]
     weights_map = {str(t).upper(): float(w) for t, w in holdings_raw.items()}
     total_w = sum(weights_map.values())
     if total_w <= 0:
@@ -2648,6 +2683,14 @@ def _run_static_replay_backtest(
     # Always normalize target mix to 1; cash/DCA applied by simulation overlay.
     weights_map = {k: v / total_w for k, v in weights_map.items()}
     cash_reserve = float(getattr(req, "cash_reserve_pct", 0.0) or 0.0)
+    if req.client_context is not None:
+        ctx_cash = getattr(req.client_context, "cash_reserve_pct", None)
+        if ctx_cash is None and isinstance(req.client_context, dict):
+            ctx_cash = req.client_context.get("cash_reserve_pct")
+        if ctx_cash is not None:
+            cash_reserve = max(cash_reserve, float(ctx_cash))
+    weights_map, cash_reserve = _split_static_cash_line(weights_map, cash_reserve)
+    tickers = list(weights_map.keys())
 
     bench = _resolve_request_benchmark_ticker(req)
     # Fetch prices for holdings + benchmark
@@ -2670,13 +2713,19 @@ def _run_static_replay_backtest(
 
     report_progress(0, 1, "Static replay: fetching market data…")
 
+    # Locked book: do not require every holding to cover the full requested
+    # window (e.g. 2010 start). Drop late listings / thin series and remap
+    # weights — same floor as other locked-universe fetches (capped at 5).
     try:
         prices, data_meta = fetch_prices(
             fetch_tickers,
             req.start_date,
             req.end_date,
             spec.benchmark_ticker,
-            min_valid_tickers=max(1, len(set(fetch_tickers))),
+            min_valid_tickers=min_valid_tickers_for_universe(
+                len(set(fetch_tickers)), locked_mode=True
+            ),
+            pinned_tickers=tickers or None,
         )
     except Exception as exc:
         logger.error(
@@ -2703,12 +2752,7 @@ def _run_static_replay_backtest(
 
     if bench not in prices.columns:
         bench = tickers[0]
-        spec = BacktestSpec(
-            benchmark_ticker=bench,
-            fee_bps=req.fee_bps,
-            rebalance_rule=rebalance_rule,
-            max_holdings=max(len(tickers), int(req.max_holdings)),
-        )
+        spec = replace(spec, benchmark_ticker=bench)
 
     prices_panel = trim_prices_to_report_window(prices[tickers].copy(), req.start_date)
     w_array = np.array([weights_map.get(t, 0.0) for t in tickers], dtype=float)
@@ -3099,6 +3143,22 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         "options": [rebalance_rule],
     }
     pro_mode = _is_pro_mode(req)
+    must_include_tickers = derive_must_include_tickers(tickers, req.anchor_weights)
+    constrained_mode = should_use_constrained_customization(
+        req,
+        tradable_count=len(tickers),
+        must_include_count=len(must_include_tickers),
+    )
+    # Small locked client books: skip Pro / large AI search for named scenarios.
+    if constrained_mode:
+        if pro_mode:
+            logger.info(
+                "Constrained customization: suppressing Pro multi-round search "
+                "(tradable=%d must_include=%d)",
+                len(tickers),
+                len(must_include_tickers),
+            )
+        pro_mode = False
     convergence_history: list[dict[str, Any]] = []
     refinement_meta: dict[str, Any] = {}
     ai_generation: dict[str, Any] = {}
@@ -3194,7 +3254,112 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         )
 
     effective_trials = int(req.trials)
-    if pro_mode:
+    if constrained_mode:
+        scenario_seeds = build_constrained_scenario_seeds(
+            req,
+            tradable_count=len(tickers),
+            must_include=must_include_tickers,
+            objective=trial_objective,
+        )
+        effective_trials = max(1, len(scenario_seeds))
+        ai_param_sets = scenario_seeds
+        # Anchored RM runs often fix customization_drift_actual to the slider.
+        # Scenarios need distinct drift_actual values ≤ that ceiling — open search
+        # within [0, ceiling] so seeds are not all clamped to the same fixed value.
+        constrained_param_controls = dict(param_controls_dict)
+        constrained_param_controls["customization_drift_actual"] = {
+            "mode": "search",
+            "min": 0.0,
+            "max": float(req.customization_drift),
+        }
+        # Prefer seed allocator_mode over a run-level fixed mode if present.
+        for mode_key in ("allocator_mode", "mode"):
+            ctl = constrained_param_controls.get(mode_key)
+            if isinstance(ctl, dict) and ctl.get("mode") == "fixed":
+                constrained_param_controls[mode_key] = {"mode": "search"}
+        styles = [str(s.get("scenario_style") or "") for s in scenario_seeds]
+        report_progress(
+            0,
+            effective_trials,
+            (
+                f"Constrained customization: {effective_trials} named scenarios "
+                f"({', '.join(styles)}) — skipping Pro / large search…"
+            ),
+        )
+        ai_generation = {
+            "enabled": True,
+            "model": "constrained_scenarios",
+            "seed_sets_requested": effective_trials,
+            "seed_sets_used": effective_trials,
+            "rationale": build_constrained_param_rationale(
+                req.report_language,
+                styles,
+                drift_cap=float(req.customization_drift),
+            ),
+            "rationales_by_round": [],
+            "error": None,
+            "constrained_customization": True,
+            "scenario_styles": styles,
+        }
+
+        def optuna_progress_constrained(
+            trial: int,
+            total: int,
+            best_score: float | None,
+            _latest_record: tuple[float, dict, dict] | None = None,
+        ) -> None:
+            style = ""
+            if _latest_record and isinstance(_latest_record[1], dict):
+                style = str(_latest_record[1].get("scenario_style") or "")
+            label = f" [{style}]" if style else ""
+            msg = f"Scenario {trial}/{total}{label}"
+            if best_score is not None:
+                obj_label, obj_text = _objective_progress_label_and_text(
+                    objective_effective, best_score
+                )
+                msg += f", best {obj_label} {obj_text}"
+            report_progress(trial, total, msg, best_score)
+
+        records = run_optuna_search(
+            prices_train,
+            prices_sim_panel=prices_sim_panel,
+            max_weight=req.max_weight,
+            min_weight=req.min_weight,
+            max_turnover=req.max_turnover,
+            top_n=req.top_n,
+            objective=trial_objective,
+            trials=effective_trials,
+            anchor_weights=req.anchor_weights,
+            customization_drift=req.customization_drift,
+            ai_seed_param_sets=ai_param_sets,
+            param_controls=constrained_param_controls,
+            spec=spec,
+            progress_cb=optuna_progress_constrained,
+            universe_by_ticker=universe_by_ticker,
+            prices_val=prices_val if oos and len(prices_val) > 60 else None,
+            select_on_is=bool(oos and len(prices_val) > 60),
+            asset_classes=req.asset_classes,
+            trial_report_cache=trial_report_cache,
+            allocator_resolver=(
+                dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
+            ),
+            class_budget_resolver=(
+                dynamic_ctx.get("class_budget_resolver") if dynamic_ctx else None
+            ),
+            active_regime_resolver=(
+                dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
+            ),
+            enforce_class_weights=req.enforce_class_weights,
+            champion_seed=None,
+            client_context=(
+                req.client_context.model_dump() if req.client_context else None
+            ),
+            dividend_panel=dividend_panel,
+        )
+        assign_search_model_codes(records, next_model_no=[1])
+        for _, params, _ in records:
+            trial_report_cache.register_model_code(params)
+    elif pro_mode:
         if not oos:
             report_progress(
                 0,
@@ -3443,7 +3608,16 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
     candidates = _sort_candidates_by_model_code(candidates)
     for c in candidates:
         c.is_champion = False
-    if pro_mode:
+    if constrained_mode:
+        champ_code = select_constrained_champion_code(candidates)
+        if champ_code:
+            for c in candidates:
+                if c.model_code == champ_code:
+                    c.is_champion = True
+                    break
+        if not any(c.is_champion for c in candidates) and candidates:
+            candidates[0].is_champion = True
+    elif pro_mode:
         champ_code = final_champion_code
         if champ_code:
             for c in candidates:
@@ -3481,6 +3655,42 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             last_pr = refinement_meta["per_round"][-1]
             last_records = last_pr.get("records") or []
             champion_record = best_record_in_pool(last_records, objective_effective)
+    elif constrained_mode:
+        champ_c = next((c for c in candidates if c.is_champion), None)
+        champion_record = None
+        if champ_c is not None and champ_c.params:
+            champion_record = _find_record_by_params(records, champ_c.params)
+        if champion_record is None:
+            champion_record = best_record_in_pool(records, objective_effective)
+        champ_params = (
+            champ_c.params
+            if champ_c is not None and isinstance(champ_c.params, dict)
+            else (
+                champion_record[1]
+                if champion_record and isinstance(champion_record[1], dict)
+                else {}
+            )
+        )
+        styles_for_rationale = list(ai_generation.get("scenario_styles") or [])
+        ai_generation["rationale"] = build_constrained_param_rationale(
+            req.report_language,
+            styles_for_rationale,
+            champion_style=str(champ_params.get("scenario_style") or "") or None,
+            drift_actual=(
+                float(champ_params["customization_drift_actual"])
+                if champ_params.get("customization_drift_actual") is not None
+                else None
+            ),
+            drift_cap=float(req.customization_drift),
+            allocator_mode=(
+                str(
+                    champ_params.get("allocator_mode")
+                    or champ_params.get("mode")
+                    or ""
+                )
+                or None
+            ),
+        )
     else:
         champion_record = best_record_in_pool(records, objective_effective)
 
@@ -3755,12 +3965,9 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
     )
     champion_sim_kw = apply_allocator_resolver(
         dict(
-            spec=BacktestSpec(
-                benchmark_ticker=spec.benchmark_ticker,
-                risk_free_rate=spec.risk_free_rate,
-                fee_bps=spec.fee_bps,
+            spec=replace(
+                spec,
                 rebalance_rule=str(best_params.get("rebalance_freq", rebalance_rule)),
-                min_holdings=spec.min_holdings,
                 max_holdings=best_max_holdings_actual,
             ),
             max_weight=best_cap,
@@ -3915,9 +4122,27 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         "regime_adaptive": regime_adaptive,
         "data_source": data_meta["data_source"],
         "data_quality": data_meta,
-        "engine": "optuna+pandas+pro" if pro_mode else "optuna+pandas",
-        "optimization_mode": req.optimization_mode.value,
-        "trials_requested": req.trials if not pro_mode else trials_completed,
+        "engine": (
+            "constrained_scenarios"
+            if constrained_mode
+            else ("optuna+pandas+pro" if pro_mode else "optuna+pandas")
+        ),
+        "optimization_mode": (
+            "constrained_customization"
+            if constrained_mode
+            else req.optimization_mode.value
+        ),
+        "constrained_customization": constrained_mode,
+        "constrained_scenarios": (
+            list(ai_generation.get("scenario_styles") or [])
+            if constrained_mode
+            else None
+        ),
+        "trials_requested": (
+            effective_trials
+            if constrained_mode
+            else (req.trials if not pro_mode else trials_completed)
+        ),
         "trials_feasible": trials_feasible,
         "models_returned": len(candidates),
         "models_total_catalog": len(portfolio_catalog),
@@ -4033,6 +4258,14 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
                 )
             ),
             "error": ai_generation.get("error"),
+            "constrained_customization": bool(
+                ai_generation.get("constrained_customization")
+            ),
+            "scenario_styles": (
+                list(ai_generation.get("scenario_styles") or [])
+                if ai_generation.get("constrained_customization")
+                else None
+            ),
         },
         "top_holdings_count": (
             int((best.analytics or {}).get("weight_cap_audit", {}).get("active_holdings"))
@@ -4144,6 +4377,10 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             "is_champion": c.is_champion,
             "needs_attainment": c.needs_attainment,
             "weights": c.weights,
+            "scenario_style": (
+                (c.params or {}).get("scenario_style") if isinstance(c.params, dict) else None
+            ),
+            "params": c.params,
             "objective_score": (
                 (c.analytics or {}).get("sample_metrics", {}).get("in_sample", {}) or {}
             ).get("objective_value")
@@ -4162,12 +4399,20 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             champ_code = c.model_code
             break
 
-    proposal_set = [
-        ProposalCard(**card)
-        for card in pick_pareto_proposals(
-            proposal_rows, max_n=3, champion_code=champ_code
-        )
-    ] or None
+    if constrained_mode:
+        proposal_set = [
+            ProposalCard(**card)
+            for card in build_constrained_proposal_set(
+                proposal_rows, champion_code=champ_code, max_n=4
+            )
+        ] or None
+    else:
+        proposal_set = [
+            ProposalCard(**card)
+            for card in pick_pareto_proposals(
+                proposal_rows, max_n=3, champion_code=champ_code
+            )
+        ] or None
 
     result = BacktestResult(
         job_id=job_id,

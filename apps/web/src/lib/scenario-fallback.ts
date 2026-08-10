@@ -16,7 +16,7 @@ export function analyzeScenarioFallback(text: string): ScenarioAnalyzeOutput {
         "Prioritize drawdown control",
       ],
       defaults: {
-        max_weight: 0.08,
+        max_weight: 0.18,
         objective: "min_max_drawdown",
         backtest_mode: "static",
         start_date: "2018-01-01",
@@ -39,7 +39,7 @@ export function analyzeScenarioFallback(text: string): ScenarioAnalyzeOutput {
         "Bias value and cash-flow factors",
       ],
       defaults: {
-        max_weight: 0.1,
+        max_weight: 0.2,
         objective: "max_sharpe",
         backtest_mode: "static",
         start_date: "2018-01-01",
@@ -62,7 +62,7 @@ export function analyzeScenarioFallback(text: string): ScenarioAnalyzeOutput {
         "Target risk-adjusted return",
       ],
       defaults: {
-        max_weight: 0.1,
+        max_weight: 0.2,
         objective: "max_sharpe",
         backtest_mode: "static",
         start_date: "2018-01-01",
@@ -81,7 +81,7 @@ export function analyzeScenarioFallback(text: string): ScenarioAnalyzeOutput {
       "Avoid single-name concentration",
     ],
     defaults: {
-      max_weight: 0.09,
+      max_weight: 0.2,
       objective: "max_sharpe",
       backtest_mode: "static",
       start_date: "2018-01-01",

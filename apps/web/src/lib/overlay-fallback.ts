@@ -66,7 +66,7 @@ function baseExtract(text: string, lang: "zh" | "en" | "ko"): OverlayExtractOutp
         asset_classes: ["equity", "bond", "commodity", "real_estate"],
         sleeve_targets: { w_equity: 0.5, w_bond: 0.35, w_commodity: 0.05, w_real_estate: 0.1 },
         enforce_class_weights: true,
-        max_single_position_pct: 0.08,
+        max_single_position_pct: 0.2,
       },
       universe: {
         prompts: universePrompts,
@@ -102,7 +102,7 @@ function baseExtract(text: string, lang: "zh" | "en" | "ko"): OverlayExtractOutp
       allocation: {
         asset_classes: ["equity", "bond", "alternative"],
         sleeve_targets: { w_equity: 0.55, w_bond: 0.3, w_alternative: 0.15 },
-        max_single_position_pct: 0.1,
+        max_single_position_pct: 0.22,
       },
       universe: {
         prompts: [
@@ -149,7 +149,7 @@ function baseExtract(text: string, lang: "zh" | "en" | "ko"): OverlayExtractOutp
         asset_classes: ["equity", "bond", "commodity", "alternative"],
         sleeve_targets: { w_equity: 0.3, w_bond: 0.55, w_commodity: 0.1, w_alternative: 0.05 },
         enforce_class_weights: true,
-        max_single_position_pct: 0.08,
+        max_single_position_pct: 0.2,
       },
       universe: {
         prompts: [
@@ -190,7 +190,7 @@ function baseExtract(text: string, lang: "zh" | "en" | "ko"): OverlayExtractOutp
     allocation: {
       asset_classes: [...ASSET_CLASSES],
       sleeve_targets: { w_equity: 0.5, w_bond: 0.35, w_commodity: 0.05, w_real_estate: 0.1 },
-      max_single_position_pct: 0.1,
+      max_single_position_pct: 0.22,
     },
     universe: { prompts: [] },
     optimization: {

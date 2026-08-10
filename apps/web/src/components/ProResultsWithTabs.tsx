@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ProRoundTimeline } from "@/components/AiParamsDisclosure";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 import {
   pickCatalogChampionModelKey,
@@ -420,6 +421,11 @@ export function ProResultsWithTabs(props: Props) {
 
   return (
     <div className="space-y-4">
+      <ProRoundTimeline
+        rounds={rounds}
+        activeRound={tab}
+        onSelectRound={(n) => setTab(n)}
+      />
       <div className="border-2 border-[var(--amber)] bg-[rgba(255,176,0,0.06)] p-3">
         <p className="ui-body mb-2 text-[var(--amber)]">
           {t("pro.tabsHint")}

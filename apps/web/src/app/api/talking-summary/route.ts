@@ -9,6 +9,7 @@ import {
   REASONING_MAX_OUTPUT_TOKENS,
 } from "@/lib/ai-provider";
 import { generateObjectWithAudit } from "@/lib/llm-audit";
+import { translate, type Lang, type TFn } from "@/lib/i18n";
 import {
   buildTalkingPoints,
   type HoldingDiffRow,
@@ -91,15 +92,8 @@ function buildPrompt(payload: z.infer<typeof RequestSchema>): string {
 }
 
 function fallbackSummary(payload: z.infer<typeof RequestSchema>): ApiResponse {
-  const t = (key: string, values?: Record<string, unknown>) => {
-    let s = key;
-    if (values) {
-      Object.entries(values).forEach(([k, v]) => {
-        s = s.replace(new RegExp(`{${k}}`, "g"), String(v));
-      });
-    }
-    return s;
-  };
+  const lang = normalizeAiLang(payload.lang) as Lang;
+  const t: TFn = (key, params) => translate(lang, key, params);
   const input: TalkingPointsInput = {
     metrics: payload.metrics as MetricCompareRow[],
     holdingsDiff: (payload.holdingsDiff || []) as HoldingDiffRow[],
@@ -107,7 +101,7 @@ function fallbackSummary(payload: z.infer<typeof RequestSchema>): ApiResponse {
     adjustedResult: payload.adjustedResult as unknown as BacktestResult,
     anchorLabel: payload.anchorLabel,
     objectiveKey: payload.objectiveKey,
-    lang: normalizeAiLang(payload.lang),
+    lang,
     t,
     customizedModelCode: payload.customizedModelCode,
   };

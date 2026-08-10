@@ -461,14 +461,14 @@ def portfolios_near_identical(
 ) -> bool:
     """True when two proposal candidates are the same portfolio for RM comparison.
 
-    Near-identical if rounded weights match, or headline metrics (and needs floor
-    score) match within tight epsilon. Params alone are ignored — distinct Optuna
-    trials often converge to the same holdings/metrics.
+    Exact rounded-weight matches are clones. Distinct holdings stay distinct even
+    when headline metrics are close. Metrics (and needs floor score) are used only
+    when either side lacks a weight signature.
     """
     wa = a.get("_weights_sig")
     wb = b.get("_weights_sig")
-    if wa and wb and wa == wb:
-        return True
+    if wa and wb:
+        return wa == wb
     if abs(float(a.get("sharpe", 0.0)) - float(b.get("sharpe", 0.0))) > sharpe_eps:
         return False
     if abs(float(a.get("cagr", 0.0)) - float(b.get("cagr", 0.0))) > cagr_eps:
@@ -567,10 +567,19 @@ def pick_pareto_proposals(
     )
     selected = front[: max(1, int(max_n))]
 
+    # Canonical recommendation = search/AI champion, even when dominated on
+    # Pareto axes (needs/MDD). Never let a non-champion steal the recommended slot.
+    champ = next((r for r in rows if r["is_champion"]), None)
+    if champ is not None and champ["model_code"] not in {
+        r["model_code"] for r in selected
+    }:
+        selected = [champ, *[r for r in selected if r["model_code"] != champ["model_code"]]]
+        selected = selected[: max(1, int(max_n))]
+    if champ is None:
+        champ = next((r for r in selected if r["is_champion"]), selected[0])
+
     # Ensure diversity labels: recommended / defensive / growth
-    by_code = {r["model_code"]: r for r in selected}
     ordered: list[dict[str, Any]] = []
-    champ = next((r for r in selected if r["is_champion"]), selected[0])
     ordered.append(champ)
     defensive = min(selected, key=lambda r: abs(r["max_drawdown"]))
     growth = max(selected, key=lambda r: r["objective_score"])
@@ -587,23 +596,28 @@ def pick_pareto_proposals(
 
     out: list[dict[str, Any]] = []
     used_labels: set[str] = set()
-    for i, r in enumerate(ordered):
-        if r["is_champion"] or i == 0:
+    champ_code = champ["model_code"]
+    for r in ordered:
+        is_rec = r["model_code"] == champ_code
+        if is_rec:
             label = "recommended"
-        elif r is defensive or r["model_code"] == defensive["model_code"]:
+        elif "defensive" not in used_labels and (
+            r is defensive or r["model_code"] == defensive["model_code"]
+        ):
             label = "defensive"
-        elif r is growth or r["model_code"] == growth["model_code"]:
+        elif "growth" not in used_labels and (
+            r is growth or r["model_code"] == growth["model_code"]
+        ):
             label = "growth"
         else:
-            label = f"alternative_{i + 1}"
-        if label in used_labels:
-            label = f"{label}_{i + 1}"
+            # Human-facing "其他方案" / Alternative — never raw ALTERNATIVE_N.
+            label = "alternative"
         used_labels.add(label)
         out.append(
             {
                 "model_code": r["model_code"],
                 "label": label,
-                "is_recommended": bool(r["is_champion"]) or i == 0,
+                "is_recommended": is_rec,
                 "sharpe": round(r["sharpe"], 4),
                 "cagr": round(r["cagr"], 4),
                 "max_drawdown": round(r["max_drawdown"], 4),

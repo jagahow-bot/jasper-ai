@@ -2,6 +2,7 @@ import { largestRemainderPercents, resolveCandidateWeights } from "@/lib/candida
 import {
   resolveChampionCandidateIndex,
   resolveHorizonMetrics,
+  type HorizonMetricSnapshot,
   type PerformanceCompareHorizon,
 } from "@/lib/performance-compare-chart";
 import type { ClientOverlay } from "@/lib/overlay-schema";
@@ -10,8 +11,17 @@ import type { BacktestResult } from "@/lib/types";
 
 type TranslateFn = (key: string, params?: Record<string, string | number>) => string;
 
-/** Anchor vs customized comparison always uses full report window (matches equity curves). */
+/**
+ * Anchor vs customized comparison prefers metrics computed on the same
+ * date-aligned / rebased equity window as the compare chart. Packaged
+ * full_sample is only a fallback when curves cannot be aligned.
+ */
 export const BENCHMARK_COMPARE_HORIZON: PerformanceCompareHorizon = "full_sample";
+
+const TRADING_DAYS_PER_YEAR = 252;
+const MS_PER_DAY = 86_400_000;
+const DEFAULT_RISK_FREE = 0.04;
+const MIN_ANNUAL_VOL = 1e-6;
 
 export type BenchmarkCompareChartRow = {
   date: string;
@@ -118,6 +128,17 @@ export function resolveCustomizedEquityCurve(
   return pickCustomizedEquityCurve(result, pick);
 }
 
+/**
+ * The candidate whose equity curve feeds goal planning — same resolution as
+ * resolveCustomizedEquityCurve, so backcast weights match the curve source.
+ */
+export function resolveCustomizedCandidate(
+  result: BacktestResult,
+  pick?: RmCandidatePick,
+) {
+  return pickCandidate(result, pick?.customizedModelCode) ?? null;
+}
+
 /** Exported for Quant baseline — anchor (champion) equity from a result. */
 export function resolveChampionEquityCurve(result: BacktestResult) {
   return pickChampionEquityCurve(result);
@@ -163,6 +184,157 @@ export function buildBenchmarkCompareChartData(
   return alignAndRebaseEquityCurves(anchorCurve, customizedCurve);
 }
 
+/** Rebased index (start=100) → cumulative return % from common start (start≈0). */
+export function rebasedEquityToCumulativePct(
+  rows: BenchmarkCompareChartRow[],
+): BenchmarkCompareChartRow[] {
+  return rows.map((row) => ({
+    date: row.date,
+    anchor: row.anchor - 100,
+    customized: row.customized - 100,
+  }));
+}
+
+function sampleStd(xs: number[]): number {
+  if (xs.length < 2) return 0;
+  const mean = xs.reduce((s, x) => s + x, 0) / xs.length;
+  let sumSq = 0;
+  for (const x of xs) sumSq += (x - mean) ** 2;
+  return Math.sqrt(sumSq / (xs.length - 1));
+}
+
+function calendarYearsBetween(start: string, end: string): number {
+  const a = Date.parse(`${start}T12:00:00Z`);
+  const b = Date.parse(`${end}T12:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return 1e-6;
+  return Math.max((b - a) / MS_PER_DAY / 365.25, 1e-6);
+}
+
+function medianGapDays(dates: string[]): number {
+  if (dates.length < 2) return 1;
+  const gaps: number[] = [];
+  for (let i = 1; i < dates.length; i++) {
+    const a = Date.parse(`${dates[i - 1]}T12:00:00Z`);
+    const b = Date.parse(`${dates[i]}T12:00:00Z`);
+    if (Number.isFinite(a) && Number.isFinite(b) && b > a) {
+      gaps.push((b - a) / MS_PER_DAY);
+    }
+  }
+  if (!gaps.length) return 1;
+  gaps.sort((x, y) => x - y);
+  return gaps[Math.floor(gaps.length / 2)]!;
+}
+
+/**
+ * CAGR / Sharpe / MDD / vol from a rebased-to-100 equity path.
+ * Matches engine conventions on dense (≈daily) curves; uses calendar
+ * annualization when the series is sparse (downsampled intersection).
+ */
+export function metricsFromRebasedEquitySeries(
+  dates: string[],
+  values: number[],
+  riskFreeRate = DEFAULT_RISK_FREE,
+): HorizonMetricSnapshot | null {
+  if (dates.length < 2 || values.length !== dates.length) return null;
+  const start = values[0]!;
+  const end = values[values.length - 1]!;
+  if (!(start > 0) || !(end > 0)) return null;
+
+  const rets: number[] = [];
+  for (let i = 1; i < values.length; i++) {
+    const prev = values[i - 1]!;
+    if (prev > 0) rets.push(values[i]! / prev - 1);
+  }
+  if (rets.length < 2) return null;
+
+  const multiple = end / start;
+  const gap = medianGapDays(dates);
+  const denseDaily = gap <= 3;
+  const years = denseDaily
+    ? Math.max(values.length / TRADING_DAYS_PER_YEAR, 1e-6)
+    : calendarYearsBetween(dates[0]!, dates[dates.length - 1]!);
+  const cagr = multiple ** (1 / years) - 1;
+
+  let sharpe = 0;
+  let volatility = MIN_ANNUAL_VOL;
+  if (denseDaily) {
+    const dailyRf = (1 + riskFreeRate) ** (1 / TRADING_DAYS_PER_YEAR) - 1;
+    const excess = rets.map((r) => r - dailyRf);
+    const std = sampleStd(excess);
+    const meanEx = excess.reduce((s, x) => s + x, 0) / excess.length;
+    volatility = Math.max(std * Math.sqrt(TRADING_DAYS_PER_YEAR), MIN_ANNUAL_VOL);
+    sharpe =
+      std > 1e-10
+        ? (Math.sqrt(TRADING_DAYS_PER_YEAR) * meanEx) / std
+        : 0;
+  } else {
+    const calYears = calendarYearsBetween(
+      dates[0]!,
+      dates[dates.length - 1]!,
+    );
+    const obsPerYear = rets.length / calYears;
+    const meanRet = rets.reduce((s, x) => s + x, 0) / rets.length;
+    const std = sampleStd(rets);
+    const periodRf = (1 + riskFreeRate) ** (1 / Math.max(obsPerYear, 1e-6)) - 1;
+    volatility = Math.max(std * Math.sqrt(obsPerYear), MIN_ANNUAL_VOL);
+    sharpe = std > 1e-10 ? ((meanRet - periodRf) / std) * Math.sqrt(obsPerYear) : 0;
+  }
+
+  let peak = start;
+  let maxDrawdown = 0;
+  for (const v of values) {
+    if (v > peak) peak = v;
+    if (peak > 0) {
+      const dd = v / peak - 1;
+      if (dd < maxDrawdown) maxDrawdown = dd;
+    }
+  }
+
+  return {
+    sharpe,
+    sortino: 0,
+    cagr,
+    max_drawdown: maxDrawdown,
+    volatility,
+  };
+}
+
+/** Metrics for both series on the shared chart window (null if cannot align). */
+export function metricsFromBenchmarkCompareChart(
+  chart: BenchmarkCompareChartRow[],
+  riskFreeRate = DEFAULT_RISK_FREE,
+): { anchor: HorizonMetricSnapshot; customized: HorizonMetricSnapshot } | null {
+  if (!chart || chart.length < 3) return null;
+  const dates = chart.map((r) => r.date);
+  const anchor = metricsFromRebasedEquitySeries(
+    dates,
+    chart.map((r) => r.anchor),
+    riskFreeRate,
+  );
+  const customized = metricsFromRebasedEquitySeries(
+    dates,
+    chart.map((r) => r.customized),
+    riskFreeRate,
+  );
+  if (!anchor || !customized) return null;
+  return { anchor, customized };
+}
+
+function resolveCompareMetricPair(
+  baseResult: BacktestResult,
+  adjustedResult: BacktestResult,
+  pick?: RmCandidatePick,
+): { base: HorizonMetricSnapshot; adj: HorizonMetricSnapshot } | null {
+  const chart = buildBenchmarkCompareChartData(baseResult, adjustedResult, pick);
+  const fromChart = chart ? metricsFromBenchmarkCompareChart(chart) : null;
+  if (fromChart) return { base: fromChart.anchor, adj: fromChart.customized };
+
+  const base = pickChampionHorizonMetrics(baseResult);
+  const adj = pickCustomizedHorizonMetrics(adjustedResult, pick);
+  if (!base || !adj) return null;
+  return { base, adj };
+}
+
 function fmtPct(v: number, digits = 2): string {
   return `${(v * 100).toFixed(digits)}%`;
 }
@@ -188,9 +360,9 @@ export function buildMetricCompareRows(
   },
   pick?: RmCandidatePick,
 ): MetricCompareRow[] {
-  const base = pickChampionHorizonMetrics(baseResult);
-  const adj = pickCustomizedHorizonMetrics(adjustedResult, pick);
-  if (!base || !adj) return [];
+  const pair = resolveCompareMetricPair(baseResult, adjustedResult, pick);
+  if (!pair) return [];
+  const { base, adj } = pair;
 
   const specs: Array<{
     key: string;
@@ -291,6 +463,8 @@ export function buildHoldingsDiff(
 
   const rows: HoldingDiffRow[] = [];
   for (const ticker of [...tickers].sort()) {
+    // Chart truncation bucket — never show as a fake investment ticker.
+    if (ticker === "OTHER" || ticker === "__OTHER__") continue;
     const anchorPct = anchorPcts[ticker] ?? 0;
     const customizedPct = customizedPcts[ticker] ?? 0;
     const deltaPct = customizedPct - anchorPct;

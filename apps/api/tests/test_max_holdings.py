@@ -230,3 +230,46 @@ def test_sim_inputs_from_params_returns_ten_including_customization_drift():
     assert turnover_penalty_mult is not None
     assert isinstance(class_budget, dict)
     assert f_params is not None
+
+
+def test_sim_inputs_from_params_preserves_cash_reserve_and_deployment():
+    """Regression: trial BacktestSpec must not drop overlay cash_reserve_pct."""
+    from app.engine.backtest import _sim_inputs_from_params
+    from app.engine.spec import BacktestSpec
+    from app.models import BacktestRequest, Objective, BacktestMode
+
+    req = BacktestRequest(
+        scenario_id="custom",
+        max_weight=0.5,
+        objective=Objective.max_sharpe,
+        backtest_mode=BacktestMode.static,
+        max_holdings=8,
+        cash_reserve_pct=0.05,
+    )
+    spec = BacktestSpec(
+        max_holdings=8,
+        cash_reserve_pct=0.05,
+        cash_return_mode="risk_free",
+        deployment_months=6,
+        deployment_tranches=6,
+    )
+    params = {
+        "mode": "min_var",
+        "lookback_days": 126,
+        "shrinkage": 0.1,
+        "risk_aversion": 2.0,
+        "max_weight_actual": 0.25,
+        "top_n_actual": 8,
+        "max_holdings_actual": 5,
+        "no_trade_tol": 0.0,
+        "turnover_penalty_mult": 1.0,
+        "max_turnover_actual": 0.5,
+        "rebalance_freq": "ME",
+    }
+    trial_spec, *_ = _sim_inputs_from_params(params, req, "QE", spec)
+    assert trial_spec.max_holdings == 5
+    assert trial_spec.rebalance_rule == "ME"
+    assert abs(float(trial_spec.cash_reserve_pct) - 0.05) < 1e-9
+    assert trial_spec.cash_return_mode == "risk_free"
+    assert trial_spec.deployment_months == 6
+    assert trial_spec.deployment_tranches == 6

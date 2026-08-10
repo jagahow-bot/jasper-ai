@@ -587,24 +587,3 @@ def fetch_dividends(
         for t in missing:
             panel[t] = 0.0
     return panel.reindex(columns=download_tickers, fill_value=0.0)
-
-
-def synthetic_prices(tickers: list[str], start: str, end: str, benchmark: str) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Demo-only data — not for production interpretation."""
-    dates = pd.bdate_range(start=start, end=end)
-    rng = np.random.default_rng(42)
-    cols: dict[str, np.ndarray] = {}
-    all_tickers = list(dict.fromkeys([*tickers, benchmark]))
-    for i, t in enumerate(all_tickers):
-        daily = rng.normal(0.0002, 0.012, len(dates))
-        cols[t] = 100 * np.cumprod(1 + daily)
-    prices = pd.DataFrame(cols, index=dates)
-    meta = {
-        "data_source": "synthetic_fallback",
-        "rows": len(prices),
-        "columns": len(prices.columns),
-        "start": str(prices.index[0].date()),
-        "end": str(prices.index[-1].date()),
-        "warning": "Simulated random data for UI testing only — not investable performance",
-    }
-    return prices, meta

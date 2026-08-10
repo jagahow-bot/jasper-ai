@@ -65,14 +65,15 @@ export type FilterProposalDecision =
   | { action: "proceed"; overlay: ClientOverlay };
 
 /**
- * Decide whether sign-off should pause so the RM can review filter proposals.
+ * Finalize overlay on「確認 Overlay 並簽核」.
  *
- * Rules:
- * - Chat/AI already populated `proposed_tickers` (visible as「建議參考標的」) →
- *   confirm proceeds; do not open another filter pass for additional novels.
- * - Once we interrupted for a prompts fingerprint (`surfacedKey`), re-confirm
- *   always proceeds — even if the LLM invents new tickers.
- * - Otherwise interrupt once when the filter returns truly novel tickers.
+ * Sign-off always proceeds: the chat-time ProposedTickersPanel is the only
+ * suggestion-review UI. Confirm must not open another filter/propose pass
+ * (even when `/api/universe/filter` returns novel tickers), or suggestions
+ * reappear after the RM already clicked confirm.
+ *
+ * `filterProposedTickers` / `surfacedKey` are accepted for call-site
+ * compatibility but never trigger an interrupt.
  */
 export function decideFilterProposalInterrupt(opts: {
   overlay: ClientOverlay;
@@ -80,26 +81,7 @@ export function decideFilterProposalInterrupt(opts: {
   /** Prompts key from a prior interrupt in this confirm session, or null. */
   surfacedKey: string | null;
 }): FilterProposalDecision {
-  const { overlay, filterProposedTickers, surfacedKey } = opts;
-  const promptsKey = overlayPromptsKey(overlay);
-  const novel = novelFilterProposedTickers(overlay, filterProposedTickers);
-
-  // Already-shown suggestions count as the review gate being satisfied.
-  if (overlayAlreadyShowsProposedTickers(overlay)) {
-    return { action: "proceed", overlay: clearProposedTickers(overlay) };
-  }
-
-  if (!novel.length) {
-    return { action: "proceed", overlay: clearProposedTickers(overlay) };
-  }
-
-  if (surfacedKey !== null && surfacedKey === promptsKey) {
-    return { action: "proceed", overlay: clearProposedTickers(overlay) };
-  }
-
-  return {
-    action: "interrupt",
-    promptsKey,
-    overlay: mergeFilterProposedIntoOverlay(overlay, novel),
-  };
+  void opts.filterProposedTickers;
+  void opts.surfacedKey;
+  return { action: "proceed", overlay: clearProposedTickers(opts.overlay) };
 }

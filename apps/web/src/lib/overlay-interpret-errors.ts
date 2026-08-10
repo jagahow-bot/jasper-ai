@@ -111,5 +111,76 @@ export function isOverlayInterpretErrorBody(
   return typeof body.error === "string" && typeof body.code === "string";
 }
 
+export type OverlayInterpretClientFailure = {
+  messageKey: string;
+  messageFallback: string;
+  /** When true, UI should translate `messageKey`; otherwise show `messageFallback`. */
+  preferI18n: boolean;
+  code?: string;
+  detail?: string;
+};
+
+/**
+ * Map an interpret HTTP response body into UI-facing failure fields.
+ * Prefer `messageKey` via i18n when `preferI18n`; otherwise use `messageFallback`.
+ */
+export function resolveOverlayInterpretClientFailure(
+  data: unknown,
+  httpStatus?: number,
+): OverlayInterpretClientFailure {
+  if (isOverlayInterpretErrorBody(data)) {
+    return {
+      messageKey: overlayInterpretErrorI18nKey(data.code),
+      messageFallback: data.error,
+      preferI18n: true,
+      code: data.code,
+      detail: data.detail,
+    };
+  }
+  if (
+    data &&
+    typeof data === "object" &&
+    "error" in data &&
+    typeof (data as { error?: unknown }).error === "string"
+  ) {
+    const error = (data as { error: string }).error;
+    return {
+      messageKey: "overlay.interpret.error.generic",
+      messageFallback: error,
+      preferI18n: false,
+      detail: httpStatus ? `HTTP ${httpStatus}` : undefined,
+    };
+  }
+  const statusHint =
+    typeof httpStatus === "number" && httpStatus > 0 ? `HTTP ${httpStatus}` : undefined;
+  const emptyBody =
+    data == null ||
+    (typeof data === "object" && !Array.isArray(data) && Object.keys(data).length === 0);
+  return {
+    messageKey: "overlay.interpret.error.generic",
+    messageFallback: statusHint
+      ? `Overlay interpretation failed (${statusHint}).`
+      : "Overlay interpretation failed.",
+    preferI18n: true,
+    code: emptyBody ? OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID : undefined,
+    detail: statusHint,
+  };
+}
+
+/** Safe parse of interpret response text; empty → `{}` for callers. */
+export function parseOverlayInterpretResponseJson(text: string): unknown {
+  const trimmed = text.trim();
+  if (!trimmed) return {};
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return {
+      error: "Overlay interpretation returned a non-JSON response",
+      code: OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID,
+      detail: trimmed.slice(0, 500),
+    } satisfies OverlayInterpretErrorBody;
+  }
+}
+
 /** Backward-compatible alias for legacy call sites/tests. */
 export const classifyOverlayGeminiFailure = classifyOverlayAiFailure;

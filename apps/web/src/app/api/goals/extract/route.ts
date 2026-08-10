@@ -8,6 +8,7 @@ import {
 } from "@/lib/ai-provider";
 import { languageDirective } from "@/lib/ai-language";
 import {
+  enrichGoalExtractWithClientContext,
   extractGoalsRulesFallback,
   parseGoalExtractFromModel,
   type GoalExtractResult,
@@ -20,6 +21,9 @@ type Body = {
   report_language?: string;
   client?: {
     client_id?: string;
+    age?: number;
+    gender?: "male" | "female" | null;
+    display_name?: string;
     aum_usd?: number;
     cash_usd?: number;
     risk_profile?: string;
@@ -32,8 +36,13 @@ function buildPrompt(
   lang: Lang,
   client?: Body["client"],
 ): string {
+  const age =
+    typeof client?.age === "number" && Number.isFinite(client.age)
+      ? String(client.age)
+      : "—";
+  const gender = client?.gender ?? "—";
   const clientBlock = client
-    ? `Client context: id=${client.client_id ?? "—"}, AUM_USD=${client.aum_usd ?? "—"}, cash_USD=${client.cash_usd ?? "—"}, risk=${client.risk_profile ?? "—"}, as_of=${client.as_of_date ?? "—"}.`
+    ? `Client context: id=${client.client_id ?? "—"}, age_years=${age}, gender=${gender}, display_name=${client.display_name ?? "—"}, AUM_USD=${client.aum_usd ?? "—"}, cash_USD=${client.cash_usd ?? "—"}, risk=${client.risk_profile ?? "—"}, as_of=${client.as_of_date ?? "—"}.`
     : "Client context: unknown.";
 
   return `You are helping a private-bank relationship manager structure a financial-goal plan.
@@ -52,7 +61,13 @@ Return ONLY JSON:
       "label": "short name",
       "amount_usd": number,
       "within_months": number,
-      "priority": 1-5
+      "priority": 1-5,
+      "retirement_spend_years": number,
+      "mortgage": {
+        "loan_usd": number,
+        "annual_rate": fraction,
+        "term_months": number
+      }
     }
   ],
   "assumptions": {
@@ -61,6 +76,7 @@ Return ONLY JSON:
     "conservative_delta": fraction,
     "annual_contribution_usd": number,
     "contribution_growth": fraction,
+    "annual_living_spend_usd": number,
     "inflation": fraction
   },
   "clarification_questions": ["..."],
@@ -72,14 +88,29 @@ Rules:
 - Prefer explicit numbers from the notes; do not invent large goals without evidence.
 - If return is given as percent (e.g. 5%), convert to fraction 0.05.
 - within_months: convert years to months when needed; clamp 1–360.
-- If annual savings / contribution is mentioned, put it in annual_contribution_usd.
-- Ask clarification_questions for missing critical fields (amount, timing, return).
+- Retirement timing: when notes say retire at / after age N (e.g. 60) AND client age_years is known, set within_months = max(1, round((N - age_years) * 12)). Do NOT ask for current age if age_years is provided.
+- For retirement goals: amount_usd is ANNUAL living spend (not a lump sum).
+- retirement_spend_years: set from planning life expectancy minus retirement age. Use male=78, female=85, unknown/unisex=82 (illustrative). Example: male retire at 60 → 18 years. Prefer client gender; else infer from notes/name (Mr/Ms). Do NOT ask how many years to fund if this can be computed.
+- For home goals: amount_usd is the down payment / cash at purchase (not full price).
+- If mortgage / loan / LTV is mentioned for a home goal, fill mortgage.loan_usd, annual_rate, term_months (years×12).
+- If annual savings / contribution is mentioned, put it in annual_contribution_usd. That is working-years saving only; the simulator stops contributions at retirement start — say so in rationale when both contribution and a retirement goal are present.
+- annual_living_spend_usd: current annual lifestyle spend drawn from portfolio until retirement. If notes give living expenses / 生活開銷 / 生活費 for today (not only "after retirement"), fill it. If only retirement living spend is stated, you may set annual_living_spend_usd to the same number as a working-years default and note that in rationale.
+- Ask clarification_questions only for fields still missing after using client context.
 - Do NOT recommend products or tickers.
 
 RM notes:
 """
 ${notes}
 """`;
+}
+
+function finalizeExtract(
+  extract: GoalExtractResult,
+  notes: string,
+  lang: Lang,
+  client?: Body["client"],
+): GoalExtractResult {
+  return enrichGoalExtractWithClientContext(extract, notes, client, lang);
 }
 
 export async function POST(req: Request) {
@@ -103,7 +134,10 @@ export async function POST(req: Request) {
     process.env.GOAL_EXTRACT_ALLOW_RULES_FALLBACK !== "0";
 
   const respond = (extract: GoalExtractResult, source: "gemini" | "rules") =>
-    NextResponse.json({ extract, source });
+    NextResponse.json({
+      extract: finalizeExtract(extract, notes, lang, body.client),
+      source,
+    });
 
   if (!isProviderConfigured(DEFAULT_FLASH_MODEL_ID)) {
     if (!allowFallback) {
@@ -112,7 +146,7 @@ export async function POST(req: Request) {
         { status: 503 },
       );
     }
-    return respond(extractGoalsRulesFallback(notes, lang), "rules");
+    return respond(extractGoalsRulesFallback(notes, lang, body.client), "rules");
   }
 
   try {
@@ -128,19 +162,23 @@ export async function POST(req: Request) {
 
     try {
       const extract = parseGoalExtractFromModel(result.text);
-      return NextResponse.json({ extract, source: "gemini", llm_log: log });
+      return NextResponse.json({
+        extract: finalizeExtract(extract, notes, lang, body.client),
+        source: "gemini",
+        llm_log: log,
+      });
     } catch (parseError) {
       console.warn("[goals/extract] parse failed; rules fallback", parseError);
       if (!allowFallback) {
         return NextResponse.json({ error: "parse_failed" }, { status: 502 });
       }
-      return respond(extractGoalsRulesFallback(notes, lang), "rules");
+      return respond(extractGoalsRulesFallback(notes, lang, body.client), "rules");
     }
   } catch (error) {
     console.warn("[goals/extract] AI failed; rules fallback", error);
     if (!allowFallback) {
       return NextResponse.json({ error: "ai_failed" }, { status: 502 });
     }
-    return respond(extractGoalsRulesFallback(notes, lang), "rules");
+    return respond(extractGoalsRulesFallback(notes, lang, body.client), "rules");
   }
 }

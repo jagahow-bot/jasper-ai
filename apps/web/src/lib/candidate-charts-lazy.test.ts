@@ -71,6 +71,21 @@ describe("candidate-charts-lazy", () => {
     expect(merged.weights).toEqual({ SPY: 0.62, QQQ: 0.38 });
   });
 
+  it("does not overwrite packaged weights with truncated OTHER history", () => {
+    const merged = mergeCandidateCharts(
+      { ...slim, weights: { SPY: 0.4, QQQ: 0.35, IWM: 0.2, GLD: 0.05 } },
+      {
+        model_code: "M0005",
+        equity_curve: [{ date: "2020-01-01", value: 100 }],
+        weight_history: [{ date: "2020-01-01", SPY: 0.6, QQQ: 0.35, OTHER: 0.05 }],
+        weight_history_tickers: ["SPY", "QQQ"],
+        benchmark_equity_curve: [],
+      },
+    );
+    expect(merged.weights).toEqual({ SPY: 0.4, QQQ: 0.35, IWM: 0.2, GLD: 0.05 });
+    expect(merged.analytics?.weight_history?.[0]).toMatchObject({ OTHER: 0.05 });
+  });
+
   it("tracks lazy payload completeness", () => {
     const payload = {
       model_code: "M0005",

@@ -75,7 +75,22 @@ export function ClientCustomizedHistoryPanel({ clientId }: Props) {
       <p className="mb-3 ui-hint">{countLabel}</p>
 
       {rows.length === 0 ? (
-        <p className="ui-body text-dim">{t("clients.history.empty")}</p>
+        <div className="space-y-3">
+          <p className="ui-body text-dim">{t("clients.history.empty")}</p>
+          <Link
+            href={`/clients/${clientId}`}
+            className="pixel-btn inline-flex px-3 py-1.5 text-sm"
+            onClick={(e) => {
+              // Same page — scroll to holdings CTA instead of remounting.
+              e.preventDefault();
+              document
+                .querySelector("[data-holdings-launch]")
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+          >
+            {t("clients.history.emptyCta")}
+          </Link>
+        </div>
       ) : (
         <ul className="space-y-2">
           {rows.map((row) => {

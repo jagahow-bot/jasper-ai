@@ -50,14 +50,32 @@ def feasible_max_weight(max_weight: float, n_active: int) -> float:
 
     When ``max_weight * n_active < 1``, the capped simplex is empty and naive
     clip-then-renormalize collapses every name to exact ``1/n``. Relaxing the
-    effective cap preserves allocator-differentiated relative weights.
+    effective cap to ``1/n`` makes the simplex non-empty.
+
+    When ``max_weight * n_active == 1`` (e.g. 10 names × 10%), the only
+    feasible point is equal weights — relax further to ``1/(n-1)`` so
+    allocator-differentiated books can survive projection.
     """
 
     cap = float(max(max_weight, 1e-12))
 
     n = int(max(n_active, 1))
 
-    return float(max(cap, 1.0 / float(n)))
+    product = n * cap
+
+    if product < 1.0 - 1e-12:
+
+        return float(max(cap, 1.0 / float(n)))
+
+    if product <= 1.0 + 1e-12:
+
+        if n <= 1:
+
+            return 1.0
+
+        return float(min(1.0, max(cap, 1.0 / float(n - 1))))
+
+    return cap
 
 
 
@@ -200,13 +218,14 @@ def project_max_weight(w: np.ndarray, max_weight: float, max_iter: int = 100) ->
 
 
     # Feasibility depends on ambient universe size. Sparse active books in a
-    # large enough universe should expand support; if even the full universe
-    # cannot satisfy the cap, keep relative weights (do not force 1/N).
+    # large enough universe should expand support; if the universe cannot
+    # admit a non-unique capped book (need > 1/cap names), keep relative
+    # weights instead of collapsing to equal-at-cap (e.g. 10×10%).
     n_active = int((w > WEIGHT_EPS).sum()) or n
-    required_names = int(np.ceil(1.0 / cap - 1e-12))
+    required_names = min_holdings_for_cap(cap, floor=1)
     if n < required_names:
         logger.warning(
-            "max_weight cap %.4f infeasible with %d tradable names "
+            "max_weight cap %.4f infeasible / unique-equal with %d tradable names "
             "(need >= %d); keeping relative weights instead of equal-weight collapse",
             cap,
             n,

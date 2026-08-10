@@ -96,8 +96,11 @@ function run() {
   });
   assert.deepEqual(locked, ["IVV", "GLD"]);
 
-  assert.equal(maxWeightForLockedUniverse(2, 0.25), 0.5);
+  assert.equal(maxWeightForLockedUniverse(2, 0.25), 1);
   assert.equal(maxWeightForLockedUniverse(4, 0.4), 0.4);
+  // AI-suggested 10% with 10 names must not stay at equal-weight-only 10%.
+  assert.equal(maxWeightForLockedUniverse(10, 0.1), 0.2);
+  assert.ok(maxWeightForLockedUniverse(10, 0.08) >= 0.2);
 
   // Thematic NL must NOT invent ARKW/ACWI/etc. — only named symbols.
   const thematicAdds = resolveStrictLockedAdds({

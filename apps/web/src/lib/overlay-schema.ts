@@ -479,10 +479,14 @@ export function overlayToBacktestRequest(
         }
       : enforcedControls;
   const clientContext = clientContextFromOverlay(overlay);
-  const cashReserve =
+  // Scope-selected cash sleeve (already on base via applyScopeToBacktestRequest)
+  // is a floor: overlay cash settings can only raise it, never drop it to 0.
+  const cashReserve = Math.max(
+    base.cash_reserve_pct ?? 0,
     clientContext?.cash_reserve_pct ??
-    overlay.deployment_schedule?.liquidity_buffer_pct ??
-    0;
+      overlay.deployment_schedule?.liquidity_buffer_pct ??
+      0,
+  );
   const deployMonths = overlay.deployment_schedule?.months ?? null;
   const deployTranches =
     overlay.deployment_schedule?.tranches ?? deployMonths;
@@ -589,6 +593,58 @@ export function isOverlayReadyForBacktest(overlay: ClientOverlay): boolean {
   return Boolean(overlay.audit.rm_sign_off) && overlay.confidence >= 0.5;
 }
 
+/** Localized display for machine enum values in the overlay summary. */
+function stanceLabel(v: string, lang: "zh" | "en" | "ko"): string {
+  const map: Record<string, { zh: string; en: string; ko: string }> = {
+    risk_on: { zh: "偏多（Risk-on）", en: "Risk-on", ko: "리스크온" },
+    risk_off: { zh: "偏防禦（Risk-off）", en: "Risk-off", ko: "리스크오프" },
+    neutral: { zh: "中性", en: "Neutral", ko: "중립" },
+  };
+  return map[v]?.[lang] ?? v;
+}
+
+function riskLabel(v: string, lang: "zh" | "en" | "ko"): string {
+  const map: Record<string, { zh: string; en: string; ko: string }> = {
+    conservative: { zh: "保守", en: "Conservative", ko: "보수적" },
+    moderate: { zh: "穩健", en: "Moderate", ko: "중간" },
+    aggressive: { zh: "積極", en: "Aggressive", ko: "공격적" },
+  };
+  return map[v]?.[lang] ?? v;
+}
+
+function assetClassLabel(v: string, lang: "zh" | "en" | "ko"): string {
+  const map: Record<string, { zh: string; en: string; ko: string }> = {
+    equity: { zh: "股票", en: "Equity", ko: "주식" },
+    bond: { zh: "債券", en: "Bond", ko: "채권" },
+    real_estate: { zh: "不動產", en: "Real estate", ko: "부동산" },
+    commodity: { zh: "商品", en: "Commodity", ko: "원자재" },
+    cash: { zh: "現金", en: "Cash", ko: "현금" },
+    alternative: { zh: "另類", en: "Alternative", ko: "대체" },
+  };
+  return map[v]?.[lang] ?? v;
+}
+
+function objectiveLabel(v: string, lang: "zh" | "en" | "ko"): string {
+  const map: Record<string, { zh: string; en: string; ko: string }> = {
+    max_sharpe: { zh: "最大夏普", en: "Max Sharpe", ko: "최대 샤프" },
+    min_vol: { zh: "最低波動", en: "Min volatility", ko: "최소 변동성" },
+    max_return: { zh: "最大報酬", en: "Max return", ko: "최대 수익" },
+    income: { zh: "收益導向", en: "Income", ko: "인컴" },
+  };
+  return map[v]?.[lang] ?? v;
+}
+
+function sleeveLabel(v: string, lang: "zh" | "en" | "ko"): string {
+  const map: Record<string, { zh: string; en: string; ko: string }> = {
+    core: { zh: "核心", en: "Core", ko: "코어" },
+    satellite: { zh: "衛星", en: "Satellite", ko: "새틀라이트" },
+    cash: { zh: "現金", en: "Cash", ko: "현금" },
+    defensive: { zh: "防禦", en: "Defensive", ko: "디펜시브" },
+    theme: { zh: "主題", en: "Theme", ko: "테마" },
+  };
+  return map[v]?.[lang] ?? v;
+}
+
 export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" | "ko"): string {
   const lines: string[] = [];
   const { allocation, optimization, market_view, client_profile } = overlay;
@@ -616,19 +672,19 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
   })();
 
   if (lang === "zh") {
-    lines.push(`市場觀點：${market_view.stance} — ${market_view.narrative_summary}`);
+    lines.push(`市場觀點：${stanceLabel(market_view.stance, lang)} — ${market_view.narrative_summary}`);
     if (client_profile.risk_tolerance) {
-      lines.push(`風險取向：${client_profile.risk_tolerance}`);
+      lines.push(`風險取向：${riskLabel(client_profile.risk_tolerance, lang)}`);
     }
     if (liquidityLine) lines.push(liquidityLine);
-    lines.push(`資產類別：${allocation.asset_classes.join("、")}`);
+    lines.push(`資產類別：${allocation.asset_classes.map((a) => assetClassLabel(a, lang)).join("、")}`);
     if (allocation.sleeve_targets) {
       const sleeves = Object.entries(allocation.sleeve_targets)
-        .map(([k, v]) => `${k} ${(v * 100).toFixed(0)}%`)
+        .map(([k, v]) => `${sleeveLabel(k, lang)} ${(v * 100).toFixed(0)}%`)
         .join(" · ");
       lines.push(`槽位目標：${sleeves}`);
     }
-    lines.push(`優化目標：${optimization.objective}`);
+    lines.push(`優化目標：${objectiveLabel(optimization.objective, lang)}`);
     if (overlay.universe.prompts.length) {
       lines.push(`投資標的規則：${overlay.universe.prompts.join("；")}`);
     }
@@ -649,19 +705,19 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
   }
 
   if (lang === "ko") {
-    lines.push(`시장 관점: ${market_view.stance} — ${market_view.narrative_summary}`);
+    lines.push(`시장 관점: ${stanceLabel(market_view.stance, lang)} — ${market_view.narrative_summary}`);
     if (client_profile.risk_tolerance) {
-      lines.push(`위험 성향: ${client_profile.risk_tolerance}`);
+      lines.push(`위험 성향: ${riskLabel(client_profile.risk_tolerance, lang)}`);
     }
     if (liquidityLine) lines.push(liquidityLine);
-    lines.push(`자산군: ${allocation.asset_classes.join(", ")}`);
+    lines.push(`자산군: ${allocation.asset_classes.map((a) => assetClassLabel(a, lang)).join(", ")}`);
     if (allocation.sleeve_targets) {
       const sleeves = Object.entries(allocation.sleeve_targets)
-        .map(([k, v]) => `${k} ${(v * 100).toFixed(0)}%`)
+        .map(([k, v]) => `${sleeveLabel(k, lang)} ${(v * 100).toFixed(0)}%`)
         .join(" · ");
       lines.push(`슬리브 목표: ${sleeves}`);
     }
-    lines.push(`최적화 목표: ${optimization.objective}`);
+    lines.push(`최적화 목표: ${objectiveLabel(optimization.objective, lang)}`);
     if (overlay.universe.prompts.length) {
       lines.push(`투자 유니버스 규칙: ${overlay.universe.prompts.join("; ")}`);
     }
@@ -681,13 +737,13 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
     return lines.join("\n");
   }
 
-  lines.push(`View: ${market_view.stance} — ${market_view.narrative_summary}`);
+  lines.push(`View: ${stanceLabel(market_view.stance, lang)} — ${market_view.narrative_summary}`);
   if (client_profile.risk_tolerance) {
-    lines.push(`Risk tolerance: ${client_profile.risk_tolerance}`);
+    lines.push(`Risk tolerance: ${riskLabel(client_profile.risk_tolerance, lang)}`);
   }
   if (liquidityLine) lines.push(liquidityLine);
-  lines.push(`Asset classes: ${allocation.asset_classes.join(", ")}`);
-  lines.push(`Objective: ${optimization.objective}`);
+  lines.push(`Asset classes: ${allocation.asset_classes.map((a) => assetClassLabel(a, lang)).join(", ")}`);
+  lines.push(`Objective: ${objectiveLabel(optimization.objective, lang)}`);
   if (overlay.universe.prompts.length) {
     lines.push(`Universe rules: ${overlay.universe.prompts.join("; ")}`);
   }

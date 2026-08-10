@@ -241,7 +241,7 @@ export function normalizePositionPct(value: unknown): number | undefined {
   }
   if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
   let pct = value > 1 ? value / 100 : value;
-  pct = Math.min(0.25, Math.max(0.05, pct));
+  pct = Math.min(0.4, Math.max(0.05, pct));
   return pct;
 }
 

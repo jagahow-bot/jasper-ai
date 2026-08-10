@@ -3,12 +3,21 @@
 import { useMemo } from "react";
 import {
   countSelectedModelGroups,
+  effectiveScopeGroupIds,
   formatUsd,
   getClientHoldingsGroups,
+  holdingCumulativeReturnDecimal,
   holdingsGroupLabel,
   holdingsGroupWeight,
+  toggleScopeGroupId,
+  type ClientHolding,
   type DemoClient,
 } from "@/lib/clients";
+import {
+  realCumulativePctForHolding,
+  weightedHoldingReturnPct,
+} from "@/lib/client-daily-nav";
+import { useClientDailyNav } from "@/lib/use-client-daily-nav";
 import { useI18n } from "@/lib/i18n";
 
 type Props = {
@@ -28,15 +37,40 @@ export function CustomizationScopePanel({
 }: Props) {
   const { t, lang } = useI18n();
   const groups = useMemo(() => getClientHoldingsGroups(client), [client]);
-  const multiModel = countSelectedModelGroups(groups, selectedGroupIds) > 1;
+  const allHoldings = useMemo(
+    () => groups.flatMap((g) => g.holdings),
+    [groups],
+  );
+  const { perTicker } = useClientDailyNav(allHoldings, client.as_of_date);
+  const effectiveIds = useMemo(
+    () => effectiveScopeGroupIds(groups, selectedGroupIds),
+    [groups, selectedGroupIds],
+  );
+  const multiModel = countSelectedModelGroups(groups, effectiveIds) > 1;
+
+  /** Group cumulative return (percent points): real prices first, reported fallback. */
+  const groupCumulativeReturn = (
+    holdings: readonly ClientHolding[],
+  ): { pct: number | undefined; real: boolean } => {
+    const { pct, allReal } = weightedHoldingReturnPct(holdings, (h) => {
+      const real = realCumulativePctForHolding(h, perTicker);
+      if (typeof real === "number") return { pct: real, real: true };
+      const reported = holdingCumulativeReturnDecimal(h, client.as_of_date);
+      return {
+        pct: typeof reported === "number" ? reported * 100 : undefined,
+        real: false,
+      };
+    });
+    return { pct, real: allReal };
+  };
 
   const toggle = (id: string) => {
-    const selected = selectedGroupIds.includes(id);
-    if (selected && selectedGroupIds.length <= 1) return;
     onSelectedGroupIdsChange(
-      selected
-        ? selectedGroupIds.filter((g) => g !== id)
-        : [...selectedGroupIds, id],
+      toggleScopeGroupId(
+        selectedGroupIds,
+        id,
+        groups.map((g) => g.id),
+      ),
     );
   };
 
@@ -55,14 +89,25 @@ export function CustomizationScopePanel({
 
       <ul className="space-y-2">
         {groups.map((group) => {
-          const checked = selectedGroupIds.includes(group.id);
-          const disabled = checked && selectedGroupIds.length <= 1;
+          const checked = effectiveIds.includes(group.id);
+          const disabled = checked && effectiveIds.length <= 1;
           const weight = holdingsGroupWeight(group);
           const amountLabel =
             client.aum_usd > 0 && weight >= 0
               ? formatUsd(client.aum_usd * weight, lang)
               : "—";
           const weightLabel = `${(weight * 100).toFixed(1)}%`;
+          const cumReturn = groupCumulativeReturn(group.holdings);
+          const returnLabel =
+            typeof cumReturn.pct === "number"
+              ? `${cumReturn.pct >= 0 ? "+" : ""}${cumReturn.pct.toFixed(1)}%`
+              : "—";
+          const returnClass =
+            typeof cumReturn.pct !== "number"
+              ? "text-[var(--text-dim)]"
+              : cumReturn.pct >= 0
+                ? "text-emerald-600"
+                : "text-[var(--magenta)]";
           return (
             <li key={group.id}>
               <label
@@ -92,6 +137,18 @@ export function CustomizationScopePanel({
                   </span>
                   <span className="ml-2">
                     {t("clients.weight")}: {weightLabel}
+                  </span>
+                  <span
+                    className={`ml-2 font-medium ${returnClass} ${
+                      cumReturn.real ? "" : "opacity-60"
+                    }`}
+                    title={
+                      cumReturn.real
+                        ? undefined
+                        : t("clients.return.reportedFallback")
+                    }
+                  >
+                    {t("clients.return")}: {returnLabel}
                   </span>
                 </span>
               </label>

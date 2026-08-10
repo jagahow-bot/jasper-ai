@@ -17,6 +17,8 @@ from app.engine.weights import (
 def test_feasible_max_weight_relaxes_when_holdings_insufficient() -> None:
     assert feasible_max_weight(0.08, 8) == 0.125
     assert feasible_max_weight(0.25, 8) == 0.25
+    # Exact n × cap = 1 admits only equal weights — relax to 1/(n-1).
+    assert abs(feasible_max_weight(0.1, 10) - (1.0 / 9.0)) < 1e-12
 
 
 def test_project_max_weight_preserves_spread_when_cap_infeasible() -> None:
@@ -27,6 +29,16 @@ def test_project_max_weight_preserves_spread_when_cap_infeasible() -> None:
     assert float(out.max() - out.min()) > 0.02
     # Not exact 1/8 collapse.
     assert not np.allclose(out, np.full(8, 0.125), atol=1e-6)
+
+
+def test_project_max_weight_preserves_spread_at_exact_ten_by_ten() -> None:
+    """10 names × 10% cap is a unique equal-weight point — must keep relative weights."""
+    w = np.array([0.18, 0.14, 0.12, 0.11, 0.10, 0.09, 0.08, 0.07, 0.06, 0.05], dtype=float)
+    w = w / w.sum()
+    out = project_max_weight(w, 0.1)
+    assert abs(float(out.sum()) - 1.0) < 1e-6
+    assert float(out.max() - out.min()) > 0.05
+    assert not np.allclose(out, np.full(10, 0.1), atol=1e-5)
 
 
 def test_class_budget_with_tight_cap_preserves_allocator_spread() -> None:

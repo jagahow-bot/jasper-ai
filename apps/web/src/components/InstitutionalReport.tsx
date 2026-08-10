@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ChartTooltip } from "@/components/ChartTooltip";
 import {
   CartesianGrid,
@@ -100,14 +101,20 @@ export function InstitutionalReport({
             </p>
           ) : null}
           <div className="grid grid-cols-3 gap-3">
-            <Kpi label={t("common.beta")} value={rel.beta ?? candidate.beta} />
+            <Kpi
+              label={t("common.beta")}
+              value={rel.beta ?? candidate.beta}
+              hint={t("institutional.betaHint")}
+            />
             <Kpi
               label={t("common.alpha")}
               value={rel.alpha ?? rel.alpha_annual ?? candidate.alpha ?? candidate.alpha_annual}
+              hint={t("institutional.alphaHint")}
             />
             <Kpi
               label={t("institutional.ir")}
               value={rel.information_ratio ?? candidate.information_ratio}
+              hint={t("institutional.irHint")}
             />
           </div>
         </Section>
@@ -137,6 +144,11 @@ export function InstitutionalReport({
               ) : null}
             </div>
           )}
+        </Section>
+
+        <Section title={t("institutional.annualFull")}>
+          <p className="ui-hint mb-2">{t("institutional.annualRmHint")}</p>
+          <ReturnTable rows={fullAnnual} isLoading={isLoadingAnalytics} />
         </Section>
       </div>
     );
@@ -219,10 +231,22 @@ export function InstitutionalReport({
           </p>
         ) : null}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Kpi label={t("common.beta")} value={rel.beta ?? candidate.beta} />
-          <Kpi label={t("common.alpha")} value={rel.alpha ?? rel.alpha_annual ?? candidate.alpha ?? candidate.alpha_annual} />
+          <Kpi
+            label={t("common.beta")}
+            value={rel.beta ?? candidate.beta}
+            hint={t("institutional.betaHint")}
+          />
+          <Kpi
+            label={t("common.alpha")}
+            value={rel.alpha ?? rel.alpha_annual ?? candidate.alpha ?? candidate.alpha_annual}
+            hint={t("institutional.alphaHint")}
+          />
           <Kpi label={t("institutional.trackingErr")} value={rel.tracking_error ?? candidate.tracking_error} />
-          <Kpi label={t("institutional.ir")} value={rel.information_ratio ?? candidate.information_ratio} />
+          <Kpi
+            label={t("institutional.ir")}
+            value={rel.information_ratio ?? candidate.information_ratio}
+            hint={t("institutional.irHint")}
+          />
           <Kpi label={t("institutional.upCapture")} value={rel.up_capture} />
           <Kpi label={t("institutional.downCapture")} value={rel.down_capture} />
         </div>
@@ -521,12 +545,38 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Kpi({ label, value }: { label: string; value?: number | null }) {
+function Kpi({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value?: number | null;
+  hint?: string;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
   const v = value == null ? "—" : typeof value === "number" ? value.toFixed(3) : String(value);
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2 text-center">
-      <div className="ui-hint">{label}</div>
+      <div className="ui-hint flex items-center justify-center gap-1">
+        <span>{label}</span>
+        {hint ? (
+          <button
+            type="button"
+            className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[9px] font-semibold leading-none text-dim hover:border-[var(--primary)] hover:text-[var(--primary)]"
+            aria-expanded={open}
+            aria-label={t("institutional.metricHelpAria", { metric: label })}
+            onClick={() => setOpen((prev) => !prev)}
+          >
+            ?
+          </button>
+        ) : null}
+      </div>
       <div className="text-lg font-semibold tabular-nums text-[var(--primary)]">{v}</div>
+      {hint && open ? (
+        <p className="ui-hint mt-1.5 text-left leading-snug text-slate-600">{hint}</p>
+      ) : null}
     </div>
   );
 }

@@ -119,6 +119,15 @@ def test_portfolios_near_identical_by_weights_or_metrics():
     a_no_w = {**a, "_weights_sig": None}
     b_no_w = {**b, "_weights_sig": None}
     assert portfolios_near_identical(a_no_w, b_no_w)
+    # Distinct holdings stay distinct even with matching headline metrics.
+    different_w = {
+        "sharpe": 0.422,
+        "cagr": 0.07,
+        "max_drawdown": -0.181,
+        "needs_score": 0.333,
+        "_weights_sig": "AAPL:0.5000|TLT:0.5000",
+    }
+    assert not portfolios_near_identical(a, different_w)
 
 
 def test_dedupe_keeps_champion_drops_metric_clones():
@@ -199,6 +208,51 @@ def test_pick_pareto_collapses_identical_alternatives():
     assert cards[0]["label"] == "recommended"
 
 
+def test_pick_pareto_keeps_distinct_weights_same_metrics():
+    """Same headline metrics but different holdings remain separate alternatives."""
+    candidates = [
+        {
+            "model_code": "M0001",
+            "sharpe": 0.318,
+            "cagr": 0.061,
+            "max_drawdown": -0.195,
+            "is_champion": True,
+            "objective_score": 0.318,
+            "weights": {
+                "AGG": 0.1227,
+                "DODIX": 0.1219,
+                "GLD": 0.1224,
+                "IVV": 0.1227,
+                "SHY": 0.1217,
+                "TLT": 0.2046,
+                "VWELX": 0.1221,
+            },
+            "needs_attainment": NEEDS,
+        },
+        {
+            "model_code": "M0002",
+            "sharpe": 0.318,
+            "cagr": 0.061,
+            "max_drawdown": -0.195,
+            "is_champion": False,
+            "objective_score": 0.318,
+            "weights": {
+                "AGG": 0.1227,
+                "DODIX": 0.1219,
+                "GLD": 0.1224,
+                "IVV": 0.1227,
+                "PG": 0.0619,
+                "SHY": 0.1217,
+                "TLT": 0.2046,
+                "VWELX": 0.1221,
+            },
+            "needs_attainment": NEEDS,
+        },
+    ]
+    cards = pick_pareto_proposals(candidates, max_n=3, champion_code="M0001")
+    assert {c["model_code"] for c in cards} == {"M0001", "M0002"}
+
+
 def test_pick_pareto_keeps_true_tradeoffs():
     candidates = [
         {
@@ -235,3 +289,58 @@ def test_pick_pareto_keeps_true_tradeoffs():
     cards = pick_pareto_proposals(candidates, max_n=3, champion_code="REC")
     assert len(cards) == 3
     assert {c["model_code"] for c in cards} == {"REC", "DEF", "GRO"}
+
+
+def test_pick_pareto_forces_dominated_champion_as_recommended():
+    """Champion must stay the sole recommended even when Pareto-dominated."""
+    candidates = [
+        {
+            "model_code": "M0036",
+            "sharpe": 0.9,
+            "cagr": 0.12,
+            "max_drawdown": -0.25,
+            "is_champion": True,
+            "objective_score": 0.9,
+            "weights": {"IVV": 0.8, "TLT": 0.2},
+            "needs_attainment": {
+                "within_drawdown_tolerance": False,
+                "within_single_name_cap": True,
+            },
+        },
+        {
+            "model_code": "M0022",
+            "sharpe": 1.2,
+            "cagr": 0.14,
+            "max_drawdown": -0.10,
+            "is_champion": False,
+            "objective_score": 1.2,
+            "weights": {"IVV": 0.4, "TLT": 0.6},
+            "needs_attainment": {
+                "within_drawdown_tolerance": True,
+                "within_single_name_cap": True,
+            },
+        },
+        {
+            "model_code": "M0001",
+            "sharpe": 1.4,
+            "cagr": 0.18,
+            "max_drawdown": -0.30,
+            "is_champion": False,
+            "objective_score": 1.4,
+            "weights": {"IVV": 0.95, "TLT": 0.05},
+            "needs_attainment": {
+                "within_drawdown_tolerance": False,
+                "within_single_name_cap": False,
+            },
+        },
+    ]
+    cards = pick_pareto_proposals(candidates, max_n=3, champion_code="M0036")
+    assert any(c["model_code"] == "M0036" for c in cards)
+    recommended = [c for c in cards if c["is_recommended"]]
+    assert len(recommended) == 1
+    assert recommended[0]["model_code"] == "M0036"
+    assert recommended[0]["label"] == "recommended"
+    assert all(
+        c["label"] != "recommended" for c in cards if c["model_code"] != "M0036"
+    )
+    assert all(not c["label"].upper().startswith("ALTERNATIVE_") for c in cards)

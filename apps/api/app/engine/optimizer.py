@@ -8,6 +8,7 @@ at each rebalance date.
 from __future__ import annotations
 
 import gc
+from dataclasses import replace
 from typing import Callable
 
 import numpy as np
@@ -622,12 +623,10 @@ def run_optuna_search(
             mode = "max_diversification"
         else:
             mode = "min_var"
-        trial_spec = BacktestSpec(
-            benchmark_ticker=spec.benchmark_ticker,
-            risk_free_rate=spec.risk_free_rate,
-            fee_bps=spec.fee_bps,
+        # Keep cash_reserve_pct / deployment_* from the parent run spec.
+        trial_spec = replace(
+            spec,
             rebalance_rule=rebalance_freq,
-            min_holdings=spec.min_holdings,
             max_holdings=max_holdings_actual,
         )
         alloc = AllocatorParams(
@@ -808,9 +807,17 @@ def run_optuna_search(
             "param_source": (
                 "pro_round_optuna"
                 if pro_round_mode
-                else ("ai_seed" if seed else "optuna")
+                else (
+                    str(seed.get("param_source"))
+                    if seed and seed.get("param_source")
+                    else ("ai_seed" if seed else "optuna")
+                )
             ),
         }
+        if seed and seed.get("scenario_style"):
+            params["scenario_style"] = str(seed["scenario_style"])
+        if seed and seed.get("must_include_tickers"):
+            params["must_include_tickers"] = list(seed["must_include_tickers"])
         if regime_factor_flat:
             params.update(regime_factor_flat)
             params["regime_factor_matrix"] = True

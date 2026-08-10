@@ -9,4 +9,4 @@ export function lastCompletedMonthEnd(now: Date = new Date()): string {
   return `${yy}-${mm}-${dd}`;
 }
 
-export const DEFAULT_BACKTEST_START = "2018-01-01";
+export const DEFAULT_BACKTEST_START = "2010-01-01";

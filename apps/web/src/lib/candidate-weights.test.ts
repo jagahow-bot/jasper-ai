@@ -8,22 +8,30 @@ import {
 } from "./candidate-weights";
 
 describe("candidate-weights", () => {
-  it("reads terminal weight_history and folds OTHER into remainder", () => {
+  it("reads terminal weight_history and ignores chart OTHER dust", () => {
     expect(
       weightsFromLatestHistory([
         { date: "2020-01-01", SPY: 0.5, QQQ: 0.5 },
-        { date: "2021-01-01", SPY: 0.1735, QQQ: 0.226, OTHER: 0.05, SMH: 0.1505 },
+        { date: "2021-01-01", SPY: 0.1735, QQQ: 0.226, OTHER: 0.0005, SMH: 0.1505 },
       ]),
-    ).toEqual({ SPY: 0.1735, QQQ: 0.226, SMH: 0.1505, OTHER: 0.05 });
+    ).toEqual({ SPY: 0.1735, QQQ: 0.226, SMH: 0.1505 });
   });
 
-  it("folds sub-min weights into OTHER remainder", () => {
+  it("returns null when chart OTHER is truncated mass", () => {
+    expect(
+      weightsFromLatestHistory([
+        { date: "2021-01-01", SPY: 0.1735, QQQ: 0.226, OTHER: 0.05, SMH: 0.1505 },
+      ]),
+    ).toBeNull();
+  });
+
+  it("keeps tiny named holdings instead of folding into OTHER", () => {
     expect(
       weightsFromLatestHistory(
         [{ date: "2026-06-30", SPY: 0.6, QQQ: 0.399, TINY: 0.001 }],
-        0.002,
+        0.0005,
       ),
-    ).toEqual({ SPY: 0.6, QQQ: 0.399, OTHER: 0.001 });
+    ).toEqual({ SPY: 0.6, QQQ: 0.399, TINY: 0.001 });
   });
 
   it("prefers weight_history over packaged round weights", () => {
@@ -48,6 +56,19 @@ describe("candidate-weights", () => {
     expect(resolved.SPY).toBeCloseTo(0.1147, 4);
     expect(resolved.USMV).toBeCloseTo(0.0294, 4);
     expect(resolved.RSP).toBeCloseTo(0.1076, 4);
+  });
+
+  it("falls back to packaged weights when history OTHER is truncated", () => {
+    const resolved = resolveCandidateWeights({
+      weights: { SPY: 0.4, QQQ: 0.35, IWM: 0.2, GLD: 0.05 },
+      analytics: {
+        weight_history: [
+          { date: "2026-06-30", SPY: 0.4, QQQ: 0.35, OTHER: 0.25 },
+        ],
+      },
+    });
+    expect(resolved).toEqual({ SPY: 0.4, QQQ: 0.35, IWM: 0.2, GLD: 0.05 });
+    expect(resolved.OTHER).toBeUndefined();
   });
 
   it("formats weight percents to 2 decimals", () => {
@@ -87,14 +108,28 @@ describe("candidate-weights", () => {
     expect(rows.some((r) => r.ticker === "OTHER" || r.ticker === "CASH")).toBe(false);
   });
 
-  it("shows OTHER remainder when tiny names are filtered", () => {
+  it("lists every named holding instead of inventing OTHER", () => {
     const rows = buildAllocationRows(
       { SPY: 0.6, QQQ: 0.35, AAA: 0.03, BBB: 0.02 },
       0.05,
     );
-    const other = rows.find((r) => r.ticker === "OTHER");
-    expect(other).toBeDefined();
-    expect(other!.weight).toBeCloseTo(0.05, 6);
+    // minWeight only drops rows below threshold; does not invent OTHER for the rest.
+    expect(rows.map((r) => r.ticker).sort()).toEqual(["QQQ", "SPY"]);
+    expect(rows.some((r) => r.ticker === "OTHER")).toBe(false);
+    expect(rows.reduce((s, r) => s + r.pct, 0)).toBeCloseTo(95, 6);
+  });
+
+  it("keeps small named holdings as their own rows", () => {
+    const rows = buildAllocationRows({ SPY: 0.6, QQQ: 0.35, AAA: 0.03, BBB: 0.02 });
+    expect(rows.find((r) => r.ticker === "AAA")).toBeDefined();
+    expect(rows.find((r) => r.ticker === "BBB")).toBeDefined();
+    expect(rows.some((r) => r.ticker === "OTHER")).toBe(false);
     expect(rows.reduce((s, r) => s + r.pct, 0)).toBeCloseTo(100, 6);
+  });
+
+  it("keeps explicit CASH sleeve without inventing OTHER", () => {
+    const rows = buildAllocationRows({ SPY: 0.7, QQQ: 0.25, CASH: 0.05 });
+    expect(rows.find((r) => r.ticker === "CASH")?.pct).toBeCloseTo(5, 2);
+    expect(rows.some((r) => r.ticker === "OTHER")).toBe(false);
   });
 });

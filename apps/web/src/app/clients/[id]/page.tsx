@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Cell,
+  Legend,
   Line,
   LineChart,
   Pie,
@@ -20,8 +21,6 @@ import { ChartTooltip } from "@/components/ChartTooltip";
 import { ClientCustomizedHistoryPanel } from "@/components/ClientCustomizedHistoryPanel";
 import { FinancialGoalSimulator } from "@/components/FinancialGoalSimulator";
 import {
-  buildClientHoldingsPie,
-  buildClientPerformanceSeries,
   defaultCustomizationPortfolioName,
   formatUpcomingEvent,
   formatUsd,
@@ -30,20 +29,36 @@ import {
   getUpcomingEvents,
   holdingDisplayName,
   holdingCagr,
+  holdingCumulativeReturnDecimal,
   holdingsFromSelectedGroups,
-  holdingsGroupCagr,
   holdingsGroupInvestedAt,
   holdingsGroupLabel,
-  holdingsGroupReturnYtd,
   holdingsGroupWeight,
   isCashHolding,
   localizedText,
   resolveAnchorIdFromScope,
   resolveHoldingProductType,
   selectedGroupsWeightScale,
+  type ClientHolding,
   type ClientHoldingsGroup,
   type ClientUpcomingEvent,
 } from "@/lib/clients";
+import {
+  buildClientHoldingsGroupPie,
+  buildClientHoldingsPie,
+  buildClientPerformanceSeries,
+  CLIENT_PERF_TIMEFRAMES,
+  toClientPerformanceReturnSeries,
+  type ClientPerfTimeframe,
+} from "@/lib/clients-charts";
+import { useClientDailyNav } from "@/lib/use-client-daily-nav";
+import {
+  realCagrPctForHolding,
+  realCumulativePctForHolding,
+  weightedHoldingReturnPct,
+  type ResolvedHoldingReturn,
+  type WeightedHoldingReturn,
+} from "@/lib/client-daily-nav";
 import {
   addClientEvent,
   addClientNote,
@@ -74,7 +89,52 @@ const HOLDING_COLORS = [
   "#f97316",
 ];
 
-/** Format return_ytd / cagr percent points with sign + emerald/red coloring. Cash → —. */
+type AllocationView = "individual" | "portfolio";
+
+function ChartSegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (next: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={ariaLabel}
+      className="inline-flex rounded-md border border-[var(--border)] bg-[var(--surface-2)] p-0.5"
+    >
+      {options.map((opt) => {
+        const active = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            className={`rounded px-1.5 py-0.5 text-[11px] leading-tight transition-colors ${
+              active
+                ? "bg-white font-medium text-[var(--foreground)] shadow-sm"
+                : "text-[var(--text-dim)] hover:text-[var(--foreground)]"
+            }`}
+            aria-pressed={active}
+            onClick={() => onChange(opt.value)}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Format return / cagr percent points with sign + emerald/red coloring. Cash → —. */
+function percentFromDecimal(d: number | undefined): number | undefined {
+  return typeof d === "number" ? d * 100 : undefined;
+}
+
 function formatReturnYtd(
   pct: number | null | undefined,
   opts?: { isCash?: boolean },
@@ -129,6 +189,10 @@ export default function ClientDashboardPage() {
   const canFilterGroups = hasGroupedHoldings && holdingsGroups.length > 1;
 
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [perfTimeframe, setPerfTimeframe] =
+    useState<ClientPerfTimeframe>("MAX");
+  const [allocationView, setAllocationView] =
+    useState<AllocationView>("individual");
   const [extraNotes, setExtraNotes] = useState<ClientExtraNote[]>([]);
   const [extraEvents, setExtraEvents] = useState<ClientUpcomingEvent[]>([]);
   const [addingNote, setAddingNote] = useState(false);
@@ -199,6 +263,42 @@ export default function ClientDashboardPage() {
     [canFilterGroups, holdingsGroups, selectedGroupIds],
   );
 
+  // Real daily NAV + per-ticker returns from price history; reported values
+  // are the immediate placeholder while loading and the fallback on failure.
+  const dailyNav = useClientDailyNav(chartHoldings, client?.as_of_date);
+  const perTicker = dailyNav.perTicker;
+  /** True once real data has loaded or failed — gates the dimmed-fallback styling. */
+  const realReturnsSettled = dailyNav.failed || perTicker != null;
+
+  /** 累積報酬 per holding: real close-to-close return, else reported (fallback). */
+  const resolveCumulative = useMemo(
+    () =>
+      (h: ClientHolding): ResolvedHoldingReturn => {
+        if (isCashHolding(h)) return { pct: undefined, real: false };
+        const real = realCumulativePctForHolding(h, perTicker);
+        if (typeof real === "number") return { pct: real, real: true };
+        return {
+          pct: percentFromDecimal(
+            holdingCumulativeReturnDecimal(h, client?.as_of_date),
+          ),
+          real: false,
+        };
+      },
+    [perTicker, client?.as_of_date],
+  );
+
+  /** CAGR per holding: same real return over first priced day → as_of. */
+  const resolveCagr = useMemo(
+    () =>
+      (h: ClientHolding): ResolvedHoldingReturn => {
+        if (isCashHolding(h)) return { pct: undefined, real: false };
+        const real = realCagrPctForHolding(h, perTicker, client?.as_of_date);
+        if (typeof real === "number") return { pct: real, real: true };
+        return { pct: holdingCagr(h, client?.as_of_date), real: false };
+      },
+    [perTicker, client?.as_of_date],
+  );
+
   /** Footer totals for selected groups (same scope as charts). */
   const holdingsTotals = useMemo(() => {
     if (hasGroupedHoldings) {
@@ -215,16 +315,24 @@ export default function ClientDashboardPage() {
               holdings: chartHoldings,
             }
           : null;
-      const returnYtd = totalGroup
-        ? holdingsGroupReturnYtd(totalGroup)
+      const cumulative = totalGroup
+        ? weightedHoldingReturnPct(totalGroup.holdings, resolveCumulative)
         : undefined;
       const cagr = totalGroup
-        ? holdingsGroupCagr(totalGroup, client?.as_of_date)
+        ? weightedHoldingReturnPct(totalGroup.holdings, resolveCagr)
         : undefined;
       const investedAt = totalGroup
         ? holdingsGroupInvestedAt(totalGroup)
         : undefined;
-      return { rawWeight, displayWeight, returnYtd, cagr, investedAt };
+      return {
+        rawWeight,
+        displayWeight,
+        cumulative: cumulative?.pct,
+        cumulativeAllReal: cumulative?.allReal ?? false,
+        cagr: cagr?.pct,
+        cagrAllReal: cagr?.allReal ?? false,
+        investedAt,
+      };
     }
     const rawWeight = client
       ? client.holdings.reduce((acc, h) => acc + h.weight, 0)
@@ -236,16 +344,24 @@ export default function ClientDashboardPage() {
           holdings: client.holdings,
         }
       : null;
-    const returnYtd = flatGroup
-      ? holdingsGroupReturnYtd(flatGroup)
+    const cumulative = flatGroup
+      ? weightedHoldingReturnPct(flatGroup.holdings, resolveCumulative)
       : undefined;
     const cagr = flatGroup
-      ? holdingsGroupCagr(flatGroup, client?.as_of_date)
+      ? weightedHoldingReturnPct(flatGroup.holdings, resolveCagr)
       : undefined;
     const investedAt = flatGroup
       ? holdingsGroupInvestedAt(flatGroup)
       : undefined;
-    return { rawWeight, displayWeight: rawWeight, returnYtd, cagr, investedAt };
+    return {
+      rawWeight,
+      displayWeight: rawWeight,
+      cumulative: cumulative?.pct,
+      cumulativeAllReal: cumulative?.allReal ?? false,
+      cagr: cagr?.pct,
+      cagrAllReal: cagr?.allReal ?? false,
+      investedAt,
+    };
   }, [
     hasGroupedHoldings,
     holdingsGroups,
@@ -253,27 +369,55 @@ export default function ClientDashboardPage() {
     weightScale,
     chartHoldings,
     client,
+    resolveCumulative,
+    resolveCagr,
   ]);
 
-  const pieData = useMemo(
-    () =>
-      buildClientHoldingsPie(chartHoldings, {
+  const pieData = useMemo(() => {
+    if (allocationView === "portfolio" && hasGroupedHoldings) {
+      return buildClientHoldingsGroupPie(holdingsGroups, {
+        selectedIds: selectedGroupIds,
+        labelOf: (g) =>
+          holdingsGroupLabel(g as ClientHoldingsGroup, lang, t),
         renormalize: canFilterGroups,
-      }),
-    [chartHoldings, canFilterGroups],
-  );
-  const navSeries = useMemo(
-    () =>
-      client
-        ? buildClientPerformanceSeries({
-            client_id: client.client_id,
-            as_of_date: client.as_of_date,
-            risk_profile: client.risk_profile,
-            holdings: chartHoldings,
-          })
-        : [],
-    [client, chartHoldings],
-  );
+      });
+    }
+    return buildClientHoldingsPie(chartHoldings, {
+      renormalize: canFilterGroups,
+    });
+  }, [
+    allocationView,
+    hasGroupedHoldings,
+    holdingsGroups,
+    selectedGroupIds,
+    lang,
+    t,
+    chartHoldings,
+    canFilterGroups,
+  ]);
+  // Chart: real daily NAV once loaded; calibrated reported series meanwhile.
+  const navSeries = useMemo(() => {
+    if (!client) return [];
+    const nav = dailyNav.points?.length
+      ? dailyNav.points
+      : buildClientPerformanceSeries({
+          client_id: client.client_id,
+          as_of_date: client.as_of_date,
+          risk_profile: client.risk_profile,
+          holdings: chartHoldings,
+        });
+    return toClientPerformanceReturnSeries(
+      nav,
+      perfTimeframe,
+      client.as_of_date,
+    );
+  }, [client, chartHoldings, perfTimeframe, dailyNav.points]);
+
+  useEffect(() => {
+    if (!hasGroupedHoldings && allocationView === "portfolio") {
+      setAllocationView("individual");
+    }
+  }, [hasGroupedHoldings, allocationView]);
 
   /** Keep at least one group selected so charts stay meaningful. */
   const toggleGroup = (groupId: string) => {
@@ -300,8 +444,17 @@ export default function ClientDashboardPage() {
     );
   }
 
-  const totalRet = formatReturnYtd(holdingsTotals.returnYtd);
+  const totalRet = formatReturnYtd(holdingsTotals.cumulative);
   const totalCagr = formatReturnYtd(holdingsTotals.cagr);
+  // Fallback (reported) aggregates are dimmed once real data has settled.
+  const totalRetDim =
+    realReturnsSettled &&
+    holdingsTotals.cumulative != null &&
+    !holdingsTotals.cumulativeAllReal;
+  const totalCagrDim =
+    realReturnsSettled &&
+    holdingsTotals.cagr != null &&
+    !holdingsTotals.cagrAllReal;
   const hasHoldingsSelection = holdingsTotals.rawWeight > 0;
 
   const name = localizedText(client.display_name, lang);
@@ -348,29 +501,28 @@ export default function ClientDashboardPage() {
     <div className="min-h-screen bg-background text-foreground">
       <AppNav subtitle={t("clients.detailSubtitle")} />
       <main className="mx-auto max-w-7xl space-y-3 px-4 py-6 sm:px-6">
-        <div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <Link
             href="/clients"
             className="text-sm text-[var(--primary)] hover:underline"
           >
             ← {t("clients.backToList")}
           </Link>
-          <div className="mt-1.5 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h1 className="ui-panel-title">{name}</h1>
-            <span className="shrink-0 text-xs text-[var(--text-dim)]">
-              {t("clients.clientId")}: {client.client_id}
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
           <p className="ui-hint text-right">
             {t("clients.asOf")} {client.as_of_date}
           </p>
+        </div>
 
+        <div className="space-y-2">
           <div className="grid gap-4 lg:grid-cols-[minmax(220px,280px)_1fr]">
           <section className="pixel-panel space-y-2.5">
             <h2 className="ui-section-title">{t("clients.profile")}</h2>
+            <div className="min-w-0">
+              <h1 className="ui-panel-title">{name}</h1>
+              <p className="mt-0.5 text-xs text-[var(--text-dim)]">
+                {t("clients.clientId")}: {client.client_id}
+              </p>
+            </div>
             <dl className="space-y-1.5 text-sm">
               <div className="flex justify-between gap-2">
                 <dt className="shrink-0 ui-hint">{t("clients.segment")}</dt>
@@ -549,9 +701,22 @@ export default function ClientDashboardPage() {
           </section>
 
           <section className="pixel-panel min-w-0">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="ui-section-title">{t("clients.holdings")}</h2>
-              <div className="flex flex-wrap items-center gap-2">
+            <div
+              className="flex flex-wrap items-center justify-between gap-3"
+              data-holdings-launch
+            >
+              <div className="min-w-0">
+                <h2 className="ui-section-title">{t("clients.holdings")}</h2>
+                {canFilterGroups && selectedGroupIds.length > 0 ? (
+                  <p className="mt-1 ui-hint">
+                    {t("clients.launchScopeSummary", {
+                      count: selectedGroupIds.length,
+                      pct: (holdingsTotals.displayWeight * 100).toFixed(0),
+                    })}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <button
                   type="button"
                   className="rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
@@ -559,7 +724,7 @@ export default function ClientDashboardPage() {
                 >
                   {t("clients.goalSimCta")}
                 </button>
-                <Link href={launchHref} className="pixel-btn shrink-0 px-3 py-1.5">
+                <Link href={launchHref} className="pixel-btn px-3 py-1.5">
                   {t("clients.launchCta")}
                 </Link>
               </div>
@@ -568,13 +733,177 @@ export default function ClientDashboardPage() {
               <div className="mt-4">
                 <FinancialGoalSimulator
                   client={client}
-                  launchHref={launchHref}
                   open={goalSimOpen}
                   onOpenChange={setGoalSimOpen}
                 />
               </div>
             ) : null}
-            <div className="mt-4 overflow-x-auto">
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-medium text-[var(--foreground)]">
+                    {t("clients.chart.performance")}
+                  </h3>
+                  <ChartSegmentedControl
+                    ariaLabel={t("clients.chart.performance")}
+                    value={perfTimeframe}
+                    onChange={setPerfTimeframe}
+                    options={CLIENT_PERF_TIMEFRAMES.map((tf) => ({
+                      value: tf,
+                      label: t(`clients.chart.tf.${tf}`),
+                    }))}
+                  />
+                </div>
+                <div className="mt-2 h-56 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+                  {chartHoldings.length === 0 ? (
+                    <p className="flex h-full items-center justify-center px-4 text-center text-sm text-[var(--text-dim)]">
+                      {t("clients.chart.noGroupsSelected")}
+                    </p>
+                  ) : navSeries.length === 0 && dailyNav.loading ? (
+                    <p className="flex h-full items-center justify-center px-4 text-center text-sm text-[var(--text-dim)]">
+                      {t("clients.chart.loadingPerformance")}
+                    </p>
+                  ) : navSeries.length === 0 ? (
+                    <p className="flex h-full items-center justify-center px-4 text-center text-sm text-[var(--text-dim)]">
+                      {t("clients.chart.noPerformanceData")}
+                    </p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={navSeries}
+                        margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 10, fill: "#64748b" }}
+                          minTickGap={40}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 10, fill: "#64748b" }}
+                          domain={["auto", "auto"]}
+                          width={48}
+                          tickFormatter={(v) => {
+                            const n = Number(v) * 100;
+                            const sign = n > 0 ? "+" : "";
+                            return `${sign}${n.toFixed(0)}%`;
+                          }}
+                        />
+                        <Tooltip
+                          position={{ y: 0 }}
+                          content={
+                            <ChartTooltip valueIsPct valueDecimals={1} />
+                          }
+                        />
+                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Line
+                          type="linear"
+                          dataKey="ret"
+                          name={t("clients.chart.return")}
+                          stroke="#2563eb"
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-medium text-[var(--foreground)]">
+                    {t("clients.chart.allocation")}
+                  </h3>
+                  {hasGroupedHoldings ? (
+                    <ChartSegmentedControl
+                      ariaLabel={t("clients.chart.allocation")}
+                      value={allocationView}
+                      onChange={setAllocationView}
+                      options={[
+                        {
+                          value: "individual",
+                          label: t("clients.chart.alloc.individual"),
+                        },
+                        {
+                          value: "portfolio",
+                          label: t("clients.chart.alloc.portfolio"),
+                        },
+                      ]}
+                    />
+                  ) : null}
+                </div>
+                <div className="mt-2 h-56 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+                  {pieData.length === 0 ? (
+                    <p className="flex h-full items-center justify-center px-4 text-center text-sm text-[var(--text-dim)]">
+                      {t("clients.chart.noGroupsSelected")}
+                    </p>
+                  ) : (
+                    <div className="flex h-full min-h-0 gap-2">
+                      <div className="min-w-0 flex-1">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={pieData}
+                              dataKey="value"
+                              nameKey="name"
+                              innerRadius={40}
+                              outerRadius={68}
+                              cx="50%"
+                              cy="50%"
+                            >
+                              {pieData.map((_, i) => (
+                                <Cell
+                                  key={`${pieData[i].name}-${i}`}
+                                  fill={
+                                    HOLDING_COLORS[i % HOLDING_COLORS.length]
+                                  }
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              content={
+                                <ChartTooltip
+                                  valueDecimals={1}
+                                  valueIsPct
+                                  sortByValue
+                                />
+                              }
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <ul className="max-h-full w-[42%] shrink-0 space-y-1 self-center overflow-y-auto pr-0.5 text-[11px] leading-tight">
+                        {pieData.map((slice, i) => (
+                          <li
+                            key={`${slice.name}-${i}`}
+                            className="flex items-center gap-1.5 text-[var(--ui-color-body)]"
+                          >
+                            <span
+                              className="h-2 w-2 shrink-0 rounded-sm"
+                              style={{
+                                backgroundColor:
+                                  HOLDING_COLORS[i % HOLDING_COLORS.length],
+                              }}
+                              aria-hidden
+                            />
+                            <span className="min-w-0 flex-1 truncate font-medium">
+                              {slice.name}
+                            </span>
+                            <span className="shrink-0 tabular-nums text-[var(--text-dim)]">
+                              {(slice.value * 100).toFixed(1)}%
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-[var(--text-dim)]">
@@ -589,6 +918,9 @@ export default function ClientDashboardPage() {
                     </th>
                     <th className="py-2 pr-3 font-medium text-right">
                       {t("clients.return")}
+                      <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-[var(--text-dim)]">
+                        {t("clients.return.cumulativeSub")}
+                      </span>
                     </th>
                     <th className="py-2 pr-3 font-medium text-right">
                       {t("clients.investedAt")}
@@ -612,12 +944,18 @@ export default function ClientDashboardPage() {
                             rawSubtotal={rawSubtotal}
                             groupReturn={
                               selected
-                                ? holdingsGroupReturnYtd(group)
+                                ? weightedHoldingReturnPct(
+                                    group.holdings,
+                                    resolveCumulative,
+                                  )
                                 : undefined
                             }
                             groupCagr={
                               selected
-                                ? holdingsGroupCagr(group, client.as_of_date)
+                                ? weightedHoldingReturnPct(
+                                    group.holdings,
+                                    resolveCagr,
+                                  )
                                 : undefined
                             }
                             groupInvestedAt={
@@ -625,7 +963,6 @@ export default function ClientDashboardPage() {
                                 ? holdingsGroupInvestedAt(group)
                                 : undefined
                             }
-                            asOfDate={client.as_of_date}
                             aumUsd={client.aum_usd}
                             selected={selected}
                             showCheckbox={canFilterGroups}
@@ -634,21 +971,27 @@ export default function ClientDashboardPage() {
                             }
                             weightScale={selected ? weightScale : 1}
                             onToggle={() => toggleGroup(group.id)}
+                            resolveCumulative={resolveCumulative}
+                            resolveCagr={resolveCagr}
+                            realReturnsSettled={realReturnsSettled}
                             t={t}
                             lang={lang}
                           />
                         );
                       })
                     : client.holdings.map((h) => {
-                        const ret = formatReturnYtd(h.return_ytd, {
+                        const cum = resolveCumulative(h);
+                        const ret = formatReturnYtd(cum.pct, {
                           isCash: isCashHolding(h),
                         });
-                        const cagr = formatReturnYtd(
-                          holdingCagr(h, client.as_of_date),
-                          {
-                            isCash: isCashHolding(h),
-                          },
-                        );
+                        const cagrR = resolveCagr(h);
+                        const cagr = formatReturnYtd(cagrR.pct, {
+                          isCash: isCashHolding(h),
+                        });
+                        const retDim =
+                          realReturnsSettled && cum.pct != null && !cum.real;
+                        const cagrDim =
+                          realReturnsSettled && cagrR.pct != null && !cagrR.real;
                         return (
                           <tr
                             key={`${h.ticker}-${h.weight}`}
@@ -672,7 +1015,12 @@ export default function ClientDashboardPage() {
                               {(h.weight * 100).toFixed(1)}%
                             </td>
                             <td
-                              className={`py-2.5 pr-3 text-right tabular-nums ${ret.className}`}
+                              className={`py-2.5 pr-3 text-right tabular-nums ${ret.className}${retDim ? " opacity-60" : ""}`}
+                              title={
+                                retDim
+                                  ? t("clients.return.reportedFallback")
+                                  : undefined
+                              }
                             >
                               {ret.text}
                             </td>
@@ -680,7 +1028,12 @@ export default function ClientDashboardPage() {
                               {formatInvestedAt(h.invested_at)}
                             </td>
                             <td
-                              className={`py-2.5 pr-3 text-right tabular-nums ${cagr.className}`}
+                              className={`py-2.5 pr-3 text-right tabular-nums ${cagr.className}${cagrDim ? " opacity-60" : ""}`}
+                              title={
+                                cagrDim
+                                  ? t("clients.return.reportedFallback")
+                                  : undefined
+                              }
                             >
                               {cagr.text}
                             </td>
@@ -715,7 +1068,12 @@ export default function ClientDashboardPage() {
                         hasHoldingsSelection
                           ? totalRet.className
                           : "text-[var(--text-dim)]"
-                      }`}
+                      }${totalRetDim ? " opacity-60" : ""}`}
+                      title={
+                        totalRetDim
+                          ? t("clients.return.reportedFallback")
+                          : undefined
+                      }
                     >
                       {hasHoldingsSelection ? totalRet.text : "—"}
                     </td>
@@ -729,100 +1087,18 @@ export default function ClientDashboardPage() {
                         hasHoldingsSelection
                           ? totalCagr.className
                           : "text-[var(--text-dim)]"
-                      }`}
+                      }${totalCagrDim ? " opacity-60" : ""}`}
+                      title={
+                        totalCagrDim
+                          ? t("clients.return.reportedFallback")
+                          : undefined
+                      }
                     >
                       {hasHoldingsSelection ? totalCagr.text : "—"}
                     </td>
                   </tr>
                 </tfoot>
               </table>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <div>
-                <h3 className="text-sm font-medium text-[var(--foreground)]">
-                  {t("clients.chart.performance")}
-                </h3>
-                <div className="mt-2 h-56 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-                  {chartHoldings.length === 0 ? (
-                    <p className="flex h-full items-center justify-center px-4 text-center text-sm text-[var(--text-dim)]">
-                      {t("clients.chart.noGroupsSelected")}
-                    </p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={navSeries}
-                        margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis
-                          dataKey="date"
-                          tick={{ fontSize: 10, fill: "#64748b" }}
-                          minTickGap={40}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 10, fill: "#64748b" }}
-                          domain={["auto", "auto"]}
-                          width={42}
-                        />
-                        <Tooltip
-                          content={
-                            <ChartTooltip valueIsPct={false} valueDecimals={1} />
-                          }
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="nav"
-                          name={t("clients.chart.nav")}
-                          stroke="#2563eb"
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-[var(--foreground)]">
-                  {t("clients.chart.allocation")}
-                </h3>
-                <div className="mt-2 h-56 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-                  {pieData.length === 0 ? (
-                    <p className="flex h-full items-center justify-center px-4 text-center text-sm text-[var(--text-dim)]">
-                      {t("clients.chart.noGroupsSelected")}
-                    </p>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          dataKey="value"
-                          nameKey="name"
-                          innerRadius={48}
-                          outerRadius={80}
-                        >
-                          {pieData.map((_, i) => (
-                            <Cell
-                              key={pieData[i].name}
-                              fill={HOLDING_COLORS[i % HOLDING_COLORS.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          content={
-                            <ChartTooltip
-                              valueDecimals={1}
-                              valueIsPct
-                              sortByValue
-                            />
-                          }
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
             </div>
           </section>
           </div>
@@ -841,13 +1117,15 @@ function HoldingsGroupRows({
   groupReturn,
   groupCagr,
   groupInvestedAt,
-  asOfDate,
   aumUsd,
   selected,
   showCheckbox,
   checkboxDisabled,
   weightScale,
   onToggle,
+  resolveCumulative,
+  resolveCagr,
+  realReturnsSettled,
   t,
   lang,
 }: {
@@ -855,10 +1133,10 @@ function HoldingsGroupRows({
   groupLabel: string;
   /** Portfolio weight sum before selection renormalization. */
   rawSubtotal: number;
-  groupReturn: number | undefined;
-  groupCagr: number | undefined;
+  /** Weighted aggregate return/CAGR + whether every value is real-priced. */
+  groupReturn: WeightedHoldingReturn | undefined;
+  groupCagr: WeightedHoldingReturn | undefined;
   groupInvestedAt: string | undefined;
-  asOfDate: string;
   aumUsd: number;
   selected: boolean;
   showCheckbox: boolean;
@@ -866,15 +1144,22 @@ function HoldingsGroupRows({
   /** Applied to displayed weights when selected (1 when unselected / no filter). */
   weightScale: number;
   onToggle: () => void;
+  resolveCumulative: (h: ClientHolding) => ResolvedHoldingReturn;
+  resolveCagr: (h: ClientHolding) => ResolvedHoldingReturn;
+  realReturnsSettled: boolean;
   t: TFn;
   lang: Lang;
 }) {
-  const groupRet = formatReturnYtd(groupReturn, {
+  const groupRet = formatReturnYtd(groupReturn?.pct, {
     isCash: group.type === "cash",
   });
-  const groupCagrFmt = formatReturnYtd(groupCagr, {
+  const groupCagrFmt = formatReturnYtd(groupCagr?.pct, {
     isCash: group.type === "cash",
   });
+  const groupRetDim =
+    realReturnsSettled && groupReturn?.pct != null && !groupReturn.allReal;
+  const groupCagrDim =
+    realReturnsSettled && groupCagr?.pct != null && !groupCagr.allReal;
   const muted = !selected;
   const blank = "—";
   const displaySubtotal = rawSubtotal * weightScale;
@@ -919,7 +1204,12 @@ function HoldingsGroupRows({
         <td
           className={`py-2 pr-3 text-right text-xs tabular-nums ${
             muted ? "text-[var(--text-dim)]" : groupRet.className
-          }`}
+          }${!muted && groupRetDim ? " opacity-60" : ""}`}
+          title={
+            !muted && groupRetDim
+              ? t("clients.return.reportedFallback")
+              : undefined
+          }
         >
           {muted ? blank : groupRet.text}
         </td>
@@ -929,18 +1219,27 @@ function HoldingsGroupRows({
         <td
           className={`py-2 pr-3 text-right text-xs tabular-nums ${
             muted ? "text-[var(--text-dim)]" : groupCagrFmt.className
-          }`}
+          }${!muted && groupCagrDim ? " opacity-60" : ""}`}
+          title={
+            !muted && groupCagrDim
+              ? t("clients.return.reportedFallback")
+              : undefined
+          }
         >
           {muted ? blank : groupCagrFmt.text}
         </td>
       </tr>
       {group.holdings.map((h) => {
-        const ret = formatReturnYtd(h.return_ytd, {
+        const cum = resolveCumulative(h);
+        const ret = formatReturnYtd(cum.pct, {
           isCash: isCashHolding(h),
         });
-        const cagr = formatReturnYtd(holdingCagr(h, asOfDate), {
+        const cagrR = resolveCagr(h);
+        const cagr = formatReturnYtd(cagrR.pct, {
           isCash: isCashHolding(h),
         });
+        const retDim = realReturnsSettled && cum.pct != null && !cum.real;
+        const cagrDim = realReturnsSettled && cagrR.pct != null && !cagrR.real;
         const displayWeight = h.weight * weightScale;
         return (
           <tr
@@ -967,7 +1266,12 @@ function HoldingsGroupRows({
             <td
               className={`py-2.5 pr-3 text-right tabular-nums ${
                 muted ? "text-[var(--text-dim)]" : ret.className
-              }`}
+              }${!muted && retDim ? " opacity-60" : ""}`}
+              title={
+                !muted && retDim
+                  ? t("clients.return.reportedFallback")
+                  : undefined
+              }
             >
               {muted ? blank : ret.text}
             </td>
@@ -977,7 +1281,12 @@ function HoldingsGroupRows({
             <td
               className={`py-2.5 pr-3 text-right tabular-nums ${
                 muted ? "text-[var(--text-dim)]" : cagr.className
-              }`}
+              }${!muted && cagrDim ? " opacity-60" : ""}`}
+              title={
+                !muted && cagrDim
+                  ? t("clients.return.reportedFallback")
+                  : undefined
+              }
             >
               {muted ? blank : cagr.text}
             </td>
