@@ -6,6 +6,7 @@ import {
   type GoalAssumptions,
 } from "@/lib/financial-goal";
 import type { GoalPathInsight } from "@/lib/financial-goal-insights";
+import { rewriteLargeMonthDurationsInText } from "@/lib/financial-goal-insights";
 import {
   createSessionId,
   wrapExtractAsOverlay,
@@ -80,9 +81,16 @@ export function seedOverlayFromFinancialGoals(
     )
     .join("; ");
 
-  const hasInsights = Boolean(insights && insights.length > 0);
+  const sanitizedInsights =
+    insights?.map((i) => ({
+      ...i,
+      title: rewriteLargeMonthDurationsInText(i.title, lang),
+      detail: rewriteLargeMonthDurationsInText(i.detail, lang),
+      talking_point: rewriteLargeMonthDurationsInText(i.talking_point, lang),
+    })) ?? null;
+  const hasInsights = Boolean(sanitizedInsights && sanitizedInsights.length > 0);
   const insightLines = hasInsights
-    ? insights!
+    ? sanitizedInsights!
         .map((i) => `${i.title}: ${i.detail}`)
         .join(lang === "zh" || lang === "ko" ? "；" : "; ")
     : "";
@@ -113,7 +121,7 @@ export function seedOverlayFromFinancialGoals(
     : rationaleBase;
 
   const hooks = new Set(
-    (insights ?? []).flatMap((i) => i.customization_hooks),
+    (sanitizedInsights ?? []).flatMap((i) => i.customization_hooks),
   );
   const goalYears = goalHorizonYears(goals);
   const tuned = applyInsightHooks(hooks, near);
@@ -127,10 +135,10 @@ export function seedOverlayFromFinancialGoals(
 
   const narrative_summary = hasInsights
     ? lang === "zh"
-      ? `由財務目標模擬帶入；客製化須優先處理：${insights!.map((i) => i.title).join("、")}。`
+      ? `由財務目標模擬帶入；客製化須優先處理：${sanitizedInsights!.map((i) => i.title).join("、")}。`
       : lang === "ko"
-        ? `재무 목표 시뮬레이터에서 가져옴. 맞춤화 우선: ${insights!.map((i) => i.title).join(", ")}.`
-        : `Imported from goal simulator; customization must address: ${insights!.map((i) => i.title).join(", ")}.`
+        ? `재무 목표 시뮬레이터에서 가져옴. 맞춤화 우선: ${sanitizedInsights!.map((i) => i.title).join(", ")}.`
+        : `Imported from goal simulator; customization must address: ${sanitizedInsights!.map((i) => i.title).join(", ")}.`
     : lang === "zh"
       ? "由財務目標模擬帶入；請在對話中補強市場觀點與風險偏好。"
       : lang === "ko"
@@ -187,7 +195,7 @@ export function seedOverlayFromFinancialGoals(
         }
       : undefined,
     clarification_questions: hasInsights
-      ? insights!.slice(0, 3).map((i) =>
+      ? sanitizedInsights!.slice(0, 3).map((i) =>
           lang === "zh"
             ? `客製化如何回應「${i.title}」？建議：${i.talking_point}`
             : lang === "ko"
@@ -210,20 +218,20 @@ export function seedOverlayFromFinancialGoals(
 
   const insightLead = hasInsights
     ? lang === "zh"
-      ? `客製化優先課題（請在 Overlay 對準解題）：\n${insights!
+      ? `客製化優先課題（請在 Overlay 對準解題）：\n${sanitizedInsights!
           .map(
             (i, n) =>
               `${n + 1}. ${i.title} — ${i.talking_point}\n   解法槓桿：${i.customization_hooks.join("、")}`,
           )
           .join("\n")}\n\n已依課題預填：優化目標=${tuned.objective}、流動性緩衝=${Math.round(tuned.liquidity_buffer_pct * 100)}%。\n\n`
       : lang === "ko"
-        ? `맞춤화 우선 과제(Overlay에서 해결):\n${insights!
+        ? `맞춤화 우선 과제(Overlay에서 해결):\n${sanitizedInsights!
             .map(
               (i, n) =>
                 `${n + 1}. ${i.title} — ${i.talking_point}\n   레버: ${i.customization_hooks.join(", ")}`,
             )
             .join("\n")}\n\n사전입력: 목표=${tuned.objective}, 유동성 버퍼=${Math.round(tuned.liquidity_buffer_pct * 100)}%.\n\n`
-        : `Customization priorities (solve in Overlay):\n${insights!
+        : `Customization priorities (solve in Overlay):\n${sanitizedInsights!
             .map(
               (i, n) =>
                 `${n + 1}. ${i.title} — ${i.talking_point}\n   Levers: ${i.customization_hooks.join(", ")}`,

@@ -1521,12 +1521,6 @@ const en: Dict = {
   "clients.history.untitled": "Customized portfolio",
   "clients.goalSimCta": "Financial goal simulator",
   "goalSim.title": "Financial goal simulator",
-  "goalSim.subtitle":
-    "Paste RM notes for AI extraction, edit goals and assumptions, then review multi-goal timing against base / optimistic / conservative wealth paths.",
-  "goalSim.reset": "Reset",
-  "goalSim.close": "Close",
-  "goalSim.disclaimer":
-    "Illustrative planning only — deterministic math from your inputs. Not a product recommendation or guaranteed return.",
   "goalSim.notesLabel": "RM notes",
   "goalSim.notesPlaceholder":
     "e.g. Client wants a house down payment of USD 1.5M in 12 months, kids’ tuition ~200k in 3 years, expect 5% return and can add 120k per year…",
@@ -1538,7 +1532,7 @@ const en: Dict = {
   "goalSim.annualReturn": "Expected annual return (%)",
   "goalSim.annualContribution": "Annual contribution (USD)",
   "goalSim.annualContributionHint": "Stops at retirement start (working years only).",
-  "goalSim.annualLivingSpend": "Current living spend (USD / yr)",
+  "goalSim.annualLivingSpend": "Living spend (USD / yr)",
   "goalSim.annualLivingSpendHint":
     "Drawn monthly from wealth until retirement; then retirement spend takes over. Set 0 if lifestyle is paid from salary (not AUM).",
   "goalSim.contributionGrowth": "Contribution growth (% / yr)",
@@ -3193,12 +3187,6 @@ const zh: Dict = {
   "clients.history.untitled": "客製化投組",
   "clients.goalSimCta": "財務目標模擬器",
   "goalSim.title": "財務目標模擬器",
-  "goalSim.subtitle":
-    "貼上理專筆記交給 AI 擷取，再編輯目標與假設；同時檢視多目標時間軸與樂觀／基準／保守資產路徑。",
-  "goalSim.reset": "重設",
-  "goalSim.close": "關閉",
-  "goalSim.disclaimer":
-    "僅供規劃示意——依你輸入的假設做確定性推算，非商品推薦或報酬保證。",
   "goalSim.notesLabel": "理專筆記",
   "goalSim.notesPlaceholder":
     "例如：客戶預計 12 個月內購屋頭期款 150 萬美元、3 年後子女學費約 20 萬、預期報酬 5%、每年可再投入 12 萬…",
@@ -3210,7 +3198,7 @@ const zh: Dict = {
   "goalSim.annualReturn": "預期年報酬（%）",
   "goalSim.annualContribution": "每年投入（USD）",
   "goalSim.annualContributionHint": "僅至退休開始前；退休後不再固定投入。",
-  "goalSim.annualLivingSpend": "目前年生活開銷（USD）",
+  "goalSim.annualLivingSpend": "年生活開銷（USD）",
   "goalSim.annualLivingSpendHint":
     "退休前每月自資產提領；退休後改由退休目標開銷接手。若生活費由薪資支付、不從資產扣，可填 0。",
   "goalSim.contributionGrowth": "投入成長率（%/年）",
@@ -4912,12 +4900,6 @@ const ko: Dict = {
   "clients.history.untitled": "맞춤 포트폴리오",
   "clients.goalSimCta": "재무 목표 시뮬레이터",
   "goalSim.title": "재무 목표 시뮬레이터",
-  "goalSim.subtitle":
-    "RM 노트를 붙여 AI로 추출한 뒤 목표·가정을 편집하세요. 다중 목표 타임라인과 낙관/기준/보수 자산 경로를 함께 봅니다.",
-  "goalSim.reset": "초기화",
-  "goalSim.close": "닫기",
-  "goalSim.disclaimer":
-    "참고용 계획입니다. 입력 가정에 따른 확정적 산출이며 상품 추천이나 수익 보장이 아닙니다.",
   "goalSim.notesLabel": "RM 노트",
   "goalSim.notesPlaceholder":
     "예: 고객이 12개월 내 주택 계약금 USD 150만, 3년 후 학비 약 20만, 기대수익률 5%, 연간 추가 투자 12만…",
@@ -4929,7 +4911,7 @@ const ko: Dict = {
   "goalSim.annualReturn": "기대 연수익률 (%)",
   "goalSim.annualContribution": "연간 추가 투자 (USD)",
   "goalSim.annualContributionHint": "은퇴 시작 전까지만; 은퇴 후 고정 적립 없음.",
-  "goalSim.annualLivingSpend": "현재 연간 생활비 (USD)",
+  "goalSim.annualLivingSpend": "연간 생활비 (USD)",
   "goalSim.annualLivingSpendHint":
     "은퇴 전 자산에서 월 인출; 은퇴 후는 은퇴 목표 생활비가 이어집니다. 급여로만 충당하면 0.",
   "goalSim.contributionGrowth": "투자 증가율 (%/년)",

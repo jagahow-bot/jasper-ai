@@ -32,12 +32,18 @@ export function etfDisplayName(ticker: string, lang: Lang): string {
     const name = item.name?.trim();
     if (!name) break;
     // Prefer English-looking universe labels when map is missing; otherwise use
-    // the catalog name (stocks/funds often only have a single display string).
+    // the catalog name only when the UI language matches (CJK → zh).
     if (!isCjk(name) || lang === "zh") return name;
-    return name;
+    // CJK catalog name with en/ko UI — avoid wrong-language labels.
+    break;
   }
 
   return upper;
+}
+
+/** True when `text` contains CJK ideographs (zh catalog / labels). */
+export function displayNameIsCjk(text: string): boolean {
+  return isCjk(text);
 }
 
 /** All localized name strings for search matching. */

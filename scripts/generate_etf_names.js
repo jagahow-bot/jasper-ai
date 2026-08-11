@@ -173,6 +173,15 @@ const CURATED = {
   USO: { en: "United States Oil Fund", zh: "原油 ETF", ko: "원유 ETF" },
   GDX: { en: "VanEck Gold Miners ETF", zh: "金礦股 ETF", ko: "금광 주식 ETF" },
   CPER: { en: "United States Copper Index Fund", zh: "銅 ETF", ko: "구리 ETF" },
+  // Demo / model stock satellites (short names matching demo-clients holdings style)
+  AAPL: { en: "Apple", zh: "蘋果", ko: "애플" },
+  DIS: { en: "Walt Disney", zh: "迪士尼", ko: "디즈니" },
+  MSFT: { en: "Microsoft", zh: "微軟", ko: "마이크로소프트" },
+  NVDA: { en: "NVIDIA", zh: "輝達", ko: "엔비디아" },
+  META: { en: "Meta", zh: "Meta", ko: "Meta" },
+  COST: { en: "Costco", zh: "好市多", ko: "코스트코" },
+  PG: { en: "Procter & Gamble", zh: "寶鹼", ko: "P&G" },
+  UNH: { en: "UnitedHealth", zh: "聯合健康", ko: "유나이티드헬스" },
 };
 
 /** Map common Traditional Chinese universe labels → English short + Korean. */
@@ -489,33 +498,40 @@ function ensureEtfSuffix(name, lang) {
   return `${n} ETF`;
 }
 
-function buildEntry(ticker, universeName) {
+function buildEntry(ticker, universeName, productType = "etf") {
   if (CURATED[ticker]) return { ...CURATED[ticker] };
 
   const raw = (universeName || "").trim() || ticker;
+  const skipEtfSuffix =
+    productType === "stock" ||
+    productType === "fund" ||
+    productType === "mutual_fund" ||
+    productType === "cash";
+  const withSuffix = (name, lang) =>
+    skipEtfSuffix ? name.trim() : ensureEtfSuffix(name, lang);
 
   if (CJK.test(raw)) {
     const mapped = ZH_TO_EN_KO[raw];
     if (mapped) {
       return {
-        en: ensureEtfSuffix(mapped[0], "en"),
-        zh: ensureEtfSuffix(raw, "zh"),
-        ko: ensureEtfSuffix(mapped[1], "ko"),
+        en: withSuffix(mapped[0], "en"),
+        zh: withSuffix(raw, "zh"),
+        ko: withSuffix(mapped[1], "ko"),
       };
     }
     // Unknown CJK: keep as zh, use ticker-friendly English/Korean fallbacks
     return {
       en: ticker,
-      zh: ensureEtfSuffix(raw, "zh"),
+      zh: withSuffix(raw, "zh"),
       ko: ticker,
     };
   }
 
   const { en, zh, ko, translated } = translateEnLabel(raw);
   return {
-    en: ensureEtfSuffix(en, "en"),
-    zh: translated ? ensureEtfSuffix(zh, "zh") : ensureEtfSuffix(en, "zh"),
-    ko: translated ? ensureEtfSuffix(ko, "ko") : ensureEtfSuffix(en, "ko"),
+    en: withSuffix(en, "en"),
+    zh: translated ? withSuffix(zh, "zh") : withSuffix(en, "zh"),
+    ko: translated ? withSuffix(ko, "ko") : withSuffix(en, "ko"),
   };
 }
 
@@ -527,9 +543,17 @@ function main() {
   );
   const clients = loadJson(path.join(root, "shared", "clients", "demo-clients.json"));
 
+  const universeByTicker = new Map(
+    (universe.universe || []).map((item) => [item.ticker, item]),
+  );
+
   const names = {};
   for (const item of universe.universe) {
-    names[item.ticker] = buildEntry(item.ticker, item.name);
+    names[item.ticker] = buildEntry(
+      item.ticker,
+      item.name,
+      item.product_type || "etf",
+    );
   }
 
   // Ensure demo / model / client tickers exist even if missing from universe
@@ -541,9 +565,17 @@ function main() {
     for (const h of c.holdings || []) {
       if (h.ticker && h.ticker.toUpperCase() !== "CASH") extra.add(h.ticker);
     }
+    for (const g of c.holdings_groups || []) {
+      for (const h of g.holdings || []) {
+        if (h.ticker && h.ticker.toUpperCase() !== "CASH") extra.add(h.ticker);
+      }
+    }
   }
   for (const t of extra) {
-    if (!names[t]) names[t] = buildEntry(t, "");
+    if (!names[t]) {
+      const uni = universeByTicker.get(t);
+      names[t] = buildEntry(t, uni?.name || "", uni?.product_type || "etf");
+    }
   }
 
   // Stable key order
@@ -567,7 +599,7 @@ function main() {
   console.log(`Wrote ${Object.keys(sorted).length} tickers →`);
   console.log(`  ${sharedPath}`);
   console.log(`  ${webPath}`);
-  for (const t of ["SPY", "QQQ", "AGG"]) {
+  for (const t of ["SPY", "QQQ", "AGG", "AAPL", "DIS", "EWT"]) {
     console.log(t, JSON.stringify(sorted[t]));
   }
 }

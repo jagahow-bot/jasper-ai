@@ -1,22 +1,97 @@
 {
   "version": "1.0",
-  "updated": "2026-07-16",
+  "updated": "2026-08-11",
   "description": "Localized ETF display names (en / zh-TW / ko) keyed by ticker for JASPER UI.",
   "names": {
+    "AAPL": {
+      "en": "Apple",
+      "zh": "蘋果",
+      "ko": "애플"
+    },
+    "ABBV": {
+      "en": "ABBV",
+      "zh": "艾伯維",
+      "ko": "ABBV"
+    },
+    "ABNB": {
+      "en": "Airbnb",
+      "zh": "Airbnb",
+      "ko": "Airbnb"
+    },
+    "ABNDX": {
+      "en": "American Funds Bond Fund of America A",
+      "zh": "American Funds Bond Fund of America A",
+      "ko": "American Funds Bond Fund of America A"
+    },
+    "ABT": {
+      "en": "ABT",
+      "zh": "雅培",
+      "ko": "ABT"
+    },
     "ACWI": {
       "en": "iShares MSCI ACWI ETF",
       "zh": "全球股票 ETF",
       "ko": "글로벌 주식 ETF"
+    },
+    "ADBE": {
+      "en": "Adobe",
+      "zh": "Adobe",
+      "ko": "Adobe"
     },
     "AGG": {
       "en": "iShares Core U.S. Aggregate Bond ETF",
       "zh": "美國綜合債券 ETF",
       "ko": "미국 종합채권 ETF"
     },
+    "AGTHX": {
+      "en": "American Funds Growth Fund of America A",
+      "zh": "American Funds Growth Fund of America A",
+      "ko": "American Funds Growth Fund of America A"
+    },
+    "AIVSX": {
+      "en": "American Funds Investment Co of America A",
+      "zh": "American Funds Investment Co of America A",
+      "ko": "American Funds Investment Co of America A"
+    },
+    "AMAT": {
+      "en": "AMAT",
+      "zh": "應用材料",
+      "ko": "AMAT"
+    },
+    "AMD": {
+      "en": "AMD",
+      "zh": "超微",
+      "ko": "AMD"
+    },
+    "AMECX": {
+      "en": "American Funds Income Fund of America A",
+      "zh": "American Funds Income Fund of America A",
+      "ko": "American Funds Income Fund of America A"
+    },
+    "AMGN": {
+      "en": "AMGN",
+      "zh": "安進",
+      "ko": "AMGN"
+    },
     "AMLP": {
       "en": "MLP energy infrastructure ETF",
       "zh": "MLP 能源基礎建設 ETF",
       "ko": "MLP 에너지 인프라 ETF"
+    },
+    "AMRMX": {
+      "en": "American Funds American Mutual A",
+      "zh": "American Funds American Mutual A",
+      "ko": "American Funds American Mutual A"
+    },
+    "AMZN": {
+      "en": "AMZN",
+      "zh": "亞馬遜",
+      "ko": "AMZN"
+    },
+    "ANCFX": {
+      "en": "American Funds Fundamental Investors A",
+      "zh": "American Funds Fundamental Investors A",
+      "ko": "American Funds Fundamental Investors A"
     },
     "ANGL": {
       "en": "Fallen angels (VanEck) ETF",
@@ -43,10 +118,35 @@
       "zh": "中國A股 ETF",
       "ko": "중국 A주 ETF"
     },
+    "AVGO": {
+      "en": "AVGO",
+      "zh": "博通",
+      "ko": "AVGO"
+    },
     "AVUV": {
       "en": "US small-cap value ETF",
       "zh": "美國小型價值 ETF",
       "ko": "미국 소형 가치 ETF"
+    },
+    "AWSHX": {
+      "en": "American Funds Washington Mutual A",
+      "zh": "American Funds Washington Mutual A",
+      "ko": "American Funds Washington Mutual A"
+    },
+    "AXP": {
+      "en": "AXP",
+      "zh": "美國運通",
+      "ko": "AXP"
+    },
+    "BA": {
+      "en": "BA",
+      "zh": "波音",
+      "ko": "BA"
+    },
+    "BAC": {
+      "en": "BAC",
+      "zh": "美國銀行",
+      "ko": "BAC"
     },
     "BCI": {
       "en": "Broad commodities ETF",
@@ -68,10 +168,25 @@
       "zh": "銀行貸款 ETF",
       "ko": "은행대출 ETF"
     },
+    "BKNG": {
+      "en": "Booking",
+      "zh": "Booking",
+      "ko": "Booking"
+    },
+    "BLK": {
+      "en": "BLK",
+      "zh": "貝萊德",
+      "ko": "BLK"
+    },
     "BLV": {
       "en": "Long-term bond Vanguard ETF",
       "zh": "長期債券 Vanguard ETF",
       "ko": "장기 채권 Vanguard ETF"
+    },
+    "BMY": {
+      "en": "BMY",
+      "zh": "必治妥",
+      "ko": "BMY"
     },
     "BND": {
       "en": "Vanguard Total Bond Market ETF",
@@ -93,6 +208,11 @@
       "zh": "機器人與 AI ETF",
       "ko": "로봇·AI ETF"
     },
+    "BRK-B": {
+      "en": "BRK-B",
+      "zh": "波克夏 B",
+      "ko": "BRK-B"
+    },
     "BSV": {
       "en": "Short-term bond Vanguard ETF",
       "zh": "短期債券 Vanguard ETF",
@@ -113,6 +233,21 @@
       "zh": "短期國際公債 ETF",
       "ko": "단기 국제 국채 ETF"
     },
+    "C": {
+      "en": "C",
+      "zh": "花旗",
+      "ko": "C"
+    },
+    "CAIBX": {
+      "en": "American Funds Capital Income Builder A",
+      "zh": "American Funds Capital Income Builder A",
+      "ko": "American Funds Capital Income Builder A"
+    },
+    "CAT": {
+      "en": "CAT",
+      "zh": "卡特彼勒",
+      "ko": "CAT"
+    },
     "CIBR": {
       "en": "Cybersecurity ETF",
       "zh": "網路安全 ETF",
@@ -128,15 +263,35 @@
       "zh": "CMBS ETF",
       "ko": "CMBS ETF"
     },
+    "CMCSA": {
+      "en": "CMCSA",
+      "zh": "康卡斯特",
+      "ko": "CMCSA"
+    },
+    "COF": {
+      "en": "Capital One",
+      "zh": "Capital One",
+      "ko": "Capital One"
+    },
     "COMT": {
       "en": "Commodity broad ETF",
       "zh": "廣泛商品 ETF",
       "ko": "광범위 원자재 ETF"
     },
+    "COP": {
+      "en": "COP",
+      "zh": "康菲",
+      "ko": "COP"
+    },
     "CORN": {
       "en": "Corn ETF",
       "zh": "玉米 ETF",
       "ko": "옥수수 ETF"
+    },
+    "COST": {
+      "en": "Costco",
+      "zh": "好市多",
+      "ko": "코스트코"
     },
     "CPER": {
       "en": "United States Copper Index Fund",
@@ -148,10 +303,35 @@
       "zh": "中國科技 ETF",
       "ko": "중국 기술 ETF"
     },
+    "CRM": {
+      "en": "Salesforce",
+      "zh": "Salesforce",
+      "ko": "Salesforce"
+    },
+    "CRWD": {
+      "en": "CrowdStrike",
+      "zh": "CrowdStrike",
+      "ko": "CrowdStrike"
+    },
+    "CSCO": {
+      "en": "CSCO",
+      "zh": "思科",
+      "ko": "CSCO"
+    },
     "CTA": {
       "en": "Managed futures (Simplify) ETF",
       "zh": "管理期貨 (Simplify) ETF",
       "ko": "관리 선물 (Simplify) ETF"
+    },
+    "CVX": {
+      "en": "CVX",
+      "zh": "雪佛龍",
+      "ko": "CVX"
+    },
+    "CWGFX": {
+      "en": "American Funds Capital World Growth & Income A",
+      "zh": "American Funds Capital World Growth & Income A",
+      "ko": "American Funds Capital World Growth & Income A"
     },
     "DBA": {
       "en": "Agriculture broad ETF",
@@ -173,6 +353,11 @@
       "zh": "管理期貨 ETF",
       "ko": "관리 선물 ETF"
     },
+    "DE": {
+      "en": "DE",
+      "zh": "約翰迪爾",
+      "ko": "DE"
+    },
     "DFAC": {
       "en": "US core equity ETF",
       "zh": "美國核心股票 ETF",
@@ -188,15 +373,45 @@
       "zh": "股息成長 (WisdomTree) ETF",
       "ko": "배당 성장 (WisdomTree) ETF"
     },
+    "DHR": {
+      "en": "DHR",
+      "zh": "丹納赫",
+      "ko": "DHR"
+    },
     "DIA": {
       "en": "SPDR Dow Jones Industrial Average ETF",
       "zh": "道瓊工業平均 ETF",
       "ko": "다우존스 산업평균 ETF"
     },
+    "DIS": {
+      "en": "Walt Disney",
+      "zh": "迪士尼",
+      "ko": "디즈니"
+    },
+    "DODFX": {
+      "en": "Dodge & Cox International Stock",
+      "zh": "Dodge & Cox International Stock",
+      "ko": "Dodge & Cox International Stock"
+    },
+    "DODGX": {
+      "en": "Dodge & Cox Stock",
+      "zh": "Dodge & Cox Stock",
+      "ko": "Dodge & Cox Stock"
+    },
+    "DODIX": {
+      "en": "Dodge & Cox Income",
+      "zh": "Dodge & Cox Income",
+      "ko": "Dodge & Cox Income"
+    },
     "DRIV": {
       "en": "Electric vehicles ETF",
       "zh": "電動車 ETF",
       "ko": "전기차 ETF"
+    },
+    "DUK": {
+      "en": "Duke Energy",
+      "zh": "Duke Energy",
+      "ko": "Duke Energy"
     },
     "DVY": {
       "en": "Dividend achievers ETF",
@@ -283,6 +498,11 @@
       "zh": "Norway ETF",
       "ko": "Norway ETF"
     },
+    "EOG": {
+      "en": "EOG",
+      "zh": "EOG",
+      "ko": "EOG"
+    },
     "EPHE": {
       "en": "Philippines ETF",
       "zh": "Philippines ETF",
@@ -307,6 +527,11 @@
       "en": "ESG US (Vanguard) ETF",
       "zh": "美國 ESG (Vanguard) ETF",
       "ko": "미국 ESG (Vanguard) ETF"
+    },
+    "ETN": {
+      "en": "ETN",
+      "zh": "伊頓",
+      "ko": "ETN"
     },
     "EWA": {
       "en": "Australia ETF",
@@ -408,6 +633,11 @@
       "zh": "歐元區 ETF",
       "ko": "유로존 ETF"
     },
+    "FAGIX": {
+      "en": "Fidelity Capital & Income",
+      "zh": "Fidelity Capital & Income",
+      "ko": "Fidelity Capital & Income"
+    },
     "FALN": {
       "en": "Fallen angels HY ETF",
       "zh": "墮落天使債 HY ETF",
@@ -417,6 +647,26 @@
       "en": "Wind ETF",
       "zh": "風力 ETF",
       "ko": "풍력 ETF"
+    },
+    "FBALX": {
+      "en": "Fidelity Balanced",
+      "zh": "Fidelity Balanced",
+      "ko": "Fidelity Balanced"
+    },
+    "FBGRX": {
+      "en": "Fidelity Blue Chip Growth",
+      "zh": "Fidelity Blue Chip Growth",
+      "ko": "Fidelity Blue Chip Growth"
+    },
+    "FCNTX": {
+      "en": "Fidelity Contrafund",
+      "zh": "Fidelity Contrafund",
+      "ko": "Fidelity Contrafund"
+    },
+    "FDGRX": {
+      "en": "Fidelity Growth Company",
+      "zh": "Fidelity Growth Company",
+      "ko": "Fidelity Growth Company"
     },
     "FDN": {
       "en": "Internet ETF",
@@ -443,6 +693,21 @@
       "zh": "邊境市場 ETF",
       "ko": "프론티어 ETF"
     },
+    "FSKAX": {
+      "en": "Fidelity Total Market Index",
+      "zh": "Fidelity Total Market Index",
+      "ko": "Fidelity Total Market Index"
+    },
+    "FSPGX": {
+      "en": "Fidelity Large Cap Growth Index",
+      "zh": "Fidelity Large Cap Growth Index",
+      "ko": "Fidelity Large Cap Growth Index"
+    },
+    "FTBFX": {
+      "en": "Fidelity Total Bond",
+      "zh": "Fidelity Total Bond",
+      "ko": "Fidelity Total Bond"
+    },
     "FTEC": {
       "en": "Technology (Fidelity) ETF",
       "zh": "科技 (Fidelity) ETF",
@@ -458,6 +723,11 @@
       "zh": "價值線股息 ETF",
       "ko": "밸류라인 배당 ETF"
     },
+    "FXAIX": {
+      "en": "Fidelity 500 Index",
+      "zh": "Fidelity 500 Index",
+      "ko": "Fidelity 500 Index"
+    },
     "FXH": {
       "en": "Health care (First Trust)",
       "zh": "Health care (First Trust) ETF",
@@ -467,6 +737,21 @@
       "en": "iShares China Large-Cap ETF",
       "zh": "中國大型股 ETF",
       "ko": "중국 대형주 ETF"
+    },
+    "FXNAX": {
+      "en": "Fidelity U.S. Bond Index",
+      "zh": "Fidelity U.S. Bond Index",
+      "ko": "Fidelity U.S. Bond Index"
+    },
+    "FZILX": {
+      "en": "Fidelity ZERO International",
+      "zh": "Fidelity ZERO International",
+      "ko": "Fidelity ZERO International"
+    },
+    "FZROX": {
+      "en": "Fidelity ZERO Total Market",
+      "zh": "Fidelity ZERO Total Market",
+      "ko": "Fidelity ZERO Total Market"
     },
     "GCC": {
       "en": "Commodity broad (WisdomTree) ETF",
@@ -483,10 +768,20 @@
       "zh": "小型金礦股 ETF",
       "ko": "중소형 금광 ETF"
     },
+    "GE": {
+      "en": "GE",
+      "zh": "通用電氣",
+      "ko": "GE"
+    },
     "GEM": {
       "en": "Active EM multifactor ETF",
       "zh": "新興市場主動多因子 ETF",
       "ko": "신흥국 액티브 멀티팩터 ETF"
+    },
+    "GILD": {
+      "en": "GILD",
+      "zh": "吉利德",
+      "ko": "GILD"
     },
     "GLD": {
       "en": "SPDR Gold Shares",
@@ -503,10 +798,25 @@
       "zh": "GNMA bonds ETF",
       "ko": "GNMA bonds ETF"
     },
+    "GOOG": {
+      "en": "Alphabet C",
+      "zh": "Alphabet C",
+      "ko": "Alphabet C"
+    },
+    "GOOGL": {
+      "en": "Alphabet A",
+      "zh": "Alphabet A",
+      "ko": "Alphabet A"
+    },
     "GOVT": {
       "en": "iShares U.S. Treasury Bond ETF",
       "zh": "美債全期限 ETF",
       "ko": "미국 국채 전체 ETF"
+    },
+    "GS": {
+      "en": "GS",
+      "zh": "高盛",
+      "ko": "GS"
     },
     "GSG": {
       "en": "S&P GSCI commodities ETF",
@@ -533,6 +843,11 @@
       "zh": "國際住宅 ETF",
       "ko": "국제 주거 ETF"
     },
+    "HD": {
+      "en": "Home Depot",
+      "zh": "Home Depot",
+      "ko": "Home Depot"
+    },
     "HDV": {
       "en": "High dividend (iShares) ETF",
       "zh": "高股息 (iShares) ETF",
@@ -547,6 +862,11 @@
       "en": "Japan hedged ETF",
       "zh": "日本避險 ETF",
       "ko": "일본 헤지 ETF"
+    },
+    "HON": {
+      "en": "HON",
+      "zh": "霍尼韋爾",
+      "ko": "HON"
     },
     "HYD": {
       "en": "High yield muni ETF",
@@ -577,6 +897,11 @@
       "en": "Biotech (iShares) ETF",
       "zh": "生技 (iShares) ETF",
       "ko": "바이오 (iShares) ETF"
+    },
+    "IBM": {
+      "en": "IBM",
+      "zh": "IBM",
+      "ko": "IBM"
     },
     "ICAP": {
       "en": "Infrastructure income ETF",
@@ -688,10 +1013,25 @@
       "zh": "工業 REIT ETF",
       "ko": "산업 리츠 ETF"
     },
+    "INTC": {
+      "en": "INTC",
+      "zh": "英特爾",
+      "ko": "INTC"
+    },
+    "INTU": {
+      "en": "Intuit",
+      "zh": "Intuit",
+      "ko": "Intuit"
+    },
     "IOO": {
       "en": "Global 100 ETF",
       "zh": "全球100 ETF",
       "ko": "글로벌 100 ETF"
+    },
+    "ISRG": {
+      "en": "ISRG",
+      "zh": "直覺外科",
+      "ko": "ISRG"
     },
     "ITA": {
       "en": "Aerospace & defense (iShares) ETF",
@@ -808,10 +1148,20 @@
       "zh": "航空 ETF",
       "ko": "항공 ETF"
     },
+    "JNJ": {
+      "en": "JNJ",
+      "zh": "嬌生",
+      "ko": "JNJ"
+    },
     "JNK": {
       "en": "SPDR Bloomberg High Yield Bond ETF",
       "zh": "高收益債 ETF（SPDR）",
       "ko": "하이일드 채권 ETF (SPDR)"
+    },
+    "JPM": {
+      "en": "JPM",
+      "zh": "摩根大通",
+      "ko": "JPM"
     },
     "JPMB": {
       "en": "EM corporate ETF",
@@ -828,10 +1178,20 @@
       "zh": "保險 ETF",
       "ko": "보험 ETF"
     },
+    "KLAC": {
+      "en": "KLA",
+      "zh": "KLA",
+      "ko": "KLA"
+    },
     "KMLM": {
       "en": "Managed futures (KFA) ETF",
       "zh": "管理期貨 (KFA) ETF",
       "ko": "관리 선물 (KFA) ETF"
+    },
+    "KO": {
+      "en": "KO",
+      "zh": "可口可樂",
+      "ko": "KO"
     },
     "KRE": {
       "en": "Regional banks ETF",
@@ -853,20 +1213,45 @@
       "zh": "新興市場當地貨幣 (iShares) ETF",
       "ko": "신흥국 현지통화 (iShares) ETF"
     },
+    "LIN": {
+      "en": "Linde",
+      "zh": "Linde",
+      "ko": "Linde"
+    },
     "LIT": {
       "en": "Lithium & battery ETF",
       "zh": "鋰與電池 ETF",
       "ko": "리튬·배터리 ETF"
+    },
+    "LLY": {
+      "en": "LLY",
+      "zh": "禮來",
+      "ko": "LLY"
     },
     "LMBS": {
       "en": "Mortgage-backed securities ETF",
       "zh": "抵押擔保證券 ETF",
       "ko": "MBS ETF"
     },
+    "LMT": {
+      "en": "LMT",
+      "zh": "洛克希德",
+      "ko": "LMT"
+    },
+    "LOW": {
+      "en": "Lowe's",
+      "zh": "Lowe's",
+      "ko": "Lowe's"
+    },
     "LQD": {
       "en": "iShares iBoxx $ Investment Grade Corporate Bond ETF",
       "zh": "投資級公司債 ETF",
       "ko": "투자등급 회사채 ETF"
+    },
+    "LRCX": {
+      "en": "Lam Research",
+      "zh": "Lam Research",
+      "ko": "Lam Research"
     },
     "LRGF": {
       "en": "US large-cap multifactor ETF",
@@ -878,10 +1263,20 @@
       "zh": "長期 TIPS ETF",
       "ko": "장기 TIPS ETF"
     },
+    "MA": {
+      "en": "Mastercard",
+      "zh": "Mastercard",
+      "ko": "Mastercard"
+    },
     "MBB": {
       "en": "MBS (iShares) ETF",
       "zh": "MBS (iShares) ETF",
       "ko": "MBS (iShares) ETF"
+    },
+    "MCD": {
+      "en": "MCD",
+      "zh": "麥當勞",
+      "ko": "MCD"
     },
     "MCHI": {
       "en": "iShares MSCI China ETF",
@@ -892,6 +1287,11 @@
       "en": "SPDR S&P MidCap 400 ETF Trust",
       "zh": "S&P 中型股 400 ETF",
       "ko": "S&P 중형주 400 ETF"
+    },
+    "META": {
+      "en": "Meta",
+      "zh": "Meta",
+      "ko": "Meta"
     },
     "MGK": {
       "en": "US mega-cap growth ETF",
@@ -908,15 +1308,40 @@
       "zh": "合併套利 ETF",
       "ko": "합병 차익거래 ETF"
     },
+    "MO": {
+      "en": "Altria",
+      "zh": "Altria",
+      "ko": "Altria"
+    },
     "MORT": {
       "en": "Mortgage REIT (VanEck) ETF",
       "zh": "抵押型 REIT (VanEck) ETF",
       "ko": "모기지 리츠 (VanEck) ETF"
     },
+    "MRK": {
+      "en": "MRK",
+      "zh": "默沙東",
+      "ko": "MRK"
+    },
+    "MS": {
+      "en": "MS",
+      "zh": "摩根士丹利",
+      "ko": "MS"
+    },
+    "MSFT": {
+      "en": "Microsoft",
+      "zh": "微軟",
+      "ko": "마이크로소프트"
+    },
     "MTUM": {
       "en": "iShares MSCI USA Momentum Factor ETF",
       "zh": "動能因子 ETF",
       "ko": "모멘텀 팩터 ETF"
+    },
+    "MU": {
+      "en": "MU",
+      "zh": "美光",
+      "ko": "MU"
     },
     "MUB": {
       "en": "iShares National Muni Bond ETF",
@@ -928,15 +1353,50 @@
       "zh": "全國市政債 ETF",
       "ko": "전국 지방채 ETF"
     },
+    "NEE": {
+      "en": "NextEra",
+      "zh": "NextEra",
+      "ko": "NextEra"
+    },
+    "NFLX": {
+      "en": "Netflix",
+      "zh": "Netflix",
+      "ko": "Netflix"
+    },
+    "NKE": {
+      "en": "Nike",
+      "zh": "Nike",
+      "ko": "Nike"
+    },
     "NLR": {
       "en": "Nuclear ETF",
       "zh": "核能 ETF",
       "ko": "원자력 ETF"
     },
+    "NOW": {
+      "en": "ServiceNow",
+      "zh": "ServiceNow",
+      "ko": "ServiceNow"
+    },
+    "NVDA": {
+      "en": "NVIDIA",
+      "zh": "輝達",
+      "ko": "엔비디아"
+    },
+    "ORCL": {
+      "en": "ORCL",
+      "zh": "甲骨文",
+      "ko": "ORCL"
+    },
     "PALL": {
       "en": "Palladium ETF",
       "zh": "鈀金 ETF",
       "ko": "팔라듐 ETF"
+    },
+    "PANW": {
+      "en": "Palo Alto",
+      "zh": "Palo Alto",
+      "ko": "Palo Alto"
     },
     "PAVE": {
       "en": "Infrastructure ETF",
@@ -953,6 +1413,16 @@
       "zh": "商品指數 ETF",
       "ko": "원자재 지수 ETF"
     },
+    "PEP": {
+      "en": "PEP",
+      "zh": "百事",
+      "ko": "PEP"
+    },
+    "PFE": {
+      "en": "PFE",
+      "zh": "輝瑞",
+      "ko": "PFE"
+    },
     "PFF": {
       "en": "iShares Preferred and Income Securities ETF",
       "zh": "優先股 ETF",
@@ -968,6 +1438,11 @@
       "zh": "優先證券 ETF",
       "ko": "우선주 ETF"
     },
+    "PG": {
+      "en": "Procter & Gamble",
+      "zh": "寶鹼",
+      "ko": "P&G"
+    },
     "PGX": {
       "en": "Preferred securities ETF",
       "zh": "優先股 (全球) ETF",
@@ -977,6 +1452,16 @@
       "en": "High yield (PowerShares) ETF",
       "zh": "高收益債 (PowerShares) ETF",
       "ko": "하이일드 (PowerShares) ETF"
+    },
+    "PLTR": {
+      "en": "Palantir",
+      "zh": "Palantir",
+      "ko": "Palantir"
+    },
+    "PM": {
+      "en": "PM",
+      "zh": "菲利普莫里斯",
+      "ko": "PM"
     },
     "PPH": {
       "en": "Pharma (VanEck) ETF",
@@ -998,10 +1483,25 @@
       "zh": "羅素2000風格中性 ETF",
       "ko": "러셀 2000 스타일 중립 ETF"
     },
+    "PRGFX": {
+      "en": "T. Rowe Price Growth Stock",
+      "zh": "T. Rowe Price Growth Stock",
+      "ko": "T. Rowe Price Growth Stock"
+    },
+    "PRWCX": {
+      "en": "T. Rowe Price Capital Appreciation",
+      "zh": "T. Rowe Price Capital Appreciation",
+      "ko": "T. Rowe Price Capital Appreciation"
+    },
     "PUTW": {
       "en": "Covered put write ETF",
       "zh": "備兌賣權 ETF",
       "ko": "커버드 풋 ETF"
+    },
+    "PYPL": {
+      "en": "PayPal",
+      "zh": "PayPal",
+      "ko": "PayPal"
     },
     "QAI": {
       "en": "Multi-strategy alt ETF",
@@ -1012,6 +1512,11 @@
       "en": "Qatar ETF",
       "zh": "Qatar ETF",
       "ko": "Qatar ETF"
+    },
+    "QCOM": {
+      "en": "QCOM",
+      "zh": "高通",
+      "ko": "QCOM"
     },
     "QQQ": {
       "en": "Invesco QQQ Trust",
@@ -1033,10 +1538,20 @@
       "zh": "全球 REITs ETF",
       "ko": "글로벌 리츠 ETF"
     },
+    "REGN": {
+      "en": "REGN",
+      "zh": "再生元",
+      "ko": "REGN"
+    },
     "REM": {
       "en": "Mortgage REIT ETF",
       "zh": "抵押型 REIT ETF",
       "ko": "모기지 리츠 ETF"
+    },
+    "RERFX": {
+      "en": "American Funds EuroPacific Growth R5",
+      "zh": "American Funds EuroPacific Growth R5",
+      "ko": "American Funds EuroPacific Growth R5"
     },
     "RLY": {
       "en": "Real assets ETF",
@@ -1053,6 +1568,11 @@
       "zh": "標普500等權重 ETF",
       "ko": "S&P 500 동일가중 ETF"
     },
+    "RTX": {
+      "en": "RTX",
+      "zh": "RTX",
+      "ko": "RTX"
+    },
     "RWO": {
       "en": "Global REIT ETF",
       "zh": "全球 REIT ETF",
@@ -1062,6 +1582,11 @@
       "en": "REIT (SPDR) ETF",
       "zh": "REIT (SPDR) ETF",
       "ko": "리츠 (SPDR) ETF"
+    },
+    "SBUX": {
+      "en": "SBUX",
+      "zh": "星巴克",
+      "ko": "SBUX"
     },
     "SCHB": {
       "en": "Total US market (Schwab) ETF",
@@ -1098,6 +1623,11 @@
       "zh": "中期美債 (Schwab) ETF",
       "ko": "중기 미국 국채 (Schwab) ETF"
     },
+    "SCHW": {
+      "en": "SCHW",
+      "zh": "嘉信",
+      "ko": "SCHW"
+    },
     "SCHX": {
       "en": "US large-cap core ETF",
       "zh": "美國大型核心 ETF",
@@ -1122,6 +1652,11 @@
       "en": "iShares Short Treasury Bond ETF",
       "zh": "超短期美債 ETF",
       "ko": "초단기 미국 국채 ETF"
+    },
+    "SHW": {
+      "en": "Sherwin-Williams",
+      "zh": "Sherwin-Williams",
+      "ko": "Sherwin-Williams"
     },
     "SHY": {
       "en": "iShares 1–3 Year Treasury Bond ETF",
@@ -1148,6 +1683,11 @@
       "zh": "雲端運算 ETF",
       "ko": "클라우드 ETF"
     },
+    "SLB": {
+      "en": "Schlumberger",
+      "zh": "Schlumberger",
+      "ko": "Schlumberger"
+    },
     "SLV": {
       "en": "iShares Silver Trust",
       "zh": "白銀 ETF",
@@ -1157,6 +1697,16 @@
       "en": "VanEck Semiconductor ETF",
       "zh": "半導體 ETF",
       "ko": "반도체 ETF"
+    },
+    "SNOW": {
+      "en": "Snowflake",
+      "zh": "Snowflake",
+      "ko": "Snowflake"
+    },
+    "SO": {
+      "en": "SO",
+      "zh": "南方電力",
+      "ko": "SO"
     },
     "SOXX": {
       "en": "iShares Semiconductor ETF",
@@ -1278,6 +1828,41 @@
       "zh": "做空波動 ETF",
       "ko": "숏 변동성 ETF"
     },
+    "SWAGX": {
+      "en": "Schwab U.S. Aggregate Bond Index",
+      "zh": "Schwab U.S. Aggregate Bond Index",
+      "ko": "Schwab U.S. Aggregate Bond Index"
+    },
+    "SWISX": {
+      "en": "Schwab International Index",
+      "zh": "Schwab International Index",
+      "ko": "Schwab International Index"
+    },
+    "SWPPX": {
+      "en": "Schwab S&P 500 Index",
+      "zh": "Schwab S&P 500 Index",
+      "ko": "Schwab S&P 500 Index"
+    },
+    "SWTSX": {
+      "en": "Schwab Total Stock Market Index",
+      "zh": "Schwab Total Stock Market Index",
+      "ko": "Schwab Total Stock Market Index"
+    },
+    "SWYGX": {
+      "en": "Schwab Target 2040 Index",
+      "zh": "Schwab Target 2040 Index",
+      "ko": "Schwab Target 2040 Index"
+    },
+    "SWYNX": {
+      "en": "Schwab Target 2050 Index",
+      "zh": "Schwab Target 2050 Index",
+      "ko": "Schwab Target 2050 Index"
+    },
+    "T": {
+      "en": "AT&T",
+      "zh": "AT&T",
+      "ko": "AT&T"
+    },
     "TAGS": {
       "en": "Agriculture ETF",
       "zh": "農產品 ETF",
@@ -1298,6 +1883,11 @@
       "zh": "浮動利率美債 ETF",
       "ko": "변동금리 국채 ETF"
     },
+    "TGT": {
+      "en": "Target",
+      "zh": "Target",
+      "ko": "Target"
+    },
     "THD": {
       "en": "Thailand ETF",
       "zh": "Thailand ETF",
@@ -1313,10 +1903,40 @@
       "zh": "廣泛 TIPS ETF",
       "ko": "광범위 TIPS ETF"
     },
+    "TJX": {
+      "en": "TJX",
+      "zh": "TJX",
+      "ko": "TJX"
+    },
     "TLT": {
       "en": "iShares 20+ Year Treasury Bond ETF",
       "zh": "長天期美債（20年+）ETF",
       "ko": "초장기 미국 국채(20년+) ETF"
+    },
+    "TMO": {
+      "en": "TMO",
+      "zh": "賽默飛",
+      "ko": "TMO"
+    },
+    "TMUS": {
+      "en": "T-Mobile",
+      "zh": "T-Mobile",
+      "ko": "T-Mobile"
+    },
+    "TRBCX": {
+      "en": "T. Rowe Price Blue Chip Growth",
+      "zh": "T. Rowe Price Blue Chip Growth",
+      "ko": "T. Rowe Price Blue Chip Growth"
+    },
+    "TSLA": {
+      "en": "TSLA",
+      "zh": "特斯拉",
+      "ko": "TSLA"
+    },
+    "TXN": {
+      "en": "TXN",
+      "zh": "德州儀器",
+      "ko": "TXN"
     },
     "UAE": {
       "en": "UAE ETF",
@@ -1327,6 +1947,21 @@
       "en": "Natural gas ETF",
       "zh": "天然氣 ETF",
       "ko": "천연가스 ETF"
+    },
+    "UNH": {
+      "en": "UnitedHealth",
+      "zh": "聯合健康",
+      "ko": "유나이티드헬스"
+    },
+    "UNP": {
+      "en": "UNP",
+      "zh": "聯合太平洋",
+      "ko": "UNP"
+    },
+    "UPS": {
+      "en": "UPS",
+      "zh": "UPS",
+      "ko": "UPS"
     },
     "URA": {
       "en": "Uranium ETF",
@@ -1373,6 +2008,11 @@
       "zh": "REIT core ETF",
       "ko": "리츠 core ETF"
     },
+    "V": {
+      "en": "Visa",
+      "zh": "Visa",
+      "ko": "Visa"
+    },
     "VB": {
       "en": "Small-cap ETF",
       "zh": "小型股 ETF",
@@ -1387,6 +2027,11 @@
       "en": "Small-cap value ETF",
       "zh": "小型價值 ETF",
       "ko": "소형 가치 ETF"
+    },
+    "VBTLX": {
+      "en": "Vanguard Total Bond Market Admiral",
+      "zh": "Vanguard Total Bond Market Admiral",
+      "ko": "Vanguard Total Bond Market Admiral"
     },
     "VCIT": {
       "en": "Vanguard Intermediate-Term Corporate Bond ETF",
@@ -1413,6 +2058,11 @@
       "zh": "能源 Vanguard ETF",
       "ko": "VDE"
     },
+    "VDIGX": {
+      "en": "Vanguard Dividend Growth",
+      "zh": "Vanguard 股息成長",
+      "ko": "Vanguard 배당 성장"
+    },
     "VEA": {
       "en": "VEA",
       "zh": "已開發市場 (Vanguard) ETF",
@@ -1427,6 +2077,11 @@
       "en": "VFH",
       "zh": "金融 Vanguard ETF",
       "ko": "VFH"
+    },
+    "VFIAX": {
+      "en": "Vanguard 500 Index Admiral",
+      "zh": "Vanguard 500 Index Admiral",
+      "ko": "Vanguard 500 Index Admiral"
     },
     "VGIT": {
       "en": "Intermediate Treasury (Vanguard) ETF",
@@ -1448,6 +2103,11 @@
       "zh": "短期美債 Vanguard ETF",
       "ko": "단기 미국 국채 Vanguard ETF"
     },
+    "VGSLX": {
+      "en": "Vanguard Real Estate Index Admiral",
+      "zh": "Vanguard Real Estate Index Admiral",
+      "ko": "Vanguard Real Estate Index Admiral"
+    },
     "VGT": {
       "en": "VGT",
       "zh": "科技 (Vanguard) ETF",
@@ -1458,10 +2118,25 @@
       "zh": "醫療 Vanguard ETF",
       "ko": "VHT"
     },
+    "VHYAX": {
+      "en": "Vanguard High Dividend Yield Admiral",
+      "zh": "Vanguard High Dividend Yield Admiral",
+      "ko": "Vanguard High Dividend Yield Admiral"
+    },
     "VIG": {
       "en": "VIG",
       "zh": "股息成長 (Vanguard) ETF",
       "ko": "VIG"
+    },
+    "VIGAX": {
+      "en": "Vanguard Growth Index Admiral",
+      "zh": "Vanguard Growth Index Admiral",
+      "ko": "Vanguard Growth Index Admiral"
+    },
+    "VIMAX": {
+      "en": "Vanguard Mid-Cap Index Admiral",
+      "zh": "Vanguard Mid-Cap Index Admiral",
+      "ko": "Vanguard Mid-Cap Index Admiral"
     },
     "VIOG": {
       "en": "S&P 600 growth ETF",
@@ -1533,6 +2208,16 @@
       "zh": "公用事業 Vanguard ETF",
       "ko": "유틸리티 Vanguard ETF"
     },
+    "VRTX": {
+      "en": "Vertex",
+      "zh": "Vertex",
+      "ko": "Vertex"
+    },
+    "VSMAX": {
+      "en": "Vanguard Small-Cap Index Admiral",
+      "zh": "Vanguard Small-Cap Index Admiral",
+      "ko": "Vanguard Small-Cap Index Admiral"
+    },
     "VT": {
       "en": "Vanguard Total World Stock ETF",
       "zh": "全球股市 ETF",
@@ -1548,15 +2233,30 @@
       "zh": "全美股市 ETF",
       "ko": "미국 전체 주식 ETF"
     },
+    "VTIAX": {
+      "en": "Vanguard Total Intl Stock Admiral",
+      "zh": "Vanguard Total Intl Stock Admiral",
+      "ko": "Vanguard Total Intl Stock Admiral"
+    },
     "VTIP": {
       "en": "Short-term TIPS Vanguard ETF",
       "zh": "短期 TIPS Vanguard ETF",
       "ko": "단기 TIPS Vanguard ETF"
     },
+    "VTSAX": {
+      "en": "Vanguard Total Stock Market Admiral",
+      "zh": "Vanguard Total Stock Market Admiral",
+      "ko": "Vanguard Total Stock Market Admiral"
+    },
     "VTV": {
       "en": "VTV",
       "zh": "大型價值 ETF",
       "ko": "VTV"
+    },
+    "VTWAX": {
+      "en": "Vanguard Total World Stock Admiral",
+      "zh": "Vanguard Total World Stock Admiral",
+      "ko": "Vanguard Total World Stock Admiral"
     },
     "VUG": {
       "en": "Large-cap growth ETF",
@@ -1572,6 +2272,21 @@
       "en": "US large-cap ETF",
       "zh": "美國大型股 ETF",
       "ko": "미국 대형주 ETF"
+    },
+    "VWELX": {
+      "en": "Vanguard Wellington Investor",
+      "zh": "Vanguard Wellington Investor",
+      "ko": "Vanguard Wellington Investor"
+    },
+    "VWENX": {
+      "en": "Vanguard Wellington Admiral",
+      "zh": "Vanguard Wellington Admiral",
+      "ko": "Vanguard Wellington Admiral"
+    },
+    "VWNDX": {
+      "en": "Vanguard Windsor",
+      "zh": "Vanguard 風力sor",
+      "ko": "Vanguard 풍력sor"
     },
     "VWO": {
       "en": "Vanguard FTSE Emerging Markets ETF",
@@ -1593,10 +2308,25 @@
       "zh": "高股息 ETF",
       "ko": "고배당 ETF"
     },
+    "VZ": {
+      "en": "Verizon",
+      "zh": "Verizon",
+      "ko": "Verizon"
+    },
     "WEAT": {
       "en": "Wheat ETF",
       "zh": "小麥 ETF",
       "ko": "밀 ETF"
+    },
+    "WFC": {
+      "en": "WFC",
+      "zh": "富國銀行",
+      "ko": "WFC"
+    },
+    "WMT": {
+      "en": "WMT",
+      "zh": "沃爾瑪",
+      "ko": "WMT"
     },
     "XAR": {
       "en": "Aerospace & defense ETF",
@@ -1692,6 +2422,11 @@
       "en": "Nasdaq 100 Technology ETF",
       "zh": "Nasdaq 100 科技 ETF",
       "ko": "Nasdaq 100 기술 ETF"
+    },
+    "XOM": {
+      "en": "XOM",
+      "zh": "艾克森美孚",
+      "ko": "XOM"
     },
     "XOP": {
       "en": "Oil & gas exploration ETF",

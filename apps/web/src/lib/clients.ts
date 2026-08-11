@@ -1,5 +1,5 @@
 import demoClientsFile from "@/data/demo-clients.json";
-import { etfDisplayName } from "@/lib/etf-display-name";
+import { displayNameIsCjk, etfDisplayName } from "@/lib/etf-display-name";
 import {
   esgPreferenceLabel,
   riskProfileLabel,
@@ -725,7 +725,26 @@ export function holdingDisplayName(
     }
     return t("clients.holding.cash");
   }
-  return etfDisplayName(holding.ticker, lang);
+
+  const upper = holding.ticker.trim().toUpperCase();
+  const own = holding.name?.trim() ?? "";
+  const localized = etfDisplayName(holding.ticker, lang);
+
+  // Name map / English universe hit — use it unless it is bare ticker and we have a better own name.
+  if (localized && localized !== upper) {
+    // Guard: never show CJK labels in non-zh UI even if a stale map entry slips through.
+    if (lang !== "zh" && displayNameIsCjk(localized) && own && !displayNameIsCjk(own)) {
+      return own;
+    }
+    return localized;
+  }
+
+  // Map/universe miss (or CJK skipped for en/ko): prefer the holding's own English-style name.
+  if (own) {
+    if (lang === "zh" || !displayNameIsCjk(own)) return own;
+  }
+
+  return localized || upper;
 }
 
 export type {

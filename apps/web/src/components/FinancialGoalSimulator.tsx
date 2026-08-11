@@ -52,13 +52,13 @@ import type { GoalExtractResult } from "@/lib/financial-goal-extract";
 import { parseTargetRetirementAge } from "@/lib/financial-goal-extract";
 import {
   clearGoalInsights,
-  clearGoalPlan,
   loadGoalPlan,
   saveGoalInsights,
   saveGoalPlan,
 } from "@/lib/financial-goal-store";
 import {
   projectionSummaryForLlm,
+  rewriteLargeMonthDurationsInText,
   type GoalPathInsight,
 } from "@/lib/financial-goal-insights";
 import { useI18n, type TFn } from "@/lib/i18n";
@@ -66,7 +66,6 @@ import { useI18n, type TFn } from "@/lib/i18n";
 type Props = {
   client: DemoClient;
   open: boolean;
-  onOpenChange: (open: boolean) => void;
 };
 
 function typeLabel(t: TFn, type: FinancialGoalType) {
@@ -145,7 +144,6 @@ function mortgageOrDefault(g: FinancialGoal): HomeMortgage {
 export function FinancialGoalSimulator({
   client,
   open,
-  onOpenChange,
 }: Props) {
   const { t, lang } = useI18n();
   const [notes, setNotes] = useState("");
@@ -316,7 +314,7 @@ export function FinancialGoalSimulator({
       return;
     }
 
-    const summary = projectionSummaryForLlm(projection);
+    const summary = projectionSummaryForLlm(projection, lang);
     if (summary.insight_seeds.length === 0) {
       setPathInsights(null);
       setInsightsError(null);
@@ -604,53 +602,15 @@ export function FinancialGoalSimulator({
     setGoals((prev) => prev.filter((g) => g.id !== id));
   };
 
-  const resetAll = () => {
-    clearGoalPlan(client.client_id);
-    returnTouchedRef.current = new Set();
-    setNotes("");
-    setGoals([]);
-    setAssumptions(
-      returnDefaults
-        ? { ...DEFAULT_GOAL_ASSUMPTIONS, ...returnDefaults.defaults }
-        : DEFAULT_GOAL_ASSUMPTIONS,
-    );
-    setQuestions([]);
-    setExtractMeta(null);
-    setExtractError(null);
-    setPathInsights(null);
-    setInsightsError(null);
-  };
-
-  if (!open) return null;
-
+  // Parent (ExpandCollapse) owns mount/unmount.
+  // Effects already no-op when `open` is false.
   return (
-    <section className="pixel-panel space-y-4" data-goal-simulator>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="ui-section-title">{t("goalSim.title")}</h2>
-          <p className="mt-1 ui-hint max-w-3xl">{t("goalSim.subtitle")}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="rounded-lg border border-[var(--border)] bg-white px-2.5 py-1 text-xs text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
-            onClick={resetAll}
-          >
-            {t("goalSim.reset")}
-          </button>
-          <button
-            type="button"
-            className="rounded-lg border border-[var(--border)] bg-white px-2.5 py-1 text-xs text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
-            onClick={() => onOpenChange(false)}
-          >
-            {t("goalSim.close")}
-          </button>
-        </div>
-      </div>
-
-      <p className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--text-dim)]">
-        {t("goalSim.disclaimer")}
-      </p>
+    <section
+      id="financial-goal-simulator"
+      className="pixel-panel space-y-4"
+      data-goal-simulator
+    >
+      <h2 className="ui-section-title">{t("goalSim.title")}</h2>
 
       <div className="grid gap-4 xl:grid-cols-2">
         {/* Left: notes + assumptions + goals form */}
@@ -1468,15 +1428,18 @@ export function FinancialGoalSimulator({
                       />
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-[var(--foreground)]">
-                          {insight.title}
+                          {rewriteLargeMonthDurationsInText(insight.title, lang)}
                         </p>
                         <p className="mt-0.5 text-sm text-[var(--ui-color-body)]">
-                          {insight.detail}
+                          {rewriteLargeMonthDurationsInText(insight.detail, lang)}
                         </p>
                         {insight.talking_point ? (
                           <p className="mt-1 text-xs text-[var(--text-dim)]">
                             {t("goalSim.insightsTalkingPoint", {
-                              text: insight.talking_point,
+                              text: rewriteLargeMonthDurationsInText(
+                                insight.talking_point,
+                                lang,
+                              ),
                             })}
                           </p>
                         ) : null}

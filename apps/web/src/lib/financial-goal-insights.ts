@@ -7,6 +7,81 @@ import {
   nearestLiquidityGoal,
   type GoalProjectionResult,
 } from "@/lib/financial-goal";
+import type { Lang } from "@/lib/i18n";
+
+/** Month counts at/above this prefer year wording in insight copy. */
+const YEAR_DURATION_THRESHOLD = 12;
+
+/** Rewrite raw month phrases in AI prose once they get this large. */
+const REWRITE_MONTH_PHRASE_THRESHOLD = 24;
+
+/**
+ * Human-readable horizon / duration for goal-sim insight narratives.
+ * Whole years → "N-year" / "N 年" / "N년"; otherwise years + remaining months.
+ * Short horizons (< 12 months) stay in months.
+ * Use `style: "noun"` for bare "N years" (e.g. rewriting "564 months").
+ */
+export function formatGoalHorizonDuration(
+  months: number,
+  lang: Lang = "en",
+  style: "compact" | "noun" = "compact",
+): string {
+  const m = Math.max(0, Math.round(Number(months) || 0));
+  if (m < YEAR_DURATION_THRESHOLD) {
+    if (lang === "zh") return `${m} 個月`;
+    if (lang === "ko") return `${m}개월`;
+    if (style === "noun") return m === 1 ? "1 month" : `${m} months`;
+    return m === 1 ? "1-month" : `${m}-month`;
+  }
+  const years = Math.floor(m / 12);
+  const rem = m % 12;
+  if (rem === 0) {
+    if (lang === "zh") return `${years} 年`;
+    if (lang === "ko") return `${years}년`;
+    if (style === "noun") return years === 1 ? "1 year" : `${years} years`;
+    return years === 1 ? "1-year" : `${years}-year`;
+  }
+  if (lang === "zh") return `${years} 年 ${rem} 個月`;
+  if (lang === "ko") return `${years}년 ${rem}개월`;
+  const yWord = years === 1 ? "1 year" : `${years} years`;
+  const mWord = rem === 1 ? "1 month" : `${rem} months`;
+  return `${yWord} ${mWord}`;
+}
+
+/**
+ * Replace large month-count duration phrases in insight prose with year form.
+ * Leaves small counts alone (e.g. "12-month liquidity").
+ */
+export function rewriteLargeMonthDurationsInText(
+  text: string,
+  lang: Lang = "en",
+): string {
+  if (!text) return text;
+  const labelFor = (raw: string, style: "compact" | "noun"): string | null => {
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < REWRITE_MONTH_PHRASE_THRESHOLD) return null;
+    return formatGoalHorizonDuration(n, lang, style);
+  };
+
+  let out = text;
+  // "564-month" / "564-months"
+  out = out.replace(/(\d+)\s*-\s*months?\b/gi, (full, n: string) => {
+    return labelFor(n, "compact") ?? full;
+  });
+  // "564 months"
+  out = out.replace(/(\d+)\s+months?\b/gi, (full, n: string) => {
+    return labelFor(n, "noun") ?? full;
+  });
+  // "564個月" / "564 個月"
+  out = out.replace(/(\d+)\s*個\s*月/g, (full, n: string) => {
+    return labelFor(n, "compact") ?? full;
+  });
+  // "564개월"
+  out = out.replace(/(\d+)\s*개월/g, (full, n: string) => {
+    return labelFor(n, "compact") ?? full;
+  });
+  return out;
+}
 
 export const GOAL_PATH_INSIGHT_IDS = [
   "near_term_shortfall",
@@ -96,6 +171,7 @@ function isHook(raw: unknown): raw is GoalPathCustomizationHook {
  */
 export function deriveGoalPathInsightSeeds(
   projection: GoalProjectionResult,
+  lang: Lang = "en",
 ): GoalPathInsightSeed[] {
   const seeds: GoalPathInsightSeed[] = [];
   const base = projection.scenarios.base;
@@ -113,6 +189,7 @@ export function deriveGoalPathInsightSeeds(
         goal_label: shortfall.goal.label || shortfall.goal.type,
         goal_type: shortfall.goal.type,
         month: shortfall.month,
+        month_label: formatGoalHorizonDuration(shortfall.month, lang),
         needed_usd: roundUsd(shortfall.neededUsd),
         funded_usd: roundUsd(shortfall.fundedUsd),
         shortfall_usd: roundUsd(shortfall.shortfallUsd),
@@ -133,6 +210,7 @@ export function deriveGoalPathInsightSeeds(
           goal_label: near.label || near.type,
           goal_type: near.type,
           within_months: near.withinMonths,
+          within_label: formatGoalHorizonDuration(near.withinMonths, lang),
           need_usd: roundUsd(near.amountUsd),
           cash_usd: roundUsd(cash),
           gap_usd: roundUsd(Math.max(0, gap)),
@@ -174,6 +252,7 @@ export function deriveGoalPathInsightSeeds(
         starting_wealth_usd: roundUsd(projection.startingWealth),
         life_expectancy_age: projection.lifeExpectancyAge ?? "",
         horizon_months: projection.horizonMonths,
+        horizon_label: formatGoalHorizonDuration(projection.horizonMonths, lang),
       },
     });
   }
@@ -201,10 +280,15 @@ export function deriveGoalPathInsightSeeds(
 }
 
 /** Compact JSON for the insights LLM (no full monthly path). */
-export function projectionSummaryForLlm(projection: GoalProjectionResult): {
+export function projectionSummaryForLlm(
+  projection: GoalProjectionResult,
+  lang: Lang = "en",
+): {
   starting_wealth_usd: number;
   cash_usd: number;
   horizon_months: number;
+  /** Prefer this in prose instead of raw month counts. */
+  horizon_label: string;
   life_expectancy_age: number | null;
   inheritance_usd: number;
   assumptions: {
@@ -218,6 +302,7 @@ export function projectionSummaryForLlm(projection: GoalProjectionResult): {
     label: string;
     amount_usd: number;
     within_months: number;
+    within_label: string;
   }>;
   scenarios: Record<
     string,
@@ -231,17 +316,19 @@ export function projectionSummaryForLlm(projection: GoalProjectionResult): {
     kind: string;
     goal_label: string;
     month: number;
+    month_label: string;
     shortfall_usd: number;
     needed_usd: number;
   } | null;
   insight_seeds: GoalPathInsightSeed[];
 } {
-  const seeds = deriveGoalPathInsightSeeds(projection);
+  const seeds = deriveGoalPathInsightSeeds(projection, lang);
   const fs = projection.firstShortfall;
   return {
     starting_wealth_usd: roundUsd(projection.startingWealth),
     cash_usd: roundUsd(projection.cashUsd),
     horizon_months: projection.horizonMonths,
+    horizon_label: formatGoalHorizonDuration(projection.horizonMonths, lang),
     life_expectancy_age: projection.lifeExpectancyAge,
     inheritance_usd: roundUsd(projection.inheritanceUsd),
     assumptions: {
@@ -259,6 +346,7 @@ export function projectionSummaryForLlm(projection: GoalProjectionResult): {
       label: g.label || g.type,
       amount_usd: roundUsd(g.amountUsd),
       within_months: g.withinMonths,
+      within_label: formatGoalHorizonDuration(g.withinMonths, lang),
     })),
     scenarios: {
       base: {
@@ -290,6 +378,7 @@ export function projectionSummaryForLlm(projection: GoalProjectionResult): {
           kind: fs.kind,
           goal_label: fs.goal.label || fs.goal.type,
           month: fs.month,
+          month_label: formatGoalHorizonDuration(fs.month, lang),
           shortfall_usd: roundUsd(fs.shortfallUsd),
           needed_usd: roundUsd(fs.neededUsd),
         }
@@ -310,6 +399,7 @@ function clampText(raw: unknown, max: number): string {
 export function parseGoalPathInsightsFromModel(
   text: string,
   allowedSeeds: GoalPathInsightSeed[],
+  lang: Lang = "en",
 ): GoalPathInsight[] {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
@@ -330,9 +420,18 @@ export function parseGoalPathInsightsFromModel(
     const rec = item as Record<string, unknown>;
     if (!isInsightId(rec.id) || !allowed.has(rec.id)) continue;
     const seed = byId.get(rec.id)!;
-    const title = clampText(rec.title, 120);
-    const detail = clampText(rec.detail, 400);
-    const talking = clampText(rec.talking_point, 280);
+    const title = rewriteLargeMonthDurationsInText(
+      clampText(rec.title, 120),
+      lang,
+    );
+    const detail = rewriteLargeMonthDurationsInText(
+      clampText(rec.detail, 400),
+      lang,
+    );
+    const talking = rewriteLargeMonthDurationsInText(
+      clampText(rec.talking_point, 280),
+      lang,
+    );
     if (!title || !detail) continue;
 
     const hooksRaw = Array.isArray(rec.customization_hooks)

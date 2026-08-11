@@ -47,6 +47,9 @@ For each id, write RM-facing insight copy that:
 1) States the issue/opportunity clearly using the provided numbers.
 2) Suggests what portfolio customization should solve next (hooks already listed per seed).
 
+Durations: Prefer *_label fields (horizon_label, within_label, month_label) for prose.
+Express long horizons in years (e.g. "47-year horizon", "3 years 6 months") — never write large month counts like "564-month horizon" or "564 months".
+
 Return ONLY JSON:
 {
   "insights": [
@@ -113,7 +116,7 @@ export async function POST(req: Request) {
     });
 
     try {
-      const insights = parseGoalPathInsightsFromModel(result.text, seeds);
+      const insights = parseGoalPathInsightsFromModel(result.text, seeds, lang);
       return NextResponse.json({
         insights,
         source: "gemini",

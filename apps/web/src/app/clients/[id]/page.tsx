@@ -19,6 +19,7 @@ import {
 import { AppNav } from "@/components/AppNav";
 import { ChartTooltip } from "@/components/ChartTooltip";
 import { ClientCustomizedHistoryPanel } from "@/components/ClientCustomizedHistoryPanel";
+import { ExpandCollapse } from "@/components/ExpandCollapse";
 import { FinancialGoalSimulator } from "@/components/FinancialGoalSimulator";
 import {
   defaultCustomizationPortfolioName,
@@ -720,6 +721,8 @@ export default function ClientDashboardPage() {
                 <button
                   type="button"
                   className="rounded-lg border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-medium text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
+                  aria-expanded={goalSimOpen}
+                  aria-controls="financial-goal-simulator"
                   onClick={() => setGoalSimOpen((v) => !v)}
                 >
                   {t("clients.goalSimCta")}
@@ -729,15 +732,14 @@ export default function ClientDashboardPage() {
                 </Link>
               </div>
             </div>
-            {goalSimOpen ? (
+            <ExpandCollapse open={goalSimOpen} key={client.client_id}>
               <div className="mt-4">
                 <FinancialGoalSimulator
                   client={client}
-                  open={goalSimOpen}
-                  onOpenChange={setGoalSimOpen}
+                  open
                 />
               </div>
-            ) : null}
+            </ExpandCollapse>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div>

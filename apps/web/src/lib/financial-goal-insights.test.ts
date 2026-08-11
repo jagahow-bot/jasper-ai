@@ -6,8 +6,10 @@ import {
 } from "./financial-goal";
 import {
   deriveGoalPathInsightSeeds,
+  formatGoalHorizonDuration,
   parseGoalPathInsightsFromModel,
   projectionSummaryForLlm,
+  rewriteLargeMonthDurationsInText,
 } from "./financial-goal-insights";
 
 function goal(
@@ -24,6 +26,49 @@ function goal(
     retirementSpendYears: partial.retirementSpendYears ?? null,
   };
 }
+
+describe("formatGoalHorizonDuration", () => {
+  it("converts whole-year horizons to year labels (564 → 47-year)", () => {
+    expect(formatGoalHorizonDuration(564, "en")).toBe("47-year");
+    expect(formatGoalHorizonDuration(564, "en", "noun")).toBe("47 years");
+    expect(formatGoalHorizonDuration(564, "zh")).toBe("47 年");
+    expect(formatGoalHorizonDuration(564, "ko")).toBe("47년");
+  });
+
+  it("uses years + months when not divisible by 12", () => {
+    expect(formatGoalHorizonDuration(30, "en")).toBe("2 years 6 months");
+    expect(formatGoalHorizonDuration(30, "zh")).toBe("2 年 6 個月");
+    expect(formatGoalHorizonDuration(30, "ko")).toBe("2년 6개월");
+  });
+
+  it("keeps short horizons in months", () => {
+    expect(formatGoalHorizonDuration(6, "en")).toBe("6-month");
+    expect(formatGoalHorizonDuration(6, "zh")).toBe("6 個月");
+  });
+});
+
+describe("rewriteLargeMonthDurationsInText", () => {
+  it("rewrites huge month phrases in insight prose", () => {
+    expect(
+      rewriteLargeMonthDurationsInText(
+        "Ending wealth ranges over the 564-month horizon.",
+        "en",
+      ),
+    ).toBe("Ending wealth ranges over the 47-year horizon.");
+    expect(
+      rewriteLargeMonthDurationsInText("緩衝需覆蓋 564 個月。", "zh"),
+    ).toBe("緩衝需覆蓋 47 年。");
+  });
+
+  it("leaves small month counts alone", () => {
+    expect(
+      rewriteLargeMonthDurationsInText(
+        "Keep a 12-month liquidity buffer.",
+        "en",
+      ),
+    ).toBe("Keep a 12-month liquidity buffer.");
+  });
+});
 
 describe("deriveGoalPathInsightSeeds", () => {
   it("flags near_term_shortfall when base path cannot fund a goal", () => {
@@ -84,7 +129,7 @@ describe("deriveGoalPathInsightSeeds", () => {
     expect(seeds.map((s) => s.id)).not.toContain("near_term_shortfall");
   });
 
-  it("projectionSummaryForLlm includes seeds and scenario ends", () => {
+  it("projectionSummaryForLlm includes seeds and year horizon_label", () => {
     const goals = [
       goal({ type: "home", amountUsd: 800_000, withinMonths: 48 }),
     ];
@@ -93,10 +138,12 @@ describe("deriveGoalPathInsightSeeds", () => {
       { aum_usd: 1_000_000, cash_usd: 100_000 },
       DEFAULT_GOAL_ASSUMPTIONS,
     );
-    const summary = projectionSummaryForLlm(projection);
+    const summary = projectionSummaryForLlm(projection, "en");
     expect(summary.insight_seeds.length).toBeGreaterThan(0);
     expect(summary.scenarios.base.ending_wealth_usd).toBeGreaterThan(0);
     expect(summary.goals[0]?.type).toBe("home");
+    expect(summary.goals[0]?.within_label).toBe("4-year");
+    expect(summary.horizon_label).toMatch(/-year$|years /);
   });
 });
 

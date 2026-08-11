@@ -294,6 +294,26 @@
     @apply rounded-lg border bg-[var(--surface-2)] p-4;
     border-color: var(--border);
   }
+
+  /* Height/opacity accordion — pair with ExpandCollapse */
+  .ui-expand {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 220ms ease;
+  }
+
+  .ui-expand.is-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
+  .ui-expand-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
 }
 
 @keyframes live-pulse {
@@ -332,6 +352,10 @@
   .live-bar::after,
   .live-feed-enter {
     animation: none;
+  }
+
+  .ui-expand {
+    transition: none;
   }
 }
 

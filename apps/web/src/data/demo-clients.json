@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "updated": "2026-07-28",
+  "updated": "2026-08-11",
   "description": "Demo private-banking clients for JASPER RM Copilot. Holdings mix ETF cores, mutual funds, and single stocks with drifted weights (initial_weight × total_return).",
   "clients": [
     {
@@ -797,6 +797,189 @@
             "en": "Underwater positions review",
             "zh": "虧損部位檢討會議",
             "ko": "손실 포지션 검토 미팅"
+          }
+        }
+      ],
+      "gender": "male"
+    },
+    {
+      "client_id": "JB-SAL-001",
+      "display_name": {
+        "en": "Mr. Huang",
+        "zh": "黃先生",
+        "ko": "황 씨"
+      },
+      "segment": "Mass Affluent",
+      "risk_profile": "moderate",
+      "currency": "USD",
+      "age": 42,
+      "aum_usd": 320000,
+      "cash_usd": 48000,
+      "investment_horizon": {
+        "en": "10–15 years",
+        "zh": "10–15 年",
+        "ko": "10–15년"
+      },
+      "liquidity_notes": {
+        "en": "May need ~USD 40k within 18 months for children's education / family cash needs; continues monthly salary DCA into core ETFs.",
+        "zh": "未來 18 個月可能需約 4 萬美元作為子女教育／家庭開支；薪資仍會每月定期定額投入核心 ETF。",
+        "ko": "향후 18개월 내 자녀 교육·가계로 약 USD 4만 필요할 수 있음; 급여로 코어 ETF 월 적립 지속."
+      },
+      "preferences": {
+        "esg": "light",
+        "tags": [
+          "salary_DCA",
+          "balanced",
+          "education",
+          "mass_affluent"
+        ]
+      },
+      "rm_owner": "RM Demo",
+      "as_of_date": "2026-07-28",
+      "suggested_model_portfolio_id": "classic-60-40",
+      "holdings": [],
+      "holdings_groups": [
+        {
+          "id": "huang-dca-core",
+          "type": "individual",
+          "label": {
+            "en": "Salary DCA core (ETF + funds)",
+            "zh": "薪資定期定額核心（ETF＋基金）",
+            "ko": "급여 적립 코어(ETF+펀드)"
+          },
+          "holdings": [
+            {
+              "ticker": "VTI",
+              "name": "Vanguard Total Stock Market ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.25,
+              "return_ytd": 8.5,
+              "total_return": 22.0,
+              "region": "us",
+              "invested_at": "2023-01-15"
+            },
+            {
+              "ticker": "VXUS",
+              "name": "Vanguard Total International Stock ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.08,
+              "return_ytd": 5.0,
+              "total_return": 9.0,
+              "region": "global",
+              "invested_at": "2023-01-15"
+            },
+            {
+              "ticker": "VTSAX",
+              "name": "Vanguard Total Stock Market Admiral",
+              "asset_class": "equity",
+              "initial_weight": 0.1,
+              "return_ytd": 8.2,
+              "total_return": 20.0,
+              "region": "us",
+              "invested_at": "2023-06-01"
+            },
+            {
+              "ticker": "AGG",
+              "name": "iShares Core U.S. Aggregate Bond ETF",
+              "asset_class": "bond",
+              "initial_weight": 0.12,
+              "return_ytd": -0.8,
+              "total_return": -3.5,
+              "region": "us",
+              "invested_at": "2023-01-15"
+            },
+            {
+              "ticker": "DODIX",
+              "name": "Dodge & Cox Income",
+              "asset_class": "bond",
+              "initial_weight": 0.08,
+              "return_ytd": 1.2,
+              "total_return": 2.5,
+              "region": "us",
+              "invested_at": "2024-02-01"
+            }
+          ]
+        },
+        {
+          "id": "huang-stock-satellite",
+          "type": "individual",
+          "label": {
+            "en": "Stock / regional satellite",
+            "zh": "個股／區域衛星",
+            "ko": "개별주·지역 위성"
+          },
+          "holdings": [
+            {
+              "ticker": "EWT",
+              "name": "iShares MSCI Taiwan ETF",
+              "asset_class": "equity",
+              "initial_weight": 0.1,
+              "return_ytd": 14.0,
+              "total_return": 28.0,
+              "region": "asia",
+              "invested_at": "2024-03-20"
+            },
+            {
+              "ticker": "AAPL",
+              "name": "Apple",
+              "asset_class": "equity",
+              "initial_weight": 0.05,
+              "return_ytd": 6.5,
+              "total_return": 18.0,
+              "region": "us",
+              "invested_at": "2023-09-01"
+            },
+            {
+              "ticker": "DIS",
+              "name": "Walt Disney",
+              "asset_class": "equity",
+              "initial_weight": 0.05,
+              "return_ytd": -3.5,
+              "total_return": -22.0,
+              "region": "us",
+              "invested_at": "2021-11-15",
+              "notes": "Bought near 2021 peak; still underwater — review vs core DCA"
+            }
+          ]
+        },
+        {
+          "id": "huang-cash",
+          "type": "cash",
+          "holdings": [
+            {
+              "ticker": "CASH",
+              "name": "Cash",
+              "asset_class": "cash",
+              "initial_weight": 0.17,
+              "return_ytd": null,
+              "total_return": null,
+              "region": "us"
+            }
+          ]
+        }
+      ],
+      "notes": {
+        "en": "Typical mid/upper-middle salaried employee (~USD 320k book): ETF/fund core via salary DCA, Taiwan ETF + blue-chip stock, one underwater Disney lot. Goals: kids' education liquidity and long-horizon retirement — not HNWI scale.",
+        "zh": "典型中產受薪階級示範（資產約 32 萬美元）：以 ETF／基金定期定額為核心，搭配台灣 ETF 與藍籌個股，另有一檔仍虧損的迪士尼部位。目標：子女教育流動性與長期退休——非高淨值規模。",
+        "ko": "전형적 중산층 급여소득자 데모(약 USD 32만): ETF/펀드 적립 코어 + 대만 ETF·블루칩, 일부 손실(DIS). 목표: 자녀 교육 유동성·장기 은퇴 — HNWI 규모 아님."
+      },
+      "upcoming_events": [
+        {
+          "id": "huang-education-liquidity",
+          "date": "2027-08-01",
+          "title": {
+            "en": "Children's education / family liquidity window",
+            "zh": "子女教育／家庭流動性提領窗口",
+            "ko": "자녀 교육·가계 유동성 창구"
+          }
+        },
+        {
+          "id": "huang-annual-review",
+          "date": "2026-11-15",
+          "title": {
+            "en": "Annual DCA & allocation review",
+            "zh": "年度定期定額與配置檢討",
+            "ko": "연간 적립·배분 점검"
           }
         }
       ],
