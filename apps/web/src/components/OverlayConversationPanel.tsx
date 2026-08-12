@@ -39,6 +39,9 @@ type ContextGroup = {
 /** `true` advances; `false` stays; `ClientOverlay` stays and applies merged proposals. */
 type OverlayConfirmResult = void | boolean | ClientOverlay;
 
+/** Composer grows with content; beyond this it scrolls internally (~8–10 rows). */
+const COMPOSER_MAX_PX = 240;
+
 type Props = {
   rmId?: string;
   clientRef?: string;
@@ -272,6 +275,7 @@ export function OverlayConversationPanel({
   const { lang, t } = useI18n();
 
   const [input, setInput] = useState("");
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const [messages, setMessages] = useState<OverlayConversationMessage[]>(initialMessages);
   const [overlay, setOverlay] = useState<ClientOverlay | null>(initialOverlay);
   const [loading, setLoading] = useState(false);
@@ -565,6 +569,14 @@ export function OverlayConversationPanel({
 
   const [chatOpen, setChatOpen] = useState(() => chatMessages.length > 0);
 
+  // Grow composer with content up to a fixed cap, then scroll internally.
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_PX)}px`;
+  }, [input]);
+
   const chatTitle =
     lang === "zh"
       ? "客戶需求對話"
@@ -576,6 +588,7 @@ export function OverlayConversationPanel({
     <>
       <div className="flex shrink-0 items-end gap-2">
         <textarea
+          ref={composerRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={loading}
@@ -587,7 +600,7 @@ export function OverlayConversationPanel({
                 ? "예: 고객은 AI 산업 비중을 늘리고 싶지만, 향후 5년 내 자금 사용 계획이 있어 투자 위험이 너무 높지 않기를 원합니다."
                 : "e.g. The client wants to increase AI sector exposure, but expects to use funds within the next 5 years, so they do not want investment risk to be too high."
           }
-          className="pixel-input min-h-[44px] flex-1 resize-y"
+          className="pixel-input min-h-[44px] max-h-[240px] flex-1 resize-none overflow-y-auto"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
