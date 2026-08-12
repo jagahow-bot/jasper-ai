@@ -162,14 +162,14 @@ describe("scope cash sleeve", () => {
     expect(mapped.client_context?.cash_reserve_pct).toBeCloseTo(0.05, 9);
   });
 
-  it("client liquidity_need + moderate risk defaults to 5% cash reserve", () => {
+  it("client liquidity_need + risk alone does not invent a cash reserve floor", () => {
     const overlay = minimalOverlay();
     overlay.client_profile = {
       risk_tolerance: "moderate",
       liquidity_need: { amount_usd: 50_000, within_months: 12 },
     };
     const mapped = overlayToBacktestRequest(baseAnchorRequest(), overlay);
-    expect(mapped.cash_reserve_pct).toBeCloseTo(0.05, 9);
-    expect(mapped.client_context?.cash_reserve_pct).toBeCloseTo(0.05, 9);
+    expect(mapped.cash_reserve_pct ?? 0).toBe(0);
+    expect(mapped.client_context?.cash_reserve_pct ?? null).toBeNull();
   });
 });

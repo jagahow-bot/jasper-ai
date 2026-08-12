@@ -444,9 +444,35 @@ const OVERLAY_EXTRACT_KEYS = new Set([
   "deployment_schedule",
   "param_adjustments",
   "experiment",
+  "asks",
   "clarification_questions",
   "confidence",
   "rationale",
+]);
+
+const OVERLAY_ASK_KINDS = new Set([
+  "group_weight_band",
+  "ticker_max",
+  "exclude_ticker",
+  "ticker_min",
+  "objective",
+  "cash_reserve",
+  "other",
+]);
+
+const ASK_KEYS = new Set([
+  "id",
+  "title",
+  "summary",
+  "kind",
+  "group_id",
+  "tickers",
+  "min_pct",
+  "max_pct",
+  "target_pct",
+  "objective",
+  "cash_reserve_pct",
+  "status",
 ]);
 
 const CLIENT_PROFILE_KEYS = new Set([
@@ -503,6 +529,16 @@ export function stripOverlayExtractKeys(root: Record<string, unknown>): Record<s
 
   const optimization = asRecord(out.optimization);
   if (optimization) out.optimization = pickKeys(optimization, OPTIMIZATION_KEYS);
+
+  if (Array.isArray(out.asks)) {
+    out.asks = out.asks
+      .map((row) => {
+        const rec = asRecord(row);
+        return rec ? pickKeys(rec, ASK_KEYS) : null;
+      })
+      .filter(Boolean);
+    if (!(out.asks as unknown[]).length) delete out.asks;
+  }
 
   return out;
 }
@@ -606,6 +642,75 @@ function normalizeParamAdjustments(
     }
   }
   return Object.keys(out).length ? out : undefined;
+}
+
+function normalizeAskPct(raw: unknown): number | undefined {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return undefined;
+  const v = raw > 1 ? raw / 100 : raw;
+  return Math.min(1, Math.max(0, v));
+}
+
+function normalizeAsks(raw: unknown): Record<string, unknown>[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: Record<string, unknown>[] = [];
+  for (let i = 0; i < Math.min(raw.length, 12); i++) {
+    const row = asRecord(raw[i]);
+    if (!row) continue;
+    const kindRaw = typeof row.kind === "string" ? row.kind.trim() : "other";
+    const kind = OVERLAY_ASK_KINDS.has(kindRaw) ? kindRaw : "other";
+    const title =
+      typeof row.title === "string" && row.title.trim()
+        ? row.title.trim().slice(0, 120)
+        : `Ask ${i + 1}`;
+    const summary =
+      typeof row.summary === "string" && row.summary.trim()
+        ? row.summary.trim().slice(0, 400)
+        : title;
+    const id =
+      typeof row.id === "string" && row.id.trim()
+        ? row.id.trim().slice(0, 40)
+        : `ask-${i + 1}`;
+    const tickers = normalizeTickerList(row.tickers);
+    const ask: Record<string, unknown> = {
+      id,
+      title,
+      summary,
+      kind,
+      ...(typeof row.group_id === "string" && row.group_id.trim()
+        ? { group_id: row.group_id.trim().slice(0, 80) }
+        : {}),
+      ...(tickers ? { tickers } : {}),
+    };
+    const minPct = normalizeAskPct(row.min_pct);
+    const maxPct = normalizeAskPct(row.max_pct);
+    const targetPct = normalizeAskPct(row.target_pct);
+    const cashPct = normalizeAskPct(row.cash_reserve_pct);
+    if (minPct != null) ask.min_pct = minPct;
+    if (maxPct != null) ask.max_pct = maxPct;
+    if (targetPct != null) ask.target_pct = targetPct;
+    if (cashPct != null) ask.cash_reserve_pct = Math.min(0.4, cashPct);
+    if (typeof row.objective === "string" && row.objective.trim()) {
+      const obj = row.objective.trim();
+      const validObjectives = new Set([
+        "max_sharpe",
+        "max_return",
+        "min_max_drawdown",
+        "max_sortino",
+        "min_cvar",
+        "risk_parity_erc",
+        "max_diversification",
+        "mean_variance_utility",
+        "custom",
+        "dynamic",
+      ]);
+      if (validObjectives.has(obj)) ask.objective = obj;
+    }
+    if (row.status === "proposed" || row.status === "signed") {
+      ask.status = row.status;
+    }
+    out.push(pickKeys(ask, ASK_KEYS));
+  }
+  return out.length ? out : undefined;
 }
 
 function normalizeExperiment(raw: unknown): Record<string, unknown> | undefined {
@@ -720,6 +825,13 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
     root.experiment = experiment;
   } else {
     delete root.experiment;
+  }
+
+  const asks = normalizeAsks(root.asks);
+  if (asks) {
+    root.asks = asks;
+  } else {
+    delete root.asks;
   }
 
   root.market_view = synthesizeMarketView(root);

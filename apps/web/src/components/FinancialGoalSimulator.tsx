@@ -48,8 +48,12 @@ import {
   type GoalReturnDefaults,
   type GoalReturnDefaultsResolution,
 } from "@/lib/financial-goal-backcast";
-import type { GoalExtractResult } from "@/lib/financial-goal-extract";
-import { parseTargetRetirementAge } from "@/lib/financial-goal-extract";
+import {
+  mergeGoalExtract,
+  parseTargetRetirementAge,
+  type GoalExtractResult,
+  type GoalExtractSnapshot,
+} from "@/lib/financial-goal-extract";
 import {
   clearGoalInsights,
   loadGoalPlan,
@@ -164,6 +168,8 @@ export function FinancialGoalSimulator({
   const [insightsRetryToken, setInsightsRetryToken] = useState(0);
   const skipNextSaveRef = useRef(false);
   const insightsAbortRef = useRef<AbortController | null>(null);
+  /** Last AI extract applied to the form (dirty-check baseline for soft merge). */
+  const lastAppliedExtractRef = useRef<GoalExtractSnapshot | null>(null);
   /** Return fields the RM (or a saved plan / AI extract) has set explicitly. */
   const returnTouchedRef = useRef<Set<ReturnField>>(new Set());
   const [returnDefaults, setReturnDefaults] =
@@ -175,6 +181,7 @@ export function FinancialGoalSimulator({
   useEffect(() => {
     if (!open) return;
     skipNextSaveRef.current = true;
+    lastAppliedExtractRef.current = null;
     const stored = loadGoalPlan(client.client_id);
     if (stored) {
       // A saved plan's return fields are deliberate RM input — never clobber.
@@ -543,52 +550,107 @@ export function FinancialGoalSimulator({
     );
   };
 
+  const fetchExtract = async (): Promise<{
+    extract: GoalExtractResult;
+    source?: string;
+  }> => {
+    const res = await fetch("/api/goals/extract", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        notes,
+        report_language: lang === "zh" ? "zh-TW" : lang,
+        client: {
+          client_id: client.client_id,
+          age: client.age,
+          gender: client.gender ?? null,
+          display_name: [
+            client.display_name?.en,
+            client.display_name?.zh,
+            client.display_name?.ko,
+          ]
+            .filter(Boolean)
+            .join(" "),
+          aum_usd: client.aum_usd,
+          cash_usd: client.cash_usd,
+          risk_profile: client.risk_profile,
+          as_of_date: client.as_of_date,
+        },
+      }),
+    });
+    const data = (await res.json()) as {
+      extract?: GoalExtractResult;
+      source?: string;
+      error?: string;
+      message?: string;
+    };
+    if (!res.ok || !data.extract) {
+      throw new Error(data.message || data.error || "extract_failed");
+    }
+    return { extract: data.extract, source: data.source };
+  };
+
+  const formatExtractMeta = (
+    source: string | undefined,
+    rationale: string,
+    mergeLine?: string,
+  ) => {
+    const prefix = `${source === "gemini" ? "AI" : t("goalSim.rulesFallback")}: ${rationale}`;
+    return mergeLine ? `${mergeLine} — ${prefix}` : prefix;
+  };
+
+  /** Soft-merge extract into the form (default primary action). */
   const runExtract = async () => {
     setExtracting(true);
     setExtractError(null);
     try {
-      const res = await fetch("/api/goals/extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          notes,
-          report_language: lang === "zh" ? "zh-TW" : lang,
-          client: {
-            client_id: client.client_id,
-            age: client.age,
-            gender: client.gender ?? null,
-            display_name: [
-              client.display_name?.en,
-              client.display_name?.zh,
-              client.display_name?.ko,
-            ]
-              .filter(Boolean)
-              .join(" "),
-            aum_usd: client.aum_usd,
-            cash_usd: client.cash_usd,
-            risk_profile: client.risk_profile,
-            as_of_date: client.as_of_date,
-          },
-        }),
-      });
-      const data = (await res.json()) as {
-        extract?: GoalExtractResult;
-        source?: string;
-        error?: string;
-        message?: string;
-      };
-      if (!res.ok || !data.extract) {
-        throw new Error(data.message || data.error || "extract_failed");
-      }
-      const { extract } = data;
-      if (extract.goals.length) setGoals(extract.goals);
-      // Extract-provided returns are deliberate input — auto-fill yields.
-      returnTouchedRef.current = new Set(RETURN_FIELDS);
-      setAssumptions(extract.assumptions);
-      setQuestions(extract.clarification_questions ?? []);
-      setExtractMeta(
-        `${data.source === "gemini" ? "AI" : t("goalSim.rulesFallback")}: ${extract.rationale}`,
+      const { extract, source } = await fetchExtract();
+      const merged = mergeGoalExtract(
+        { goals, assumptions },
+        { goals: extract.goals, assumptions: extract.assumptions },
+        lastAppliedExtractRef.current,
+        { returnTouched: returnTouchedRef.current },
       );
+      setGoals(merged.goals);
+      setAssumptions(merged.assumptions);
+      lastAppliedExtractRef.current = merged.baseline;
+      // Extract-touched returns are deliberate — auto-fill yields thereafter.
+      returnTouchedRef.current = new Set(RETURN_FIELDS);
+      setQuestions(extract.clarification_questions ?? []);
+      const mergeLine = t("goalSim.extractMergeSummary", {
+        updated: merged.summary.updatedFields,
+        added: merged.summary.addedGoals,
+        kept: merged.summary.keptManualEdits,
+      });
+      setExtractMeta(formatExtractMeta(source, extract.rationale, mergeLine));
+    } catch (err) {
+      setExtractError(
+        err instanceof Error ? err.message : t("goalSim.extractFailed"),
+      );
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  /** Hard replace form from extract after confirm; resets baseline. */
+  const runExtractReplaceAll = async () => {
+    if (!window.confirm(t("goalSim.extractConfirmReplace"))) return;
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      const { extract, source } = await fetchExtract();
+      if (extract.goals.length) setGoals(extract.goals);
+      setAssumptions(extract.assumptions);
+      lastAppliedExtractRef.current = {
+        goals: extract.goals.map((g) => ({
+          ...g,
+          mortgage: g.mortgage ? { ...g.mortgage } : g.mortgage,
+        })),
+        assumptions: { ...extract.assumptions },
+      };
+      returnTouchedRef.current = new Set(RETURN_FIELDS);
+      setQuestions(extract.clarification_questions ?? []);
+      setExtractMeta(formatExtractMeta(source, extract.rationale));
     } catch (err) {
       setExtractError(
         err instanceof Error ? err.message : t("goalSim.extractFailed"),
@@ -613,44 +675,8 @@ export function FinancialGoalSimulator({
       <h2 className="ui-section-title">{t("goalSim.title")}</h2>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        {/* Left: notes + assumptions + goals form */}
+        {/* Left: assumptions + goals form, then RM notes / AI extract */}
         <div className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium">
-              {t("goalSim.notesLabel")}
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={5}
-              placeholder={t("goalSim.notesPlaceholder")}
-              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
-            />
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="pixel-btn px-3 py-1.5 text-sm disabled:opacity-40"
-                disabled={notes.trim().length < 8 || extracting}
-                onClick={() => void runExtract()}
-              >
-                {extracting ? t("goalSim.extracting") : t("goalSim.extract")}
-              </button>
-            </div>
-            {extractError ? (
-              <p className="mt-1 text-xs text-[var(--magenta)]">{extractError}</p>
-            ) : null}
-            {extractMeta ? (
-              <p className="mt-1 text-xs text-[var(--text-dim)]">{extractMeta}</p>
-            ) : null}
-            {questions.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-[var(--amber)]">
-                {questions.map((q) => (
-                  <li key={q}>{q}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-
           <div className="rounded-lg border border-[var(--border)] p-3">
             <h3 className="text-sm font-medium">{t("goalSim.assumptionsTitle")}</h3>
             {returnDefaultsLoading ? (
@@ -1067,6 +1093,50 @@ export function FinancialGoalSimulator({
                 ))}
               </ul>
             )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              {t("goalSim.notesLabel")}
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={5}
+              placeholder={t("goalSim.notesPlaceholder")}
+              className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--primary)]"
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="pixel-btn px-3 py-1.5 text-sm disabled:opacity-40"
+                disabled={notes.trim().length < 8 || extracting}
+                onClick={() => void runExtract()}
+              >
+                {extracting ? t("goalSim.extracting") : t("goalSim.extract")}
+              </button>
+              <button
+                type="button"
+                className="text-xs font-medium text-[var(--text-dim)] hover:text-[var(--primary)] hover:underline disabled:opacity-40"
+                disabled={notes.trim().length < 8 || extracting}
+                onClick={() => void runExtractReplaceAll()}
+              >
+                {t("goalSim.extractReplaceAll")}
+              </button>
+            </div>
+            {extractError ? (
+              <p className="mt-1 text-xs text-[var(--magenta)]">{extractError}</p>
+            ) : null}
+            {extractMeta ? (
+              <p className="mt-1 text-xs text-[var(--text-dim)]">{extractMeta}</p>
+            ) : null}
+            {questions.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-[var(--amber)]">
+                {questions.map((q) => (
+                  <li key={q}>{q}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         </div>
 

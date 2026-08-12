@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AskEvidencePanel } from "@/components/AskEvidencePanel";
 import { AiParamsDisclosureBlock } from "@/components/AiParamsDisclosure";
 import { BenchmarkComparePanel } from "@/components/BenchmarkComparePanel";
 import { ComplianceBadge } from "@/components/ComplianceBadge";
@@ -535,6 +536,16 @@ export function RmReportView({
             </div>
 
             <div className="min-w-0 space-y-5 lg:col-span-5">
+              <AskEvidencePanel
+                overlay={overlay}
+                weights={selectedCandidate?.weights}
+                needs={needs}
+                objective={resolveRunObjective(
+                  compare.adjustedRequest,
+                  compare.adjustedResult.narrative_facts,
+                )}
+                client={client}
+              />
               <NeedsFulfillmentPanel needs={needs} />
 
               {overlay && overlayBullets.length > 0 ? (

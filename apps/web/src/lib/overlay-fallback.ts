@@ -1,6 +1,11 @@
 import { ASSET_CLASSES } from "./constants";
 import { parseLiquidityUsdAmount } from "./overlay-gemini-parse";
-import type { ClientOverlay, OverlayExtractOutput } from "./overlay-schema";
+import {
+  applyAsksToOverlayLevers,
+  type ClientOverlay,
+  type OverlayAsk,
+  type OverlayExtractOutput,
+} from "./overlay-schema";
 
 function parseAmountUsd(text: string): number | undefined {
   return parseLiquidityUsdAmount(text);
@@ -10,7 +15,166 @@ function hasEsgPreference(text: string): boolean {
   return /esg|sustainab|responsible investing/i.test(text) || /永續|可持續|社會責任/.test(text);
 }
 
+/** Detect Ms. Chen-style numbered customization brief (offline / rules demo). */
+function extractChenStyleAsks(
+  text: string,
+  lang: "zh" | "en" | "ko",
+): OverlayAsk[] | null {
+  const t = text.toLowerCase();
+  const looksLikeChen =
+    (/nvda/.test(t) && /satellite|衛星|새틀/.test(t) && /40\s*%?\s*[-–~to]+\s*45|40%-?45%/.test(t)) ||
+    (/fxaix|spy/.test(t) && /xlv|xlf/.test(t) && /sharpe/.test(t) && /cash|現金|현금/.test(t));
+  if (!looksLikeChen) return null;
+
+  const title1 =
+    lang === "zh"
+      ? "修剪 NVDA、維持 AI 衛星"
+      : lang === "ko"
+        ? "NVDA 축소 · AI 위성 유지"
+        : "Trim NVDA; keep AI satellite";
+  const summary1 =
+    lang === "zh"
+      ? "降低 NVDA 集中度，同時維持 AI／科技衛星約 40–45%。"
+      : lang === "ko"
+        ? "NVDA 집중도를 낮추되 AI/테크 위성은 약 40–45%로 유지."
+        : "Trim excess NVDA concentration while keeping AI/tech satellite exposure at 40–45%.";
+
+  const title2 =
+    lang === "zh"
+      ? "核心指數整合"
+      : lang === "ko"
+        ? "코어 지수 정리"
+        : "Core index consolidation";
+  const summary2 =
+    lang === "zh"
+      ? "降低 SPY／FXAIX 重疊，轉向 XLV／XLF 等產業 ETF。"
+      : lang === "ko"
+        ? "SPY/FXAIX 중복을 줄이고 XLV/XLF로 재배분."
+        : "Reduce SPY/FXAIX redundancy; reallocate toward XLV/XLF.";
+
+  const title3 =
+    lang === "zh"
+      ? "最大夏普與現金緩衝"
+      : lang === "ko"
+        ? "최대 샤프 + 현금 버퍼"
+        : "Max Sharpe + cash buffer";
+  const summary3 =
+    lang === "zh"
+      ? "積極成長前提下追求最大夏普，並維持約 5% 現金緩衝。"
+      : lang === "ko"
+        ? "공격적 성장 하에서 최대 샤프와 약 5% 현금 버퍼."
+        : "Target max Sharpe under aggressive growth, with ~5% cash buffer.";
+
+  return [
+    {
+      id: "ask-1",
+      title: title1,
+      summary: summary1,
+      kind: "group_weight_band",
+      group_id: "chen-tech-satellite",
+      tickers: ["NVDA", "AAPL", "MSFT", "META", "FDGRX"],
+      min_pct: 0.4,
+      max_pct: 0.45,
+      status: "proposed",
+    },
+    {
+      id: "ask-1b",
+      title: lang === "zh" ? "NVDA 上限" : "NVDA trim",
+      summary:
+        lang === "zh"
+          ? "壓低 NVDA 單一持股權重。"
+          : "Cap NVDA single-name weight after rebalance.",
+      kind: "ticker_max",
+      tickers: ["NVDA"],
+      max_pct: 0.18,
+      status: "proposed",
+    },
+    {
+      id: "ask-2",
+      title: title2,
+      summary: summary2,
+      kind: "exclude_ticker",
+      tickers: ["FXAIX"],
+      status: "proposed",
+    },
+    {
+      id: "ask-2b",
+      title: lang === "zh" ? "偏好 XLV／XLF" : "Prefer XLV/XLF",
+      summary:
+        lang === "zh"
+          ? "核心配置保留或提高 XLV、XLF。"
+          : "Keep XLV and XLF expressed in the core book.",
+      kind: "ticker_min",
+      tickers: ["XLV", "XLF"],
+      status: "proposed",
+    },
+    {
+      id: "ask-3",
+      title: title3,
+      summary: summary3,
+      kind: "cash_reserve",
+      cash_reserve_pct: 0.05,
+      status: "proposed",
+    },
+    {
+      id: "ask-3b",
+      title: lang === "zh" ? "優化目標" : "Objective",
+      summary:
+        lang === "zh" ? "以最大夏普為優化目標。" : "Optimize for maximum Sharpe ratio.",
+      kind: "objective",
+      objective: "max_sharpe",
+      status: "proposed",
+    },
+  ];
+}
+
 function baseExtract(text: string, lang: "zh" | "en" | "ko"): OverlayExtractOutput {
+  const chenAsks = extractChenStyleAsks(text, lang);
+  if (chenAsks) {
+    return {
+      client_profile: {
+        risk_tolerance: "aggressive",
+        investment_horizon_years: 10,
+        esg_preference: "none",
+      },
+      market_view: {
+        stance: "risk_on",
+        themes: ["ai_satellite", "core_consolidation", "max_sharpe"],
+        narrative_summary:
+          lang === "zh"
+            ? "積極客戶：修剪 NVDA、維持 AI 衛星 40–45%，整合 SPY／FXAIX 並保留約 5% 現金。"
+            : "Aggressive client: trim NVDA, keep AI satellite 40–45%, consolidate SPY/FXAIX, ~5% cash.",
+      },
+      allocation: {
+        asset_classes: ["equity", "bond"],
+        max_single_position_pct: 0.18,
+        enforce_class_weights: false,
+      },
+      universe: {
+        prompts: [
+          lang === "zh"
+            ? "維持 AI／科技衛星；降低 FXAIX 重疊；偏好 XLV／XLF"
+            : "Keep AI/tech satellite; reduce FXAIX overlap; prefer XLV/XLF",
+        ],
+        exclude_tickers: ["FXAIX"],
+        supplement_tickers: ["XLV", "XLF"],
+      },
+      optimization: {
+        objective: "max_sharpe",
+        regime_adaptive: false,
+        optimization_mode: "standard",
+      },
+      deployment_schedule: undefined,
+      asks: chenAsks,
+      clarification_questions: [],
+      confidence: 0.82,
+      rationale:
+        lang === "zh"
+          ? "已從編號需求抽出 Ask 卡片：NVDA／衛星權重、核心整合、最大夏普與現金緩衝。以上為軟目標，不會因落差而失敗。"
+          : "Extracted numbered Ask cards for NVDA/satellite band, core consolidation, max Sharpe, and cash buffer. Soft targets only — misses are reported, not job failures.",
+    };
+  }
+
   const t = text.toLowerCase();
   const amountUsd = parseAmountUsd(text);
   const esgPreference = hasEsgPreference(text);
@@ -219,7 +383,11 @@ export function interpretOverlayFallback(
 ): ClientOverlay {
   const extracted = baseExtract(text, lang);
   const now = new Date().toISOString();
-  return {
+  const asks =
+    extracted.asks?.length
+      ? extracted.asks
+      : prior?.asks;
+  const base: ClientOverlay = {
     version: "1.0",
     audit: {
       session_id: sessionId,
@@ -247,10 +415,14 @@ export function interpretOverlayFallback(
     allocation: extracted.allocation,
     universe: extracted.universe,
     optimization: extracted.optimization,
+    deployment_schedule:
+      extracted.deployment_schedule ?? prior?.deployment_schedule,
     param_adjustments: extracted.param_adjustments,
     experiment: extracted.experiment,
+    ...(asks?.length ? { asks } : {}),
     clarification_questions: extracted.clarification_questions,
     confidence: extracted.confidence,
     rationale: extracted.rationale,
   };
+  return applyAsksToOverlayLevers(base);
 }

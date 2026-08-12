@@ -97,6 +97,7 @@ function buildConversationPrompt(
           allocation: prior.allocation,
           universe: prior.universe,
           optimization: prior.optimization,
+          asks: prior.asks,
         },
         null,
         2,
@@ -126,6 +127,7 @@ Required top-level keys (always present):
 Optional top-level keys (omit entirely if unused — do not invent wrong shapes):
 - param_adjustments
 - experiment
+- asks — numbered soft client asks from the RM brief (preferred when the brief is numbered)
 
 Field rules:
 - client_profile.risk_tolerance: "conservative" | "moderate" | "aggressive" only.
@@ -140,7 +142,8 @@ Field rules:
 - allocation.asset_classes: 1–5 from equity,bond,commodity,real_estate,alternative (required).
 - allocation.sleeve_targets: optional object of w_* keys with 0–1 fractions summing ≈1. Omit if unknown; never emit {}.
 - allocation.sub_sleeve_targets: optional regional weights (0–1). Omit if unknown; never emit {}.
-- allocation.max_single_position_pct: 0–1 FRACTION in [0.15, 0.40]. For locked model books (~≤15 names) prefer 0.20–0.25 so scenarios are not forced to equal weight. Prefer 0.35→0.25 if concentration is a concern; only go below 0.15 when the client explicitly demands tight single-name caps AND the universe has many names.
+- allocation.max_single_position_pct: OMIT unless the brief/asks explicitly set a single-name or ticker max. When stated, use 0–1 FRACTION in [0.05, 0.40]. Do NOT invent a default (e.g. 0.25) just because the book is locked, aggressive, or thematic.
+- Needs caps/floors: do NOT invent theme exposure caps, drawdown floors/tolerances, or cash-reserve floors. Theme exposure caps apply ONLY when the client explicitly asks to cap/limit *theme* / *tech sleeve* / *growth sleeve* exposure — NOT when trimming a single ticker (e.g. NVDA), consolidating core overlap, or merely mentioning AI/tech themes. Do NOT tag themes with "concentration_reduction" for a single-name trim. Soft asks stay soft evidence — do not silently encode hard Needs floors.
 - allocation.enforce_class_weights: boolean when RM wants hard sleeve enforcement.
 - universe.prompts: optional short notes for RM display only. Do NOT use prompts to invent broad ETF baskets — locked model runs ignore thematic/category matching.
 - universe.supplement_tickers: explicit symbols the client (or RM) wants to ADD beyond the target model portfolio (e.g. "GLD", "BTAL"). Only add tickers here when the RM has explicitly confirmed them.
@@ -153,6 +156,16 @@ Field rules:
 - param_adjustments: only for explicit factor tilts. Shape: { "w_lowvol": { "mode": "fixed"|"search"|"off", "fixed"?: number, "min"?: number, "max"?: number } }.
 - experiment: only when RM explicitly wants regime objective-switch testing:
   { "enabled": true, "mode": "objective_switch", "regime_mode": "auto"|"risk_off"|"neutral"|"risk_on" }.
+- asks: when the RM brief has numbered requests (1/2/3…), emit one soft ask object per request (max 12). Each ask:
+  { "id": "ask-1", "title": short label, "summary": client-facing sentence,
+    "kind": "group_weight_band"|"ticker_max"|"exclude_ticker"|"ticker_min"|"objective"|"cash_reserve"|"other",
+    "group_id"?, "tickers"?, "min_pct"?, "max_pct"?, "target_pct"?, "objective"?, "cash_reserve_pct"? }
+  Percents are 0–1 fractions. Asks are SOFT targets for RM evidence — still map them into existing fields:
+  cash_reserve → deployment_schedule.liquidity_buffer_pct; objective → optimization.objective;
+  ticker_max → allocation.max_single_position_pct; exclude_ticker → universe.exclude_tickers;
+  ticker_min preferred names → universe.supplement_tickers (do not invent large baskets).
+  IMPORTANT: do NOT treat "keep AI/tech satellite aggressive at 40–45%" or "trim NVDA" as a theme CAP.
+  Only apply theme-exposure reduce/cap intent when the client explicitly asks to cap/limit the *theme sleeve* (not a single ticker).
 
 Soft guidance:
 - If uncertain about an optional field, OMIT it rather than inventing wrong types/keys.
@@ -176,7 +189,6 @@ Example (aggressive growth HNWI, US multi-cap anchor, reduce QQQ concentration, 
   },
   "allocation": {
     "asset_classes": ["equity", "bond"],
-    "max_single_position_pct": 0.25,
     "enforce_class_weights": false
   },
   "universe": {
@@ -190,6 +202,22 @@ Example (aggressive growth HNWI, US multi-cap anchor, reduce QQQ concentration, 
     "objective": "max_sharpe",
     "regime_adaptive": false
   },
+  "asks": [
+    {
+      "id": "ask-1",
+      "title": "Reduce QQQ concentration",
+      "summary": "Lower single-ETF Nasdaq concentration while keeping a US multi-cap core.",
+      "kind": "exclude_ticker",
+      "tickers": ["QQQ"]
+    },
+    {
+      "id": "ask-2",
+      "title": "Max Sharpe",
+      "summary": "Optimize for maximum Sharpe under an aggressive growth mandate.",
+      "kind": "objective",
+      "objective": "max_sharpe"
+    }
+  ],
   "clarification_questions": [
     "Preferred equity vs bond sleeve split for the core book?",
     "Cash deployment schedule (e.g. 3 vs 6 months)?"

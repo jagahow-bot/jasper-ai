@@ -14,6 +14,7 @@ import {
   formatOverlaySummary,
   signOffOverlay,
   type ClientOverlay,
+  type OverlayAsk,
   type OverlayConversationMessage,
   type OverlayProposedTicker,
 } from "@/lib/overlay-schema";
@@ -193,6 +194,64 @@ function ProposedTickersPanel({ candidates, onConfirm }: ProposedTickersPanelPro
       >
         {t("overlay.proposedTickers.addSelected", { count: selected.size })}
       </button>
+    </div>
+  );
+}
+
+type AskCardsPanelProps = {
+  asks: OverlayAsk[];
+  disabled?: boolean;
+  onChange: (asks: OverlayAsk[]) => void;
+};
+
+function AskCardsPanel({ asks, disabled, onChange }: AskCardsPanelProps) {
+  const { t } = useI18n();
+  if (!asks.length) return null;
+
+  const updateSummary = (id: string, summary: string) => {
+    onChange(
+      asks.map((a) =>
+        a.id === id ? { ...a, summary: summary.slice(0, 400) } : a,
+      ),
+    );
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+        <span className="text-xs font-semibold text-[var(--foreground)]">
+          {t("overlay.asks.title")}
+        </span>
+        <span className="text-[10px] text-dim">{t("overlay.asks.softHint")}</span>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {asks.map((ask, i) => (
+          <div
+            key={ask.id}
+            className="flex min-w-0 flex-col rounded-md border border-[var(--border)]/80 bg-[var(--surface)]/70 px-3 py-2"
+          >
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="shrink-0 text-xs font-semibold text-dim">
+                {i + 1}.
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {ask.title}
+              </span>
+              <span className="shrink-0 rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-dim">
+                {ask.kind.replace(/_/g, " ")}
+              </span>
+            </div>
+            <textarea
+              value={ask.summary}
+              disabled={disabled}
+              rows={2}
+              onChange={(e) => updateSummary(ask.id, e.target.value)}
+              className="pixel-input mt-1.5 max-h-20 w-full resize-y text-xs leading-snug"
+              aria-label={t("overlay.asks.summaryLabel")}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -590,6 +649,14 @@ export function OverlayConversationPanel({
           <pre className="ui-body whitespace-pre-wrap leading-snug">
             {formatOverlaySummary(overlay, overlayLang)}
           </pre>
+          <AskCardsPanel
+            asks={overlay.asks ?? []}
+            disabled={confirmed || confirming}
+            onChange={(asks) => {
+              setOverlay({ ...overlay, asks });
+              setConfirmed(false);
+            }}
+          />
           {overlay.clarification_questions?.length ? (
             <ul className="list-inside list-disc text-sm text-dim">
               {overlay.clarification_questions.map((q) => (

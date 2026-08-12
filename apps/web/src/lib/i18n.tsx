@@ -1113,6 +1113,10 @@ const en: Dict = {
     "Add selected ({count}) to candidate list",
   "overlay.proposedTickers.confirmMessage":
     "Added {tickers} to the candidate list.",
+  "overlay.asks.title": "Client requirement highlights",
+  "overlay.asks.softHint":
+    "Soft targets — engine tries; results show target vs actual",
+  "overlay.asks.summaryLabel": "Requirement summary",
   "chat.speakerYou": "You:",
   "chat.speakerJasper": "Jasper:",
   "chat.speakerSystem": "System:",
@@ -1176,6 +1180,19 @@ const en: Dict = {
   "rm.report.needsTitle": "Needs fulfillment",
   "rm.report.needsHint":
     "Did this run keep the commitments signed in the adjustment plan?",
+  "rm.report.askEvidenceTitle": "Ask evidence",
+  "rm.report.askEvidenceHint":
+    "Target vs actual for each signed Ask card — gaps are shown honestly.",
+  "rm.report.askEvidenceAllMet": "All asks met",
+  "rm.report.askEvidenceGapsOk": "Some gaps — still acceptable",
+  "rm.report.askEvidenceSoftNote":
+    "Asks are soft targets. The job still succeeds when a band is missed; use this ledger in the client conversation.",
+  "rm.report.askColTarget": "Target",
+  "rm.report.askColActual": "Actual",
+  "rm.report.askStatus.met": "Met",
+  "rm.report.askStatus.partial": "Partial",
+  "rm.report.askStatus.missed": "Missed",
+  "rm.report.askStatus.unknown": "—",
   "rm.report.needsOverallPass": "All checks passed",
   "rm.report.needsOverallFail": "Gaps vs signed needs",
   "rm.report.needsColConstraint": "Commitment",
@@ -1525,6 +1542,11 @@ const en: Dict = {
   "goalSim.notesPlaceholder":
     "e.g. Client wants a house down payment of USD 1.5M in 12 months, kids’ tuition ~200k in 3 years, expect 5% return and can add 120k per year…",
   "goalSim.extract": "AI extract into form",
+  "goalSim.extractReplaceAll": "Replace all from notes",
+  "goalSim.extractConfirmReplace":
+    "Replace the entire goals table and path assumptions with the AI extract? Manual edits will be lost.",
+  "goalSim.extractMergeSummary":
+    "Merged: {updated} fields updated, {added} goals added, {kept} manual edits kept",
   "goalSim.extracting": "Extracting…",
   "goalSim.extractFailed": "Could not extract goals from notes.",
   "goalSim.rulesFallback": "Rules fallback",
@@ -2807,6 +2829,9 @@ const zh: Dict = {
   "overlay.proposedTickers.none": "全不選",
   "overlay.proposedTickers.addSelected": "加入選取的 {count} 檔標的",
   "overlay.proposedTickers.confirmMessage": "已將 {tickers} 加入投資標的池。",
+  "overlay.asks.title": "客戶需求重點",
+  "overlay.asks.softHint": "軟目標：引擎盡力達成，結果對照目標與實際",
+  "overlay.asks.summaryLabel": "需求摘要",
   "chat.speakerYou": "您：",
   "chat.speakerJasper": "JASPER：",
   "chat.speakerSystem": "系統：",
@@ -2867,6 +2892,18 @@ const zh: Dict = {
   "rm.report.heroEyebrowViewing": "檢視中 · {label}",
   "rm.report.needsTitle": "需求達成檢核",
   "rm.report.needsHint": "這次回測有沒有守住調整方案簽核的承諾？",
+  "rm.report.askEvidenceTitle": "Ask 證據",
+  "rm.report.askEvidenceHint": "每張簽核 Ask 的目標 vs 實際——落差會如實呈現。",
+  "rm.report.askEvidenceAllMet": "全部達標",
+  "rm.report.askEvidenceGapsOk": "有落差——仍可接受",
+  "rm.report.askEvidenceSoftNote":
+    "Ask 為軟目標。區間未達標不會讓工作失敗；請以此對照表與客戶溝通。",
+  "rm.report.askColTarget": "目標",
+  "rm.report.askColActual": "實際",
+  "rm.report.askStatus.met": "達標",
+  "rm.report.askStatus.partial": "部分",
+  "rm.report.askStatus.missed": "未達",
+  "rm.report.askStatus.unknown": "—",
   "rm.report.needsOverallPass": "全部達標",
   "rm.report.needsOverallFail": "與簽核需求有落差",
   "rm.report.needsColConstraint": "承諾項目",
@@ -3191,6 +3228,11 @@ const zh: Dict = {
   "goalSim.notesPlaceholder":
     "例如：客戶預計 12 個月內購屋頭期款 150 萬美元、3 年後子女學費約 20 萬、預期報酬 5%、每年可再投入 12 萬…",
   "goalSim.extract": "AI 擷取到表單",
+  "goalSim.extractReplaceAll": "全部取代（從筆記）",
+  "goalSim.extractConfirmReplace":
+    "要以 AI 擷取結果完全取代目標表與路徑假設嗎？手動修改將遺失。",
+  "goalSim.extractMergeSummary":
+    "已合併：更新 {updated} 個欄位、新增 {added} 筆目標、保留 {kept} 處手動修改",
   "goalSim.extracting": "擷取中…",
   "goalSim.extractFailed": "無法從筆記擷取目標。",
   "goalSim.rulesFallback": "規則備援",
@@ -4502,6 +4544,10 @@ const ko: Dict = {
   "overlay.proposedTickers.addSelected": "선택한 {count}개 종목 추가",
   "overlay.proposedTickers.confirmMessage":
     "{tickers} 종목을 유니버스에 추가했습니다.",
+  "overlay.asks.title": "고객 요구사항 핵심",
+  "overlay.asks.softHint":
+    "소프트 목표 — 엔진이 시도하며, 결과에 목표 대비 실적 표시",
+  "overlay.asks.summaryLabel": "요구사항 요약",
   "chat.speakerYou": "나:",
   "chat.speakerJasper": "JASPER:",
   "chat.speakerSystem": "시스템:",
@@ -4561,6 +4607,19 @@ const ko: Dict = {
   "rm.report.heroEyebrowViewing": "보는 중 · {label}",
   "rm.report.needsTitle": "니즈 이행 점검",
   "rm.report.needsHint": "이번 실행이 조정안에서 서명한 약속을 지켰는지 확인합니다.",
+  "rm.report.askEvidenceTitle": "Ask 근거",
+  "rm.report.askEvidenceHint":
+    "서명된 Ask 카드별 목표 vs 실제 — 미달도 숨기지 않습니다.",
+  "rm.report.askEvidenceAllMet": "모두 충족",
+  "rm.report.askEvidenceGapsOk": "일부 미달 — 수용 가능",
+  "rm.report.askEvidenceSoftNote":
+    "Ask는 소프트 목표입니다. 구간 미달로 작업이 실패하지 않으며, 고객 미팅에서 이 장부를 사용하세요.",
+  "rm.report.askColTarget": "목표",
+  "rm.report.askColActual": "실제",
+  "rm.report.askStatus.met": "충족",
+  "rm.report.askStatus.partial": "부분",
+  "rm.report.askStatus.missed": "미달",
+  "rm.report.askStatus.unknown": "—",
   "rm.report.needsOverallPass": "전부 충족",
   "rm.report.needsOverallFail": "서명 니즈와 차이 있음",
   "rm.report.needsColConstraint": "약속 항목",
@@ -4904,6 +4963,11 @@ const ko: Dict = {
   "goalSim.notesPlaceholder":
     "예: 고객이 12개월 내 주택 계약금 USD 150만, 3년 후 학비 약 20만, 기대수익률 5%, 연간 추가 투자 12만…",
   "goalSim.extract": "AI로 양식에 채우기",
+  "goalSim.extractReplaceAll": "노트로 전부 교체",
+  "goalSim.extractConfirmReplace":
+    "AI 추출 결과로 목표 표와 경로 가정을 모두 바꿀까요? 수동 수정 내용은 사라집니다.",
+  "goalSim.extractMergeSummary":
+    "병합: 필드 {updated}개 갱신, 목표 {added}개 추가, 수동 수정 {kept}곳 유지",
   "goalSim.extracting": "추출 중…",
   "goalSim.extractFailed": "노트에서 목표를 추출하지 못했습니다.",
   "goalSim.rulesFallback": "규칙 대체",

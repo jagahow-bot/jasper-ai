@@ -548,3 +548,459 @@ export function extractGoalsRulesFallback(
     lang,
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Soft-merge extract → form (Option B)                                         */
+/* -------------------------------------------------------------------------- */
+
+export type GoalExtractSnapshot = {
+  goals: FinancialGoal[];
+  assumptions: GoalAssumptions;
+};
+
+export type GoalExtractMergeSummary = {
+  updatedFields: number;
+  addedGoals: number;
+  keptManualEdits: number;
+};
+
+export type GoalExtractMergeResult = {
+  goals: FinancialGoal[];
+  assumptions: GoalAssumptions;
+  summary: GoalExtractMergeSummary;
+  /** Remapped last-applied extract for the next dirty check. */
+  baseline: GoalExtractSnapshot;
+};
+
+/** Return fields auto-fill may manage until the RM edits them. */
+export type GoalReturnField =
+  | "annualReturn"
+  | "optimisticDelta"
+  | "conservativeDelta";
+
+export type MergeGoalExtractOptions = {
+  /** Fields the RM (or prior deliberate input) has set — kept when no baseline. */
+  returnTouched?: ReadonlySet<GoalReturnField>;
+};
+
+const ASSUMPTION_KEYS: readonly (keyof GoalAssumptions)[] = [
+  "annualReturn",
+  "optimisticDelta",
+  "conservativeDelta",
+  "annualContributionUsd",
+  "contributionGrowth",
+  "annualLivingSpendUsd",
+  "inflation",
+] as const;
+
+const RETURN_FIELD_SET = new Set<string>([
+  "annualReturn",
+  "optimisticDelta",
+  "conservativeDelta",
+]);
+
+function approxEq(a: number, b: number, eps = 1e-9): boolean {
+  return Math.abs(a - b) <= eps;
+}
+
+function normalizeLabel(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Dice coefficient on bigrams; 1 = identical, 0 = no overlap. */
+function labelSimilarity(a: string, b: string): number {
+  const x = normalizeLabel(a);
+  const y = normalizeLabel(b);
+  if (!x && !y) return 1;
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  if (x.includes(y) || y.includes(x)) return 0.85;
+  const bigrams = (s: string): Map<string, number> => {
+    const m = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) {
+      const g = s.slice(i, i + 2);
+      m.set(g, (m.get(g) ?? 0) + 1);
+    }
+    return m;
+  };
+  const bx = bigrams(x);
+  const by = bigrams(y);
+  if (bx.size === 0 || by.size === 0) {
+    return x[0] === y[0] ? 0.2 : 0;
+  }
+  let overlap = 0;
+  for (const [g, cx] of bx) {
+    const cy = by.get(g);
+    if (cy) overlap += Math.min(cx, cy);
+  }
+  return (2 * overlap) / (x.length - 1 + (y.length - 1));
+}
+
+function mortgageEqual(
+  a: FinancialGoal["mortgage"],
+  b: FinancialGoal["mortgage"],
+): boolean {
+  const am = a && a.loanUsd > 0 ? a : null;
+  const bm = b && b.loanUsd > 0 ? b : null;
+  if (!am && !bm) return true;
+  if (!am || !bm) return false;
+  return (
+    am.loanUsd === bm.loanUsd &&
+    approxEq(am.annualRate, bm.annualRate) &&
+    am.termMonths === bm.termMonths
+  );
+}
+
+function goalFieldEqual(
+  key: keyof FinancialGoal,
+  cur: FinancialGoal,
+  base: FinancialGoal,
+): boolean {
+  if (key === "mortgage") return mortgageEqual(cur.mortgage, base.mortgage);
+  if (key === "retirementSpendYears") {
+    const c = cur.retirementSpendYears ?? null;
+    const b = base.retirementSpendYears ?? null;
+    if (c == null && b == null) return true;
+    if (c == null || b == null) return false;
+    return c === b;
+  }
+  if (key === "label") {
+    return normalizeLabel(cur.label) === normalizeLabel(base.label);
+  }
+  if (key === "amountUsd" || key === "withinMonths" || key === "priority") {
+    return cur[key] === base[key];
+  }
+  if (key === "type") return cur.type === base.type;
+  if (key === "id") return cur.id === base.id;
+  return cur[key] === base[key];
+}
+
+function isEmptyGoalField(key: keyof FinancialGoal, g: FinancialGoal): boolean {
+  if (key === "amountUsd") return !(g.amountUsd > 0);
+  if (key === "label") return !g.label.trim();
+  if (key === "mortgage") {
+    if (g.type !== "home") return false;
+    return !(g.mortgage && g.mortgage.loanUsd > 0);
+  }
+  if (key === "retirementSpendYears") {
+    if (g.type !== "retirement") return false;
+    return g.retirementSpendYears == null;
+  }
+  return false;
+}
+
+function isEmptyAssumptionField(
+  key: keyof GoalAssumptions,
+  a: GoalAssumptions,
+): boolean {
+  if (key === "annualContributionUsd") return !(a.annualContributionUsd > 0);
+  if (key === "annualLivingSpendUsd") return !(a.annualLivingSpendUsd > 0);
+  return false;
+}
+
+function cloneGoal(g: FinancialGoal): FinancialGoal {
+  return {
+    ...g,
+    mortgage: g.mortgage ? { ...g.mortgage } : g.mortgage,
+  };
+}
+
+function cloneAssumptions(a: GoalAssumptions): GoalAssumptions {
+  return { ...a };
+}
+
+type GoalMatch = { currentIdx: number; incomingIdx: number; score: number };
+
+/**
+ * Greedy 1:1 match: same type required, then closest withinMonths, then label
+ * similarity. Unmatched incoming / current stay unmatched.
+ */
+function matchGoalsGreedy(
+  current: FinancialGoal[],
+  incoming: FinancialGoal[],
+): { matches: GoalMatch[]; unmatchedCurrent: number[]; unmatchedIncoming: number[] } {
+  const usedCurrent = new Set<number>();
+  const usedIncoming = new Set<number>();
+  const candidates: GoalMatch[] = [];
+
+  for (let ci = 0; ci < current.length; ci++) {
+    for (let ii = 0; ii < incoming.length; ii++) {
+      const c = current[ci];
+      const inc = incoming[ii];
+      if (c.type !== inc.type) continue;
+      const monthDist = Math.abs(c.withinMonths - inc.withinMonths);
+      const sim = labelSimilarity(c.label, inc.label);
+      // Prefer closer months, then higher label similarity.
+      const score = 1_000_000 - monthDist * 1000 + sim * 100;
+      candidates.push({ currentIdx: ci, incomingIdx: ii, score });
+    }
+  }
+  candidates.sort((a, b) => b.score - a.score);
+
+  const matches: GoalMatch[] = [];
+  for (const m of candidates) {
+    if (usedCurrent.has(m.currentIdx) || usedIncoming.has(m.incomingIdx)) {
+      continue;
+    }
+    usedCurrent.add(m.currentIdx);
+    usedIncoming.add(m.incomingIdx);
+    matches.push(m);
+  }
+
+  const unmatchedCurrent: number[] = [];
+  const unmatchedIncoming: number[] = [];
+  for (let i = 0; i < current.length; i++) {
+    if (!usedCurrent.has(i)) unmatchedCurrent.push(i);
+  }
+  for (let i = 0; i < incoming.length; i++) {
+    if (!usedIncoming.has(i)) unmatchedIncoming.push(i);
+  }
+  return { matches, unmatchedCurrent, unmatchedIncoming };
+}
+
+const GOAL_MERGE_FIELDS: readonly (keyof FinancialGoal)[] = [
+  "type",
+  "label",
+  "amountUsd",
+  "withinMonths",
+  "priority",
+  "mortgage",
+  "retirementSpendYears",
+];
+
+function mergeMatchedGoal(
+  current: FinancialGoal,
+  incoming: FinancialGoal,
+  baselineGoal: FinancialGoal | null,
+  summary: GoalExtractMergeSummary,
+): { goal: FinancialGoal; baseline: FinancialGoal } {
+  const next: FinancialGoal = { ...current };
+  const baseOut: FinancialGoal = {
+    ...cloneGoal(incoming),
+    id: current.id,
+  };
+
+  for (const key of GOAL_MERGE_FIELDS) {
+    if (key === "mortgage" && incoming.type !== "home" && current.type !== "home") {
+      continue;
+    }
+    if (
+      key === "retirementSpendYears" &&
+      incoming.type !== "retirement" &&
+      current.type !== "retirement"
+    ) {
+      continue;
+    }
+
+    const empty = isEmptyGoalField(key, current);
+    const hasIncoming =
+      key === "mortgage"
+        ? Boolean(incoming.mortgage && incoming.mortgage.loanUsd > 0)
+        : key === "retirementSpendYears"
+          ? incoming.retirementSpendYears != null
+          : key === "label"
+            ? Boolean(incoming.label.trim())
+            : key === "amountUsd"
+              ? incoming.amountUsd > 0
+              : true;
+
+    let dirty = false;
+    if (baselineGoal) {
+      dirty = !goalFieldEqual(key, current, baselineGoal);
+    } else {
+      // No baseline: non-empty form values are treated as manual.
+      dirty = !empty;
+    }
+
+    const shouldTake = (empty && hasIncoming) || !dirty;
+    if (shouldTake) {
+      const prev = cloneGoal(next);
+      if (key === "mortgage") {
+        next.mortgage = incoming.mortgage ? { ...incoming.mortgage } : null;
+      } else if (key === "retirementSpendYears") {
+        next.retirementSpendYears = incoming.retirementSpendYears ?? null;
+      } else if (key === "label") {
+        next.label = incoming.label;
+      } else if (key === "amountUsd") {
+        next.amountUsd = incoming.amountUsd;
+      } else if (key === "type") {
+        next.type = incoming.type;
+      } else if (key === "withinMonths") {
+        next.withinMonths = incoming.withinMonths;
+      } else if (key === "priority") {
+        next.priority = incoming.priority;
+      }
+      if (!goalFieldEqual(key, prev, next)) {
+        summary.updatedFields += 1;
+      }
+    } else {
+      summary.keptManualEdits += 1;
+    }
+  }
+
+  // Drop irrelevant nested fields when type changed to/from home/retirement.
+  if (next.type !== "home") next.mortgage = null;
+  if (next.type !== "retirement") next.retirementSpendYears = null;
+
+  return { goal: next, baseline: baseOut };
+}
+
+function mergeAssumptionsSoft(
+  current: GoalAssumptions,
+  incoming: GoalAssumptions,
+  baseline: GoalAssumptions | null,
+  returnTouched: ReadonlySet<GoalReturnField> | undefined,
+  summary: GoalExtractMergeSummary,
+): GoalAssumptions {
+  const next = cloneAssumptions(current);
+
+  for (const key of ASSUMPTION_KEYS) {
+    const empty = isEmptyAssumptionField(key, current);
+    const isReturn = RETURN_FIELD_SET.has(key);
+    let dirty = false;
+    if (baseline) {
+      const cv = current[key];
+      const bv = baseline[key];
+      dirty =
+        typeof cv === "number" && typeof bv === "number"
+          ? !approxEq(cv, bv)
+          : cv !== bv;
+    } else if (isReturn) {
+      dirty = Boolean(
+        returnTouched?.has(key as GoalReturnField),
+      );
+    } else {
+      dirty = !empty;
+    }
+
+    if (empty && incoming[key] !== current[key] && (incoming[key] as number) > 0) {
+      (next as GoalAssumptions)[key] = incoming[key];
+      summary.updatedFields += 1;
+    } else if (!dirty) {
+      if (
+        typeof current[key] === "number" &&
+        typeof incoming[key] === "number" &&
+        !approxEq(current[key] as number, incoming[key] as number)
+      ) {
+        (next as GoalAssumptions)[key] = incoming[key];
+        summary.updatedFields += 1;
+      } else if (current[key] !== incoming[key]) {
+        (next as GoalAssumptions)[key] = incoming[key];
+        summary.updatedFields += 1;
+      } else {
+        (next as GoalAssumptions)[key] = incoming[key];
+      }
+    } else {
+      summary.keptManualEdits += 1;
+    }
+  }
+
+  return clampAssumptions(next);
+}
+
+/**
+ * Soft-merge an AI extract into the current form.
+ *
+ * - Empty goals table → full fill (like a first extract).
+ * - Soft merge never deletes form-only goals; empty incoming goals do not clear.
+ * - Dirty fields (current ≠ baseline) are kept; empty/zero fillable fields take extract.
+ * - Unmatched extract goals are appended with new ids.
+ */
+export function mergeGoalExtract(
+  current: GoalExtractSnapshot,
+  incoming: GoalExtractSnapshot,
+  baseline: GoalExtractSnapshot | null,
+  options?: MergeGoalExtractOptions,
+): GoalExtractMergeResult {
+  const summary: GoalExtractMergeSummary = {
+    updatedFields: 0,
+    addedGoals: 0,
+    keptManualEdits: 0,
+  };
+
+  // First extract / empty goals table: full fill.
+  if (current.goals.length === 0) {
+    const goals = incoming.goals.map((g) => cloneGoal(g));
+    const assumptions = clampAssumptions(cloneAssumptions(incoming.assumptions));
+    summary.addedGoals = goals.length;
+    for (const key of ASSUMPTION_KEYS) {
+      if (current.assumptions[key] !== assumptions[key]) {
+        summary.updatedFields += 1;
+      }
+    }
+    return {
+      goals,
+      assumptions,
+      summary,
+      baseline: {
+        goals: goals.map(cloneGoal),
+        assumptions: cloneAssumptions(assumptions),
+      },
+    };
+  }
+
+  const baselineById = new Map(
+    (baseline?.goals ?? []).map((g) => [g.id, g] as const),
+  );
+
+  // Soft merge with empty extract goals → do not clear the table.
+  const { matches, unmatchedCurrent, unmatchedIncoming } =
+    incoming.goals.length === 0
+      ? {
+          matches: [] as GoalMatch[],
+          unmatchedCurrent: current.goals.map((_, i) => i),
+          unmatchedIncoming: [] as number[],
+        }
+      : matchGoalsGreedy(current.goals, incoming.goals);
+
+  const mergedGoals: FinancialGoal[] = new Array(current.goals.length);
+  const baselineGoals: FinancialGoal[] = [];
+
+  for (const m of matches) {
+    const cur = current.goals[m.currentIdx];
+    const inc = incoming.goals[m.incomingIdx];
+    const baseGoal = baselineById.get(cur.id) ?? null;
+    const { goal, baseline: b } = mergeMatchedGoal(cur, inc, baseGoal, summary);
+    mergedGoals[m.currentIdx] = goal;
+    baselineGoals.push(b);
+  }
+
+  for (const ci of unmatchedCurrent) {
+    // Form-only goals → keep.
+    mergedGoals[ci] = cloneGoal(current.goals[ci]);
+    const prev = baselineById.get(current.goals[ci].id);
+    if (prev) baselineGoals.push(cloneGoal(prev));
+  }
+
+  const appended: FinancialGoal[] = [];
+  for (const ii of unmatchedIncoming) {
+    const g = cloneGoal(incoming.goals[ii]);
+    g.id = createGoalId();
+    appended.push(g);
+    baselineGoals.push(cloneGoal(g));
+    summary.addedGoals += 1;
+  }
+
+  const goals = [
+    ...mergedGoals.filter((g): g is FinancialGoal => g != null),
+    ...appended,
+  ];
+
+  const assumptions = mergeAssumptionsSoft(
+    current.assumptions,
+    incoming.assumptions,
+    baseline?.assumptions ?? null,
+    options?.returnTouched,
+    summary,
+  );
+
+  return {
+    goals,
+    assumptions,
+    summary,
+    baseline: {
+      goals: baselineGoals,
+      assumptions: cloneAssumptions(incoming.assumptions),
+    },
+  };
+}

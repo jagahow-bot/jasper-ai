@@ -161,6 +161,38 @@ export const optimizationOverlaySchema = z
   })
   .strip();
 
+/** Soft client asks extracted from the RM brief (not hard job constraints). */
+export const OVERLAY_ASK_KINDS = [
+  "group_weight_band",
+  "ticker_max",
+  "exclude_ticker",
+  "ticker_min",
+  "objective",
+  "cash_reserve",
+  "other",
+] as const;
+
+export type OverlayAskKind = (typeof OVERLAY_ASK_KINDS)[number];
+
+export const overlayAskSchema = z
+  .object({
+    id: z.string().min(1).max(40),
+    title: z.string().min(1).max(120),
+    summary: z.string().min(1).max(400),
+    kind: z.enum(OVERLAY_ASK_KINDS),
+    group_id: z.string().max(80).optional(),
+    tickers: z.array(z.string().min(1).max(12)).max(20).optional(),
+    min_pct: z.number().min(0).max(1).optional(),
+    max_pct: z.number().min(0).max(1).optional(),
+    target_pct: z.number().min(0).max(1).optional(),
+    objective: objectiveSchema.optional(),
+    cash_reserve_pct: z.number().min(0).max(0.4).optional(),
+    status: z.enum(["proposed", "signed"]).optional(),
+  })
+  .strip();
+
+export type OverlayAsk = z.infer<typeof overlayAskSchema>;
+
 /** Gemini structured-extract output (no audit envelope). */
 export const overlayExtractSchema = z
   .object({
@@ -172,6 +204,7 @@ export const overlayExtractSchema = z
     deployment_schedule: deploymentScheduleSchema,
     param_adjustments: z.record(z.string(), paramControlSchema).optional(),
     experiment: experimentOverlaySchema.optional(),
+    asks: z.array(overlayAskSchema).max(12).optional(),
     clarification_questions: z.array(z.string().min(4).max(200)).max(5),
     confidence: z.number().min(0).max(1),
     rationale: z.string().min(8).max(600),
@@ -189,6 +222,7 @@ export const clientOverlaySchema = z.object({
   deployment_schedule: deploymentScheduleSchema,
   param_adjustments: z.record(z.string(), paramControlSchema).optional(),
   experiment: experimentOverlaySchema.optional(),
+  asks: z.array(overlayAskSchema).max(12).optional(),
   clarification_questions: z.array(z.string()).optional(),
   confidence: z.number().min(0).max(1),
   rationale: z.string().min(8),
@@ -223,6 +257,97 @@ export function inferPhaseFromExtract(extract: OverlayExtractOutput): OverlayPha
 
 export function createSessionId(): string {
   return `ovl-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function mergeTickerLists(
+  a?: string[] | null,
+  b?: string[] | null,
+): string[] | undefined {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of [...(a ?? []), ...(b ?? [])]) {
+    const t = String(raw || "")
+      .trim()
+      .toUpperCase();
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out.length ? out : undefined;
+}
+
+/**
+ * Map soft asks onto existing overlay levers (max weight, excludes, objective,
+ * cash buffer, supplements). Does not invent hard job-failing constraints.
+ */
+export function applyAsksToOverlayLevers(overlay: ClientOverlay): ClientOverlay {
+  const asks = overlay.asks ?? [];
+  if (!asks.length) return overlay;
+
+  let maxSingle = overlay.allocation.max_single_position_pct;
+  let objective = overlay.optimization.objective;
+  let excludes = overlay.universe.exclude_tickers;
+  let supplements = overlay.universe.supplement_tickers;
+  let deploy = overlay.deployment_schedule;
+  const prompts = [...(overlay.universe.prompts ?? [])];
+
+  for (const ask of asks) {
+    if (ask.kind === "ticker_max" && ask.max_pct != null) {
+      const capped = Math.min(0.4, Math.max(0.05, ask.max_pct));
+      maxSingle = maxSingle == null ? capped : Math.min(maxSingle, capped);
+    }
+    if (ask.kind === "objective" && ask.objective) {
+      objective = ask.objective;
+    }
+    if (ask.kind === "exclude_ticker" && ask.tickers?.length) {
+      excludes = mergeTickerLists(excludes, ask.tickers);
+    }
+    if (ask.kind === "ticker_min" && ask.tickers?.length) {
+      // Soft: keep preferred names eligible / pinned via supplements.
+      supplements = mergeTickerLists(supplements, ask.tickers);
+    }
+    if (ask.kind === "cash_reserve") {
+      const cash =
+        ask.cash_reserve_pct ?? ask.target_pct ?? ask.min_pct ?? null;
+      if (cash != null && Number.isFinite(cash) && deploy) {
+        const buf = Math.min(0.4, Math.max(0, cash));
+        deploy = {
+          ...deploy,
+          liquidity_buffer_pct: Math.max(deploy.liquidity_buffer_pct ?? 0, buf),
+        };
+      }
+      // Otherwise cash stays on the ask; clientContextFromOverlay reads it.
+    }
+    if (ask.kind === "group_weight_band") {
+      const lo = ask.min_pct != null ? `${(ask.min_pct * 100).toFixed(0)}%` : null;
+      const hi = ask.max_pct != null ? `${(ask.max_pct * 100).toFixed(0)}%` : null;
+      const band =
+        lo && hi ? `${lo}–${hi}` : lo ? `≥${lo}` : hi ? `≤${hi}` : null;
+      if (band) {
+        const hint = `Soft sleeve target${ask.group_id ? ` (${ask.group_id})` : ""}: ${band}`;
+        if (!prompts.some((p) => p.includes(band))) prompts.push(hint);
+      }
+    }
+  }
+
+  return {
+    ...overlay,
+    allocation: {
+      ...overlay.allocation,
+      ...(maxSingle != null ? { max_single_position_pct: maxSingle } : {}),
+    },
+    universe: {
+      ...overlay.universe,
+      prompts,
+      ...(excludes ? { exclude_tickers: excludes } : {}),
+      ...(supplements ? { supplement_tickers: supplements } : {}),
+    },
+    optimization: {
+      ...overlay.optimization,
+      objective,
+    },
+    deployment_schedule: deploy ?? overlay.deployment_schedule,
+  };
 }
 
 export function wrapExtractAsOverlay(
@@ -263,7 +388,12 @@ export function wrapExtractAsOverlay(
         : undefined,
   };
 
-  return {
+  const asks =
+    extract.asks?.length
+      ? extract.asks.map((a) => ({ ...a, status: a.status ?? ("proposed" as const) }))
+      : prior?.asks;
+
+  const base: ClientOverlay = {
     version: OVERLAY_VERSION,
     audit: {
       session_id: sessionId,
@@ -288,10 +418,13 @@ export function wrapExtractAsOverlay(
       extract.deployment_schedule ?? prior?.deployment_schedule,
     param_adjustments: extract.param_adjustments,
     experiment: extract.experiment,
+    ...(asks?.length ? { asks } : {}),
     clarification_questions: extract.clarification_questions,
     confidence: extract.confidence,
     rationale: extract.rationale,
   };
+
+  return applyAsksToOverlayLevers(base);
 }
 
 export function formatOverlayAssistantReply(
@@ -363,34 +496,178 @@ export type OverlayToBacktestOptions = {
   reportLanguage?: string;
 };
 
-const DEFAULT_DRAWDOWN_TOLERANCE: Record<string, number> = {
-  conservative: 0.1,
-  moderate: 0.18,
-  aggressive: 0.3,
-};
-
-const DEFAULT_CASH_RESERVE: Record<string, number> = {
-  conservative: 0.1,
-  moderate: 0.05,
-  aggressive: 0.0,
-};
-
-const THEME_CAP_HINTS = [
-  "tech",
-  "growth",
-  "concentration",
-  "nasdaq",
-  "semi",
-  "ai",
-  "科技",
-  "成長",
-  "集中",
+/**
+ * Explicit theme-sleeve cap/limit language only.
+ * Do NOT include bare "cap" / "reduce" / "trim" / "concentration" — those match
+ * single-name trims (e.g. "Reduce excess NVDA", "Cap NVDA", "Trim NVDA
+ * Concentration") and must not invent a 25% theme floor.
+ */
+const THEME_CAP_REDUCE_HINTS = [
+  "theme cap",
+  "theme exposure cap",
+  "cap theme",
+  "cap theme risk",
+  "cap theme exposure",
+  "reduce theme",
+  "reduce theme exposure",
+  "reduce theme risk",
+  "reduce tech concentration",
+  "reduce growth concentration",
+  "cap tech exposure",
+  "cap growth exposure",
+  "limit theme",
+  "limit tech exposure",
+  "limit growth exposure",
+  "limit tech concentration",
+  "limit growth concentration",
+  "de-risk theme",
+  "主題上限",
+  "主題曝險上限",
+  "限制主題",
+  "降低主題",
+  "限制科技曝險",
+  "테마 상한",
+  "테마 노출 상한",
+  "테마 축소",
 ];
+
+/** Explicit drawdown limit/floor language — never invent from risk_tolerance alone. */
+const DRAWDOWN_FLOOR_HINTS = [
+  "drawdown floor",
+  "drawdown limit",
+  "drawdown tolerance",
+  "max drawdown",
+  "maximum drawdown",
+  "dd floor",
+  "dd limit",
+  "dd tolerance",
+  "最大回撤",
+  "回撤上限",
+  "回撤下限",
+  "回撤容忍",
+  "回撤地板",
+  "최대 낙폭",
+  "낙폭 한도",
+  "낙폭 하한",
+];
+
+function overlayNeedsHaystack(overlay: ClientOverlay): string {
+  const asks = overlay.asks ?? [];
+  return [
+    ...(overlay.market_view?.themes ?? []),
+    overlay.market_view?.narrative_summary ?? "",
+    overlay.rationale ?? "",
+    ...asks.map((a) => `${a.title} ${a.summary}`),
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+/** Word-aware match so "cap" does not hit "capital" / "capacity". */
+function haystackHasHint(haystack: string, hint: string): boolean {
+  const h = hint.toLowerCase();
+  if (!h) return false;
+  // CJK / spaced phrases: substring is fine.
+  if (/[^\x00-\x7f]/.test(h) || h.includes(" ") || h.includes("_")) {
+    return haystack.includes(h);
+  }
+  const re = new RegExp(`(?:^|[^a-z0-9])${h}(?:[^a-z0-9]|$)`, "i");
+  return re.test(haystack);
+}
+
+/**
+ * True when the brief wants to *keep* an aggressive AI/tech/satellite sleeve
+ * (structured band ask and/or narrative like "preserving … satellite … 40-45%").
+ */
+function wantsKeepAggressiveThemeTilt(overlay: ClientOverlay): boolean {
+  const asks = overlay.asks ?? [];
+  if (
+    asks.some(
+      (a) =>
+        a.kind === "group_weight_band" &&
+        ((a.min_pct != null && a.min_pct >= 0.3) ||
+          (a.target_pct != null && a.target_pct >= 0.3)),
+    )
+  ) {
+    return true;
+  }
+
+  const haystack = overlayNeedsHaystack(overlay);
+  // "preserving/keeping/maintain … satellite/theme/ai/tech … 40-45%" style.
+  const keepVerb =
+    /\b(keep(?:ing)?|preserv(?:e|ing)|maintain(?:ing)?|retain(?:ing)?)\b/.test(
+      haystack,
+    ) || /保留|維持|保持|유지|보존/.test(haystack);
+  const themeNoun =
+    /\b(satellite|theme|ai|tech|growth)\b/.test(haystack) ||
+    /衛星|主題|科技|테마|위성/.test(haystack);
+  const highBand =
+    /(?:3[0-9]|4[0-9]|5[0-9])\s*[%％]?\s*[-–—~to到至]\s*(?:3[0-9]|4[0-9]|5[0-9])\s*[%％]?/.test(
+      haystack,
+    ) ||
+    /(?:around|about|near|約|大约|대략)\s*(?:3[0-9]|4[0-9]|5[0-9])\s*[%％]/.test(
+      haystack,
+    );
+  return keepVerb && themeNoun && highBand;
+}
+
+/**
+ * Theme exposure soft-cap only when the brief/asks explicitly want to *cap or
+ * reduce* theme risk — never when the client wants to *keep* an aggressive
+ * AI/tech tilt (e.g. satellite 40–45%), and never from mere theme tags,
+ * single-name trims, or bare "reduce"/"cap"/"concentration" wording.
+ */
+export function shouldApplyThemeExposureCap(overlay: ClientOverlay): boolean {
+  if (wantsKeepAggressiveThemeTilt(overlay)) return false;
+
+  const haystack = overlayNeedsHaystack(overlay);
+  return THEME_CAP_REDUCE_HINTS.some((h) => haystackHasHint(haystack, h));
+}
+
+/**
+ * Parse an explicit drawdown % from overlay text only when drawdown-limit
+ * language is present. Returns null when risk profile alone is all we have.
+ */
+export function explicitDrawdownToleranceFromOverlay(
+  overlay: ClientOverlay,
+): number | null {
+  const haystack = overlayNeedsHaystack(overlay);
+  if (!DRAWDOWN_FLOOR_HINTS.some((h) => haystackHasHint(haystack, h))) {
+    return null;
+  }
+  // Prefer a % near a drawdown hint (e.g. "max drawdown 20%", "最大回撤15%").
+  for (const hint of DRAWDOWN_FLOOR_HINTS) {
+    const h = hint.toLowerCase();
+    const idx = haystack.indexOf(h);
+    if (idx < 0) continue;
+    const window = haystack.slice(Math.max(0, idx - 24), idx + h.length + 24);
+    const m = window.match(/(\d+(?:\.\d+)?)\s*%/);
+    if (m) {
+      const raw = Number(m[1]);
+      if (!Number.isFinite(raw)) continue;
+      const pct = raw > 1 ? raw / 100 : raw;
+      if (pct > 0 && pct < 1) return pct;
+    }
+  }
+  // Explicit floor language without a number — still no invent from risk.
+  return null;
+}
+
+function asksNeedsSummary(overlay: ClientOverlay): string | null {
+  const asks = overlay.asks ?? [];
+  if (!asks.length) return null;
+  const bits = asks.map((a, i) => `${i + 1}. ${a.title}: ${a.summary}`);
+  return bits.join(" ").slice(0, 300);
+}
 
 /**
  * Compile the overlay's client profile + market view into the engine's
  * ClientContext. Returns null when nothing usable was captured, so legacy
  * runs without a profile keep their exact previous behavior.
+ *
+ * Caps/floors (theme, drawdown, cash, single-name) are set only when the
+ * signed overlay / asks / deployment fields explicitly mention them — never
+ * invented from risk_tolerance or liquidity_need alone.
  */
 export function clientContextFromOverlay(
   overlay: ClientOverlay,
@@ -399,22 +676,26 @@ export function clientContextFromOverlay(
   const risk = profile.risk_tolerance ?? null;
   const horizon = profile.investment_horizon_years ?? null;
   const income = profile.income_need_pct ?? null;
-  const summary = overlay.market_view?.narrative_summary?.trim() || null;
-  const tolerance = risk ? DEFAULT_DRAWDOWN_TOLERANCE[risk] : null;
+  const summary =
+    asksNeedsSummary(overlay) ||
+    overlay.market_view?.narrative_summary?.trim() ||
+    null;
+  const tolerance = explicitDrawdownToleranceFromOverlay(overlay);
+  // Single-name Needs cap only when allocation (or Ask ticker_max → allocation)
+  // set it — never invent a default here.
   const singleCap = overlay.allocation?.max_single_position_pct ?? null;
-  const themes = overlay.market_view?.themes ?? [];
-  const themeHit = themes.some((t) =>
-    THEME_CAP_HINTS.some((h) => t.toLowerCase().includes(h)),
-  );
-  const themeCap = themeHit ? 0.25 : null;
-  const hasLiquidity = Boolean(profile.liquidity_need);
+  const themeCap = shouldApplyThemeExposureCap(overlay) ? 0.25 : null;
   const scheduleBuffer = overlay.deployment_schedule?.liquidity_buffer_pct;
+  const cashAsk = (overlay.asks ?? []).find((a) => a.kind === "cash_reserve");
+  const cashFromAsk =
+    cashAsk?.cash_reserve_pct ?? cashAsk?.target_pct ?? cashAsk?.min_pct ?? null;
   let cashReserve: number | null = null;
   if (typeof scheduleBuffer === "number") {
     cashReserve = scheduleBuffer;
-  } else if (hasLiquidity && risk) {
-    cashReserve = DEFAULT_CASH_RESERVE[risk] ?? 0.05;
+  } else if (cashFromAsk != null && Number.isFinite(cashFromAsk)) {
+    cashReserve = Math.min(0.4, Math.max(0, cashFromAsk));
   }
+  // Do not invent cash from liquidity_need + risk_tolerance alone.
   if (
     !risk &&
     !horizon &&
@@ -422,7 +703,8 @@ export function clientContextFromOverlay(
     !summary &&
     singleCap == null &&
     themeCap == null &&
-    cashReserve == null
+    cashReserve == null &&
+    tolerance == null
   ) {
     return null;
   }
@@ -576,10 +858,12 @@ export function signOffOverlay(
   note?: string,
 ): ClientOverlay {
   const now = new Date().toISOString();
+  const withLevers = applyAsksToOverlayLevers(overlay);
   return {
-    ...overlay,
+    ...withLevers,
+    asks: withLevers.asks?.map((a) => ({ ...a, status: "signed" as const })),
     audit: {
-      ...overlay.audit,
+      ...withLevers.audit,
       updated_at: now,
       phase: "execute",
       rm_sign_off: { signed_at: now, rm_id: rmId, note },
