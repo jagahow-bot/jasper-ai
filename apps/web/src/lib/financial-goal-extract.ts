@@ -373,41 +373,12 @@ export function enrichGoalExtractWithClientContext(
     rationale = `${rationale} ${note}`.trim();
   }
 
-  let assumptions = extract.assumptions;
-  const retirementSpend = goals.find(
-    (g) => g.type === "retirement" && g.amountUsd > 0,
-  )?.amountUsd;
-  let appliedLivingFromRetirement = false;
-  if (
-    (assumptions.annualLivingSpendUsd ?? 0) <= 0 &&
-    retirementSpend != null &&
-    retirementSpend > 0
-  ) {
-    assumptions = {
-      ...assumptions,
-      annualLivingSpendUsd: retirementSpend,
-    };
-    appliedLivingFromRetirement = true;
-  }
-  if (assumptions.annualLivingSpendUsd > 0) {
-    const note = appliedLivingFromRetirement
-      ? lang === "zh"
-        ? `目前年生活開銷未另述，暫與退休年開銷相同（USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()}），工作期間自資產月提領，退休後改由退休目標提領。`
-        : lang === "ko"
-          ? `현재 생활비가 별도로 없으면 은퇴 연간 생활비와 동일(USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()})로 가정하며, 은퇴 전 자산에서 월 인출합니다.`
-          : `Current living spend not stated separately — defaulted to retirement annual spend (USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()}), drawn monthly from wealth until retirement.`
-      : lang === "zh"
-        ? `目前年生活開銷 USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()} 於退休前自資產月提領。`
-        : lang === "ko"
-          ? `현재 연간 생활비 USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()}는 은퇴 전 자산에서 월 인출됩니다.`
-          : `Current annual living spend USD ${Math.round(assumptions.annualLivingSpendUsd).toLocaleString()} is drawn monthly from wealth until retirement.`;
-    rationale = `${rationale} ${note}`.trim();
-  }
+  // Do not default annualLivingSpendUsd from retirement spend (no UI editor).
 
   return {
     ...extract,
     goals,
-    assumptions,
+    assumptions: extract.assumptions,
     clarification_questions: questions.slice(0, 5),
     rationale,
   };
@@ -589,7 +560,7 @@ const ASSUMPTION_KEYS: readonly (keyof GoalAssumptions)[] = [
   "conservativeDelta",
   "annualContributionUsd",
   "contributionGrowth",
-  "annualLivingSpendUsd",
+  // annualLivingSpendUsd intentionally omitted — no UI editor; keep stored value
   "inflation",
 ] as const;
 
@@ -694,7 +665,6 @@ function isEmptyAssumptionField(
   a: GoalAssumptions,
 ): boolean {
   if (key === "annualContributionUsd") return !(a.annualContributionUsd > 0);
-  if (key === "annualLivingSpendUsd") return !(a.annualLivingSpendUsd > 0);
   return false;
 }
 
@@ -921,7 +891,11 @@ export function mergeGoalExtract(
   // First extract / empty goals table: full fill.
   if (current.goals.length === 0) {
     const goals = incoming.goals.map((g) => cloneGoal(g));
-    const assumptions = clampAssumptions(cloneAssumptions(incoming.assumptions));
+    // Keep any stored living spend (or default 0); field has no UI editor.
+    const assumptions = clampAssumptions({
+      ...cloneAssumptions(incoming.assumptions),
+      annualLivingSpendUsd: current.assumptions.annualLivingSpendUsd,
+    });
     summary.addedGoals = goals.length;
     for (const key of ASSUMPTION_KEYS) {
       if (current.assumptions[key] !== assumptions[key]) {

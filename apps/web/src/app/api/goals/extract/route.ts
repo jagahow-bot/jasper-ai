@@ -94,7 +94,7 @@ Rules:
 - For home goals: amount_usd is the down payment / cash at purchase (not full price).
 - If mortgage / loan / LTV is mentioned for a home goal, fill mortgage.loan_usd, annual_rate, term_months (years×12).
 - If annual savings / contribution is mentioned, put it in annual_contribution_usd. That is working-years saving only; the simulator stops contributions at retirement start — say so in rationale when both contribution and a retirement goal are present.
-- annual_living_spend_usd: current annual lifestyle spend drawn from portfolio until retirement. If notes give living expenses / 生活開銷 / 生活費 for today (not only "after retirement"), fill it. If only retirement living spend is stated, you may set annual_living_spend_usd to the same number as a working-years default and note that in rationale.
+- annual_living_spend_usd: leave at 0 by default (working lifestyle is paid from salary, not drawn from AUM). Only set a positive value if notes explicitly say current living expenses are withdrawn from the portfolio before retirement. Do NOT copy retirement annual spend into this field.
 - Ask clarification_questions only for fields still missing after using client context.
 - Do NOT recommend products or tickers.
 

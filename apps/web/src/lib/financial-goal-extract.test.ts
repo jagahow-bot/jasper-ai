@@ -63,8 +63,8 @@ describe("retirement age helpers", () => {
     expect(enriched.rationale).toMatch(/55/);
     expect(enriched.rationale).toMatch(/18/);
     expect(enriched.rationale).toMatch(/退休後不再固定加碼投入/);
-    expect(enriched.assumptions.annualLivingSpendUsd).toBe(30_000);
-    expect(enriched.rationale).toMatch(/目前年生活開銷/);
+    // Living spend is not UI-editable; do not default it from retirement spend.
+    expect(enriched.assumptions.annualLivingSpendUsd).toBe(0);
   });
 });
 

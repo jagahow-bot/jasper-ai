@@ -640,13 +640,20 @@ export function FinancialGoalSimulator({
     try {
       const { extract, source } = await fetchExtract();
       if (extract.goals.length) setGoals(extract.goals);
-      setAssumptions(extract.assumptions);
+      // Living spend has no editor — preserve current form / stored value.
+      setAssumptions({
+        ...extract.assumptions,
+        annualLivingSpendUsd: assumptions.annualLivingSpendUsd,
+      });
       lastAppliedExtractRef.current = {
         goals: extract.goals.map((g) => ({
           ...g,
           mortgage: g.mortgage ? { ...g.mortgage } : g.mortgage,
         })),
-        assumptions: { ...extract.assumptions },
+        assumptions: {
+          ...extract.assumptions,
+          annualLivingSpendUsd: assumptions.annualLivingSpendUsd,
+        },
       };
       returnTouchedRef.current = new Set(RETURN_FIELDS);
       setQuestions(extract.clarification_questions ?? []);
@@ -742,29 +749,6 @@ export function FinancialGoalSimulator({
                 />
                 <span className="mt-0.5 block text-[10px] text-[var(--text-dim)]">
                   {t("goalSim.annualContributionHint")}
-                </span>
-              </label>
-              <label className="block text-xs">
-                <span className="text-[var(--text-dim)]">
-                  {t("goalSim.annualLivingSpend")}
-                </span>
-                <input
-                  type="number"
-                  step="1000"
-                  value={assumptions.annualLivingSpendUsd || ""}
-                  onChange={(e) =>
-                    setAssumptions((a) => ({
-                      ...a,
-                      annualLivingSpendUsd: Math.max(
-                        0,
-                        Number(e.target.value) || 0,
-                      ),
-                    }))
-                  }
-                  className="mt-1 w-full rounded-lg border border-[var(--border)] px-2 py-1.5 text-sm"
-                />
-                <span className="mt-0.5 block text-[10px] text-[var(--text-dim)]">
-                  {t("goalSim.annualLivingSpendHint")}
                 </span>
               </label>
               <label className="block text-xs">

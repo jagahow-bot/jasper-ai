@@ -1554,9 +1554,6 @@ const en: Dict = {
   "goalSim.annualReturn": "Expected annual return (%)",
   "goalSim.annualContribution": "Annual contribution (USD)",
   "goalSim.annualContributionHint": "Stops at retirement start (working years only).",
-  "goalSim.annualLivingSpend": "Living spend (USD / yr)",
-  "goalSim.annualLivingSpendHint":
-    "Drawn monthly from wealth until retirement; then retirement spend takes over. Set 0 if lifestyle is paid from salary (not AUM).",
   "goalSim.contributionGrowth": "Contribution growth (% / yr)",
   "goalSim.inflation": "Goal inflation (% / yr)",
   "goalSim.optimisticDelta": "Optimistic return delta (pp)",
@@ -3240,9 +3237,6 @@ const zh: Dict = {
   "goalSim.annualReturn": "預期年報酬（%）",
   "goalSim.annualContribution": "每年投入（USD）",
   "goalSim.annualContributionHint": "僅至退休開始前；退休後不再固定投入。",
-  "goalSim.annualLivingSpend": "年生活開銷（USD）",
-  "goalSim.annualLivingSpendHint":
-    "退休前每月自資產提領；退休後改由退休目標開銷接手。若生活費由薪資支付、不從資產扣，可填 0。",
   "goalSim.contributionGrowth": "投入成長率（%/年）",
   "goalSim.inflation": "目標通膨（%/年）",
   "goalSim.optimisticDelta": "樂觀報酬加碼（百分點）",
@@ -4975,9 +4969,6 @@ const ko: Dict = {
   "goalSim.annualReturn": "기대 연수익률 (%)",
   "goalSim.annualContribution": "연간 추가 투자 (USD)",
   "goalSim.annualContributionHint": "은퇴 시작 전까지만; 은퇴 후 고정 적립 없음.",
-  "goalSim.annualLivingSpend": "연간 생활비 (USD)",
-  "goalSim.annualLivingSpendHint":
-    "은퇴 전 자산에서 월 인출; 은퇴 후는 은퇴 목표 생활비가 이어집니다. 급여로만 충당하면 0.",
   "goalSim.contributionGrowth": "투자 증가율 (%/년)",
   "goalSim.inflation": "목표 물가 (%/년)",
   "goalSim.optimisticDelta": "낙관 수익률 가산 (pp)",
