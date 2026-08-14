@@ -93,8 +93,10 @@ export type AiProviderOptions = {
  * config so the model uses its default rather than inventing a substitute level.
  */
 export function thinkingConfigForGoogleModel(
-  _modelId: string,
+  modelId: string,
 ): { thinkingLevel: GeminiThinkingLevel } | undefined {
+  if (resolveProvider(modelId) !== "google") return undefined;
+  // Gemini Flash/Pro reject thinkingLevel MINIMAL; omit config rather than substitute.
   return undefined;
 }
 
