@@ -228,6 +228,27 @@ export async function fetchClientDailyNav(
   });
 }
 
+export type ClientPerformanceRefreshResult = {
+  as_of: string | null;
+  tickers: number;
+  clients?: number;
+  skipped: boolean;
+  data_source?: string;
+  window?: { start: string; end: string };
+  reason?: string | null;
+};
+
+/**
+ * Warm server price cache for every demo-client ticker through the latest close.
+ * No-op-ish when the cache was already fetched today (skipped: true).
+ */
+export async function refreshClientPerformance(): Promise<ClientPerformanceRefreshResult> {
+  return fetchJson<ClientPerformanceRefreshResult>("/clients/refresh-performance", {
+    method: "POST",
+    body: "{}",
+  });
+}
+
 export async function patchJobNarrativeFacts(
   jobId: string,
   patch: Record<string, unknown>,

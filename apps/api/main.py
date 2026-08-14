@@ -6,7 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.job_history import warmup_history_index
 from app.notifications import notifications_configured
-from app.routers import backcast, jobs, lab_objective_switch, scenarios, settings as settings_router, universe
+from app.routers import (
+    backcast,
+    clients,
+    jobs,
+    lab_objective_switch,
+    scenarios,
+    settings as settings_router,
+    universe,
+)
 
 
 @asynccontextmanager
@@ -43,6 +51,7 @@ app.include_router(jobs.router)
 app.include_router(lab_objective_switch.router)
 app.include_router(settings_router.router)
 app.include_router(backcast.router)
+app.include_router(clients.router)
 
 
 @app.get("/health")

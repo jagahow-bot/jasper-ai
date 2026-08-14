@@ -44,6 +44,9 @@ from app.engine.data import (
     _merge_price_panels,
     _save_cached_prices,
     _cache_path,
+    _slice_price_panel,
+    load_client_perf_latest,
+    panel_covers_end,
 )
 from app.engine.portfolio import _normalize_rebalance_rule
 from app.profiles import load_universe_file
@@ -87,10 +90,14 @@ def _backcast_cache_key(tickers: list[str], start: str, end: str) -> str:
 
 
 def _load_close_panel(tickers: list[str], start: str, end: str) -> tuple[pd.DataFrame, str]:
-    """Close panel for backcast: cache → bundled slice → yfinance.
+    """Close panel for backcast: cache → latest client panel → bundled → yfinance.
 
     Unlike ``fetch_prices`` this keeps late listings (NaN before listing) and
     has no minimum-ticker floor — the caller peer-fills missing months.
+
+    The opportunistic ``client_perf_latest`` panel (warmed when the website is
+    open) is preferred over bundled for overlapping tickers so daily-NAV can
+    extend past the shipped parquet without a second Yahoo round-trip.
     """
     want = [str(t).upper() for t in tickers]
     cpath = _cache_path(_backcast_cache_key(want, start, end))
@@ -99,6 +106,15 @@ def _load_close_panel(tickers: list[str], start: str, end: str) -> tuple[pd.Data
         cols = [c for c in want if c in cached.columns]
         if cols:
             return cached[cols].copy(), "backcast_cache"
+
+    from_latest = pd.DataFrame()
+    latest = load_client_perf_latest()
+    if latest is not None and not latest.empty and panel_covers_end(latest, end):
+        have_latest = [t for t in want if t in latest.columns]
+        if have_latest:
+            from_latest = _slice_price_panel(latest, start, end, have_latest)
+            if len(have_latest) == len(want) and not from_latest.empty:
+                return from_latest.copy(), "client_perf_latest"
 
     bundled = _load_bundled_prices_panel()
     bundled_cols = (
@@ -110,15 +126,25 @@ def _load_close_panel(tickers: list[str], start: str, end: str) -> tuple[pd.Data
         s = s.loc[(s.index >= pd.Timestamp(start)) & (s.index <= pd.Timestamp(end))]
         bundled_slice = s
 
-    have = set(bundled_slice.columns)
+    have = set(from_latest.columns) | set(bundled_slice.columns)
     need = [t for t in want if t not in have]
     yf = _download_yfinance_closes(need, start, end) if need else pd.DataFrame()
-    panel = _merge_price_panels(bundled_slice, yf)
+    # Latest panel first so its more-recent dates win over bundled duplicates.
+    panel = _merge_price_panels(from_latest, bundled_slice, yf)
     if panel.empty:
         raise ValueError("no price data from bundled panel or yfinance")
     panel = panel.replace([np.inf, -np.inf], np.nan).sort_index()
     _save_cached_prices(cpath, panel)
-    source = "bundled_parquet" if yf.empty else ("bundled_parquet+yfinance" if bundled_cols else "yfinance")
+    if not from_latest.empty and yf.empty:
+        source = "client_perf_latest"
+        if bundled_cols:
+            source = "client_perf_latest+bundled_parquet"
+    elif yf.empty:
+        source = "bundled_parquet"
+    elif bundled_cols or not from_latest.empty:
+        source = "bundled_parquet+yfinance"
+    else:
+        source = "yfinance"
     return panel, source
 
 

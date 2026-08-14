@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { ClientPerformanceRefreshProvider } from "@/components/ClientPerformanceRefresh";
 import { I18nProvider, LANG_STORAGE_KEY } from "@/lib/i18n";
 import "./globals.css";
 
@@ -33,7 +34,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrains.variable} font-sans text-base antialiased`}
       >
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider>
+          <ClientPerformanceRefreshProvider>{children}</ClientPerformanceRefreshProvider>
+        </I18nProvider>
       </body>
     </html>
   );

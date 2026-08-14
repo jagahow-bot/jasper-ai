@@ -21,6 +21,7 @@ import { ChartTooltip } from "@/components/ChartTooltip";
 import { ClientCustomizedHistoryPanel } from "@/components/ClientCustomizedHistoryPanel";
 import { ExpandCollapse } from "@/components/ExpandCollapse";
 import { FinancialGoalSimulator } from "@/components/FinancialGoalSimulator";
+import { useEffectiveClientAsOf } from "@/components/ClientPerformanceRefresh";
 import {
   defaultCustomizationPortfolioName,
   formatUpcomingEvent,
@@ -180,6 +181,7 @@ export default function ClientDashboardPage() {
   const params = useParams();
   const id = typeof params?.id === "string" ? params.id : "";
   const client = useMemo(() => getDemoClientById(id), [id]);
+  const asOf = useEffectiveClientAsOf(client?.as_of_date);
 
   const holdingsGroups = useMemo(
     () => (client ? getClientHoldingsGroups(client) : []),
@@ -266,7 +268,7 @@ export default function ClientDashboardPage() {
 
   // Real daily NAV + per-ticker returns from price history; reported values
   // are the immediate placeholder while loading and the fallback on failure.
-  const dailyNav = useClientDailyNav(chartHoldings, client?.as_of_date);
+  const dailyNav = useClientDailyNav(chartHoldings, asOf);
   const perTicker = dailyNav.perTicker;
   /** True once real data has loaded or failed — gates the dimmed-fallback styling. */
   const realReturnsSettled = dailyNav.failed || perTicker != null;
@@ -280,12 +282,12 @@ export default function ClientDashboardPage() {
         if (typeof real === "number") return { pct: real, real: true };
         return {
           pct: percentFromDecimal(
-            holdingCumulativeReturnDecimal(h, client?.as_of_date),
+            holdingCumulativeReturnDecimal(h, asOf),
           ),
           real: false,
         };
       },
-    [perTicker, client?.as_of_date],
+    [perTicker, asOf],
   );
 
   /** CAGR per holding: same real return over first priced day → as_of. */
@@ -293,11 +295,11 @@ export default function ClientDashboardPage() {
     () =>
       (h: ClientHolding): ResolvedHoldingReturn => {
         if (isCashHolding(h)) return { pct: undefined, real: false };
-        const real = realCagrPctForHolding(h, perTicker, client?.as_of_date);
+        const real = realCagrPctForHolding(h, perTicker, asOf);
         if (typeof real === "number") return { pct: real, real: true };
-        return { pct: holdingCagr(h, client?.as_of_date), real: false };
+        return { pct: holdingCagr(h, asOf), real: false };
       },
-    [perTicker, client?.as_of_date],
+    [perTicker, asOf],
   );
 
   /** Footer totals for selected groups (same scope as charts). */
@@ -398,21 +400,21 @@ export default function ClientDashboardPage() {
   ]);
   // Chart: real daily NAV once loaded; calibrated reported series meanwhile.
   const navSeries = useMemo(() => {
-    if (!client) return [];
+    if (!client || !asOf) return [];
     const nav = dailyNav.points?.length
       ? dailyNav.points
       : buildClientPerformanceSeries({
           client_id: client.client_id,
-          as_of_date: client.as_of_date,
+          as_of_date: asOf,
           risk_profile: client.risk_profile,
           holdings: chartHoldings,
         });
     return toClientPerformanceReturnSeries(
       nav,
       perfTimeframe,
-      client.as_of_date,
+      asOf,
     );
-  }, [client, chartHoldings, perfTimeframe, dailyNav.points]);
+  }, [client, asOf, chartHoldings, perfTimeframe, dailyNav.points]);
 
   useEffect(() => {
     if (!hasGroupedHoldings && allocationView === "portfolio") {
@@ -510,7 +512,7 @@ export default function ClientDashboardPage() {
             ← {t("clients.backToList")}
           </Link>
           <p className="ui-hint text-right">
-            {t("clients.asOf")} {client.as_of_date}
+            {t("clients.asOf")} {asOf ?? client.as_of_date}
           </p>
         </div>
 

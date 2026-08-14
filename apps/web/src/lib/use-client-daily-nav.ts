@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ClientNavPoint, ClientPerfHolding } from "./clients-charts";
+import { useEffectiveClientAsOf } from "@/components/ClientPerformanceRefresh";
 import {
   buildDailyNavPlan,
   getCachedClientDailyNav,
@@ -37,9 +38,10 @@ export function useClientDailyNav(
   opts?: { enabled?: boolean },
 ): ClientDailyNavState {
   const enabled = opts?.enabled ?? true;
+  const effectiveAsOf = useEffectiveClientAsOf(asOfDate);
   const plan = useMemo(
-    () => (enabled ? buildDailyNavPlan(holdings ?? [], asOfDate) : null),
-    [holdings, asOfDate, enabled],
+    () => (enabled ? buildDailyNavPlan(holdings ?? [], effectiveAsOf) : null),
+    [holdings, effectiveAsOf, enabled],
   );
   const planKey = plan?.key ?? "";
   const [state, setState] = useState<ClientDailyNavState & { key: string }>({

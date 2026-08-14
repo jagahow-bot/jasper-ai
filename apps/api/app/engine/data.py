@@ -26,6 +26,54 @@ DIVIDEND_CACHE_DIR = ROOT / "apps" / "api" / ".cache" / "dividends"
 BUNDLED_PRICES_PATH = ROOT / "apps" / "api" / "data" / "bundled_prices" / "closes.parquet"
 BUNDLED_DIVIDENDS_PATH = ROOT / "apps" / "api" / "data" / "bundled_prices" / "dividends.parquet"
 DEMO_TICKERS_PATH = ROOT / "shared" / "demo-tickers.json"
+# Warm panel written when the website is open (union of demo-client tickers).
+CLIENT_PERF_LATEST_FILENAME = "client_perf_latest.parquet"
+
+
+def client_perf_latest_path() -> Path:
+    return PRICE_CACHE_DIR / CLIENT_PERF_LATEST_FILENAME
+
+
+def cache_file_written_today(path: Path) -> bool:
+    """True when ``path`` was written on the current UTC calendar day."""
+    if not path.exists():
+        return False
+    mtime = pd.Timestamp(path.stat().st_mtime, unit="s", tz="UTC").tz_convert(None).normalize()
+    today = pd.Timestamp.utcnow().tz_localize(None).normalize()
+    return mtime >= today
+
+
+def panel_covers_end(panel: pd.DataFrame, end: str, *, slack_days: int = 4) -> bool:
+    """True when the panel's last bar is on/after ``end``, or within weekend/holiday slack."""
+    if panel is None or panel.empty:
+        return False
+    last = pd.Timestamp(panel.index.max()).normalize()
+    want = pd.Timestamp(end).normalize()
+    if last >= want:
+        return True
+    return (want - last).days <= int(slack_days)
+
+
+def load_client_perf_latest() -> pd.DataFrame | None:
+    """Load the opportunistic latest-price panel.
+
+    A file written today is kept even after ``CACHE_TTL_HOURS`` so a morning
+    website-open refresh still serves afternoon daily-NAV requests.
+    """
+    path = client_perf_latest_path()
+    if not path.exists():
+        return None
+    if cache_file_written_today(path):
+        try:
+            panel = pd.read_parquet(path)
+        except Exception:
+            return None
+        if panel is None or panel.empty:
+            return None
+        panel.index = pd.to_datetime(panel.index)
+        panel.columns = [str(c).upper() for c in panel.columns]
+        return panel.sort_index()
+    return _load_cached_prices(path)
 
 
 def _cache_key(
