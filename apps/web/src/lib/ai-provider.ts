@@ -73,15 +73,30 @@ export function isProviderConfigured(modelId: string): boolean {
   );
 }
 
+export type GeminiThinkingLevel = "minimal" | "low" | "medium" | "high";
+
 export type AiProviderOptions = {
   google?: {
-    thinkingConfig?: { thinkingLevel: "minimal" | "low" | "medium" | "high" };
+    thinkingConfig?: { thinkingLevel: GeminiThinkingLevel };
     responseMimeType?: "application/json";
   };
   moonshotai?: {
     reasoningEffort?: "low" | "high" | "max";
   };
 };
+
+/**
+ * Gemini thinkingConfig for web Flash routes (overlay, goals, …).
+ *
+ * Do not send `thinkingLevel: "minimal"`: Gemini 3.7 Flash and 3.x Pro reject it
+ * with 400 ("Thinking level MINIMAL is not supported for this model"). Omit the
+ * config so the model uses its default rather than inventing a substitute level.
+ */
+export function thinkingConfigForGoogleModel(
+  _modelId: string,
+): { thinkingLevel: GeminiThinkingLevel } | undefined {
+  return undefined;
+}
 
 export function providerOptionsFor(
   modelId: string,
@@ -91,9 +106,11 @@ export function providerOptionsFor(
   if (provider === "moonshotai") {
     return { moonshotai: { reasoningEffort: KIMI_K3_REASONING_EFFORT } };
   }
-  const googleOptions: NonNullable<AiProviderOptions["google"]> = {
-    thinkingConfig: { thinkingLevel: "minimal" },
-  };
+  const googleOptions: NonNullable<AiProviderOptions["google"]> = {};
+  const thinkingConfig = thinkingConfigForGoogleModel(modelId);
+  if (thinkingConfig) {
+    googleOptions.thinkingConfig = thinkingConfig;
+  }
   if (jsonMode) {
     googleOptions.responseMimeType = "application/json";
   }

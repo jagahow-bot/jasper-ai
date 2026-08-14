@@ -54,6 +54,15 @@ export function formatZodIssueDetail(error: ZodError, limit = 5): string {
     .slice(0, 500);
 }
 
+function isGeminiModelConfigError(message: string): boolean {
+  const msg = message.toLowerCase();
+  return (
+    msg.includes("thinking level") ||
+    msg.includes("thinkinglevel") ||
+    (msg.includes("thinking") && msg.includes("not supported for this model"))
+  );
+}
+
 export function classifyOverlayAiFailure(error: unknown): {
   code: OverlayInterpretErrorCode;
   error: string;
@@ -82,6 +91,14 @@ export function classifyOverlayAiFailure(error: unknown): {
     };
   }
   if (error instanceof Error) {
+    if (isGeminiModelConfigError(error.message)) {
+      return {
+        code: OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID,
+        error: "AI overlay request was rejected by the model configuration",
+        detail: error.message.slice(0, 500),
+        status: 400,
+      };
+    }
     return {
       code: OVERLAY_INTERPRET_ERROR_CODES.AI_UNAVAILABLE,
       error: "AI overlay interpretation is temporarily unavailable",

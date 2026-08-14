@@ -68,6 +68,15 @@ describe("overlay-interpret-errors", () => {
     const networkFailure = classifyOverlayAiFailure(new Error("fetch failed"));
     expect(networkFailure.code).toBe(OVERLAY_INTERPRET_ERROR_CODES.AI_UNAVAILABLE);
     expect(networkFailure.status).toBe(502);
+
+    const thinkingFailure = classifyOverlayAiFailure(
+      new Error(
+        "Thinking level MINIMAL is not supported for this model. Please retry with other thinking level.",
+      ),
+    );
+    expect(thinkingFailure.code).toBe(OVERLAY_INTERPRET_ERROR_CODES.RESPONSE_INVALID);
+    expect(thinkingFailure.status).toBe(400);
+    expect(thinkingFailure.code).not.toBe(OVERLAY_INTERPRET_ERROR_CODES.AI_UNAVAILABLE);
   });
 
   it("maps error codes to i18n keys", () => {
