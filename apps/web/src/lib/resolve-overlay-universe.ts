@@ -196,7 +196,7 @@ export async function resolveOverlayUniverse(
     ) {
       extras = uniqueTickers([
         ...filterTickersForDirectIndex(filterSupplements),
-        ...pickDirectIndexStocks(diHaystack, 8),
+        ...pickDirectIndexStocks(diHaystack),
       ]);
     }
 

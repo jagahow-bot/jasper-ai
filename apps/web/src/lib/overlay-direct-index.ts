@@ -3,8 +3,11 @@ import {
   directIndexAskCopy,
   directIndexUniversePrompt,
   filterTickersForDirectIndex,
+  isUniverseStock,
+  MAX_DIRECT_INDEX_SLEEVE,
   pickDirectIndexStocks,
   proposedTickersForDirectIndex,
+  resolveDirectIndexSleeveCount,
 } from "./direct-indexing";
 import type { Lang } from "./universe-filter-locale";
 import type {
@@ -14,11 +17,18 @@ import type {
 } from "./overlay-schema";
 
 function haystackFromExtract(extract: OverlayExtractOutput, sourceText: string): string {
+  const askBits = (extract.asks ?? []).flatMap((a) => [
+    a.title,
+    a.summary,
+    ...(a.tickers ?? []),
+  ]);
   return [
     sourceText,
     ...(extract.universe.prompts ?? []),
     extract.market_view.narrative_summary,
     ...(extract.market_view.themes ?? []),
+    extract.rationale,
+    ...askBits,
   ]
     .filter(Boolean)
     .join("\n");
@@ -55,7 +65,7 @@ function ensureDirectIndexAsk(
             kind: "direct_index" as const,
             title: a.title || copy.title,
             summary: a.summary || copy.summary,
-            tickers: a.tickers?.length ? a.tickers : stocks,
+            tickers: stocks,
             status: a.status ?? "proposed",
           }
         : a,
@@ -76,6 +86,7 @@ function ensureDirectIndexAsk(
 /**
  * When the RM brief asks for direct indexing, rewrite universe construction
  * so proposed/supplement tickers are individual stocks — not thematic ETFs.
+ * An explicit count (top 30 / 前 30) is honored; otherwise keep a compact sleeve.
  */
 export function applyDirectIndexingToExtract(
   extract: OverlayExtractOutput,
@@ -87,25 +98,29 @@ export function applyDirectIndexingToExtract(
     extract.universe.construction === "direct_index" || detectDirectIndexing(haystack);
   if (!flagged) return extract;
 
+  const sleeveN = resolveDirectIndexSleeveCount(haystack);
   const fromModel = (extract.universe.proposed_tickers ?? [])
     .map((p) => p.ticker)
     .filter(Boolean);
   const fromSup = extract.universe.supplement_tickers ?? [];
-  const stocks = pickDirectIndexStocks(haystack, 8);
+  const stocks = pickDirectIndexStocks(haystack);
   const uniqueSup = Array.from(
-    new Set(filterTickersForDirectIndex([...fromSup, ...fromModel, ...stocks])),
-  ).slice(0, 30);
+    new Set(filterTickersForDirectIndex([...stocks, ...fromSup, ...fromModel])),
+  ).slice(0, MAX_DIRECT_INDEX_SLEEVE);
 
-  const proposedFromStocks = proposedTickersForDirectIndex(haystack, lang, 8);
-  const existingStockProposed = (extract.universe.proposed_tickers ?? []).filter((p) =>
-    stocks.includes(p.ticker.toUpperCase()),
-  );
-  const proposedByTicker = new Map<string, OverlayProposedTicker>();
-  for (const p of [...proposedFromStocks, ...existingStockProposed]) {
-    const key = p.ticker.toUpperCase();
-    if (!proposedByTicker.has(key)) proposedByTicker.set(key, { ...p, ticker: key });
+  const proposedFromStocks = proposedTickersForDirectIndex(haystack, lang);
+  const existingMeta = new Map<string, OverlayProposedTicker>();
+  for (const p of extract.universe.proposed_tickers ?? []) {
+    if (!isUniverseStock(p.ticker)) continue;
+    existingMeta.set(p.ticker.toUpperCase(), { ...p, ticker: p.ticker.toUpperCase() });
   }
-  const proposed = [...proposedByTicker.values()].slice(0, 12);
+  const proposedByTicker = new Map<string, OverlayProposedTicker>();
+  for (const p of proposedFromStocks) {
+    const key = p.ticker.toUpperCase();
+    const prior = existingMeta.get(key);
+    proposedByTicker.set(key, prior ? { ...p, ...prior, ticker: key } : { ...p, ticker: key });
+  }
+  const proposed = [...proposedByTicker.values()].slice(0, sleeveN);
 
   const prompts = extract.universe.prompts?.length
     ? extract.universe.prompts

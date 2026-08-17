@@ -184,7 +184,7 @@ Field rules:
 - universe.construction: set "direct_index" when the RM asks for direct indexing / 直接指數化 / 直接索引 / 직접 인덱싱. This means replicate or tilt around a benchmark ETF (e.g. SPY) using INDIVIDUAL STOCKS, not by swapping in other ETFs.
 - universe.supplement_tickers: explicit symbols the client (or RM) wants to ADD beyond the target model portfolio (e.g. "GLD", "BTAL"). Only add tickers here when the RM has explicitly confirmed them — EXCEPT for direct_index, where you SHOULD list the stock-sleeve candidates here so the optimizer can use them.
 - universe.exclude_tickers: tickers to REMOVE from the target model holdings (explicit symbols only).
-- universe.proposed_tickers: when the client mentions a theme/sector but does NOT provide explicit ticker symbols, list 3–6 concrete candidates here for RM review. Default for ordinary themes: well-known ETFs. For DIRECT INDEXING: list 4–8 individual STOCKS (e.g. NVDA, MSFT, AAPL, GOOGL, AMZN, META, AVGO, AMD) — NEVER AIQ, IRBO, BOTZ, ROBO, or similar thematic ETFs as the primary solution. Include name, category, and a one-line rationale when helpful. These candidates are NOT part of the fund pool until the RM confirms them, except direct_index stock sleeves which are also copied to supplement_tickers.
+- universe.proposed_tickers: when the client mentions a theme/sector but does NOT provide explicit ticker symbols, list 3–6 concrete candidates here for RM review. Default for ordinary themes: well-known ETFs. For DIRECT INDEXING: if the RM specifies a count N (e.g. "top 30", "前 30", "S&P 500 top 30"), list N S&P 500 large-cap STOCKS in typical cap order — not the 8-name mega-cap default. If no count is stated, list 4–8 individual stocks (e.g. NVDA, MSFT, AAPL, GOOGL, AMZN, META, AVGO, BRK-B). AI/theme tilt means OVERWEIGHT those names inside the N-stock sleeve, not replace the sleeve with 8 AI names. NEVER use AIQ, IRBO, BOTZ, ROBO, or similar thematic ETFs as the primary solution. Include name, category, and a one-line rationale when helpful. These candidates are NOT part of the fund pool until the RM confirms them, except direct_index stock sleeves which are also copied to supplement_tickers.
 - Never add large thematic ETF lists to supplement_tickers automatically; use proposed_tickers for suggestions and wait for RM confirmation. Direct indexing is the exception: propose stocks, not thematic ETFs.
 - optimization.objective: max_sharpe for risk-on/growth; min_max_drawdown for defensive/liquidity.
 - optimization.regime_adaptive: true when RM mentions regime/market switching.
@@ -205,7 +205,7 @@ Field rules:
   Only apply theme-exposure reduce/cap intent when the client explicitly asks to cap/limit the *theme sleeve* (not a single ticker).
 
 Soft guidance:
-- Direct indexing (direct indexing / 直接指數化 / 直接索引 / 직접 인덱싱): this is a STOCK construction, not an ETF swap. Keep or reduce the named core ETF (SPY, IVV, VOO, …) and express factor/sector/AI tilts with individual equities already in the book or well-known mega/tech names. Do NOT propose thematic ETFs (AIQ, IRBO, BOTZ, ROBO, THNQ, …) as the way to implement direct indexing. Set universe.construction to "direct_index", emit a kind="direct_index" ask whose summary says the book is a direct index with stocks, and list those stocks on proposed_tickers + supplement_tickers.
+- Direct indexing (direct indexing / 直接指數化 / 直接索引 / 직접 인덱싱): this is a STOCK construction, not an ETF swap. Keep or reduce the named core ETF (SPY, IVV, VOO, …) and express factor/sector/AI tilts with individual equities already in the book or well-known mega/tech names. When the RM names a count (top 30 / 前 30), the stock sleeve MUST contain that many S&P 500 large-cap names; AI tilt is an overweight inside those N names. Do NOT propose thematic ETFs (AIQ, IRBO, BOTZ, ROBO, THNQ, …) as the way to implement direct indexing. Set universe.construction to "direct_index", emit a kind="direct_index" ask whose summary says the book is a direct index with stocks, and list those stocks on proposed_tickers + supplement_tickers.
 - If uncertain about an optional field, OMIT it rather than inventing wrong types/keys.
 - You assist RM structuring — NEVER output trade orders ("buy/sell X shares") or fabricated performance.
 - confidence: 0–1 reflecting completeness of the structured overlay.
@@ -345,11 +345,18 @@ export async function POST(req: Request) {
       .filter((m) => m.role === "user")
       .map((m) => m.content)
       .join("\n") || latestUser;
+  const clarificationAnswers = normalizeClarificationAnswers(body.clarification_answers);
+  const diSourceText = [
+    userTranscript,
+    ...clarificationAnswers.flatMap((row) => [row.question, row.answer]),
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const useRulesFallback = allowOverlayRulesFallback(req);
 
   const runFallback = () => {
-    const overlay = interpretOverlayFallback(userTranscript, lang, sessionId, turns, body.prior_overlay);
+    const overlay = interpretOverlayFallback(diSourceText, lang, sessionId, turns, body.prior_overlay);
     attachAuditFields(overlay, body);
     logInterpretResult("rules", overlay, turns);
     return overlay;
@@ -392,7 +399,7 @@ export async function POST(req: Request) {
     let extract;
     try {
       extract = validateOverlayExtract(parseOverlayExtractFromGemini(result.text));
-      extract = applyDirectIndexingToExtract(extract, userTranscript, lang);
+      extract = applyDirectIndexingToExtract(extract, diSourceText, lang);
     } catch (parseError) {
       if (useRulesFallback) {
         if (process.env.NODE_ENV !== "production") {

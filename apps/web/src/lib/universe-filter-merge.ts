@@ -137,7 +137,7 @@ export function mergeSupplementTickers(
     !opts?.strictExplicitOnly && detectDirectIndexing(haystack)
       ? uniqueTickers([
           [filterTickersForDirectIndex(supplement_tickers)],
-          [pickDirectIndexStocks(haystack, 8)],
+          [pickDirectIndexStocks(haystack)],
         ].flat())
       : supplement_tickers;
 

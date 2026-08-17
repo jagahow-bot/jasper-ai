@@ -141,8 +141,8 @@ function extractDirectIndex(
   lang: "zh" | "en" | "ko",
 ): OverlayExtractOutput | null {
   if (!detectDirectIndexing(text)) return null;
-  const stocks = pickDirectIndexStocks(text, 8);
-  const proposed = proposedTickersForDirectIndex(text, lang, 8);
+  const stocks = pickDirectIndexStocks(text);
+  const proposed = proposedTickersForDirectIndex(text, lang);
   const copy = directIndexAskCopy(lang);
   const narrative =
     lang === "zh"

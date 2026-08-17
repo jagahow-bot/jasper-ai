@@ -121,7 +121,7 @@ export function analyzeUniverseFilterFallback(
   let categories = categoriesForText(text);
 
   if (detectDirectIndexing(text)) {
-    tickers = pickDirectIndexStocks(text, 8);
+    tickers = pickDirectIndexStocks(text);
     categories = ["us_stock_mega", "us_stock_tech", "us_stock_semi"];
   } else if (/short.*(stock|equity|market)|bear.*(market|equity)|inverse.*(market|equity)|hedge.*equity/.test(lower)) {
     tickers = pick(SHORT_MARKET_TICKERS);

@@ -112,6 +112,15 @@ function run() {
     assert.ok(!diMerged.supplement_tickers.includes(t), `merged DI must drop ${t}`);
   }
 
+  const top30Prompt = "direct indexing S&P 500 top 30";
+  const top30Out = analyzeUniverseFilterFallback(top30Prompt);
+  assert.ok(
+    (top30Out.tickers ?? []).length >= 30,
+    "DI fallback must honor top 30",
+  );
+  const zh30 = analyzeUniverseFilterFallback("直接索引 前 30 檔");
+  assert.ok((zh30.tickers ?? []).length >= 30, "DI fallback must honor 前 30");
+
   console.log("universe-filter-merge: ok");
 }
 

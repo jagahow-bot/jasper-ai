@@ -4,7 +4,10 @@ import { ASSET_CLASSES, type AssetClass } from "@/lib/constants";
 import {
   detectDirectIndexing,
   filterTickersForDirectIndex,
+  isUniverseStock,
+  MAX_DIRECT_INDEX_SLEEVE,
   pickDirectIndexStocks,
+  resolveDirectIndexSleeveCount,
 } from "@/lib/direct-indexing";
 import {
   buildLockedCustomUniverse,
@@ -151,9 +154,9 @@ export type OverlayProposedTicker = z.infer<typeof overlayProposedTickerSchema>;
 export const universeRuleOverlaySchema = z
   .object({
     prompts: z.array(z.string().min(4).max(200)).max(6),
-    supplement_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
+    supplement_tickers: z.array(z.string().min(1).max(8)).max(MAX_DIRECT_INDEX_SLEEVE).optional(),
     exclude_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
-    proposed_tickers: z.array(overlayProposedTickerSchema).max(12).optional(),
+    proposed_tickers: z.array(overlayProposedTickerSchema).max(MAX_DIRECT_INDEX_SLEEVE).optional(),
     /** Stock-sleeve construction around a benchmark ETF (not thematic ETF swaps). */
     construction: z.enum(["direct_index"]).optional(),
   })
@@ -189,7 +192,7 @@ export const overlayAskSchema = z
     summary: z.string().min(1).max(400),
     kind: z.enum(OVERLAY_ASK_KINDS),
     group_id: z.string().max(80).optional(),
-    tickers: z.array(z.string().min(1).max(12)).max(20).optional(),
+    tickers: z.array(z.string().min(1).max(12)).max(MAX_DIRECT_INDEX_SLEEVE).optional(),
     min_pct: z.number().min(0).max(1).optional(),
     max_pct: z.number().min(0).max(1).optional(),
     target_pct: z.number().min(0).max(1).optional(),
@@ -777,18 +780,38 @@ export function resolveLockedAddsForOverlay(overlay: ClientOverlay): string[] {
     explicitSupplements: overlay.universe.supplement_tickers,
     prompts,
   });
-  const haystack = [
-    ...prompts,
-    overlay.market_view.narrative_summary,
-    ...(overlay.market_view.themes ?? []),
-  ].join("\n");
+  const haystack = overlayDirectIndexHaystack(overlay);
   const isDi =
     overlay.universe.construction === "direct_index" || detectDirectIndexing(haystack);
   if (!isDi) return baseAdds;
 
   const proposed = (overlay.universe.proposed_tickers ?? []).map((p) => p.ticker);
-  const stocks = pickDirectIndexStocks(haystack, 8);
+  const stocks = pickDirectIndexStocks(haystack);
   return filterTickersForDirectIndex([...baseAdds, ...proposed, ...stocks]);
+}
+
+function overlayDirectIndexHaystack(overlay: ClientOverlay): string {
+  return [
+    ...overlay.universe.prompts,
+    overlay.market_view.narrative_summary,
+    ...(overlay.market_view.themes ?? []),
+    overlay.rationale,
+    ...(overlay.asks ?? []).flatMap((a) => [a.title, a.summary, ...(a.tickers ?? [])]),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function directIndexHoldingsFloor(overlay: ClientOverlay): number {
+  const haystack = overlayDirectIndexHaystack(overlay);
+  const isDi =
+    overlay.universe.construction === "direct_index" || detectDirectIndexing(haystack);
+  if (!isDi) return 0;
+  const fromSup = (overlay.universe.supplement_tickers ?? []).filter(isUniverseStock).length;
+  const fromProposed = (overlay.universe.proposed_tickers ?? []).filter((p) =>
+    isUniverseStock(p.ticker),
+  ).length;
+  return Math.max(resolveDirectIndexSleeveCount(haystack), fromSup, fromProposed);
 }
 
 /**
@@ -866,7 +889,11 @@ export function overlayToBacktestRequest(
         base.optimization_mode) as OptimizationMode,
       trials: opt.trials ?? 25,
       top_models: 5,
-      max_holdings: Math.max(locked.length, 1),
+      max_holdings: (() => {
+        const floor = directIndexHoldingsFloor(overlay);
+        const n = Math.max(locked.length, floor, 1);
+        return floor > 0 ? Math.min(MAX_DIRECT_INDEX_SLEEVE, n) : n;
+      })(),
       // Full eligible set on BOTH fields so API whitelist-early-return and
       // supplement-pin agree (holdings stay eligible; unrelated pool never enters).
       universe_tickers: locked,
@@ -899,7 +926,14 @@ export function overlayToBacktestRequest(
     optimization_mode: (opt.optimization_mode ?? base.optimization_mode) as OptimizationMode,
     trials: opt.trials ?? base.trials,
     top_models: base.top_models,
-    max_holdings: base.max_holdings,
+    max_holdings: (() => {
+      const floor = directIndexHoldingsFloor(overlay);
+      if (floor <= 0) return base.max_holdings;
+      return Math.min(
+        MAX_DIRECT_INDEX_SLEEVE,
+        Math.max(base.max_holdings ?? 30, floor),
+      );
+    })(),
     universe_tickers: base.universe_tickers,
     enforce_class_weights:
       alloc.enforce_class_weights ?? base.enforce_class_weights ?? false,

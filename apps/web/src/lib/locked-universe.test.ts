@@ -249,6 +249,20 @@ function run() {
     assert.ok(!diSet.has(t), `DI must not swap in ${t}`);
   }
 
+  const top30Mapped = overlayToBacktestRequest(
+    spyBase,
+    minimalOverlay({
+      construction: "direct_index",
+      prompts: ["Direct index the S&P 500 top 30 stocks with AI overweight"],
+    }),
+  );
+  const top30Stocks = (top30Mapped.universe_tickers ?? []).filter((t) => t !== "SPY");
+  assert.ok(top30Stocks.length >= 30, "top 30 DI must add ~30 stocks");
+  assert.ok(
+    (top30Mapped.max_holdings ?? 0) >= 30,
+    "DI must raise max_holdings to at least N",
+  );
+
   console.log("locked-universe: ok");
 }
 

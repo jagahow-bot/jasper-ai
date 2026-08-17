@@ -356,7 +356,7 @@ function normalizeTickerList(raw: unknown): string[] | undefined {
     .filter((v): v is string => typeof v === "string")
     .map((v) => v.trim().toUpperCase().slice(0, 8))
     .filter((v) => v.length >= 1)
-    .slice(0, 30);
+    .slice(0, 50);
   return out.length ? out : undefined;
 }
 
@@ -383,7 +383,7 @@ function normalizeProposedTickers(raw: unknown): ProposedTicker[] | undefined {
     const rationale =
       typeof src.rationale === "string" ? src.rationale.trim().slice(0, 200) : undefined;
     out.push({ ticker, ...(name ? { name } : {}), ...(category ? { category } : {}), ...(rationale ? { rationale } : {}) });
-    if (out.length >= 12) break;
+    if (out.length >= 50) break;
   }
   return out.length ? out : undefined;
 }
