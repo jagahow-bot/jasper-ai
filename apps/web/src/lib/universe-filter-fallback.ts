@@ -5,6 +5,10 @@ import {
   localizedFallbackRationale,
   type Lang,
 } from "./universe-filter-locale";
+import {
+  detectDirectIndexing,
+  pickDirectIndexStocks,
+} from "./direct-indexing";
 
 const SHORT_MARKET_TICKERS = [
   "BTAL",
@@ -116,7 +120,10 @@ export function analyzeUniverseFilterFallback(
   let tickers: string[] | undefined;
   let categories = categoriesForText(text);
 
-  if (/short.*(stock|equity|market)|bear.*(market|equity)|inverse.*(market|equity)|hedge.*equity/.test(lower)) {
+  if (detectDirectIndexing(text)) {
+    tickers = pickDirectIndexStocks(text, 8);
+    categories = ["us_stock_mega", "us_stock_tech", "us_stock_semi"];
+  } else if (/short.*(stock|equity|market)|bear.*(market|equity)|inverse.*(market|equity)|hedge.*equity/.test(lower)) {
     tickers = pick(SHORT_MARKET_TICKERS);
     categories = ["alt_hedge", "alt_managed_futures", "multi_alt"];
   } else if (/\bai\b|artificial intelligence|machine learning|robot/.test(lower)) {

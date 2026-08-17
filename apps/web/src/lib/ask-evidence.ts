@@ -124,6 +124,10 @@ export function formatAskTarget(ask: OverlayAsk): string {
       const cash = ask.cash_reserve_pct ?? ask.target_pct ?? ask.min_pct;
       return cash != null ? `Cash ~ ${pctLabel(cash, 0)}` : "Cash buffer";
     }
+    case "direct_index": {
+      const list = (ask.tickers ?? []).join("/");
+      return list ? `Direct index: ${list}` : "Direct index with stocks";
+    }
     default:
       return ask.summary.slice(0, 80);
   }
@@ -252,6 +256,25 @@ export function evaluateAskEvidence(
           actualLabel: pctLabel(actual),
           status,
           actualPct: actual,
+        };
+      }
+      case "direct_index": {
+        const tickers = ask.tickers ?? [];
+        const present = tickers.filter((t) => weightOf(weights, t) > 0.001);
+        const weightsSum = sumGroupWeight(weights, tickers);
+        let status: AskEvidenceStatus = "unknown";
+        if (!tickers.length) status = "unknown";
+        else if (present.length >= Math.min(3, tickers.length)) status = "met";
+        else if (present.length > 0) status = "partial";
+        else status = "missed";
+        return {
+          ask,
+          targetLabel: formatAskTarget(ask),
+          actualLabel: present.length
+            ? present.map((t) => `${t} ${pctLabel(weightOf(weights, t))}`).join(", ")
+            : "No stock sleeve held",
+          status,
+          actualPct: weightsSum,
         };
       }
       default:

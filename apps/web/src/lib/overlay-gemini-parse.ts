@@ -457,6 +457,7 @@ const OVERLAY_ASK_KINDS = new Set([
   "ticker_min",
   "objective",
   "cash_reserve",
+  "direct_index",
   "other",
 ]);
 
@@ -495,7 +496,7 @@ const ALLOCATION_KEYS = new Set([
   "max_single_position_pct",
 ]);
 
-const UNIVERSE_KEYS = new Set(["prompts", "supplement_tickers", "exclude_tickers", "proposed_tickers"]);
+const UNIVERSE_KEYS = new Set(["prompts", "supplement_tickers", "exclude_tickers", "proposed_tickers", "construction"]);
 
 const OPTIMIZATION_KEYS = new Set([
   "objective",
@@ -803,11 +804,14 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
     const supplement = normalizeTickerList(universeRest.supplement_tickers);
     const exclude = normalizeTickerList(universeRest.exclude_tickers);
     const proposed = normalizeProposedTickers(universeRest.proposed_tickers);
+    const construction =
+      universeRest.construction === "direct_index" ? "direct_index" : undefined;
     root.universe = {
       prompts,
       ...(supplement ? { supplement_tickers: supplement } : {}),
       ...(exclude ? { exclude_tickers: exclude } : {}),
       ...(proposed ? { proposed_tickers: proposed } : {}),
+      ...(construction ? { construction } : {}),
     };
   } else {
     root.universe = { prompts: [] };

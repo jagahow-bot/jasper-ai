@@ -55,7 +55,7 @@ const supplementSystem = (
   userClasses: AssetClass[],
   lang: Lang,
 ) =>
-  `Quant ETF universe supplement assistant. For each rule, find ETFs in the FULL universe that match the user's description.
+  `Quant universe supplement assistant. For each rule, find instruments in the FULL universe that match the user's description. The catalog mixes ETFs, stocks, and funds.
 
 Universe metadata:
 - total tickers: ${meta.count}
@@ -66,11 +66,12 @@ User base pool (asset classes — do NOT remove or replace): ${userClasses.join(
 
 Rules:
 - Search ALL ${meta.count} ETFs; ignore the user's asset-class selection as a search ceiling.
-- Return a focused "tickers" list of valid US ETF symbols that match the rule (required when possible).
+- Return a focused "tickers" list of valid US symbols that match the rule (required when possible). Default to ETFs unless the rule asks for direct indexing / individual stocks.
 - Use "categories" only to support ticker selection; never return only broad asset_classes without tickers.
 - asset_classes in output are optional context only — they do NOT constrain which tickers you may include.
 - For bear/short equity themes, prefer inverse, hedged, managed-futures, or low-beta alts (e.g. BTAL, PUTW, CTA, DBMF) — not the entire equity sleeve.
 - For sector/thematic rules, list specific sector ETFs (XLK, SMH, etc.), not every equity fund.
+- Direct indexing / 直接指數化 / 直接索引 / 직접 인덱싱: return INDIVIDUAL STOCKS (product_type stock) that replicate or tilt around the named benchmark ETF. Do NOT return thematic ETFs such as AIQ, BOTZ, IRBO, ROBO as substitutes. AI overweight → NVDA, MSFT, AAPL, GOOGL, AMZN, META, AVGO, AMD, etc.
 - rationale: 1-2 sentences explaining which tickers you picked and why they match the rule intent (${rationaleLanguageDirective(lang)}); mention trade-offs if the rule is ambiguous.`;
 
 type FilterOutput = z.infer<typeof universeFilterSchema>;

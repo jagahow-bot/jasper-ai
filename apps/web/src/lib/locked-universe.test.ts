@@ -69,6 +69,7 @@ function minimalOverlay(
       prompts: partial.prompts ?? [],
       supplement_tickers: partial.supplement_tickers,
       exclude_tickers: partial.exclude_tickers,
+      construction: partial.construction,
     },
     optimization: {
       objective: "max_sharpe",
@@ -222,6 +223,31 @@ function run() {
     }),
   );
   assert.equal(uiCount, 2, "UI count must use locked whitelist ∪ supplements");
+
+  const spyBase: BacktestRequest = {
+    ...baseAnchorRequest(),
+    scenario_id: "anchor-spy-benchmark",
+    asset_classes: ["equity"],
+    universe_tickers: ["SPY"],
+    universe_supplement_tickers: ["SPY"],
+    static_replay_holdings: { SPY: 1 },
+    max_holdings: 1,
+    max_weight: 1,
+  };
+  const diMapped = overlayToBacktestRequest(
+    spyBase,
+    minimalOverlay({
+      construction: "direct_index",
+      prompts: ["實施 SPY 標普 500 指數直接索引策略，並適度提高 AI 產業配置權重"],
+    }),
+  );
+  const diSet = new Set(diMapped.universe_tickers ?? []);
+  assert.ok(diSet.has("SPY"), "core ETF sleeve remains");
+  assert.ok(diSet.has("NVDA"), "DI must add AI stocks");
+  assert.ok(diSet.has("MSFT"), "DI must add AI stocks");
+  for (const t of ["AIQ", "BOTZ", "IRBO"]) {
+    assert.ok(!diSet.has(t), `DI must not swap in ${t}`);
+  }
 
   console.log("locked-universe: ok");
 }

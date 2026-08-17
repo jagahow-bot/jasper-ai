@@ -2,11 +2,17 @@ import {
   anchorHoldingsFromRequest,
   buildLockedCustomUniverse,
   isLockedModelUniverse,
-  resolveStrictLockedAdds,
   uniqueTickers,
 } from "@/lib/locked-universe";
 import {
+  detectDirectIndexing,
+  filterTickersForDirectIndex,
+  pickDirectIndexStocks,
+  proposedTickersForDirectIndex,
+} from "@/lib/direct-indexing";
+import {
   overlayToBacktestRequest,
+  resolveLockedAddsForOverlay,
   type ClientOverlay,
   type OverlayProposedTicker,
   type OverlayToBacktestOptions,
@@ -98,14 +104,18 @@ export async function resolveOverlayUniverse(
   const lockedMode = isLockedModelUniverse(base);
 
   if (lockedMode) {
-    const adds = resolveStrictLockedAdds({
-      explicitSupplements: overlay.universe.supplement_tickers,
-      prompts,
-    });
+    const adds = resolveLockedAddsForOverlay(overlay);
     const locked = buildLockedCustomUniverse(base, {
       addTickers: adds,
       excludeTickers: overlay.universe.exclude_tickers,
     });
+    const diHaystack = [
+      ...prompts,
+      overlay.market_view.narrative_summary,
+      ...(overlay.market_view.themes ?? []),
+    ].join("\n");
+    const isDi =
+      overlay.universe.construction === "direct_index" || detectDirectIndexing(diHaystack);
 
     let filterProposedTickers: OverlayProposedTicker[] | undefined;
     if (prompts.length && !skipFilterProposals) {
@@ -128,11 +138,18 @@ export async function resolveOverlayUniverse(
             const key = t.toUpperCase();
             return !lockedSet.has(key) && !explicitAdds.has(key);
           });
-          if (novel.length) {
-            filterProposedTickers = mapTickersToProposed(
-              novel,
-              prompts.join("; "),
+          if (isDi) {
+            const lang = reportLanguage.startsWith("zh")
+              ? "zh"
+              : reportLanguage.startsWith("ko")
+                ? "ko"
+                : "en";
+            const stockProposed = proposedTickersForDirectIndex(diHaystack, lang).filter(
+              (p) => !lockedSet.has(p.ticker.toUpperCase()),
             );
+            filterProposedTickers = stockProposed.length ? stockProposed : undefined;
+          } else if (novel.length) {
+            filterProposedTickers = mapTickersToProposed(novel, prompts.join("; "));
           }
         }
       } catch {
@@ -167,10 +184,26 @@ export async function resolveOverlayUniverse(
       return { request: req };
     }
 
+    let extras = filterSupplements;
+    const diHaystack = [
+      ...prompts,
+      overlay.market_view.narrative_summary,
+      ...(overlay.market_view.themes ?? []),
+    ].join("\n");
+    if (
+      overlay.universe.construction === "direct_index" ||
+      detectDirectIndexing(diHaystack)
+    ) {
+      extras = uniqueTickers([
+        ...filterTickersForDirectIndex(filterSupplements),
+        ...pickDirectIndexStocks(diHaystack, 8),
+      ]);
+    }
+
     req = {
       ...req,
       universe_supplement_tickers: uniqueTickers([
-        ...filterSupplements,
+        ...extras,
         ...(overlay.universe.supplement_tickers ?? []),
         ...(base.universe_supplement_tickers ?? []),
       ]),

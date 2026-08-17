@@ -2,6 +2,11 @@ import { z } from "zod";
 import { enforceAllocControlsForClasses } from "@/lib/asset-class-policy";
 import { ASSET_CLASSES, type AssetClass } from "@/lib/constants";
 import {
+  detectDirectIndexing,
+  filterTickersForDirectIndex,
+  pickDirectIndexStocks,
+} from "@/lib/direct-indexing";
+import {
   buildLockedCustomUniverse,
   isLockedModelUniverse,
   maxWeightForLockedUniverse,
@@ -149,6 +154,8 @@ export const universeRuleOverlaySchema = z
     supplement_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
     exclude_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
     proposed_tickers: z.array(overlayProposedTickerSchema).max(12).optional(),
+    /** Stock-sleeve construction around a benchmark ETF (not thematic ETF swaps). */
+    construction: z.enum(["direct_index"]).optional(),
   })
   .strip();
 
@@ -169,6 +176,7 @@ export const OVERLAY_ASK_KINDS = [
   "ticker_min",
   "objective",
   "cash_reserve",
+  "direct_index",
   "other",
 ] as const;
 
@@ -306,6 +314,9 @@ export function applyAsksToOverlayLevers(overlay: ClientOverlay): ClientOverlay 
       // Soft: keep preferred names eligible / pinned via supplements.
       supplements = mergeTickerLists(supplements, ask.tickers);
     }
+    if (ask.kind === "direct_index" && ask.tickers?.length) {
+      supplements = mergeTickerLists(supplements, ask.tickers);
+    }
     if (ask.kind === "cash_reserve") {
       const cash =
         ask.cash_reserve_pct ?? ask.target_pct ?? ask.min_pct ?? null;
@@ -441,6 +452,46 @@ export function formatOverlayAssistantReply(
   }
 
   return parts.join("\n\n");
+}
+
+export type ClarificationAnswerPair = {
+  question: string;
+  answer: string;
+};
+
+/**
+ * Build one RM user message that binds each filled answer to its exact question.
+ * Qn/An tokens stay English in all locales; section headers are localized.
+ */
+export function formatClarificationUserReply(opts: {
+  answers: ClarificationAnswerPair[];
+  notes?: string;
+  lang: "zh" | "en" | "ko";
+}): string {
+  const { answers, notes, lang } = opts;
+  const filled = answers.filter((a) => a.question.trim() && a.answer.trim());
+  const notesText = notes?.trim() ?? "";
+
+  const answersHeader =
+    lang === "zh" ? "澄清回答：" : lang === "ko" ? "확인 답변:" : "Clarification answers:";
+  const notesHeader =
+    lang === "zh" ? "其他補充：" : lang === "ko" ? "추가 메모:" : "Additional notes:";
+
+  const lines: string[] = [];
+  if (filled.length) {
+    lines.push(answersHeader);
+    filled.forEach((pair, i) => {
+      const n = i + 1;
+      lines.push(`Q${n}: ${pair.question.trim()}`);
+      lines.push(`A${n}: ${pair.answer.trim()}`);
+    });
+  }
+  if (notesText) {
+    if (lines.length) lines.push("");
+    lines.push(notesHeader);
+    lines.push(notesText);
+  }
+  return lines.join("\n");
 }
 
 function sleeveTargetsToParamControls(
@@ -720,6 +771,26 @@ export function clientContextFromOverlay(
   };
 }
 
+export function resolveLockedAddsForOverlay(overlay: ClientOverlay): string[] {
+  const prompts = overlay.universe.prompts.filter(Boolean);
+  const baseAdds = resolveStrictLockedAdds({
+    explicitSupplements: overlay.universe.supplement_tickers,
+    prompts,
+  });
+  const haystack = [
+    ...prompts,
+    overlay.market_view.narrative_summary,
+    ...(overlay.market_view.themes ?? []),
+  ].join("\n");
+  const isDi =
+    overlay.universe.construction === "direct_index" || detectDirectIndexing(haystack);
+  if (!isDi) return baseAdds;
+
+  const proposed = (overlay.universe.proposed_tickers ?? []).map((p) => p.ticker);
+  const stocks = pickDirectIndexStocks(haystack, 8);
+  return filterTickersForDirectIndex([...baseAdds, ...proposed, ...stocks]);
+}
+
 /**
  * Map a confirmed ClientOverlay onto a base BacktestRequest (adjusted run).
  * Call after RM sign-off; does not mutate the overlay.
@@ -776,10 +847,7 @@ export function overlayToBacktestRequest(
   // Target model portfolio present → lock searchable universe to
   // (model holdings − excludes) ∪ explicit adds. Never open the fund pool.
   if (fromAnchor) {
-    const adds = resolveStrictLockedAdds({
-      explicitSupplements: overlay.universe.supplement_tickers,
-      prompts,
-    });
+    const adds = resolveLockedAddsForOverlay(overlay);
     const locked = buildLockedCustomUniverse(base, {
       addTickers: adds,
       excludeTickers: overlay.universe.exclude_tickers,

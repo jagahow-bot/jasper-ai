@@ -1,11 +1,19 @@
 import { ASSET_CLASSES } from "./constants";
 import { parseLiquidityUsdAmount } from "./overlay-gemini-parse";
 import {
+  detectDirectIndexing,
+  directIndexAskCopy,
+  directIndexUniversePrompt,
+  pickDirectIndexStocks,
+  proposedTickersForDirectIndex,
+} from "./direct-indexing";
+import {
   applyAsksToOverlayLevers,
   type ClientOverlay,
   type OverlayAsk,
   type OverlayExtractOutput,
 } from "./overlay-schema";
+import { applyDirectIndexingToExtract } from "./overlay-direct-index";
 
 function parseAmountUsd(text: string): number | undefined {
   return parseLiquidityUsdAmount(text);
@@ -128,6 +136,58 @@ function extractChenStyleAsks(
   ];
 }
 
+function extractDirectIndex(
+  text: string,
+  lang: "zh" | "en" | "ko",
+): OverlayExtractOutput | null {
+  if (!detectDirectIndexing(text)) return null;
+  const stocks = pickDirectIndexStocks(text, 8);
+  const proposed = proposedTickersForDirectIndex(text, lang, 8);
+  const copy = directIndexAskCopy(lang);
+  const narrative =
+    lang === "zh"
+      ? "以個股直接指數化基準 ETF，主題超配用股票袖套而非主題 ETF。"
+      : lang === "ko"
+        ? "개별 주식으로 벤치마크 ETF를 직접 인덱싱하고, 테마 틸트는 주식 슬리브로 표현합니다."
+        : "Direct-index the benchmark ETF with individual stocks; express tilts via a stock sleeve, not thematic ETFs.";
+  return {
+    client_profile: { risk_tolerance: "moderate" },
+    market_view: {
+      stance: "risk_on",
+      themes: ["direct_index", "equity_tilt"],
+      narrative_summary: narrative,
+    },
+    allocation: {
+      asset_classes: ["equity"],
+      enforce_class_weights: false,
+    },
+    universe: {
+      construction: "direct_index",
+      prompts: [directIndexUniversePrompt(lang)],
+      supplement_tickers: stocks,
+      proposed_tickers: proposed,
+    },
+    optimization: {
+      objective: "max_sharpe",
+      regime_adaptive: false,
+      optimization_mode: "standard",
+    },
+    asks: [
+      {
+        id: "ask-direct-index",
+        title: copy.title,
+        summary: copy.summary,
+        kind: "direct_index",
+        tickers: stocks,
+        status: "proposed",
+      },
+    ],
+    clarification_questions: [],
+    confidence: 0.78,
+    rationale: copy.summary,
+  };
+}
+
 function baseExtract(text: string, lang: "zh" | "en" | "ko"): OverlayExtractOutput {
   const chenAsks = extractChenStyleAsks(text, lang);
   if (chenAsks) {
@@ -174,6 +234,9 @@ function baseExtract(text: string, lang: "zh" | "en" | "ko"): OverlayExtractOutp
           : "Extracted numbered Ask cards for NVDA/satellite band, core consolidation, max Sharpe, and cash buffer. Soft targets only — misses are reported, not job failures.",
     };
   }
+
+  const directIndex = extractDirectIndex(text, lang);
+  if (directIndex) return directIndex;
 
   const t = text.toLowerCase();
   const amountUsd = parseAmountUsd(text);
@@ -381,7 +444,7 @@ export function interpretOverlayFallback(
   turns: number,
   prior?: ClientOverlay | null,
 ): ClientOverlay {
-  const extracted = baseExtract(text, lang);
+  const extracted = applyDirectIndexingToExtract(baseExtract(text, lang), text, lang);
   const now = new Date().toISOString();
   const asks =
     extracted.asks?.length

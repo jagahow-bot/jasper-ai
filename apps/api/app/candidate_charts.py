@@ -288,6 +288,26 @@ def _load_price_panel(
     from app.engine.portfolio import _normalize_rebalance_rule
 
     guaranteed_supplements = list(req.universe_supplement_tickers or [])
+    from app.direct_indexing import expand_direct_index_locked_lists
+
+    di_tickers, di_supplements = expand_direct_index_locked_lists(
+        universe_tickers=req.universe_tickers,
+        supplement_tickers=guaranteed_supplements,
+        filter_text=req.universe_filter_text,
+        filter_prompts=req.resolved_universe_filter_prompts()
+        if hasattr(req, "resolved_universe_filter_prompts")
+        else getattr(req, "universe_filter_prompts", None),
+    )
+    if (di_tickers or []) != (req.universe_tickers or []) or (
+        di_supplements or []
+    ) != guaranteed_supplements:
+        req = req.model_copy(
+            update={
+                "universe_tickers": di_tickers,
+                "universe_supplement_tickers": di_supplements,
+            }
+        )
+        guaranteed_supplements = list(di_supplements or [])
     universe = get_universe(
         req.asset_classes,
         req.universe_categories,

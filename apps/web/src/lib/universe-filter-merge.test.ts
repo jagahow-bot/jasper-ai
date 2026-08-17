@@ -94,6 +94,24 @@ function run() {
   assert.deepEqual(named.supplement_tickers, ["GLD"]);
   assert.ok(!named.supplement_tickers.includes("ARKW"));
 
+  const diPrompt = "direct indexing SPY with AI overweight";
+  const diOut = analyzeUniverseFilterFallback(diPrompt);
+  const diTickers = resolveRuleTickersFullUniverse(diOut);
+  assert.ok(diTickers.includes("NVDA"), "DI fallback should propose NVDA");
+  assert.ok(diTickers.includes("MSFT"), "DI fallback should propose MSFT");
+  for (const t of ["AIQ", "BOTZ", "IRBO"]) {
+    assert.ok(!diTickers.includes(t), `DI fallback must not propose ${t}`);
+  }
+  const diMerged = mergeSupplementTickers(
+    [{ tickers: ["AIQ", "BOTZ", "IRBO"], rationale: "wrong etf basket" }],
+    "en",
+    { prompts: [diPrompt] },
+  );
+  assert.ok(diMerged.supplement_tickers.includes("NVDA"));
+  for (const t of ["AIQ", "BOTZ", "IRBO"]) {
+    assert.ok(!diMerged.supplement_tickers.includes(t), `merged DI must drop ${t}`);
+  }
+
   console.log("universe-filter-merge: ok");
 }
 

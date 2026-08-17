@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai-provider";
 import { languageDirective } from "@/lib/ai-language";
 import { interpretOverlayFallback } from "@/lib/overlay-fallback";
+import { applyDirectIndexingToExtract } from "@/lib/overlay-direct-index";
 import {
   allowOverlayRulesFallback,
   buildOverlayInterpretError,
@@ -41,6 +42,11 @@ type ContextGroup = {
   holdings: ContextPosition[];
 };
 
+type ClarificationAnswerPair = {
+  question: string;
+  answer: string;
+};
+
 type InterpretBody = {
   messages?: OverlayConversationMessage[];
   /** Latest user utterance (shortcut when messages omitted). */
@@ -56,6 +62,8 @@ type InterpretBody = {
   /** Target model portfolio anchor holdings (display context for the AI). */
   anchor_positions?: ContextPosition[];
   anchor_label?: string;
+  /** Optional structured Q→A pairs for the latest clarification round. */
+  clarification_answers?: ClarificationAnswerPair[];
 };
 
 function formatPositions(positions?: ContextPosition[]): string {
@@ -79,12 +87,35 @@ ${anchorLine}
 ${groupLines.length > 0 ? `Groups selected for customization:\n${groupLines.join("\n")}` : "No specific groups selected; the whole anchor portfolio is the customization scope."}`;
 }
 
+function normalizeClarificationAnswers(
+  raw: ClarificationAnswerPair[] | undefined,
+): ClarificationAnswerPair[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((row) => ({
+      question: typeof row?.question === "string" ? row.question.trim() : "",
+      answer: typeof row?.answer === "string" ? row.answer.trim() : "",
+    }))
+    .filter((row) => row.question.length > 0 && row.answer.length > 0);
+}
+
+function buildClarificationAnswersBlock(
+  answers: ClarificationAnswerPair[],
+): string {
+  if (!answers.length) return "";
+  const lines = answers.map(
+    (row, i) => `Q${i + 1}: ${row.question}\nA${i + 1}: ${row.answer}`,
+  );
+  return `\n\nClarification Q→A bindings (bind each answer ONLY to its matching question; do not apply an answer to a different question):\n${lines.join("\n")}`;
+}
+
 function buildConversationPrompt(
   messages: OverlayConversationMessage[],
   prior: ClientOverlay | null | undefined,
   selectedGroups?: ContextGroup[],
   anchorPositions?: ContextPosition[],
   anchorLabel?: string,
+  clarificationAnswers?: ClarificationAnswerPair[],
 ): string {
   const transcript = messages
     .map((m) => `${m.role === "user" ? "RM" : "AI"}: ${m.content}`)
@@ -98,13 +129,17 @@ function buildConversationPrompt(
           universe: prior.universe,
           optimization: prior.optimization,
           asks: prior.asks,
+          clarification_questions: prior.clarification_questions ?? [],
         },
         null,
         2,
       )}`
     : "";
   const contextBlock = buildContextBlock(selectedGroups, anchorPositions, anchorLabel);
-  return `Conversation transcript:\n${transcript}\n\n${contextBlock}${priorBlock}`;
+  const answersBlock = buildClarificationAnswersBlock(
+    normalizeClarificationAnswers(clarificationAnswers),
+  );
+  return `Conversation transcript:\n${transcript}\n\n${contextBlock}${priorBlock}${answersBlock}`;
 }
 
 function overlaySystemPrompt(lang: Lang): string {
@@ -146,10 +181,11 @@ Field rules:
 - Needs caps/floors: do NOT invent theme exposure caps, drawdown floors/tolerances, or cash-reserve floors. Theme exposure caps apply ONLY when the client explicitly asks to cap/limit *theme* / *tech sleeve* / *growth sleeve* exposure — NOT when trimming a single ticker (e.g. NVDA), consolidating core overlap, or merely mentioning AI/tech themes. Do NOT tag themes with "concentration_reduction" for a single-name trim. Soft asks stay soft evidence — do not silently encode hard Needs floors.
 - allocation.enforce_class_weights: boolean when RM wants hard sleeve enforcement.
 - universe.prompts: optional short notes for RM display only. Do NOT use prompts to invent broad ETF baskets — locked model runs ignore thematic/category matching.
-- universe.supplement_tickers: explicit symbols the client (or RM) wants to ADD beyond the target model portfolio (e.g. "GLD", "BTAL"). Only add tickers here when the RM has explicitly confirmed them.
+- universe.construction: set "direct_index" when the RM asks for direct indexing / 直接指數化 / 直接索引 / 직접 인덱싱. This means replicate or tilt around a benchmark ETF (e.g. SPY) using INDIVIDUAL STOCKS, not by swapping in other ETFs.
+- universe.supplement_tickers: explicit symbols the client (or RM) wants to ADD beyond the target model portfolio (e.g. "GLD", "BTAL"). Only add tickers here when the RM has explicitly confirmed them — EXCEPT for direct_index, where you SHOULD list the stock-sleeve candidates here so the optimizer can use them.
 - universe.exclude_tickers: tickers to REMOVE from the target model holdings (explicit symbols only).
-- universe.proposed_tickers: when the client mentions a theme/sector but does NOT provide explicit ticker symbols, list 3–6 concrete, well-known ETF candidates here for RM review. Include name, category, and a one-line rationale when helpful. These candidates are NOT part of the fund pool until the RM confirms them.
-- Never add large thematic lists to supplement_tickers automatically; use proposed_tickers for suggestions and wait for RM confirmation.
+- universe.proposed_tickers: when the client mentions a theme/sector but does NOT provide explicit ticker symbols, list 3–6 concrete candidates here for RM review. Default for ordinary themes: well-known ETFs. For DIRECT INDEXING: list 4–8 individual STOCKS (e.g. NVDA, MSFT, AAPL, GOOGL, AMZN, META, AVGO, AMD) — NEVER AIQ, IRBO, BOTZ, ROBO, or similar thematic ETFs as the primary solution. Include name, category, and a one-line rationale when helpful. These candidates are NOT part of the fund pool until the RM confirms them, except direct_index stock sleeves which are also copied to supplement_tickers.
+- Never add large thematic ETF lists to supplement_tickers automatically; use proposed_tickers for suggestions and wait for RM confirmation. Direct indexing is the exception: propose stocks, not thematic ETFs.
 - optimization.objective: max_sharpe for risk-on/growth; min_max_drawdown for defensive/liquidity.
 - optimization.regime_adaptive: true when RM mentions regime/market switching.
 - clarification_questions: array of STRINGS only (not objects), each 4–200 chars, max 5.
@@ -158,16 +194,18 @@ Field rules:
   { "enabled": true, "mode": "objective_switch", "regime_mode": "auto"|"risk_off"|"neutral"|"risk_on" }.
 - asks: when the RM brief has numbered requests (1/2/3…), emit one soft ask object per request (max 12). Each ask:
   { "id": "ask-1", "title": short label, "summary": client-facing sentence,
-    "kind": "group_weight_band"|"ticker_max"|"exclude_ticker"|"ticker_min"|"objective"|"cash_reserve"|"other",
+    "kind": "group_weight_band"|"ticker_max"|"exclude_ticker"|"ticker_min"|"objective"|"cash_reserve"|"direct_index"|"other",
     "group_id"?, "tickers"?, "min_pct"?, "max_pct"?, "target_pct"?, "objective"?, "cash_reserve_pct"? }
   Percents are 0–1 fractions. Asks are SOFT targets for RM evidence — still map them into existing fields:
   cash_reserve → deployment_schedule.liquidity_buffer_pct; objective → optimization.objective;
   ticker_max → allocation.max_single_position_pct; exclude_ticker → universe.exclude_tickers;
   ticker_min preferred names → universe.supplement_tickers (do not invent large baskets).
+  direct_index → universe.construction "direct_index" plus individual-stock proposed_tickers AND supplement_tickers (keep a reduced core ETF if present; do not substitute AIQ/BOTZ/IRBO).
   IMPORTANT: do NOT treat "keep AI/tech satellite aggressive at 40–45%" or "trim NVDA" as a theme CAP.
   Only apply theme-exposure reduce/cap intent when the client explicitly asks to cap/limit the *theme sleeve* (not a single ticker).
 
 Soft guidance:
+- Direct indexing (direct indexing / 直接指數化 / 直接索引 / 직접 인덱싱): this is a STOCK construction, not an ETF swap. Keep or reduce the named core ETF (SPY, IVV, VOO, …) and express factor/sector/AI tilts with individual equities already in the book or well-known mega/tech names. Do NOT propose thematic ETFs (AIQ, IRBO, BOTZ, ROBO, THNQ, …) as the way to implement direct indexing. Set universe.construction to "direct_index", emit a kind="direct_index" ask whose summary says the book is a direct index with stocks, and list those stocks on proposed_tickers + supplement_tickers.
 - If uncertain about an optional field, OMIT it rather than inventing wrong types/keys.
 - You assist RM structuring — NEVER output trade orders ("buy/sell X shares") or fabricated performance.
 - confidence: 0–1 reflecting completeness of the structured overlay.
@@ -345,6 +383,7 @@ export async function POST(req: Request) {
         body.selected_groups,
         body.anchor_positions,
         body.anchor_label,
+        body.clarification_answers,
       ),
       providerOptions: providerOptionsFor(DEFAULT_FLASH_MODEL_ID, { jsonMode: true }),
     });
@@ -353,6 +392,7 @@ export async function POST(req: Request) {
     let extract;
     try {
       extract = validateOverlayExtract(parseOverlayExtractFromGemini(result.text));
+      extract = applyDirectIndexingToExtract(extract, userTranscript, lang);
     } catch (parseError) {
       if (useRulesFallback) {
         if (process.env.NODE_ENV !== "production") {

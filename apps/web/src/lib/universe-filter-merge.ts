@@ -1,4 +1,9 @@
 import type { AssetClass } from "./constants";
+import {
+  detectDirectIndexing,
+  filterTickersForDirectIndex,
+  pickDirectIndexStocks,
+} from "./direct-indexing";
 import { getTickers, getUniverseItems } from "./universe";
 import type { UniverseFilterOutput } from "./universe-filter-schema";
 import {
@@ -127,13 +132,21 @@ export function mergeSupplementTickers(
     return resolveRuleTickersFullUniverse(o);
   });
   const supplement_tickers = uniqueTickers(perRule);
+  const haystack = (opts?.prompts ?? []).join("\n");
+  const rewritten =
+    !opts?.strictExplicitOnly && detectDirectIndexing(haystack)
+      ? uniqueTickers([
+          [filterTickersForDirectIndex(supplement_tickers)],
+          [pickDirectIndexStocks(haystack, 8)],
+        ].flat())
+      : supplement_tickers;
 
   const rationale =
     outputs.length === 1
       ? outputs[0].rationale
-      : localizedMergeRationale(lang, outputs.length, supplement_tickers.length);
+      : localizedMergeRationale(lang, outputs.length, rewritten.length);
 
-  return { supplement_tickers, rationale };
+  return { supplement_tickers: rewritten, rationale };
 }
 
 export function buildPerRuleSupplementResults(
@@ -159,12 +172,17 @@ export function buildPerRuleSupplementResults(
 }
 
 export function buildSingleRulePrompt(ruleText: string, userAssetClasses: AssetClass[]): string {
+  const diHint = /direct[\s-]*index|直接索引|直接指數|직접\s*인덱싱|다이렉트\s*인덱싱|직접지수/i.test(
+    ruleText,
+  )
+    ? "This rule is DIRECT INDEXING: return individual STOCK tickers (NVDA, MSFT, …), not thematic ETFs (AIQ, BOTZ, IRBO)."
+    : "Return tickers that match the rule even if they fall outside those classes (漏網之魚).";
   return [
-    "Supplementary universe rule — find ETFs in the FULL universe that match this description.",
+    "Supplementary universe rule — find instruments in the FULL universe that match this description.",
     `Rule: ${ruleText.trim()}`,
     "",
     `Context: user already has a base pool from asset classes [${userAssetClasses.join(", ")}].`,
-    "Return tickers that match the rule even if they fall outside those classes (漏網之魚).",
+    diHint,
     "Prefer a focused ticker list over broad asset_class-only filters.",
   ].join("\n");
 }

@@ -10,6 +10,7 @@ import {
 import { pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import { uniqueTickers } from "@/lib/locked-universe";
 import {
+  formatClarificationUserReply,
   formatOverlayAssistantReply,
   formatOverlaySummary,
   signOffOverlay,
@@ -259,6 +260,116 @@ function AskCardsPanel({ asks, disabled, onChange }: AskCardsPanelProps) {
   );
 }
 
+type ClarificationQuestionsPanelProps = {
+  questions: string[];
+  drafts: string[];
+  expandedIndex: number | null;
+  disabled?: boolean;
+  sendDisabled?: boolean;
+  loading?: boolean;
+  answeredCount: number;
+  onToggle: (index: number) => void;
+  onDraftChange: (index: number, value: string) => void;
+  onSend: () => void;
+};
+
+function ClarificationQuestionsPanel({
+  questions,
+  drafts,
+  expandedIndex,
+  disabled,
+  sendDisabled,
+  loading,
+  answeredCount,
+  onToggle,
+  onDraftChange,
+  onSend,
+}: ClarificationQuestionsPanelProps) {
+  const { t } = useI18n();
+  if (!questions.length) return null;
+
+  const sendLabel = loading
+    ? t("overlay.clarify.sending")
+    : answeredCount > 0
+      ? t(
+          answeredCount === 1
+            ? "overlay.clarify.sendCount"
+            : "overlay.clarify.sendCountPlural",
+          { count: answeredCount },
+        )
+      : t("overlay.clarify.send");
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+        <span className="text-xs font-semibold text-[var(--foreground)]">
+          {t("overlay.clarify.title")}
+        </span>
+        <span className="text-[10px] text-dim">{t("overlay.clarify.clickHint")}</span>
+      </div>
+      <div className="space-y-1.5">
+        {questions.map((question, index) => {
+          const open = expandedIndex === index;
+          const draft = drafts[index] ?? "";
+          const hasAnswer = draft.trim().length > 0;
+          return (
+            <div
+              key={`${index}:${question}`}
+              className="rounded-md border border-[var(--border)]/80 bg-[var(--surface)]/70"
+            >
+              <button
+                type="button"
+                disabled={disabled}
+                aria-expanded={open}
+                onClick={() => onToggle(index)}
+                className="flex w-full items-start gap-2 px-3 py-2 text-left disabled:opacity-50"
+              >
+                <span className="shrink-0 text-xs font-semibold text-dim">
+                  {index + 1}.
+                </span>
+                <span className="min-w-0 flex-1 text-sm leading-snug">
+                  {question}
+                </span>
+                {hasAnswer && !open ? (
+                  <span className="shrink-0 text-[10px] text-[var(--primary)]">
+                    {t("overlay.clarify.answered")}
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-[10px] text-dim">
+                    {open ? "▾" : "▸"}
+                  </span>
+                )}
+              </button>
+              {open ? (
+                <div className="border-t border-[var(--border)]/60 px-3 pb-2 pt-1.5">
+                  <textarea
+                    value={draft}
+                    disabled={disabled}
+                    rows={3}
+                    onChange={(e) => onDraftChange(index, e.target.value)}
+                    placeholder={t("overlay.clarify.answerPlaceholder")}
+                    className="pixel-input max-h-32 w-full resize-y text-xs leading-snug"
+                    aria-label={t("overlay.clarify.answerPlaceholder")}
+                  />
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-dim">{t("overlay.clarify.sendHint")}</p>
+      <button
+        type="button"
+        onClick={onSend}
+        disabled={disabled || sendDisabled}
+        className="pixel-btn w-full disabled:opacity-40"
+      >
+        {sendLabel}
+      </button>
+    </div>
+  );
+}
+
 export function OverlayConversationPanel({
   rmId = "rm-demo",
   clientRef,
@@ -287,6 +398,10 @@ export function OverlayConversationPanel({
   } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [overlayLang, setOverlayLang] = useState<typeof lang>(lang);
+  const [clarifyDrafts, setClarifyDrafts] = useState<string[]>([]);
+  const [expandedClarifyIndex, setExpandedClarifyIndex] = useState<number | null>(
+    null,
+  );
 
   // Echo-guard refs: last value pushed up (or accepted from parent). Prevents the
   // sync-down ↔ push-up oscillation that hits "Maximum update depth exceeded".
@@ -300,6 +415,7 @@ export function OverlayConversationPanel({
   // LLM response cannot re-inject proposed_tickers after sign-off.
   const interpretGenerationRef = useRef(0);
   const confirmLockedRef = useRef(false);
+  const sendInFlightRef = useRef(false);
 
   // Sync local messages when the parent resets/restores (e.g. new client).
   useEffect(() => {
@@ -340,10 +456,31 @@ export function OverlayConversationPanel({
     if (!overlay) setOverlayLang(lang);
   }, [lang, overlay]);
 
+  const clarificationQuestions = overlay?.clarification_questions ?? [];
+  const clarificationQuestionsHash = clarificationQuestions.join("\0");
+  const clarificationQuestionCount = clarificationQuestions.length;
+
+  // Reset inline answer drafts when the AI question set changes.
+  useEffect(() => {
+    setClarifyDrafts(Array.from({ length: clarificationQuestionCount }, () => ""));
+    setExpandedClarifyIndex(null);
+  }, [clarificationQuestionsHash, clarificationQuestionCount]);
+
   const chatMessages = useMemo(() => toChatMessages(messages), [messages]);
 
+  const hasPendingClarifications = clarificationQuestionCount > 0;
+  const answeredCount = clarifyDrafts.filter((d) => d.trim().length > 0).length;
+  const hasClarifyAnswers = answeredCount > 0;
+  const canSend =
+    !loading &&
+    !confirmLockedRef.current &&
+    (input.trim().length > 0 || hasClarifyAnswers);
+
   const interpret = useCallback(
-    async (nextMessages: OverlayConversationMessage[]) => {
+    async (
+      nextMessages: OverlayConversationMessage[],
+      clarificationAnswers?: { question: string; answer: string }[],
+    ) => {
       if (confirmLockedRef.current) return;
       const generation = ++interpretGenerationRef.current;
       setLoading(true);
@@ -368,6 +505,9 @@ export function OverlayConversationPanel({
             selected_groups: selectedGroups,
             anchor_positions: anchorPositions,
             anchor_label: anchorLabel,
+            ...(clarificationAnswers?.length
+              ? { clarification_answers: clarificationAnswers }
+              : {}),
           }),
         });
         // Drop stale responses that finished after a newer send or after confirm.
@@ -460,14 +600,42 @@ export function OverlayConversationPanel({
   );
 
   const send = async () => {
-    const text = input.trim();
-    if (!text || loading || confirmLockedRef.current) return;
-    const userMsg: OverlayConversationMessage = { role: "user", content: text };
+    if (!canSend || sendInFlightRef.current) return;
+    sendInFlightRef.current = true;
+
+    const notes = input.trim();
+    const pairs = clarificationQuestions
+      .map((question, i) => ({
+        question,
+        answer: (clarifyDrafts[i] ?? "").trim(),
+      }))
+      .filter((p) => p.answer.length > 0);
+
+    const content = hasPendingClarifications
+      ? formatClarificationUserReply({
+          answers: pairs,
+          notes,
+          lang: overlayLang,
+        })
+      : notes;
+
+    if (!content) {
+      sendInFlightRef.current = false;
+      return;
+    }
+
+    const userMsg: OverlayConversationMessage = { role: "user", content };
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
     setInput("");
+    setClarifyDrafts(clarificationQuestions.map(() => ""));
+    setExpandedClarifyIndex(null);
     setConfirmed(false);
-    await interpret(nextMessages);
+    try {
+      await interpret(nextMessages, pairs.length ? pairs : undefined);
+    } finally {
+      sendInFlightRef.current = false;
+    }
   };
 
   const handleConfirm = async () => {
@@ -594,11 +762,13 @@ export function OverlayConversationPanel({
           disabled={loading}
           rows={2}
           placeholder={
-            lang === "zh"
-              ? "例如：客戶想要增加AI產業布局，未來5年內有資金動用需求，所以不希望投資風險過高。"
-              : lang === "ko"
-                ? "예: 고객은 AI 산업 비중을 늘리고 싶지만, 향후 5년 내 자금 사용 계획이 있어 투자 위험이 너무 높지 않기를 원합니다."
-                : "e.g. The client wants to increase AI sector exposure, but expects to use funds within the next 5 years, so they do not want investment risk to be too high."
+            hasPendingClarifications
+              ? t("overlay.clarify.composerPending")
+              : lang === "zh"
+                ? "例如：客戶想要增加AI產業布局，未來5年內有資金動用需求，所以不希望投資風險過高。"
+                : lang === "ko"
+                  ? "예: 고객은 AI 산업 비중을 늘리고 싶지만, 향후 5년 내 자금 사용 계획이 있어 투자 위험이 너무 높지 않기를 원합니다."
+                  : "e.g. The client wants to increase AI sector exposure, but expects to use funds within the next 5 years, so they do not want investment risk to be too high."
           }
           className="pixel-input min-h-[44px] max-h-[240px] flex-1 resize-none overflow-y-auto"
           onKeyDown={(e) => {
@@ -611,7 +781,7 @@ export function OverlayConversationPanel({
         <button
           type="button"
           onClick={() => void send()}
-          disabled={loading || !input.trim()}
+          disabled={!canSend}
           className="pixel-btn shrink-0 self-end disabled:opacity-40"
         >
           {loading
@@ -670,13 +840,28 @@ export function OverlayConversationPanel({
               setConfirmed(false);
             }}
           />
-          {overlay.clarification_questions?.length ? (
-            <ul className="list-inside list-disc text-sm text-dim">
-              {overlay.clarification_questions.map((q) => (
-                <li key={q}>{q}</li>
-              ))}
-            </ul>
-          ) : null}
+          <ClarificationQuestionsPanel
+            questions={clarificationQuestions}
+            drafts={clarifyDrafts}
+            expandedIndex={expandedClarifyIndex}
+            disabled={confirmed || confirming || loading}
+            sendDisabled={!canSend}
+            loading={loading}
+            answeredCount={answeredCount}
+            onToggle={(index) =>
+              setExpandedClarifyIndex((prev) => (prev === index ? null : index))
+            }
+            onDraftChange={(index, value) => {
+              setClarifyDrafts((prev) => {
+                const next = [...prev];
+                while (next.length < clarificationQuestions.length) next.push("");
+                next[index] = value;
+                return next;
+              });
+              setConfirmed(false);
+            }}
+            onSend={() => void send()}
+          />
           <p className="text-xs text-dim">{overlay.rationale}</p>
           <ProposedTickersPanel
             candidates={
