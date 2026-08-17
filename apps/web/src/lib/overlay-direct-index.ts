@@ -62,17 +62,15 @@ function ensureDirectIndexAsk(
     );
   }
   if (next.length >= 12) return next;
-  return [
-    {
-      id: "ask-direct-index",
-      title: copy.title,
-      summary: copy.summary,
-      kind: "direct_index",
-      tickers: stocks,
-      status: "proposed",
-    },
-    ...next,
-  ].slice(0, 12);
+  const created: OverlayAsk = {
+    id: "ask-direct-index",
+    title: copy.title,
+    summary: copy.summary,
+    kind: "direct_index",
+    tickers: stocks,
+    status: "proposed",
+  };
+  return [created, ...next].slice(0, 12);
 }
 
 /**

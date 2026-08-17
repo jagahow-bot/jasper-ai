@@ -141,10 +141,7 @@ export function filterTickersForDirectIndex(
   opts?: { allowExplicit?: ReadonlySet<string> | readonly string[] },
 ): string[] {
   const allow = new Set(
-    (opts?.allowExplicit instanceof Set
-      ? [...opts.allowExplicit]
-      : (opts?.allowExplicit ?? [])
-    ).map((t) => t.toUpperCase()),
+    [...(opts?.allowExplicit ?? [])].map((t) => t.toUpperCase()),
   );
   return uniqueUpper(tickers).filter((t) => {
     if (isUniverseStock(t)) return true;
