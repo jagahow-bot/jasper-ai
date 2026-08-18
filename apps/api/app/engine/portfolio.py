@@ -165,56 +165,26 @@ def select_weight_chart_tickers(
     *,
     top_n: int = WEIGHT_CHART_DEFAULT_TOP_N,
 ) -> list[str]:
-    """Pick tickers so Other = 1 - sum(shown) stays below WEIGHT_CHART_OTHER_MAX on every date.
+    """Return ALL tickers that ever had a meaningful weight — no Other grouping."""
+    del top_n
 
-    Seed with per-date top holdings (cumulative weight until 1 - OTHER_MAX), then greedily add
-    the candidate that most reduces the worst-date Other until the cap is met.
-    """
-    del top_n  # chart picks for Other≤10%; not the run max_holdings cap
-
-    candidates: set[str] = set()
     keep_set: set[str] = set()
-    target_shown = 1.0 - WEIGHT_CHART_OTHER_MAX
-
     for dt in hist_dates:
         if dt not in schedule.index:
             continue
         w_row = schedule.loc[dt]
-        cum = 0.0
         for t, fw in _sorted_weights_on_date(w_row):
-            candidates.add(t)
-            keep_set.add(t)
-            cum += fw
-            if cum >= target_shown - WEIGHT_EPS:
-                break
+            if fw >= WEIGHT_CHART_MIN_PCT:
+                keep_set.add(t)
 
     if not keep_set:
         return []
-
-    other_limit = WEIGHT_CHART_OTHER_MAX + 1e-9
-    while _max_other_weight_for_tickers(schedule, hist_dates, keep_set) > other_limit:
-        remaining = candidates - keep_set
-        if not remaining:
-            break
-        best_t: str | None = None
-        best_other = float("inf")
-        for t in remaining:
-            trial = keep_set | {t}
-            trial_other = _max_other_weight_for_tickers(schedule, hist_dates, trial)
-            if trial_other < best_other:
-                best_other = trial_other
-                best_t = t
-        if best_t is None or best_other >= _max_other_weight_for_tickers(
-            schedule, hist_dates, keep_set
-        ):
-            break
-        keep_set.add(best_t)
 
     max_s = schedule.max(axis=0).sort_values(ascending=False)
     return [
         str(t)
         for t in max_s.index
-        if str(t) in keep_set and float(max_s[t]) >= WEIGHT_CHART_MIN_PCT
+        if str(t) in keep_set
     ]
 
 

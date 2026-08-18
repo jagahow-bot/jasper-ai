@@ -163,6 +163,24 @@ const COLORS = [
   "#5a7a5a",
   "#4ade80",
   "#fb923c",
+  "#e879f9",
+  "#34d399",
+  "#fbbf24",
+  "#60a5fa",
+  "#f472b6",
+  "#2dd4bf",
+  "#c084fc",
+  "#facc15",
+  "#38bdf8",
+  "#fb7185",
+  "#a3e635",
+  "#818cf8",
+  "#fca5a5",
+  "#86efac",
+  "#fde68a",
+  "#93c5fd",
+  "#d8b4fe",
+  "#67e8f9",
 ];
 
 const SELECTED_STROKE = "#f97316";
@@ -755,17 +773,7 @@ export function ResultsDashboard({
       ? weightHistory.filter((row) => String(row.date) >= firstEquityDate)
       : weightHistory;
     const aligned = alignWeightHistoryToEquityStart(trimmed, firstEquityDate);
-    return aligned.map((row) => {
-      const sumShown = weightHistoryTickers.reduce(
-        (acc, t) => acc + Number((row as Record<string, unknown>)[t] ?? 0),
-        0,
-      );
-      return {
-        ...row,
-        OTHER:
-          Number((row as Record<string, unknown>).OTHER ?? Math.max(0, 1 - sumShown)),
-      };
-    });
+    return aligned;
   }, [weightHistory, weightHistoryTickers, equity]);
 
   const latestAllocationDate = useMemo(() => {

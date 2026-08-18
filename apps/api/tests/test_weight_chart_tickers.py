@@ -1,4 +1,4 @@
-"""Weight history sleeves: Other capped at 10% on every rebalance date."""
+"""Weight history sleeves: all holdings shown, no Other grouping."""
 
 from __future__ import annotations
 
@@ -6,14 +6,13 @@ import numpy as np
 import pandas as pd
 
 from app.engine.portfolio import (
-    WEIGHT_CHART_OTHER_MAX,
-    _max_other_weight_for_tickers,
+    WEIGHT_CHART_MIN_PCT,
     select_weight_chart_tickers,
 )
 
 
-def test_select_weight_chart_tickers_greedy_expansion_rotating_leaders():
-    """Top-1-per-date union exceeds 10% Other; dynamic pick satisfies cap on every date."""
+def test_select_weight_chart_tickers_returns_all_active():
+    """All tickers with meaningful weight are returned."""
     dates = pd.bdate_range("2020-01-01", periods=3)
     cols = ["A", "B", "C", "D", "E", "F"]
     data = [
@@ -23,14 +22,12 @@ def test_select_weight_chart_tickers_greedy_expansion_rotating_leaders():
     ]
     schedule = pd.DataFrame(data, index=dates, columns=cols)
     hist = list(dates)
-    top1_only = {"A", "D", "F"}
-    assert _max_other_weight_for_tickers(schedule, hist, top1_only) > WEIGHT_CHART_OTHER_MAX
     keep = select_weight_chart_tickers(schedule, hist)
-    assert _max_other_weight_for_tickers(schedule, hist, keep) <= WEIGHT_CHART_OTHER_MAX + 1e-9
+    assert set(keep) == {"A", "B", "C", "D", "E", "F"}
 
 
-def test_select_weight_chart_tickers_disjoint_cohorts_under_ten_pct():
-    """Rotating equal cohorts: dynamic pick, not full universe when possible."""
+def test_select_weight_chart_tickers_disjoint_cohorts_all_included():
+    """Rotating equal cohorts: all tickers returned."""
     dates = pd.bdate_range("2020-01-01", periods=6)
     early = [f"E{i}" for i in range(11)]
     late = [f"L{i}" for i in range(11)]
@@ -43,13 +40,11 @@ def test_select_weight_chart_tickers_disjoint_cohorts_under_ten_pct():
     schedule = pd.DataFrame(data, index=dates, columns=cols)
     hist = list(dates)
     keep = select_weight_chart_tickers(schedule, hist, top_n=15)
-    assert len(keep) < len(cols)
-    assert any(t in keep for t in late)
-    assert _max_other_weight_for_tickers(schedule, hist, keep) <= WEIGHT_CHART_OTHER_MAX + 1e-9
+    assert set(keep) == set(cols)
 
 
 def test_select_weight_chart_tickers_many_rotating_holdings():
-    """32 rotating cohorts: Other stays at or below 10% on every rebalance date."""
+    """32 rotating cohorts: all active tickers returned."""
     n_holdings = 32
     n_periods = 10
     dates = pd.bdate_range("2020-01-01", periods=n_periods)
@@ -64,10 +59,25 @@ def test_select_weight_chart_tickers_many_rotating_holdings():
     schedule = pd.DataFrame(data, index=dates, columns=cols)
     hist = list(dates)
     keep = select_weight_chart_tickers(schedule, hist)
-    assert _max_other_weight_for_tickers(schedule, hist, keep) <= WEIGHT_CHART_OTHER_MAX + 1e-9
+    assert len(keep) == n_holdings
 
 
-def test_weight_history_integration_other_bounded():
+def test_select_weight_chart_tickers_filters_dust():
+    """Tickers that never exceed WEIGHT_CHART_MIN_PCT are excluded."""
+    dates = pd.bdate_range("2020-01-01", periods=2)
+    cols = ["A", "B", "DUST"]
+    data = [
+        [0.60, 0.40, 0.0],
+        [0.60, 0.3999, WEIGHT_CHART_MIN_PCT / 2],
+    ]
+    schedule = pd.DataFrame(data, index=dates, columns=cols)
+    hist = list(dates)
+    keep = select_weight_chart_tickers(schedule, hist)
+    assert "DUST" not in keep
+    assert set(keep) == {"A", "B"}
+
+
+def test_weight_history_integration_no_other():
     from app.engine.allocator import AllocatorParams
     from app.engine.portfolio import simulate_dynamic_portfolio
     from app.engine.spec import BacktestSpec
@@ -91,5 +101,4 @@ def test_weight_history_integration_other_bounded():
     tickers = m.get("weight_history_tickers") or []
     assert tickers
     for row in wh:
-        other = float(row.get("OTHER", 0.0))
-        assert other <= WEIGHT_CHART_OTHER_MAX + 1e-6
+        assert "OTHER" not in row

@@ -197,12 +197,8 @@ def trim_weight_history_for_response(
     trimmed: list[dict[str, Any]] = []
     for row in wh:
         out = {"date": row.get("date")}
-        keep_sum = 0.0
         for t in keep:
-            v = float(row.get(t, 0.0) or 0.0)
-            out[t] = v
-            keep_sum += v
-        out["OTHER"] = max(0.0, float(1.0 - keep_sum))
+            out[t] = float(row.get(t, 0.0) or 0.0)
         trimmed.append(out)
     return trimmed, keep
 

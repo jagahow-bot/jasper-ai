@@ -173,19 +173,10 @@ export function LinkedEquityWeightChart({
       alignWeightHistoryToEquityStart(weightHistory, equityStart),
       equityEnd,
     );
-    const enrich = (row: { date: string } & Record<string, number | string>) => {
-      const sumShown = weightTickers.reduce(
-        (acc, t) => acc + Number((row as Record<string, unknown>)[t] ?? 0),
-        0,
-      );
-      return {
-        ...row,
-        ts: parseDateTs(String(row.date)),
-        OTHER: Number(
-          (row as Record<string, unknown>).OTHER ?? Math.max(0, 1 - sumShown),
-        ),
-      };
-    };
+    const enrich = (row: { date: string } & Record<string, number | string>) => ({
+      ...row,
+      ts: parseDateTs(String(row.date)),
+    });
     return aligned.map((row) => enrich(row));
   }, [weightHistory, weightTickers, equityCurve]);
 
@@ -231,13 +222,7 @@ export function LinkedEquityWeightChart({
 
   const tickFont = chartTickFontSize();
   const legendFont = chartLegendFontSize();
-  const showOtherBand = useMemo(() => {
-    if (!weightChartData.length) return false;
-    const maxOther = Math.max(
-      ...weightChartData.map((row) => Number(row.OTHER ?? 0)),
-    );
-    return maxOther > 0.005;
-  }, [weightChartData]);
+  const showOtherBand = false;
 
   const tickerAssetClassMap = useMemo(
     () => buildTickerAssetClassMap(getUniverseItems()),
@@ -464,9 +449,6 @@ export function LinkedEquityWeightChart({
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2">
           <p className="mb-1 px-1 text-[10px] uppercase tracking-wide text-dim">
             {t("linkedChart.holdingsTitle")}
-            <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
-              · {t("linkedChart.otherCapHint")}
-            </span>
             <span className="ml-2 normal-case tracking-normal text-[var(--border)]">
               · {t("linkedChart.rebalanceSnapshotHint")}
             </span>
