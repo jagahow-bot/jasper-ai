@@ -4,6 +4,7 @@ import {
   isConstrainedParamSetupContext,
   isTechnicalConstrainedParamRationale,
   normalizeConstrainedScenarioStyle,
+  splitPipeSeparatedParagraphs,
 } from "./constrained-param-rationale";
 
 const ZH: Record<string, string> = {
@@ -88,5 +89,24 @@ describe("constrained-param-rationale", () => {
   it("normalizes known scenario styles only", () => {
     expect(normalizeConstrainedScenarioStyle("Full_Drift")).toBe("full_drift");
     expect(normalizeConstrainedScenarioStyle("other")).toBeNull();
+  });
+
+  it("splits pipe-joined AI rationale into trimmed paragraphs", () => {
+    expect(
+      splitPipeSeparatedParagraphs(
+        "Explores direct indexing... | Direct indexing SPY top holdings... | To satisfy client... | Applies risk parity...",
+      ),
+    ).toEqual([
+      "Explores direct indexing...",
+      "Direct indexing SPY top holdings...",
+      "To satisfy client...",
+      "Applies risk parity...",
+    ]);
+    expect(splitPipeSeparatedParagraphs("single paragraph")).toEqual([
+      "single paragraph",
+    ]);
+    expect(splitPipeSeparatedParagraphs(" a | | b | ")).toEqual(["a", "b"]);
+    expect(splitPipeSeparatedParagraphs("")).toEqual([]);
+    expect(splitPipeSeparatedParagraphs(null)).toEqual([]);
   });
 });

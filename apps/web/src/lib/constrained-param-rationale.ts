@@ -21,6 +21,16 @@ export function isTechnicalConstrainedParamRationale(
   return TECHNICAL_RATIONALE_RE.test(String(text ?? "").trim());
 }
 
+/** Split AI-joined rationale copy (`"a | b | c"`) into trimmed paragraphs. */
+export function splitPipeSeparatedParagraphs(
+  text: string | null | undefined,
+): string[] {
+  return String(text ?? "")
+    .split("|")
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
 export function normalizeConstrainedScenarioStyle(
   value: unknown,
 ): ConstrainedScenarioStyle | null {

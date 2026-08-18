@@ -111,6 +111,7 @@ import { rebalanceFreqLabel, regimeLabel, objectiveLabel, useI18n } from "@/lib/
 import {
   buildConstrainedParamSetupRationale,
   isConstrainedParamSetupContext,
+  splitPipeSeparatedParagraphs,
 } from "@/lib/constrained-param-rationale";
 import { resolveRunObjective } from "@/lib/resolve-run-objective";
 import {
@@ -1933,7 +1934,10 @@ export function ResultsDashboard({
               {t("results.championWhyParamsTitle")}
             </p>
             {paramSetupRationale ? (
-              <p className="ui-body mt-1 text-slate-700">{paramSetupRationale}</p>
+              <PipeSeparatedParagraphs
+                text={paramSetupRationale}
+                className="ui-body text-slate-700"
+              />
             ) : (
               <p className="ui-hint mt-1 text-dim">
                 {t("results.championWhyParamsFallback")}
@@ -2854,11 +2858,17 @@ export function ResultsDashboard({
                     <p className="ui-section-title mb-1 text-dim">
                       {aiRationalesByRound.length > 1 ? `${t("results.round")} ${i + 1}` : t("results.generation")}
                     </p>
-                    <p className="whitespace-pre-wrap">{text}</p>
+                    <PipeSeparatedParagraphs
+                      text={text}
+                      className="whitespace-pre-wrap"
+                    />
                   </div>
                 ))
               ) : (
-                <p className="whitespace-pre-wrap">{String(aiGen.rationale)}</p>
+                <PipeSeparatedParagraphs
+                  text={String(aiGen.rationale)}
+                  className="whitespace-pre-wrap"
+                />
               )}
             </div>
           </details>
@@ -2941,6 +2951,26 @@ export function ResultsDashboard({
         {t("results.disclaimer")}{" "}
         {String(result.narrative_facts.data_source ?? t("common.unknown"))}.
       </p>
+    </div>
+  );
+}
+
+function PipeSeparatedParagraphs({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
+  const parts = splitPipeSeparatedParagraphs(text);
+  if (parts.length === 0) return null;
+  return (
+    <div className="mt-1 space-y-2">
+      {parts.map((para, i) => (
+        <p key={i} className={className}>
+          {para}
+        </p>
+      ))}
     </div>
   );
 }
