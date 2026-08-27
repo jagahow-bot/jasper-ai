@@ -595,7 +595,7 @@ export function FinancialGoalSimulator({
     rationale: string,
     mergeLine?: string,
   ) => {
-    const prefix = `${source === "gemini" ? "AI" : t("goalSim.rulesFallback")}: ${rationale}`;
+    const prefix = `${source === "gemini" ? t("goalSim.source.ai") : t("goalSim.rulesFallback")}: ${rationale}`;
     return mergeLine ? `${mergeLine} — ${prefix}` : prefix;
   };
 

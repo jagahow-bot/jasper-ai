@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -21,13 +22,39 @@ MIN_ROW_COVERAGE = 0.75
 # Symbols listed after requested start + this slack are dropped (not used to trim the panel).
 LATE_LISTING_TOLERANCE_DAYS = 21
 CACHE_TTL_HOURS = 12
-PRICE_CACHE_DIR = ROOT / "apps" / "api" / ".cache" / "prices"
-DIVIDEND_CACHE_DIR = ROOT / "apps" / "api" / ".cache" / "dividends"
+# Render persistent disk mounts at /var/data; local dev uses apps/api/.cache.
+PERSISTENT_DATA_ROOT = Path("/var/data")
+LOCAL_PRICE_CACHE_DIR = ROOT / "apps" / "api" / ".cache" / "prices"
+LOCAL_DIVIDEND_CACHE_DIR = ROOT / "apps" / "api" / ".cache" / "dividends"
 BUNDLED_PRICES_PATH = ROOT / "apps" / "api" / "data" / "bundled_prices" / "closes.parquet"
 BUNDLED_DIVIDENDS_PATH = ROOT / "apps" / "api" / "data" / "bundled_prices" / "dividends.parquet"
 DEMO_TICKERS_PATH = ROOT / "shared" / "demo-tickers.json"
 # Warm panel written when the website is open (union of demo-client tickers).
 CLIENT_PERF_LATEST_FILENAME = "client_perf_latest.parquet"
+
+
+def _default_price_cache_dir() -> Path:
+    if PERSISTENT_DATA_ROOT.is_dir():
+        return PERSISTENT_DATA_ROOT / "prices"
+    return LOCAL_PRICE_CACHE_DIR
+
+
+def _default_dividend_cache_dir() -> Path:
+    if PERSISTENT_DATA_ROOT.is_dir():
+        return PERSISTENT_DATA_ROOT / "dividends"
+    return LOCAL_DIVIDEND_CACHE_DIR
+
+
+def _resolve_cache_dir(env_key: str, default: Path) -> Path:
+    raw = os.environ.get(env_key, "").strip()
+    return Path(raw) if raw else default
+
+
+# Resolved once at import; tests may monkeypatch these module attributes.
+PRICE_CACHE_DIR = _resolve_cache_dir("PRICE_CACHE_DIR", _default_price_cache_dir())
+DIVIDEND_CACHE_DIR = _resolve_cache_dir(
+    "DIVIDEND_CACHE_DIR", _default_dividend_cache_dir()
+)
 
 
 def client_perf_latest_path() -> Path:

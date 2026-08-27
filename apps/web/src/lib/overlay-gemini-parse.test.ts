@@ -111,6 +111,40 @@ describe("overlay-gemini-parse", () => {
     expect(extract.experiment).toBeUndefined();
   });
 
+  it("drops unknown param_adjustments keys and clamps eligible bounds", () => {
+    const normalized = parseOverlayExtractFromGemini({
+      client_profile: { risk_tolerance: "moderate" },
+      market_view: {
+        stance: "neutral",
+        themes: ["balanced"],
+        narrative_summary: "Moderate client with balanced multi-asset preference.",
+      },
+      allocation: { asset_classes: ["equity", "bond"] },
+      universe: { prompts: [] },
+      optimization: { objective: "max_sharpe" },
+      clarification_questions: [],
+      confidence: 0.6,
+      rationale: "Structured overlay for param whitelist verification only.",
+      param_adjustments: {
+        w_lowvol: { mode: "fixed", fixed: 9.9 },
+        w_equity: { mode: "fixed", fixed: 0.7 },
+        not_a_real_param: { mode: "fixed", fixed: 1 },
+        w_income: { mode: "search", min: -1, max: 0.9 },
+      },
+    }) as {
+      param_adjustments?: Record<string, { mode: string; fixed?: number; min?: number; max?: number }>;
+    };
+
+    expect(normalized.param_adjustments?.w_equity).toBeUndefined();
+    expect(normalized.param_adjustments?.not_a_real_param).toBeUndefined();
+    expect(normalized.param_adjustments?.w_lowvol).toEqual({ mode: "fixed", fixed: 2 });
+    expect(normalized.param_adjustments?.w_income).toEqual({
+      mode: "search",
+      min: 0,
+      max: 0.4,
+    });
+  });
+
   it("validates 王先生-style Gemini response (fixture 50) through Zod", () => {
     const gemini50Extract = JSON.parse(
       readFileSync(join(fixtureDir, "gemini-overlay-50-extract.json"), "utf8"),

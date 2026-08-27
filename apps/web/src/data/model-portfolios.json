@@ -1,6 +1,6 @@
 {
   "version": "3.0",
-  "updated": "2026-07-28",
+  "updated": "2026-08-27",
   "description": "JASPER wealth-management model portfolios for Benchmark Personalization. Each model mixes ETF cores, mutual-fund active sleeves, and/or single-stock satellites — reflecting how private-banking books are actually built (not ETF-only).",
   "portfolios": [
     {
@@ -19,12 +19,36 @@
         "fixed_income": 0.4
       },
       "holdings": [
-        { "ticker": "IVV", "weight": 0.25, "name": "iShares Core S&P 500 ETF" },
-        { "ticker": "VFIAX", "weight": 0.2, "name": "Vanguard 500 Index Admiral" },
-        { "ticker": "JPM", "weight": 0.08, "name": "JPMorgan Chase" },
-        { "ticker": "JNJ", "weight": 0.07, "name": "Johnson & Johnson" },
-        { "ticker": "AGG", "weight": 0.25, "name": "iShares Core U.S. Aggregate Bond ETF" },
-        { "ticker": "VBTLX", "weight": 0.15, "name": "Vanguard Total Bond Market Admiral" }
+        {
+          "ticker": "IVV",
+          "weight": 0.25,
+          "name": "iShares Core S&P 500 ETF"
+        },
+        {
+          "ticker": "VFIAX",
+          "weight": 0.2,
+          "name": "Vanguard 500 Index Admiral"
+        },
+        {
+          "ticker": "JPM",
+          "weight": 0.08,
+          "name": "JPMorgan Chase"
+        },
+        {
+          "ticker": "JNJ",
+          "weight": 0.07,
+          "name": "Johnson & Johnson"
+        },
+        {
+          "ticker": "AGG",
+          "weight": 0.25,
+          "name": "iShares Core U.S. Aggregate Bond ETF"
+        },
+        {
+          "ticker": "VBTLX",
+          "weight": 0.15,
+          "name": "Vanguard Total Bond Market Admiral"
+        }
       ],
       "benchmark": "IVV",
       "risk_level": "moderate"
@@ -45,13 +69,41 @@
         "fixed_income": 0.2
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.35, "name": "Vanguard Total Stock Market ETF" },
-        { "ticker": "VTSAX", "weight": 0.2, "name": "Vanguard Total Stock Market Admiral" },
-        { "ticker": "VXUS", "weight": 0.15, "name": "Vanguard Total International Stock ETF" },
-        { "ticker": "AAPL", "weight": 0.05, "name": "Apple" },
-        { "ticker": "MSFT", "weight": 0.05, "name": "Microsoft" },
-        { "ticker": "BND", "weight": 0.12, "name": "Vanguard Total Bond Market ETF" },
-        { "ticker": "VBTLX", "weight": 0.08, "name": "Vanguard Total Bond Market Admiral" }
+        {
+          "ticker": "VTI",
+          "weight": 0.35,
+          "name": "Vanguard Total Stock Market ETF"
+        },
+        {
+          "ticker": "VTSAX",
+          "weight": 0.2,
+          "name": "Vanguard Total Stock Market Admiral"
+        },
+        {
+          "ticker": "VXUS",
+          "weight": 0.15,
+          "name": "Vanguard Total International Stock ETF"
+        },
+        {
+          "ticker": "AAPL",
+          "weight": 0.05,
+          "name": "Apple"
+        },
+        {
+          "ticker": "MSFT",
+          "weight": 0.05,
+          "name": "Microsoft"
+        },
+        {
+          "ticker": "BND",
+          "weight": 0.12,
+          "name": "Vanguard Total Bond Market ETF"
+        },
+        {
+          "ticker": "VBTLX",
+          "weight": 0.08,
+          "name": "Vanguard Total Bond Market Admiral"
+        }
       ],
       "benchmark": "VTI",
       "risk_level": "moderate_aggressive"
@@ -71,12 +123,36 @@
         "equity": 1.0
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.4, "name": "Vanguard Total Stock Market ETF" },
-        { "ticker": "VXUS", "weight": 0.25, "name": "Vanguard Total International Stock ETF" },
-        { "ticker": "FZILX", "weight": 0.15, "name": "Fidelity ZERO International Index" },
-        { "ticker": "GOOGL", "weight": 0.08, "name": "Alphabet A" },
-        { "ticker": "AVGO", "weight": 0.06, "name": "Broadcom" },
-        { "ticker": "AMD", "weight": 0.06, "name": "AMD" }
+        {
+          "ticker": "VTI",
+          "weight": 0.4,
+          "name": "Vanguard Total Stock Market ETF"
+        },
+        {
+          "ticker": "VXUS",
+          "weight": 0.25,
+          "name": "Vanguard Total International Stock ETF"
+        },
+        {
+          "ticker": "FZILX",
+          "weight": 0.15,
+          "name": "Fidelity ZERO International Index"
+        },
+        {
+          "ticker": "GOOGL",
+          "weight": 0.08,
+          "name": "Alphabet A"
+        },
+        {
+          "ticker": "AVGO",
+          "weight": 0.06,
+          "name": "Broadcom"
+        },
+        {
+          "ticker": "AMD",
+          "weight": 0.06,
+          "name": "AMD"
+        }
       ],
       "benchmark": "VTI",
       "risk_level": "aggressive"
@@ -96,13 +172,41 @@
         "equity": 1.0
       },
       "holdings": [
-        { "ticker": "SPY", "weight": 0.4, "name": "SPDR S&P 500 ETF Trust" },
-        { "ticker": "FXAIX", "weight": 0.15, "name": "Fidelity 500 Index" },
-        { "ticker": "XLV", "weight": 0.1, "name": "Health Care Select Sector SPDR" },
-        { "ticker": "XLF", "weight": 0.1, "name": "Financial Select Sector SPDR" },
-        { "ticker": "NVDA", "weight": 0.1, "name": "NVIDIA" },
-        { "ticker": "AAPL", "weight": 0.08, "name": "Apple" },
-        { "ticker": "MSFT", "weight": 0.07, "name": "Microsoft" }
+        {
+          "ticker": "SPY",
+          "weight": 0.4,
+          "name": "SPDR S&P 500 ETF Trust"
+        },
+        {
+          "ticker": "FXAIX",
+          "weight": 0.15,
+          "name": "Fidelity 500 Index"
+        },
+        {
+          "ticker": "XLV",
+          "weight": 0.1,
+          "name": "Health Care Select Sector SPDR"
+        },
+        {
+          "ticker": "XLF",
+          "weight": 0.1,
+          "name": "Financial Select Sector SPDR"
+        },
+        {
+          "ticker": "NVDA",
+          "weight": 0.1,
+          "name": "NVIDIA"
+        },
+        {
+          "ticker": "AAPL",
+          "weight": 0.08,
+          "name": "Apple"
+        },
+        {
+          "ticker": "MSFT",
+          "weight": 0.07,
+          "name": "Microsoft"
+        }
       ],
       "benchmark": "SPY",
       "risk_level": "aggressive"
@@ -123,13 +227,41 @@
         "commodity": 0.1
       },
       "holdings": [
-        { "ticker": "QQQ", "weight": 0.4, "name": "Invesco QQQ Trust" },
-        { "ticker": "FDGRX", "weight": 0.15, "name": "Fidelity Growth Company" },
-        { "ticker": "NVDA", "weight": 0.15, "name": "NVIDIA" },
-        { "ticker": "META", "weight": 0.1, "name": "Meta" },
-        { "ticker": "AMZN", "weight": 0.08, "name": "Amazon" },
-        { "ticker": "AVGO", "weight": 0.07, "name": "Broadcom" },
-        { "ticker": "PDBC", "weight": 0.05, "name": "Invesco Optimum Yield Commodity ETF" }
+        {
+          "ticker": "QQQ",
+          "weight": 0.4,
+          "name": "Invesco QQQ Trust"
+        },
+        {
+          "ticker": "FDGRX",
+          "weight": 0.15,
+          "name": "Fidelity Growth Company"
+        },
+        {
+          "ticker": "NVDA",
+          "weight": 0.15,
+          "name": "NVIDIA"
+        },
+        {
+          "ticker": "META",
+          "weight": 0.1,
+          "name": "Meta"
+        },
+        {
+          "ticker": "AMZN",
+          "weight": 0.08,
+          "name": "Amazon"
+        },
+        {
+          "ticker": "AVGO",
+          "weight": 0.07,
+          "name": "Broadcom"
+        },
+        {
+          "ticker": "PDBC",
+          "weight": 0.05,
+          "name": "Invesco Optimum Yield Commodity ETF"
+        }
       ],
       "benchmark": "QQQ",
       "risk_level": "aggressive"
@@ -151,14 +283,46 @@
         "commodity": 0.1
       },
       "holdings": [
-        { "ticker": "IVV", "weight": 0.15, "name": "iShares Core S&P 500 ETF" },
-        { "ticker": "VWELX", "weight": 0.1, "name": "Vanguard Wellington Investor" },
-        { "ticker": "PG", "weight": 0.05, "name": "Procter & Gamble" },
-        { "ticker": "TLT", "weight": 0.25, "name": "iShares 20+ Year Treasury Bond ETF" },
-        { "ticker": "AGG", "weight": 0.15, "name": "iShares Core U.S. Aggregate Bond ETF" },
-        { "ticker": "DODIX", "weight": 0.1, "name": "Dodge & Cox Income" },
-        { "ticker": "SHY", "weight": 0.1, "name": "iShares 1-3 Year Treasury Bond ETF" },
-        { "ticker": "GLD", "weight": 0.1, "name": "SPDR Gold Shares" }
+        {
+          "ticker": "IVV",
+          "weight": 0.15,
+          "name": "iShares Core S&P 500 ETF"
+        },
+        {
+          "ticker": "VWELX",
+          "weight": 0.1,
+          "name": "Vanguard Wellington Investor"
+        },
+        {
+          "ticker": "PG",
+          "weight": 0.05,
+          "name": "Procter & Gamble"
+        },
+        {
+          "ticker": "TLT",
+          "weight": 0.25,
+          "name": "iShares 20+ Year Treasury Bond ETF"
+        },
+        {
+          "ticker": "AGG",
+          "weight": 0.15,
+          "name": "iShares Core U.S. Aggregate Bond ETF"
+        },
+        {
+          "ticker": "DODIX",
+          "weight": 0.1,
+          "name": "Dodge & Cox Income"
+        },
+        {
+          "ticker": "SHY",
+          "weight": 0.1,
+          "name": "iShares 1-3 Year Treasury Bond ETF"
+        },
+        {
+          "ticker": "GLD",
+          "weight": 0.1,
+          "name": "SPDR Gold Shares"
+        }
       ],
       "benchmark": "IVV",
       "risk_level": "moderate_conservative"
@@ -179,14 +343,1281 @@
         "fixed_income": 0.2
       },
       "holdings": [
-        { "ticker": "VTI", "weight": 0.4, "name": "Vanguard Total Stock Market ETF" },
-        { "ticker": "VTSAX", "weight": 0.25, "name": "Vanguard Total Stock Market Admiral" },
-        { "ticker": "BRK-B", "weight": 0.15, "name": "Berkshire Hathaway B" },
-        { "ticker": "BND", "weight": 0.12, "name": "Vanguard Total Bond Market ETF" },
-        { "ticker": "VBTLX", "weight": 0.08, "name": "Vanguard Total Bond Market Admiral" }
+        {
+          "ticker": "VTI",
+          "weight": 0.4,
+          "name": "Vanguard Total Stock Market ETF"
+        },
+        {
+          "ticker": "VTSAX",
+          "weight": 0.25,
+          "name": "Vanguard Total Stock Market Admiral"
+        },
+        {
+          "ticker": "BRK-B",
+          "weight": 0.15,
+          "name": "Berkshire Hathaway B"
+        },
+        {
+          "ticker": "BND",
+          "weight": 0.12,
+          "name": "Vanguard Total Bond Market ETF"
+        },
+        {
+          "ticker": "VBTLX",
+          "weight": 0.08,
+          "name": "Vanguard Total Bond Market Admiral"
+        }
       ],
       "benchmark": "VTI",
       "risk_level": "moderate_aggressive"
+    },
+    {
+      "id": "franklin-templeton-growth",
+      "am_id": "franklin-templeton",
+      "asset_manager": "Franklin Templeton",
+      "theme": "US Large-Cap Growth (Full Holdings)",
+      "name": "Franklin Growth",
+      "description": "Full listed holdings of the fund as of 2025-07-31 (80 positions). Unlisted private positions and cash excluded; weights renormalized to 100%.",
+      "source": {
+        "name": "Franklin Templeton holdings disclosure (TV需求資料)",
+        "url": ""
+      },
+      "asset_class_mix": {
+        "equity": 1.0
+      },
+      "holdings": [
+        {
+          "ticker": "NVDA",
+          "weight": 0.084457,
+          "name": "NVIDIA Corp"
+        },
+        {
+          "ticker": "MSFT",
+          "weight": 0.07984,
+          "name": "Microsoft Corp"
+        },
+        {
+          "ticker": "AMZN",
+          "weight": 0.048834,
+          "name": "Amazon.com Inc"
+        },
+        {
+          "ticker": "APH",
+          "weight": 0.029644,
+          "name": "Amphenol Corp"
+        },
+        {
+          "ticker": "MA",
+          "weight": 0.028055,
+          "name": "Mastercard Inc"
+        },
+        {
+          "ticker": "AAPL",
+          "weight": 0.025873,
+          "name": "Apple Inc"
+        },
+        {
+          "ticker": "AVGO",
+          "weight": 0.021118,
+          "name": "Broadcom Inc"
+        },
+        {
+          "ticker": "SNPS",
+          "weight": 0.019674,
+          "name": "Synopsys Inc"
+        },
+        {
+          "ticker": "NOW",
+          "weight": 0.019247,
+          "name": "ServiceNow Inc"
+        },
+        {
+          "ticker": "GOOG",
+          "weight": 0.018835,
+          "name": "Alphabet Inc"
+        },
+        {
+          "ticker": "TEL",
+          "weight": 0.018163,
+          "name": "TE Connectivity PLC"
+        },
+        {
+          "ticker": "NOC",
+          "weight": 0.017652,
+          "name": "Northrop Grumman Corp"
+        },
+        {
+          "ticker": "LIN",
+          "weight": 0.016648,
+          "name": "Linde PLC"
+        },
+        {
+          "ticker": "INTU",
+          "weight": 0.016567,
+          "name": "Intuit Inc"
+        },
+        {
+          "ticker": "TT",
+          "weight": 0.016532,
+          "name": "Trane Technologies PLC"
+        },
+        {
+          "ticker": "V",
+          "weight": 0.016158,
+          "name": "Visa Inc"
+        },
+        {
+          "ticker": "ASML",
+          "weight": 0.015697,
+          "name": "ASML Holding NV NY REGD USD.09"
+        },
+        {
+          "ticker": "ISRG",
+          "weight": 0.015261,
+          "name": "Intuitive Surgical Inc"
+        },
+        {
+          "ticker": "GOOGL",
+          "weight": 0.014604,
+          "name": "Alphabet Inc"
+        },
+        {
+          "ticker": "UNP",
+          "weight": 0.014414,
+          "name": "Union Pacific Corp"
+        },
+        {
+          "ticker": "LLY",
+          "weight": 0.013597,
+          "name": "Eli Lilly & Co"
+        },
+        {
+          "ticker": "ICE",
+          "weight": 0.013581,
+          "name": "Intercontinental Exchange Inc"
+        },
+        {
+          "ticker": "MPWR",
+          "weight": 0.013398,
+          "name": "Monolithic Power Systems Inc"
+        },
+        {
+          "ticker": "FAST",
+          "weight": 0.013077,
+          "name": "Fastenal Co"
+        },
+        {
+          "ticker": "RTX",
+          "weight": 0.012903,
+          "name": "RTX Corp"
+        },
+        {
+          "ticker": "ADSK",
+          "weight": 0.01264,
+          "name": "Autodesk Inc"
+        },
+        {
+          "ticker": "DHR",
+          "weight": 0.01215,
+          "name": "Danaher Corp"
+        },
+        {
+          "ticker": "COST",
+          "weight": 0.011898,
+          "name": "Costco Wholesale Corp"
+        },
+        {
+          "ticker": "PTC",
+          "weight": 0.011387,
+          "name": "PTC Inc"
+        },
+        {
+          "ticker": "SCHW",
+          "weight": 0.011181,
+          "name": "Charles Schwab Corp/The"
+        },
+        {
+          "ticker": "NFLX",
+          "weight": 0.010998,
+          "name": "Netflix Inc"
+        },
+        {
+          "ticker": "SYK",
+          "weight": 0.010577,
+          "name": "Stryker Corp"
+        },
+        {
+          "ticker": "BWXT",
+          "weight": 0.010551,
+          "name": "BWX Technologies Inc"
+        },
+        {
+          "ticker": "SPGI",
+          "weight": 0.01051,
+          "name": "S&P Global Inc"
+        },
+        {
+          "ticker": "MLM",
+          "weight": 0.010459,
+          "name": "Martin Marietta Materials Inc"
+        },
+        {
+          "ticker": "MNST",
+          "weight": 0.010278,
+          "name": "Monster Beverage Corp"
+        },
+        {
+          "ticker": "META",
+          "weight": 0.010245,
+          "name": "Meta Platforms Inc"
+        },
+        {
+          "ticker": "DE",
+          "weight": 0.010095,
+          "name": "Deere & Co"
+        },
+        {
+          "ticker": "MTD",
+          "weight": 0.010015,
+          "name": "Mettler-Toledo International Inc"
+        },
+        {
+          "ticker": "NEE",
+          "weight": 0.00988,
+          "name": "NextEra Energy Inc"
+        },
+        {
+          "ticker": "PH",
+          "weight": 0.009517,
+          "name": "Parker-Hannifin Corp"
+        },
+        {
+          "ticker": "TMO",
+          "weight": 0.009423,
+          "name": "Thermo Fisher Scientific Inc"
+        },
+        {
+          "ticker": "BX",
+          "weight": 0.009237,
+          "name": "Blackstone Inc"
+        },
+        {
+          "ticker": "IR",
+          "weight": 0.009118,
+          "name": "Ingersoll-Rand Inc"
+        },
+        {
+          "ticker": "JCI",
+          "weight": 0.009067,
+          "name": "Johnson Controls International plc"
+        },
+        {
+          "ticker": "ETN",
+          "weight": 0.008714,
+          "name": "Eaton Corp PLC"
+        },
+        {
+          "ticker": "XYL",
+          "weight": 0.008598,
+          "name": "Xylem Inc/NY"
+        },
+        {
+          "ticker": "TW",
+          "weight": 0.008512,
+          "name": "Tradeweb Markets Inc"
+        },
+        {
+          "ticker": "BKNG",
+          "weight": 0.008437,
+          "name": "Booking Holdings Inc"
+        },
+        {
+          "ticker": "ECL",
+          "weight": 0.008416,
+          "name": "Ecolab Inc"
+        },
+        {
+          "ticker": "AZN",
+          "weight": 0.008391,
+          "name": "AstraZeneca PLC"
+        },
+        {
+          "ticker": "AMGN",
+          "weight": 0.008098,
+          "name": "Amgen Inc"
+        },
+        {
+          "ticker": "RSG",
+          "weight": 0.00774,
+          "name": "Republic Services Inc"
+        },
+        {
+          "ticker": "AME",
+          "weight": 0.007679,
+          "name": "AMETEK Inc"
+        },
+        {
+          "ticker": "TXN",
+          "weight": 0.007668,
+          "name": "Texas Instruments Inc"
+        },
+        {
+          "ticker": "CW",
+          "weight": 0.007588,
+          "name": "Curtiss-Wright Corp"
+        },
+        {
+          "ticker": "BLK",
+          "weight": 0.007451,
+          "name": "Blackrock Inc"
+        },
+        {
+          "ticker": "APD",
+          "weight": 0.00742,
+          "name": "Air Products and Chemicals Inc"
+        },
+        {
+          "ticker": "A",
+          "weight": 0.006487,
+          "name": "Agilent Technologies Inc"
+        },
+        {
+          "ticker": "CMG",
+          "weight": 0.005739,
+          "name": "Chipotle Mexican Grill Inc"
+        },
+        {
+          "ticker": "CP",
+          "weight": 0.00539,
+          "name": "Canadian Pacific Kansas City Ltd"
+        },
+        {
+          "ticker": "CRM",
+          "weight": 0.005094,
+          "name": "Salesforce Inc"
+        },
+        {
+          "ticker": "ABT",
+          "weight": 0.005091,
+          "name": "Abbott Laboratories"
+        },
+        {
+          "ticker": "VEEV",
+          "weight": 0.004839,
+          "name": "Veeva Systems Inc"
+        },
+        {
+          "ticker": "TYL",
+          "weight": 0.004585,
+          "name": "Tyler Technologies Inc"
+        },
+        {
+          "ticker": "ABBV",
+          "weight": 0.004482,
+          "name": "AbbVie Inc"
+        },
+        {
+          "ticker": "UNH",
+          "weight": 0.004452,
+          "name": "UnitedHealth Group Inc"
+        },
+        {
+          "ticker": "PANW",
+          "weight": 0.004326,
+          "name": "Palo Alto Networks Inc"
+        },
+        {
+          "ticker": "ABNB",
+          "weight": 0.004177,
+          "name": "Airbnb Inc"
+        },
+        {
+          "ticker": "MSI",
+          "weight": 0.003639,
+          "name": "Motorola Solutions Inc"
+        },
+        {
+          "ticker": "CRWD",
+          "weight": 0.003283,
+          "name": "Crowdstrike Holdings Inc"
+        },
+        {
+          "ticker": "ODFL",
+          "weight": 0.003111,
+          "name": "Old Dominion Freight Line Inc"
+        },
+        {
+          "ticker": "MELI",
+          "weight": 0.003105,
+          "name": "MercadoLibre Inc"
+        },
+        {
+          "ticker": "ARM",
+          "weight": 0.002742,
+          "name": "ARM Holdings PLC"
+        },
+        {
+          "ticker": "SHOP",
+          "weight": 0.002737,
+          "name": "Shopify Inc"
+        },
+        {
+          "ticker": "VRSK",
+          "weight": 0.002702,
+          "name": "Verisk Analytics Inc"
+        },
+        {
+          "ticker": "UBER",
+          "weight": 0.002661,
+          "name": "Uber Technologies Inc"
+        },
+        {
+          "ticker": "ADP",
+          "weight": 0.001772,
+          "name": "Automatic Data Processing Inc"
+        },
+        {
+          "ticker": "LRCX",
+          "weight": 0.001473,
+          "name": "Lam Research Corp"
+        },
+        {
+          "ticker": "FIG",
+          "weight": 0.000346,
+          "name": "Figma Inc"
+        }
+      ],
+      "benchmark": "IVV",
+      "risk_level": "aggressive"
+    },
+    {
+      "id": "franklin-templeton-dynatech",
+      "am_id": "franklin-templeton",
+      "asset_manager": "Franklin Templeton",
+      "theme": "US High-Tech Growth (Full Holdings)",
+      "name": "Franklin DynaTech",
+      "description": "Full listed holdings of the fund as of 2025-07-31 (98 positions). Unlisted private positions and cash excluded; weights renormalized to 100%.",
+      "source": {
+        "name": "Franklin Templeton holdings disclosure (TV需求資料)",
+        "url": ""
+      },
+      "asset_class_mix": {
+        "equity": 1.0
+      },
+      "holdings": [
+        {
+          "ticker": "NVDA",
+          "weight": 0.122111,
+          "name": "NVIDIA Corp"
+        },
+        {
+          "ticker": "MSFT",
+          "weight": 0.086745,
+          "name": "Microsoft Corp"
+        },
+        {
+          "ticker": "AMZN",
+          "weight": 0.084589,
+          "name": "Amazon.com Inc"
+        },
+        {
+          "ticker": "META",
+          "weight": 0.062879,
+          "name": "Meta Platforms Inc"
+        },
+        {
+          "ticker": "AVGO",
+          "weight": 0.050407,
+          "name": "Broadcom Inc"
+        },
+        {
+          "ticker": "GOOGL",
+          "weight": 0.041603,
+          "name": "Alphabet Inc"
+        },
+        {
+          "ticker": "MA",
+          "weight": 0.034795,
+          "name": "Mastercard Inc"
+        },
+        {
+          "ticker": "AXON",
+          "weight": 0.02525,
+          "name": "AXON ENTERPRISE INC"
+        },
+        {
+          "ticker": "NOW",
+          "weight": 0.02215,
+          "name": "ServiceNow Inc"
+        },
+        {
+          "ticker": "SHOP",
+          "weight": 0.022083,
+          "name": "Shopify Inc"
+        },
+        {
+          "ticker": "TSLA",
+          "weight": 0.020049,
+          "name": "TESLA INC"
+        },
+        {
+          "ticker": "CDNS",
+          "weight": 0.019759,
+          "name": "Cadence Design Systems Inc"
+        },
+        {
+          "ticker": "AAPL",
+          "weight": 0.01875,
+          "name": "Apple Inc"
+        },
+        {
+          "ticker": "ISRG",
+          "weight": 0.017383,
+          "name": "Intuitive Surgical Inc"
+        },
+        {
+          "ticker": "SNPS",
+          "weight": 0.017167,
+          "name": "Synopsys Inc"
+        },
+        {
+          "ticker": "MELI",
+          "weight": 0.017155,
+          "name": "MercadoLibre Inc"
+        },
+        {
+          "ticker": "NFLX",
+          "weight": 0.016757,
+          "name": "Netflix Inc"
+        },
+        {
+          "ticker": "NET",
+          "weight": 0.015758,
+          "name": "Cloudflare Inc"
+        },
+        {
+          "ticker": "APP",
+          "weight": 0.015529,
+          "name": "Applovin Corp"
+        },
+        {
+          "ticker": "LLY",
+          "weight": 0.01337,
+          "name": "Eli Lilly & Co"
+        },
+        {
+          "ticker": "V",
+          "weight": 0.013107,
+          "name": "Visa Inc"
+        },
+        {
+          "ticker": "PANW",
+          "weight": 0.012545,
+          "name": "Palo Alto Networks Inc"
+        },
+        {
+          "ticker": "CLS",
+          "weight": 0.012276,
+          "name": "Celestica Inc"
+        },
+        {
+          "ticker": "DASH",
+          "weight": 0.011303,
+          "name": "Doordash Inc"
+        },
+        {
+          "ticker": "TSM",
+          "weight": 0.010913,
+          "name": "Taiwan Semiconductor Manufacturing Co Ltd"
+        },
+        {
+          "ticker": "TW",
+          "weight": 0.010012,
+          "name": "Tradeweb Markets Inc"
+        },
+        {
+          "ticker": "BKNG",
+          "weight": 0.009944,
+          "name": "Booking Holdings Inc"
+        },
+        {
+          "ticker": "RBLX",
+          "weight": 0.008713,
+          "name": "ROBLOX Corp"
+        },
+        {
+          "ticker": "SE",
+          "weight": 0.00849,
+          "name": "Sea Ltd"
+        },
+        {
+          "ticker": "ADI",
+          "weight": 0.008116,
+          "name": "Analog Devices Inc"
+        },
+        {
+          "ticker": "KLAC",
+          "weight": 0.00794,
+          "name": "KLA Corp"
+        },
+        {
+          "ticker": "NTRA",
+          "weight": 0.007244,
+          "name": "Natera Inc"
+        },
+        {
+          "ticker": "INTU",
+          "weight": 0.007092,
+          "name": "Intuit Inc"
+        },
+        {
+          "ticker": "APH",
+          "weight": 0.006927,
+          "name": "Amphenol Corp"
+        },
+        {
+          "ticker": "PLTR",
+          "weight": 0.006866,
+          "name": "Palantir Technologies Inc"
+        },
+        {
+          "ticker": "LRCX",
+          "weight": 0.006854,
+          "name": "Lam Research Corp"
+        },
+        {
+          "ticker": "MPWR",
+          "weight": 0.006425,
+          "name": "Monolithic Power Systems Inc"
+        },
+        {
+          "ticker": "ANET",
+          "weight": 0.006233,
+          "name": "Arista Networks Inc"
+        },
+        {
+          "ticker": "HOOD",
+          "weight": 0.005585,
+          "name": "Robinhood Markets Inc"
+        },
+        {
+          "ticker": "VEEV",
+          "weight": 0.005134,
+          "name": "Veeva Systems Inc"
+        },
+        {
+          "ticker": "ASML",
+          "weight": 0.00502,
+          "name": "ASML Holding NV NY REGD USD.09"
+        },
+        {
+          "ticker": "ARGX",
+          "weight": 0.004854,
+          "name": "Argenx SE"
+        },
+        {
+          "ticker": "KTOS",
+          "weight": 0.004772,
+          "name": "Kratos Defense & Security Solutions Inc"
+        },
+        {
+          "ticker": "GEV",
+          "weight": 0.004772,
+          "name": "GE Vernova Inc"
+        },
+        {
+          "ticker": "SPOT",
+          "weight": 0.004528,
+          "name": "Spotify Technology SA"
+        },
+        {
+          "ticker": "DOCS",
+          "weight": 0.004246,
+          "name": "Doximity Inc"
+        },
+        {
+          "ticker": "CRWD",
+          "weight": 0.004106,
+          "name": "Crowdstrike Holdings Inc"
+        },
+        {
+          "ticker": "FTNT",
+          "weight": 0.003971,
+          "name": "Fortinet Inc"
+        },
+        {
+          "ticker": "CVNA",
+          "weight": 0.003524,
+          "name": "Carvana Co"
+        },
+        {
+          "ticker": "UBER",
+          "weight": 0.003488,
+          "name": "Uber Technologies Inc"
+        },
+        {
+          "ticker": "BSX",
+          "weight": 0.003412,
+          "name": "Boston Scientific Corp"
+        },
+        {
+          "ticker": "TTAN",
+          "weight": 0.003374,
+          "name": "Servicetitan Inc"
+        },
+        {
+          "ticker": "HUBS",
+          "weight": 0.003286,
+          "name": "HubSpot Inc"
+        },
+        {
+          "ticker": "ASND",
+          "weight": 0.003134,
+          "name": "Ascendis Pharma A/S"
+        },
+        {
+          "ticker": "MNDY",
+          "weight": 0.002843,
+          "name": "Monday.Com Ltd"
+        },
+        {
+          "ticker": "GWRE",
+          "weight": 0.002452,
+          "name": "Guidewire Software Inc"
+        },
+        {
+          "ticker": "TOST",
+          "weight": 0.002294,
+          "name": "Toast Inc"
+        },
+        {
+          "ticker": "PWR",
+          "weight": 0.002201,
+          "name": "Quanta Services Inc"
+        },
+        {
+          "ticker": "TYL",
+          "weight": 0.002112,
+          "name": "Tyler Technologies Inc"
+        },
+        {
+          "ticker": "VRSK",
+          "weight": 0.002014,
+          "name": "Verisk Analytics Inc"
+        },
+        {
+          "ticker": "INSM",
+          "weight": 0.001938,
+          "name": "Insmed Inc"
+        },
+        {
+          "ticker": "DSGX",
+          "weight": 0.001911,
+          "name": "Descartes Systems Group Inc/The"
+        },
+        {
+          "ticker": "GH",
+          "weight": 0.001851,
+          "name": "Guardant Health Inc"
+        },
+        {
+          "ticker": "ALNY",
+          "weight": 0.001772,
+          "name": "Alnylam Pharmaceuticals Inc"
+        },
+        {
+          "ticker": "KRMN",
+          "weight": 0.001765,
+          "name": "Karman Holdings Inc"
+        },
+        {
+          "ticker": "LIF",
+          "weight": 0.001384,
+          "name": "Life360 Inc"
+        },
+        {
+          "ticker": "FTI",
+          "weight": 0.001314,
+          "name": "TECHNIPFMC PLC"
+        },
+        {
+          "ticker": "DUOL",
+          "weight": 0.001252,
+          "name": "Duolingo Inc"
+        },
+        {
+          "ticker": "RKLB",
+          "weight": 0.001244,
+          "name": "Rocket Lab Corp"
+        },
+        {
+          "ticker": "SNOW",
+          "weight": 0.001211,
+          "name": "Snowflake Inc"
+        },
+        {
+          "ticker": "RDDT",
+          "weight": 0.00116,
+          "name": "Reddit Inc"
+        },
+        {
+          "ticker": "KVYO",
+          "weight": 0.001124,
+          "name": "Klaviyo Inc"
+        },
+        {
+          "ticker": "TEM",
+          "weight": 0.001104,
+          "name": "Tempus AI Inc"
+        },
+        {
+          "ticker": "ARM",
+          "weight": 0.001022,
+          "name": "ARM Holdings PLC"
+        },
+        {
+          "ticker": "IDXX",
+          "weight": 0.000965,
+          "name": "IDEXX Laboratories Inc"
+        },
+        {
+          "ticker": "CRM",
+          "weight": 0.000933,
+          "name": "Salesforce Inc"
+        },
+        {
+          "ticker": "ROOT",
+          "weight": 0.000875,
+          "name": "Root Inc/OH"
+        },
+        {
+          "ticker": "HNGE",
+          "weight": 0.000845,
+          "name": "Hinge Health Inc"
+        },
+        {
+          "ticker": "VRTX",
+          "weight": 0.000825,
+          "name": "Vertex Pharmaceuticals Inc"
+        },
+        {
+          "ticker": "BKR",
+          "weight": 0.000814,
+          "name": "Baker Hughes Co"
+        },
+        {
+          "ticker": "CRCL",
+          "weight": 0.000784,
+          "name": "Circle Internet Group Inc"
+        },
+        {
+          "ticker": "LGND",
+          "weight": 0.000761,
+          "name": "Ligand Pharmaceuticals Inc"
+        },
+        {
+          "ticker": "SYK",
+          "weight": 0.00071,
+          "name": "Stryker Corp"
+        },
+        {
+          "ticker": "HQY",
+          "weight": 0.000701,
+          "name": "HealthEquity Inc"
+        },
+        {
+          "ticker": "COIN",
+          "weight": 0.000682,
+          "name": "COINBASE GLOBAL INC"
+        },
+        {
+          "ticker": "AFRM",
+          "weight": 0.000495,
+          "name": "Affirm Holdings Inc"
+        },
+        {
+          "ticker": "SYM",
+          "weight": 0.000487,
+          "name": "Symbotic Inc"
+        },
+        {
+          "ticker": "CORT",
+          "weight": 0.000485,
+          "name": "Corcept Therapeutics Inc"
+        },
+        {
+          "ticker": "TRMB",
+          "weight": 0.000455,
+          "name": "Trimble Inc"
+        },
+        {
+          "ticker": "CHYM",
+          "weight": 0.000412,
+          "name": "Chime Financial Inc"
+        },
+        {
+          "ticker": "OII",
+          "weight": 0.000392,
+          "name": "Oceaneering International Inc"
+        },
+        {
+          "ticker": "WGS",
+          "weight": 0.000368,
+          "name": "GeneDx Holdings Corp"
+        },
+        {
+          "ticker": "MMYT",
+          "weight": 0.000338,
+          "name": "MakeMyTrip Ltd"
+        },
+        {
+          "ticker": "BE",
+          "weight": 0.000338,
+          "name": "Bloom Energy Corp"
+        },
+        {
+          "ticker": "FIG",
+          "weight": 0.000336,
+          "name": "Figma Inc"
+        },
+        {
+          "ticker": "AUR",
+          "weight": 0.00021,
+          "name": "Aurora Innovation Inc"
+        },
+        {
+          "ticker": "CAI",
+          "weight": 0.000207,
+          "name": "Caris Life Sciences Inc"
+        },
+        {
+          "ticker": "KMTS",
+          "weight": 0.000119,
+          "name": "Kestra Medical Technologies Ltd"
+        }
+      ],
+      "benchmark": "QQQ",
+      "risk_level": "aggressive"
+    },
+    {
+      "id": "franklin-templeton-us-opportunities",
+      "am_id": "franklin-templeton",
+      "asset_manager": "Franklin Templeton",
+      "theme": "US Opportunities Growth (Full Holdings)",
+      "name": "Franklin US Opportunities",
+      "description": "Full listed holdings of the fund as of 2025-07-31 (60 positions). Unlisted private positions and cash excluded; weights renormalized to 100%.",
+      "source": {
+        "name": "Franklin Templeton holdings disclosure (TV需求資料)",
+        "url": ""
+      },
+      "asset_class_mix": {
+        "equity": 1.0
+      },
+      "holdings": [
+        {
+          "ticker": "NVDA",
+          "weight": 0.095851,
+          "name": "NVIDIA Corp"
+        },
+        {
+          "ticker": "META",
+          "weight": 0.076397,
+          "name": "Meta Platforms Inc"
+        },
+        {
+          "ticker": "MSFT",
+          "weight": 0.074874,
+          "name": "Microsoft Corp"
+        },
+        {
+          "ticker": "AVGO",
+          "weight": 0.051342,
+          "name": "Broadcom Inc"
+        },
+        {
+          "ticker": "AMZN",
+          "weight": 0.050669,
+          "name": "Amazon.com Inc"
+        },
+        {
+          "ticker": "AAPL",
+          "weight": 0.043021,
+          "name": "Apple Inc"
+        },
+        {
+          "ticker": "MA",
+          "weight": 0.034014,
+          "name": "Mastercard Inc"
+        },
+        {
+          "ticker": "AXON",
+          "weight": 0.029827,
+          "name": "AXON ENTERPRISE INC"
+        },
+        {
+          "ticker": "NFLX",
+          "weight": 0.028966,
+          "name": "Netflix Inc"
+        },
+        {
+          "ticker": "GOOGL",
+          "weight": 0.02584,
+          "name": "Alphabet Inc"
+        },
+        {
+          "ticker": "SNPS",
+          "weight": 0.021162,
+          "name": "Synopsys Inc"
+        },
+        {
+          "ticker": "RBLX",
+          "weight": 0.020473,
+          "name": "ROBLOX Corp"
+        },
+        {
+          "ticker": "APH",
+          "weight": 0.018339,
+          "name": "Amphenol Corp"
+        },
+        {
+          "ticker": "LLY",
+          "weight": 0.018222,
+          "name": "Eli Lilly & Co"
+        },
+        {
+          "ticker": "ARES",
+          "weight": 0.017509,
+          "name": "ARES MANAGEMENT CORP"
+        },
+        {
+          "ticker": "NOW",
+          "weight": 0.01585,
+          "name": "ServiceNow Inc"
+        },
+        {
+          "ticker": "ISRG",
+          "weight": 0.015655,
+          "name": "Intuitive Surgical Inc"
+        },
+        {
+          "ticker": "LIN",
+          "weight": 0.01525,
+          "name": "Linde PLC"
+        },
+        {
+          "ticker": "CRWD",
+          "weight": 0.014758,
+          "name": "Crowdstrike Holdings Inc"
+        },
+        {
+          "ticker": "MCK",
+          "weight": 0.013814,
+          "name": "McKesson Corp"
+        },
+        {
+          "ticker": "TT",
+          "weight": 0.013627,
+          "name": "Trane Technologies PLC"
+        },
+        {
+          "ticker": "SPOT",
+          "weight": 0.013213,
+          "name": "Spotify Technology SA"
+        },
+        {
+          "ticker": "AZO",
+          "weight": 0.012923,
+          "name": "AutoZone Inc"
+        },
+        {
+          "ticker": "ORCL",
+          "weight": 0.012535,
+          "name": "Oracle Corp"
+        },
+        {
+          "ticker": "RSG",
+          "weight": 0.011775,
+          "name": "Republic Services Inc"
+        },
+        {
+          "ticker": "SPGI",
+          "weight": 0.011754,
+          "name": "S&P Global Inc"
+        },
+        {
+          "ticker": "VRSK",
+          "weight": 0.011149,
+          "name": "Verisk Analytics Inc"
+        },
+        {
+          "ticker": "TMUS",
+          "weight": 0.010787,
+          "name": "T-Mobile US Inc"
+        },
+        {
+          "ticker": "APP",
+          "weight": 0.010392,
+          "name": "Applovin Corp"
+        },
+        {
+          "ticker": "TSLA",
+          "weight": 0.010204,
+          "name": "TESLA INC"
+        },
+        {
+          "ticker": "TYL",
+          "weight": 0.010038,
+          "name": "Tyler Technologies Inc"
+        },
+        {
+          "ticker": "BSX",
+          "weight": 0.009659,
+          "name": "Boston Scientific Corp"
+        },
+        {
+          "ticker": "KO",
+          "weight": 0.009514,
+          "name": "Coca-Cola Co/The"
+        },
+        {
+          "ticker": "GEV",
+          "weight": 0.009427,
+          "name": "GE Vernova Inc"
+        },
+        {
+          "ticker": "UBER",
+          "weight": 0.009241,
+          "name": "Uber Technologies Inc"
+        },
+        {
+          "ticker": "WING",
+          "weight": 0.008953,
+          "name": "Wingstop Inc"
+        },
+        {
+          "ticker": "MPWR",
+          "weight": 0.008787,
+          "name": "Monolithic Power Systems Inc"
+        },
+        {
+          "ticker": "DXCM",
+          "weight": 0.008527,
+          "name": "Dexcom Inc"
+        },
+        {
+          "ticker": "FICO",
+          "weight": 0.008525,
+          "name": "Fair Isaac Corp"
+        },
+        {
+          "ticker": "BRBR",
+          "weight": 0.008497,
+          "name": "BellRing Brands Inc"
+        },
+        {
+          "ticker": "DASH",
+          "weight": 0.008296,
+          "name": "Doordash Inc"
+        },
+        {
+          "ticker": "PH",
+          "weight": 0.008231,
+          "name": "Parker-Hannifin Corp"
+        },
+        {
+          "ticker": "HUBS",
+          "weight": 0.008218,
+          "name": "HubSpot Inc"
+        },
+        {
+          "ticker": "CSGP",
+          "weight": 0.007505,
+          "name": "CoStar Group Inc"
+        },
+        {
+          "ticker": "MLM",
+          "weight": 0.007503,
+          "name": "Martin Marietta Materials Inc"
+        },
+        {
+          "ticker": "ADI",
+          "weight": 0.007121,
+          "name": "Analog Devices Inc"
+        },
+        {
+          "ticker": "PINS",
+          "weight": 0.006953,
+          "name": "Pinterest Inc"
+        },
+        {
+          "ticker": "CMG",
+          "weight": 0.006545,
+          "name": "Chipotle Mexican Grill Inc"
+        },
+        {
+          "ticker": "ODD",
+          "weight": 0.005826,
+          "name": "Oddity Tech Ltd"
+        },
+        {
+          "ticker": "TRU",
+          "weight": 0.005277,
+          "name": "TransUnion"
+        },
+        {
+          "ticker": "MSCI",
+          "weight": 0.005274,
+          "name": "MSCI Inc"
+        },
+        {
+          "ticker": "CRM",
+          "weight": 0.00503,
+          "name": "Salesforce Inc"
+        },
+        {
+          "ticker": "LSCC",
+          "weight": 0.004975,
+          "name": "Lattice Semiconductor Corp"
+        },
+        {
+          "ticker": "MNDY",
+          "weight": 0.004944,
+          "name": "Monday.Com Ltd"
+        },
+        {
+          "ticker": "FRPT",
+          "weight": 0.004492,
+          "name": "Freshpet Inc"
+        },
+        {
+          "ticker": "QXO",
+          "weight": 0.004207,
+          "name": "QXO Inc"
+        },
+        {
+          "ticker": "ADSK",
+          "weight": 0.002704,
+          "name": "Autodesk Inc"
+        },
+        {
+          "ticker": "SARO",
+          "weight": 0.002652,
+          "name": "StandardAero Inc"
+        },
+        {
+          "ticker": "TEM",
+          "weight": 0.002537,
+          "name": "Tempus AI Inc"
+        },
+        {
+          "ticker": "FIG",
+          "weight": 0.00035,
+          "name": "Figma Inc"
+        }
+      ],
+      "benchmark": "IVV",
+      "risk_level": "aggressive"
     }
   ]
 }

@@ -73,7 +73,8 @@ export function ProOptimizationPanel({ value, onChange }: Props) {
         <div className="mt-4 space-y-4 border-t border-[var(--border)] pt-4">
           <p className="text-xs text-dim">
             {t("proPanel.estimationPrefix")}{" "}
-            <strong className="text-[var(--amber)]">{estTrials}</strong> backtests
+            <strong className="text-[var(--amber)]">{estTrials}</strong>{" "}
+            {t("proPanel.estimationUnit")}
             {t("proPanel.estimationSuffix")}
           </p>
           {highTrialCount && (

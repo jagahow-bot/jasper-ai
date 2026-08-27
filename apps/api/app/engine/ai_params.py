@@ -2047,6 +2047,18 @@ def _client_needs_prompt_line(learning_context: dict[str, Any] | None) -> str | 
     income = needs.get("income_need_pct")
     if income:
         parts.append(f"income_need={income}")
+    stance = _sanitize_prompt_string(needs.get("market_stance"))
+    if stance in ("risk_on", "neutral", "risk_off"):
+        parts.append(f"stance={stance}")
+    themes = needs.get("market_themes")
+    if isinstance(themes, list) and themes:
+        cleaned = [
+            t
+            for t in (_sanitize_prompt_string(x) for x in themes[:5])
+            if t
+        ]
+        if cleaned:
+            parts.append(f'themes="{";".join(cleaned)}"')
     summary = _sanitize_prompt_string(needs.get("needs_summary"))
     if not parts and not summary:
         return None

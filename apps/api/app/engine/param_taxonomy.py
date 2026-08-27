@@ -92,6 +92,221 @@ DEFAULT_FACTOR_BOUNDS: dict[str, tuple[float | int, float | int, int]] = {
     "w_income": (0.0, 0.40, 1),
 }
 
+# Human-readable capability catalog for overlay / RM AI prompts.
+# overlay_eligible=True → may appear in ClientOverlay.param_adjustments.
+# Class-budget / allocator / regime keys stay False (use allocation fields or Pro mode).
+_PARAM_CATALOG_META: dict[str, dict[str, Any]] = {
+    "mode": {
+        "kind": "setup_categorical",
+        "choices": ["min_var", "mean_variance", "risk_parity", "max_diversification"],
+        "overlay_eligible": False,
+        "description": "Final portfolio weight solver (mean-variance, risk parity, etc.).",
+        "client_hint": "Pro-only; do not set from RM conversation — use optimization.objective instead.",
+    },
+    "lookback_days": {
+        "kind": "setup_numeric",
+        "bounds": [126, 504],
+        "overlay_eligible": False,
+        "description": "Return/covariance estimation window in trading days.",
+        "client_hint": "Pro-only technical window; omit unless the RM explicitly asks for shorter/longer estimation.",
+    },
+    "shrinkage": {
+        "kind": "setup_numeric",
+        "bounds": [0.0, 0.5],
+        "overlay_eligible": False,
+        "description": "Covariance shrinkage toward diagonal (0=raw, 1=diagonal).",
+        "client_hint": "Pro-only; omit from overlay.",
+    },
+    "risk_aversion": {
+        "kind": "setup_numeric",
+        "bounds": [0.5, 12.0],
+        "overlay_eligible": False,
+        "description": "Mean-variance risk aversion λ (higher = more defensive).",
+        "client_hint": "Pro-only; prefer risk_tolerance / max_drawdown fields instead.",
+    },
+    "max_weight_actual": {
+        "kind": "setup_numeric",
+        "bounds": [0.05, 1.0],
+        "overlay_eligible": False,
+        "description": "Per-name weight cap used inside the allocator.",
+        "client_hint": "Prefer allocation.max_single_position_pct when the client states a single-name max.",
+    },
+    "top_n_actual": {
+        "kind": "setup_numeric",
+        "bounds": [2, 150],
+        "overlay_eligible": False,
+        "description": "How many top-ranked names enter the allocator each rebalance.",
+        "client_hint": "Pro-only; omit from overlay.",
+    },
+    "max_holdings_actual": {
+        "kind": "setup_numeric",
+        "bounds": [1, 150],
+        "overlay_eligible": False,
+        "description": "Hard cap on names held after allocation.",
+        "client_hint": "Pro-only; omit from overlay.",
+    },
+    "no_trade_tol": {
+        "kind": "setup_numeric",
+        "bounds": [0.0, 0.05],
+        "overlay_eligible": False,
+        "description": "Skip rebalance when weight drift is below this tolerance.",
+        "client_hint": "Pro-only; omit from overlay.",
+    },
+    "turnover_penalty_mult": {
+        "kind": "setup_numeric",
+        "bounds": [0.0, 5.0],
+        "overlay_eligible": False,
+        "description": "Soft penalty multiplier on portfolio turnover.",
+        "client_hint": "Pro-only; omit from overlay.",
+    },
+    "max_turnover_actual": {
+        "kind": "setup_numeric",
+        "bounds": [0.05, 1.0],
+        "overlay_eligible": False,
+        "description": "Hard turnover ceiling per rebalance.",
+        "client_hint": "Pro-only; omit from overlay.",
+    },
+    "customization_drift_actual": {
+        "kind": "setup_numeric",
+        "bounds": [0.0, 1.0],
+        "overlay_eligible": True,
+        "description": "Allowed L1 drift from the model-portfolio anchor (0=hold anchor, 1=free).",
+        "client_hint": "Raise when the client wants freer customization; lower when they want to stay close to the model book.",
+    },
+    "factor_lookback_days": {
+        "kind": "factor_numeric",
+        "bounds": [126, 504],
+        "overlay_eligible": True,
+        "description": "Shared lookback for momentum / low-vol / trend / drawdown factors.",
+        "client_hint": "Technical; only set when the RM explicitly wants a shorter or longer signal window.",
+    },
+    "reversal_lookback_days": {
+        "kind": "factor_numeric",
+        "bounds": [63, 252],
+        "overlay_eligible": True,
+        "description": "Lookback for the short-term reversal factor.",
+        "client_hint": "Technical; omit unless the RM discusses mean-reversion horizons.",
+    },
+    "value_lookback_days": {
+        "kind": "factor_numeric",
+        "bounds": [63, 252],
+        "overlay_eligible": True,
+        "description": "Lookback for the value / cheapness factor.",
+        "client_hint": "Technical; omit unless the RM discusses value horizons.",
+    },
+    "w_mom": {
+        "kind": "factor_numeric",
+        "bounds": [0.0, 2.0],
+        "overlay_eligible": True,
+        "description": "Weight of medium-term momentum in the multi-factor score.",
+        "client_hint": "Raise when the client wants to chase winners / trend-follow / 動能 / 順勢.",
+    },
+    "w_reversal": {
+        "kind": "factor_numeric",
+        "bounds": [0.0, 2.0],
+        "overlay_eligible": True,
+        "description": "Weight of short-term reversal (mean-reversion) in the score.",
+        "client_hint": "Raise when the client prefers buying dips / mean-reversion / 逢低買進.",
+    },
+    "w_value": {
+        "kind": "factor_numeric",
+        "bounds": [0.0, 2.0],
+        "overlay_eligible": True,
+        "description": "Weight of value / cheapness in the score.",
+        "client_hint": "Raise when the client wants value / cheap stocks / 價值投資 / 便宜標的.",
+    },
+    "w_lowvol": {
+        "kind": "factor_numeric",
+        "bounds": [0.0, 2.0],
+        "overlay_eligible": True,
+        "description": "Weight of low-volatility preference in the score.",
+        "client_hint": "Raise for conservative / low-vol / 低波動 / 穩健 clients.",
+    },
+    "w_trend": {
+        "kind": "factor_numeric",
+        "bounds": [0.0, 1.5],
+        "overlay_eligible": True,
+        "description": "Weight of price-trend confirmation in the score.",
+        "client_hint": "Raise with w_mom when the client wants strong trend confirmation.",
+    },
+    "w_drawdown": {
+        "kind": "factor_numeric",
+        "bounds": [0.0, 1.5],
+        "overlay_eligible": True,
+        "description": "Weight of drawdown-avoidance in the score (penalizes deep-drawdown names).",
+        "client_hint": "Raise when the client fears large losses / 怕大回撤 / capital preservation.",
+    },
+    "w_income": {
+        "kind": "factor_numeric",
+        "bounds": [0.0, 0.40],
+        "overlay_eligible": True,
+        "description": "Dividend-income tilt (quality-gated) in the score.",
+        "client_hint": "Raise when the client wants dividends / cash flow / 配息 / 存股 / income.",
+    },
+}
+
+# Class-budget keys: documented but never overlay-eligible (use allocation.*).
+for _alloc_key in ALL_ALLOC_WEIGHT_KEYS:
+    _PARAM_CATALOG_META.setdefault(
+        _alloc_key,
+        {
+            "kind": "setup_numeric",
+            "bounds": [0.0, 1.0],
+            "overlay_eligible": False,
+            "description": f"Asset-class / regional sleeve weight ({_alloc_key}).",
+            "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+        },
+    )
+
+for _cat_key in FACTOR_CATEGORICAL_KEYS:
+    _PARAM_CATALOG_META.setdefault(
+        _cat_key,
+        {
+            "kind": "factor_categorical",
+            "overlay_eligible": False,
+            "description": f"Indicator variant for {_cat_key.replace('_indicator', '')}.",
+            "client_hint": "Pro-only categorical; omit from overlay.",
+        },
+    )
+
+PARAM_CATALOG_VERSION = 1
+
+
+def build_param_catalog() -> dict[str, Any]:
+    """Export the capability catalog for overlay prompts and web sync."""
+    params: list[dict[str, Any]] = []
+    ordered_keys = list(dict.fromkeys((*SETUP_PARAM_KEYS, *FACTOR_PARAM_KEYS)))
+    for key in ordered_keys:
+        meta = _PARAM_CATALOG_META.get(key) or {
+            "kind": "unknown",
+            "overlay_eligible": False,
+            "description": key,
+            "client_hint": "Undocumented; omit from overlay.",
+        }
+        entry: dict[str, Any] = {
+            "key": key,
+            "kind": meta.get("kind", "unknown"),
+            "overlay_eligible": bool(meta.get("overlay_eligible", False)),
+            "description": str(meta.get("description") or key),
+            "client_hint": str(meta.get("client_hint") or ""),
+        }
+        if "bounds" in meta:
+            entry["bounds"] = list(meta["bounds"])
+        elif key in DEFAULT_FACTOR_BOUNDS:
+            lo, hi, _step = DEFAULT_FACTOR_BOUNDS[key]
+            entry["bounds"] = [lo, hi]
+        if "choices" in meta:
+            entry["choices"] = list(meta["choices"])
+        params.append(entry)
+    return {
+        "version": PARAM_CATALOG_VERSION,
+        "params": params,
+        "overlay_eligible_keys": [
+            p["key"] for p in params if p.get("overlay_eligible")
+        ],
+    }
+
+
 _ALL_KNOWN: frozenset[str] = frozenset(
     (*SETUP_PARAM_KEYS, *FACTOR_PARAM_KEYS, *RUN_LEVEL_FIXED_KEYS)
 )

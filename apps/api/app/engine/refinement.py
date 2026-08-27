@@ -938,6 +938,8 @@ def client_needs_prompt_block(client_context: Any | None) -> dict[str, Any] | No
         "theme_exposure_cap_pct",
         "cash_reserve_pct",
         "needs_summary",
+        "market_stance",
+        "market_themes",
     )
     if not isinstance(client_context, dict):
         client_context = {k: getattr(client_context, k, None) for k in keys}
@@ -982,7 +984,14 @@ def client_needs_prompt_block(client_context: Any | None) -> dict[str, Any] | No
     summary = client_context.get("needs_summary")
     if isinstance(summary, str) and summary.strip():
         block["needs_summary"] = summary.strip()[:300]
-    return block or None
+    stance = client_context.get("market_stance")
+    if stance in ("risk_on", "neutral", "risk_off"):
+        block["market_stance"] = stance
+    themes = client_context.get("market_themes")
+    if isinstance(themes, list) and themes:
+        cleaned = [str(t).strip()[:40] for t in themes if str(t).strip()]
+        if cleaned:
+            block["market_themes"] = cleaned[:5]
     return block or None
 
 

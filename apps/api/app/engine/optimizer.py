@@ -66,6 +66,7 @@ from app.engine.dynamic_objective import (
     has_regime_matrix,
 )
 from app.engine.param_taxonomy import (
+    RUN_OBJECTIVE_MODE_VALUES,
     build_pro_round_param_controls,
     has_regime_factor_ranges,
     regime_factor_param_key,
@@ -83,6 +84,108 @@ from app.engine.spec import BacktestSpec, DEFAULT_SPEC, resolve_top_n_cap
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 INFEASIBLE_SCORE = -1e6
+
+# Keys Optuna may suggest in a standard (non–regime-matrix) trial.
+# Extra AI/champion keys are stripped before enqueue so Optuna does not reject
+# unknown distributions; fixed/off controls are still resolved inside suggest_*.
+_ENQUEUE_PARAM_KEYS: frozenset[str] = frozenset(
+    {
+        "lookback_days",
+        "objective_mode",
+        "allocator_mode",
+        "rebalance_freq",
+        "shrinkage",
+        "risk_aversion",
+        "max_weight_actual",
+        "top_n_actual",
+        "max_holdings_actual",
+        "factor_lookback_days",
+        "reversal_lookback_days",
+        "value_lookback_days",
+        "no_trade_tol",
+        "turnover_penalty_mult",
+        "max_turnover_actual",
+        "customization_drift_actual",
+        "w_mom",
+        "w_reversal",
+        "w_value",
+        "w_lowvol",
+        "w_trend",
+        "w_drawdown",
+        "w_income",
+        "w_equity",
+        "w_bond",
+        "w_commodity",
+        "w_real_estate",
+        "w_alternative",
+        "w_equity_us",
+        "w_equity_intl",
+        "w_equity_em",
+        "w_bond_us",
+        "w_bond_intl",
+        "w_bond_credit",
+        "w_commodity_precious",
+        "w_commodity_broad",
+        "w_reit_us",
+        "w_reit_intl",
+        "mom_indicator",
+        "reversal_indicator",
+        "value_indicator",
+        "lowvol_indicator",
+        "trend_indicator",
+        "drawdown_indicator",
+    }
+)
+
+_INT_STEP_KEYS: dict[str, tuple[int, int, int]] = {
+    "lookback_days": (126, 504, 21),
+    "factor_lookback_days": (126, 504, 21),
+    "reversal_lookback_days": (63, 252, 21),
+    "value_lookback_days": (63, 252, 21),
+}
+
+
+def _snap_int_to_step(value: int, low: int, high: int, step: int) -> int:
+    lo, hi = min(low, high), max(low, high)
+    v = int(np.clip(int(value), lo, hi))
+    if step <= 1:
+        return v
+    return lo + ((v - lo) // step) * step
+
+
+def prepare_enqueue_params(
+    seed: dict,
+    *,
+    blueprint: RunBlueprint,
+    param_controls: dict[str, dict] | None,
+) -> dict:
+    """Clamp + remap an AI/champion seed into Optuna enqueue_trial params."""
+    clamped, _ = clamp_param_dict(
+        dict(seed), blueprint, param_controls=param_controls
+    )
+    # AI seeds use "mode" for allocator; Optuna suggests "allocator_mode".
+    mode_val = clamped.get("allocator_mode", clamped.get("mode"))
+    if mode_val is not None and str(mode_val) not in RUN_OBJECTIVE_MODE_VALUES:
+        clamped["allocator_mode"] = str(mode_val)
+    out: dict = {}
+    for key, raw in clamped.items():
+        if key not in _ENQUEUE_PARAM_KEYS:
+            continue
+        if key in _INT_STEP_KEYS:
+            lo, hi, step = _INT_STEP_KEYS[key]
+            try:
+                out[key] = _snap_int_to_step(int(raw), lo, hi, step)
+            except (TypeError, ValueError):
+                continue
+            continue
+        if key in {"top_n_actual", "max_holdings_actual"}:
+            try:
+                out[key] = int(raw)
+            except (TypeError, ValueError):
+                continue
+            continue
+        out[key] = raw
+    return out
 
 
 def _objective_display_value(
@@ -287,19 +390,29 @@ def run_optuna_search(
                 return v
         return str(trial.suggest_categorical(key, choices))
 
+    # Filled after study creation; closed over by optuna_objective.
+    enqueued_seed_count = 0
+    enqueued_seed_meta: list[dict] = []
+
     def optuna_objective(trial: optuna.Trial) -> float:
+        # AI / scenario seeds are warm-started via study.enqueue_trial so TPE
+        # observes their distributions. Do not also inject them positionally —
+        # that skipped suggest_* and blocked TPE from learning.
         seed = None
-        if not pro_round_mode:
-            seed = (
-                ai_seed_param_sets[trial.number]
-                if trial.number < len(ai_seed_param_sets)
-                else None
-            )
         bounds_violations: list[dict] = []
-        if seed:
-            seed, bounds_violations = clamp_param_dict(
-                seed, blueprint, param_controls=param_controls
-            )
+        champion_offset = 1 if champion_seed else 0
+        seed_meta: dict = {}
+        if champion_seed and trial.number == 0:
+            trial.set_user_attr("trial_source", "champion_seed")
+        elif trial.number < champion_offset + enqueued_seed_count:
+            trial.set_user_attr("trial_source", "ai_seed")
+            meta_idx = trial.number - champion_offset
+            if 0 <= meta_idx < len(enqueued_seed_meta):
+                seed_meta = enqueued_seed_meta[meta_idx]
+                # Restore scenario metadata that Optuna enqueue cannot carry.
+                seed = dict(seed_meta) if seed_meta else None
+        else:
+            trial.set_user_attr("trial_source", "optuna_tpe")
         lookback = _seed_or_suggest_int(trial, seed, "lookback_days", 126, 504, step=21)
         objective_mode = _seed_or_suggest_cat(
             trial,
@@ -808,15 +921,22 @@ def run_optuna_search(
                 "pro_round_optuna"
                 if pro_round_mode
                 else (
-                    str(seed.get("param_source"))
-                    if seed and seed.get("param_source")
-                    else ("ai_seed" if seed else "optuna")
+                    str(seed_meta["param_source"])
+                    if seed_meta.get("param_source")
+                    else str(
+                        trial.user_attrs.get("trial_source")
+                        or ("ai_seed" if seed else "optuna")
+                    )
                 )
             ),
         }
-        if seed and seed.get("scenario_style"):
+        if seed_meta.get("scenario_style"):
+            params["scenario_style"] = str(seed_meta["scenario_style"])
+        if seed_meta.get("must_include_tickers"):
+            params["must_include_tickers"] = list(seed_meta["must_include_tickers"])
+        if seed and seed.get("scenario_style") and not params.get("scenario_style"):
             params["scenario_style"] = str(seed["scenario_style"])
-        if seed and seed.get("must_include_tickers"):
+        if seed and seed.get("must_include_tickers") and not params.get("must_include_tickers"):
             params["must_include_tickers"] = list(seed["must_include_tickers"])
         if regime_factor_flat:
             params.update(regime_factor_flat)
@@ -915,11 +1035,48 @@ def run_optuna_search(
 
     # Enqueued champion re-sim is an extra trial; challengers must still run `trials` times.
     optuna_trials = trials + (1 if champion_seed else 0)
+    enqueued_seed_count = 0
+    enqueued_seed_meta = []
     if champion_seed:
         try:
-            study.enqueue_trial(champion_seed)
+            prepared_champ = prepare_enqueue_params(
+                champion_seed,
+                blueprint=blueprint,
+                param_controls=param_controls,
+            )
+            study.enqueue_trial(prepared_champ if prepared_champ else dict(champion_seed))
         except Exception:
             optuna_trials = trials
+
+    # Standard / constrained: queue AI (or scenario) seeds so TPE learns from them.
+    # Cap to remaining trial budget so every enqueued seed is actually evaluated.
+    if not pro_round_mode and ai_seed_param_sets:
+        budget_left = max(0, optuna_trials - (1 if champion_seed else 0))
+        for raw_seed in ai_seed_param_sets:
+            if enqueued_seed_count >= budget_left:
+                break
+            if not isinstance(raw_seed, dict) or not raw_seed:
+                continue
+            try:
+                prepared = prepare_enqueue_params(
+                    raw_seed,
+                    blueprint=blueprint,
+                    param_controls=param_controls,
+                )
+                if not prepared:
+                    continue
+                study.enqueue_trial(prepared)
+                meta: dict = {}
+                if raw_seed.get("scenario_style") is not None:
+                    meta["scenario_style"] = str(raw_seed["scenario_style"])
+                if raw_seed.get("param_source") is not None:
+                    meta["param_source"] = str(raw_seed["param_source"])
+                if isinstance(raw_seed.get("must_include_tickers"), list):
+                    meta["must_include_tickers"] = list(raw_seed["must_include_tickers"])
+                enqueued_seed_meta.append(meta)
+                enqueued_seed_count += 1
+            except Exception:
+                continue
 
     protect_sigs: set[str] = set()
     if champion_seed:

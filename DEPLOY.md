@@ -33,6 +33,9 @@ Use the repo-root [`render.yaml`](render.yaml) when the Render UI does not expos
 
 Keep **one API instance** — backtest jobs are in-memory.
 
+Persistent disk (`/var/data`) stores job history, champions, and **price/dividend caches**.
+Caches survive redeploy; clearing the disk rebuilds them from yfinance / bundled parquet.
+
 ### Optional split: Vercel (web) + Railway / Fly / Render (API)
 
 - **Web on Vercel:** set `QUANT_API_URL=https://your-api-host` (server-side proxy).
@@ -155,6 +158,10 @@ Do **not** expose port 8001 publicly; only nginx (80/443) should be public.
 | `NEXT_PUBLIC_API_URL` | Web (build) | SSR direct API URL; empty when using proxy |
 | `API_CORS_ORIGINS` | API | Comma-separated allowed origins |
 | `HTTP_PORT` | Compose | Host port mapped to nginx (default 80) |
+| `JOB_HISTORY_DIR` | API | Job history JSON (Render: `/var/data/jobs`) |
+| `CHAMPION_REGISTRY_PATH` | API | Champion SQLite (Render: `/var/data/champions.db`) |
+| `PRICE_CACHE_DIR` | API | Price parquet cache (Render: `/var/data/prices`) |
+| `DIVIDEND_CACHE_DIR` | API | Dividend parquet cache (Render: `/var/data/dividends`) |
 
 See `.env.production.example` and `.env.example` for tuning knobs (`GEMINI_THINKING_LEVEL`, etc.).
 

@@ -714,15 +714,8 @@ export function OverlayConversationPanel({
     setOverlay(updatedOverlay);
     setConfirmed(false);
 
-    const list = normalized.join(
-      overlayLang === "zh" ? "、" : ", ",
-    );
-    const userMsg =
-      overlayLang === "zh"
-        ? `確認加入 ${list}`
-        : overlayLang === "ko"
-          ? `${list} 추가 확인`
-          : `Confirm adding ${list}`;
+    const list = normalized.join(overlayLang === "zh" ? "、" : ", ");
+    const userMsg = t("overlay.chat.confirmAdd", { list });
     const assistantMsg = t("overlay.proposedTickers.confirmMessage", { tickers: list });
     setMessages((prev) => [
       ...prev,
@@ -732,8 +725,7 @@ export function OverlayConversationPanel({
   };
 
   const phaseLabel =
-    overlay?.audit.phase ??
-    (overlayLang === "zh" ? "探索" : "discovery");
+    overlay?.audit.phase ?? t("overlay.chat.phaseDiscovery");
 
   const [chatOpen, setChatOpen] = useState(() => chatMessages.length > 0);
 
@@ -745,12 +737,7 @@ export function OverlayConversationPanel({
     el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_PX)}px`;
   }, [input]);
 
-  const chatTitle =
-    lang === "zh"
-      ? "客戶需求對話"
-      : lang === "ko"
-        ? "고객 니즈 대화"
-        : "Client needs conversation";
+  const chatTitle = t("overlay.chat.title");
 
   const chatInputBlock = (
     <>
@@ -764,11 +751,7 @@ export function OverlayConversationPanel({
           placeholder={
             hasPendingClarifications
               ? t("overlay.clarify.composerPending")
-              : lang === "zh"
-                ? "例如：客戶想要增加AI產業布局，未來5年內有資金動用需求，所以不希望投資風險過高。"
-                : lang === "ko"
-                  ? "예: 고객은 AI 산업 비중을 늘리고 싶지만, 향후 5년 내 자금 사용 계획이 있어 투자 위험이 너무 높지 않기를 원합니다."
-                  : "e.g. The client wants to increase AI sector exposure, but expects to use funds within the next 5 years, so they do not want investment risk to be too high."
+              : t("overlay.chat.placeholder")
           }
           className="pixel-input min-h-[44px] max-h-[240px] flex-1 resize-none overflow-y-auto"
           onKeyDown={(e) => {
@@ -784,13 +767,7 @@ export function OverlayConversationPanel({
           disabled={!canSend}
           className="pixel-btn shrink-0 self-end disabled:opacity-40"
         >
-          {loading
-            ? lang === "zh"
-              ? "分析中…"
-              : "Analyzing…"
-            : lang === "zh"
-              ? "送出"
-              : "Send"}
+          {loading ? t("overlay.chat.sending") : t("overlay.chat.send")}
         </button>
       </div>
 
@@ -800,7 +777,7 @@ export function OverlayConversationPanel({
           {(error.code || error.detail) && (
             <details className="mt-1">
               <summary className="cursor-pointer text-xs text-dim hover:text-[var(--foreground)]">
-                Error details
+                {t("overlay.chat.errorDetails")}
               </summary>
               <div className="mt-1 space-y-1 rounded-md border border-[var(--magenta)]/30 bg-[var(--magenta)]/5 p-2 font-mono text-xs">
                 {error.code && <p>Code: {error.code}</p>}
@@ -818,15 +795,9 @@ export function OverlayConversationPanel({
       {overlay && (
         <div className="pixel-panel min-w-0 space-y-3 border-[var(--primary-muted)] bg-[var(--primary-muted)]/40">
           <div className="flex items-center justify-between gap-2">
-            <span className="ui-section-title">
-              {lang === "zh"
-                ? "AI 解析的調整方案"
-                : lang === "ko"
-                  ? "AI 조정안 요약"
-                  : "AI adjustment summary"}
-            </span>
+            <span className="ui-section-title">{t("overlay.chat.aiSummaryTitle")}</span>
             <span className="text-xs text-dim">
-              {lang === "zh" ? "階段" : "Phase"}: {phaseLabel}
+              {t("overlay.chat.phaseLabel")}: {phaseLabel}
             </span>
           </div>
           <pre className="ui-body whitespace-pre-wrap leading-snug">
@@ -878,22 +849,10 @@ export function OverlayConversationPanel({
             className="pixel-btn w-full disabled:opacity-40"
           >
             {confirmed
-              ? lang === "zh"
-                ? "已確認並簽核"
-                : lang === "ko"
-                  ? "확인 및 서명 완료"
-                  : "Confirmed & signed off"
+              ? t("overlay.chat.confirmed")
               : confirming
-                ? lang === "zh"
-                  ? "簽核中…"
-                  : lang === "ko"
-                    ? "서명 중…"
-                    : "Signing off…"
-                : lang === "zh"
-                  ? "確認調整方案並簽核"
-                  : lang === "ko"
-                    ? "조정안 확인 및 서명"
-                    : "Confirm adjustments & sign off"}
+                ? t("overlay.chat.confirming")
+                : t("overlay.chat.confirm")}
           </button>
         </div>
       )}
@@ -906,21 +865,15 @@ export function OverlayConversationPanel({
           <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className="ui-panel-title text-sm">{chatTitle}</h3>
-              <p className="mt-0.5 text-xs text-dim">
-                {lang === "zh"
-                  ? "輸入客戶投資需求，Jasper AI 會引導釐清需求並設計模型參數。"
-                  : lang === "ko"
-                    ? "고객 투자 니즈를 입력하면 Jasper AI가 니즈를 정리하고 모델 파라미터 설계를 시작합니다."
-                    : "Enter the client's investment needs; Jasper AI will clarify requirements and draft model parameters."}
-              </p>
+              <p className="mt-0.5 text-xs text-dim">{t("overlay.chat.subtitle")}</p>
             </div>
             <button
               type="button"
               onClick={() => setChatOpen(false)}
-              aria-label={lang === "zh" ? "收起對話" : "Collapse chat"}
+              aria-label={t("overlay.chat.collapseAria")}
               className="shrink-0 rounded-md px-2 py-0.5 text-xs text-dim hover:bg-[var(--surface-2)]"
             >
-              {lang === "zh" ? "收起 ▾" : lang === "ko" ? "접기 ▾" : "Collapse ▾"}
+              {t("overlay.chat.collapse")}
             </button>
           </div>
 
@@ -943,11 +896,7 @@ export function OverlayConversationPanel({
           className="w-full rounded-lg border border-[var(--primary)]/40 bg-[var(--primary)]/5 px-4 py-2.5 text-sm font-medium text-[var(--primary)] transition-colors hover:bg-[var(--primary)]/10"
           data-overlay-chat-open
         >
-          {lang === "zh"
-            ? "使用 AI 描述客戶需求"
-            : lang === "ko"
-              ? "AI로 고객 니즈 입력"
-              : "Describe client needs with AI"}
+          {t("overlay.chat.openCta")}
         </button>
       )}
     </>

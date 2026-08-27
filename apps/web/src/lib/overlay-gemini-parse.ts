@@ -1,9 +1,39 @@
+import paramCatalog from "@/data/param-catalog.json";
+
 const GEMINI_METADATA_KEYS = new Set([
   "thoughtSignature",
   "thought_signature",
   "turnToken",
   "usageMetadata",
 ]);
+
+type ParamCatalogEntry = {
+  key: string;
+  kind: string;
+  overlay_eligible?: boolean;
+  bounds?: number[];
+  description?: string;
+  client_hint?: string;
+};
+
+const PARAM_CATALOG_ENTRIES = (
+  paramCatalog as { params?: ParamCatalogEntry[] }
+).params ?? [];
+
+const OVERLAY_ELIGIBLE_PARAM_KEYS = new Set(
+  PARAM_CATALOG_ENTRIES.filter((p) => p.overlay_eligible).map((p) => p.key),
+);
+
+const OVERLAY_PARAM_BOUNDS = new Map<string, [number, number]>(
+  PARAM_CATALOG_ENTRIES.filter(
+    (p) =>
+      p.overlay_eligible &&
+      Array.isArray(p.bounds) &&
+      p.bounds.length >= 2 &&
+      Number.isFinite(p.bounds[0]) &&
+      Number.isFinite(p.bounds[1]),
+  ).map((p) => [p.key, [Number(p.bounds![0]), Number(p.bounds![1])] as [number, number]]),
+);
 
 /** Recursively drop Gemini metadata keys from API payloads. */
 export function stripGeminiMetadata(value: unknown): unknown {
@@ -634,13 +664,34 @@ function normalizeParamAdjustments(
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
   const out: Record<string, unknown> = {};
   for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+    if (!OVERLAY_ELIGIBLE_PARAM_KEYS.has(key)) continue;
+    const bounds = OVERLAY_PARAM_BOUNDS.get(key);
+    let ctl: Record<string, unknown> | null = null;
     if (val && typeof val === "object" && !Array.isArray(val) && "mode" in val) {
-      out[key] = val;
-      continue;
+      ctl = { ...(val as Record<string, unknown>) };
+    } else if (typeof val === "number" && Number.isFinite(val)) {
+      ctl = { mode: "fixed", fixed: val };
     }
-    if (typeof val === "number" && Number.isFinite(val)) {
-      out[key] = { mode: "fixed", fixed: val };
+    if (!ctl) continue;
+    const mode = String(ctl.mode ?? "fixed");
+    if (mode !== "fixed" && mode !== "search" && mode !== "off") continue;
+    ctl.mode = mode;
+    if (bounds) {
+      const [lo, hi] = bounds;
+      if (mode === "fixed" && typeof ctl.fixed === "number" && Number.isFinite(ctl.fixed)) {
+        ctl.fixed = Math.min(hi, Math.max(lo, ctl.fixed));
+      }
+      if (mode === "search") {
+        const minRaw = typeof ctl.min === "number" ? ctl.min : lo;
+        const maxRaw = typeof ctl.max === "number" ? ctl.max : hi;
+        let min = Math.min(hi, Math.max(lo, minRaw));
+        let max = Math.min(hi, Math.max(lo, maxRaw));
+        if (min > max) [min, max] = [max, min];
+        ctl.min = min;
+        ctl.max = max;
+      }
     }
+    out[key] = ctl;
   }
   return Object.keys(out).length ? out : undefined;
 }

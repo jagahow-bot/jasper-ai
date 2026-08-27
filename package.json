@@ -16,6 +16,8 @@
     "sync-model-portfolios": "node -e \"require('fs').copyFileSync('shared/model-portfolios/model-portfolios.json','apps/web/src/data/model-portfolios.json')\"",
     "sync-demo-clients": "node -e \"require('fs').copyFileSync('shared/clients/demo-clients.json','apps/web/src/data/demo-clients.json')\"",
     "sync-etf-names": "node -e \"require('fs').copyFileSync('shared/etf-names.json','apps/web/src/data/etf-names.json')\"",
+    "generate-param-catalog": "python scripts/export_param_catalog.py",
+    "sync-param-catalog": "node -e \"require('fs').copyFileSync('shared/param-catalog.json','apps/web/src/data/param-catalog.json')\"",
     "generate-etf-names": "node scripts/generate_etf_names.js"
   },
   "devDependencies": {

@@ -1,8 +1,13 @@
 {
   "version": "1.0",
-  "updated": "2026-08-11",
+  "updated": "2026-08-27",
   "description": "Localized ETF display names (en / zh-TW / ko) keyed by ticker for JASPER UI.",
   "names": {
+    "A": {
+      "en": "Agilent Technologies Inc",
+      "zh": "Agilent Technologies Inc",
+      "ko": "Agilent Technologies Inc"
+    },
     "AAPL": {
       "en": "Apple",
       "zh": "蘋果",
@@ -38,6 +43,26 @@
       "zh": "Adobe",
       "ko": "Adobe"
     },
+    "ADI": {
+      "en": "Analog Devices Inc",
+      "zh": "Analog Devices Inc",
+      "ko": "Analog Devices Inc"
+    },
+    "ADP": {
+      "en": "Automatic Data Processing Inc",
+      "zh": "Automatic Data Processing Inc",
+      "ko": "Automatic Data Processing Inc"
+    },
+    "ADSK": {
+      "en": "Autodesk Inc",
+      "zh": "Autodesk Inc",
+      "ko": "Autodesk Inc"
+    },
+    "AFRM": {
+      "en": "Affirm Holdings Inc",
+      "zh": "Affirm Holdings Inc",
+      "ko": "Affirm Holdings Inc"
+    },
     "AGG": {
       "en": "iShares Core U.S. Aggregate Bond ETF",
       "zh": "美國綜合債券 ETF",
@@ -53,6 +78,11 @@
       "zh": "American Funds Investment Co of America A",
       "ko": "American Funds Investment Co of America A"
     },
+    "ALNY": {
+      "en": "Alnylam Pharmaceuticals Inc",
+      "zh": "Alnylam 製藥ceuticals Inc",
+      "ko": "Alnylam 제약ceuticals Inc"
+    },
     "AMAT": {
       "en": "AMAT",
       "zh": "應用材料",
@@ -62,6 +92,11 @@
       "en": "AMD",
       "zh": "超微",
       "ko": "AMD"
+    },
+    "AME": {
+      "en": "AMETEK Inc",
+      "zh": "AMETEK Inc",
+      "ko": "AMETEK Inc"
     },
     "AMECX": {
       "en": "American Funds Income Fund of America A",
@@ -93,10 +128,40 @@
       "zh": "American Funds Fundamental Investors A",
       "ko": "American Funds Fundamental Investors A"
     },
+    "ANET": {
+      "en": "Arista Networks Inc",
+      "zh": "Arista Networks Inc",
+      "ko": "Arista Networks Inc"
+    },
     "ANGL": {
       "en": "Fallen angels (VanEck) ETF",
       "zh": "墮落天使債 (VanEck) ETF",
       "ko": "폴른 엔젤 (VanEck) ETF"
+    },
+    "APD": {
+      "en": "Air Products and Chemicals Inc",
+      "zh": "Air Products and Chemicals Inc",
+      "ko": "Air Products and Chemicals Inc"
+    },
+    "APH": {
+      "en": "Amphenol Corp",
+      "zh": "Amphenol Corp",
+      "ko": "Amphenol Corp"
+    },
+    "APP": {
+      "en": "Applovin Corp",
+      "zh": "Applovin Corp",
+      "ko": "Applovin Corp"
+    },
+    "ARES": {
+      "en": "ARES MANAGEMENT CORP",
+      "zh": "ARES MANAGEMENT CORP",
+      "ko": "ARES MANAGEMENT CORP"
+    },
+    "ARGX": {
+      "en": "Argenx SE",
+      "zh": "Argenx SE",
+      "ko": "Argenx SE"
     },
     "ARKG": {
       "en": "Genomic revolution ETF",
@@ -113,10 +178,30 @@
       "zh": "次世代網路 ETF",
       "ko": "차세대 인터넷 ETF"
     },
+    "ARM": {
+      "en": "ARM Holdings PLC",
+      "zh": "ARM Holdings PLC",
+      "ko": "ARM Holdings PLC"
+    },
     "ASHR": {
       "en": "Xtrackers Harvest CSI 300 China A-Shares ETF",
       "zh": "中國A股 ETF",
       "ko": "중국 A주 ETF"
+    },
+    "ASML": {
+      "en": "ASML Holding NV NY REGD USD.09",
+      "zh": "ASML Holding NV NY REGD USD.09",
+      "ko": "ASML Holding NV NY REGD USD.09"
+    },
+    "ASND": {
+      "en": "Ascendis Pharma A/S",
+      "zh": "Ascendis 製藥 A/S",
+      "ko": "Ascendis 제약 A/S"
+    },
+    "AUR": {
+      "en": "Aurora Innovation Inc",
+      "zh": "Aurora Innovation Inc",
+      "ko": "Aurora Innovation Inc"
     },
     "AVGO": {
       "en": "AVGO",
@@ -133,10 +218,25 @@
       "zh": "American Funds Washington Mutual A",
       "ko": "American Funds Washington Mutual A"
     },
+    "AXON": {
+      "en": "AXON ENTERPRISE INC",
+      "zh": "AXON ENTERPRISE INC",
+      "ko": "AXON ENTERPRISE INC"
+    },
     "AXP": {
       "en": "AXP",
       "zh": "美國運通",
       "ko": "AXP"
+    },
+    "AZN": {
+      "en": "AstraZeneca PLC",
+      "zh": "AstraZeneca PLC",
+      "ko": "AstraZeneca PLC"
+    },
+    "AZO": {
+      "en": "AutoZone Inc",
+      "zh": "AutoZone Inc",
+      "ko": "AutoZone Inc"
     },
     "BA": {
       "en": "BA",
@@ -152,6 +252,11 @@
       "en": "Broad commodities ETF",
       "zh": "廣泛商品 ETF",
       "ko": "광범위 원자재 ETF"
+    },
+    "BE": {
+      "en": "Bloom Energy Corp",
+      "zh": "Bloom Energy Corp",
+      "ko": "Bloom Energy Corp"
     },
     "BIL": {
       "en": "SPDR Bloomberg 1-3 Month T-Bill ETF",
@@ -172,6 +277,11 @@
       "en": "Booking",
       "zh": "Booking",
       "ko": "Booking"
+    },
+    "BKR": {
+      "en": "Baker Hughes Co",
+      "zh": "Baker Hughes Co",
+      "ko": "Baker Hughes Co"
     },
     "BLK": {
       "en": "BLK",
@@ -208,6 +318,11 @@
       "zh": "機器人與 AI ETF",
       "ko": "로봇·AI ETF"
     },
+    "BRBR": {
+      "en": "BellRing Brands Inc",
+      "zh": "BellRing Brands Inc",
+      "ko": "BellRing Brands Inc"
+    },
     "BRK-B": {
       "en": "BRK-B",
       "zh": "波克夏 B",
@@ -217,6 +332,11 @@
       "en": "Short-term bond Vanguard ETF",
       "zh": "短期債券 Vanguard ETF",
       "ko": "단기 채권 Vanguard ETF"
+    },
+    "BSX": {
+      "en": "Boston Scientific Corp",
+      "zh": "Boston Scientific Corp",
+      "ko": "Boston Scientific Corp"
     },
     "BTAL": {
       "en": "Anti-beta ETF",
@@ -228,15 +348,30 @@
       "zh": "國際公債 ETF",
       "ko": "국제 국채 ETF"
     },
+    "BWXT": {
+      "en": "BWX Technologies Inc",
+      "zh": "BWX Technologies Inc",
+      "ko": "BWX Technologies Inc"
+    },
     "BWZ": {
       "en": "Short-term intl Treasury ETF",
       "zh": "短期國際公債 ETF",
       "ko": "단기 국제 국채 ETF"
     },
+    "BX": {
+      "en": "Blackstone Inc",
+      "zh": "Blackstone Inc",
+      "ko": "Blackstone Inc"
+    },
     "C": {
       "en": "C",
       "zh": "花旗",
       "ko": "C"
+    },
+    "CAI": {
+      "en": "Caris Life Sciences Inc",
+      "zh": "Caris Life Sciences Inc",
+      "ko": "Caris Life Sciences Inc"
     },
     "CAIBX": {
       "en": "American Funds Capital Income Builder A",
@@ -248,6 +383,16 @@
       "zh": "卡特彼勒",
       "ko": "CAT"
     },
+    "CDNS": {
+      "en": "Cadence Design Systems Inc",
+      "zh": "Cadence Design Systems Inc",
+      "ko": "Cadence Design Systems Inc"
+    },
+    "CHYM": {
+      "en": "Chime Financial Inc",
+      "zh": "Chime Financial Inc",
+      "ko": "Chime Financial Inc"
+    },
     "CIBR": {
       "en": "Cybersecurity ETF",
       "zh": "網路安全 ETF",
@@ -257,6 +402,11 @@
       "en": "Cloud computing (Global X) ETF",
       "zh": "雲端運算 (Global X) ETF",
       "ko": "클라우드 (Global X) ETF"
+    },
+    "CLS": {
+      "en": "Celestica Inc",
+      "zh": "Celestica Inc",
+      "ko": "Celestica Inc"
     },
     "CMBS": {
       "en": "CMBS ETF",
@@ -268,10 +418,20 @@
       "zh": "康卡斯特",
       "ko": "CMCSA"
     },
+    "CMG": {
+      "en": "Chipotle Mexican Grill Inc",
+      "zh": "Chipotle Mexican Grill Inc",
+      "ko": "Chipotle Mexican Grill Inc"
+    },
     "COF": {
       "en": "Capital One",
       "zh": "Capital One",
       "ko": "Capital One"
+    },
+    "COIN": {
+      "en": "COINBASE GLOBAL INC",
+      "zh": "COINBASE GLOBAL INC",
+      "ko": "COINBASE GLOBAL INC"
     },
     "COMT": {
       "en": "Commodity broad ETF",
@@ -288,10 +448,20 @@
       "zh": "玉米 ETF",
       "ko": "옥수수 ETF"
     },
+    "CORT": {
+      "en": "Corcept Therapeutics Inc",
+      "zh": "Corcept Therapeutics Inc",
+      "ko": "Corcept Therapeutics Inc"
+    },
     "COST": {
       "en": "Costco",
       "zh": "好市多",
       "ko": "코스트코"
+    },
+    "CP": {
+      "en": "Canadian Pacific Kansas City Ltd",
+      "zh": "Canadian Pacific Kansas City Ltd",
+      "ko": "Canadian Pacific Kansas City Ltd"
     },
     "CPER": {
       "en": "United States Copper Index Fund",
@@ -302,6 +472,11 @@
       "en": "China tech ETF",
       "zh": "中國科技 ETF",
       "ko": "중국 기술 ETF"
+    },
+    "CRCL": {
+      "en": "Circle Internet Group Inc",
+      "zh": "Circle 網路 Group Inc",
+      "ko": "Circle 인터넷 Group Inc"
     },
     "CRM": {
       "en": "Salesforce",
@@ -318,20 +493,40 @@
       "zh": "思科",
       "ko": "CSCO"
     },
+    "CSGP": {
+      "en": "CoStar Group Inc",
+      "zh": "CoStar Group Inc",
+      "ko": "CoStar Group Inc"
+    },
     "CTA": {
       "en": "Managed futures (Simplify) ETF",
       "zh": "管理期貨 (Simplify) ETF",
       "ko": "관리 선물 (Simplify) ETF"
+    },
+    "CVNA": {
+      "en": "Carvana Co",
+      "zh": "Carvana Co",
+      "ko": "Carvana Co"
     },
     "CVX": {
       "en": "CVX",
       "zh": "雪佛龍",
       "ko": "CVX"
     },
+    "CW": {
+      "en": "Curtiss-Wright Corp",
+      "zh": "Curtiss-Wright Corp",
+      "ko": "Curtiss-Wright Corp"
+    },
     "CWGFX": {
       "en": "American Funds Capital World Growth & Income A",
       "zh": "American Funds Capital World Growth & Income A",
       "ko": "American Funds Capital World Growth & Income A"
+    },
+    "DASH": {
+      "en": "Doordash Inc",
+      "zh": "Doordash Inc",
+      "ko": "Doordash Inc"
     },
     "DBA": {
       "en": "Agriculture broad ETF",
@@ -388,6 +583,11 @@
       "zh": "迪士尼",
       "ko": "디즈니"
     },
+    "DOCS": {
+      "en": "Doximity Inc",
+      "zh": "Doximity Inc",
+      "ko": "Doximity Inc"
+    },
     "DODFX": {
       "en": "Dodge & Cox International Stock",
       "zh": "Dodge & Cox International Stock",
@@ -408,15 +608,30 @@
       "zh": "電動車 ETF",
       "ko": "전기차 ETF"
     },
+    "DSGX": {
+      "en": "Descartes Systems Group Inc/The",
+      "zh": "Descartes Systems Group Inc/The",
+      "ko": "Descartes Systems Group Inc/The"
+    },
     "DUK": {
       "en": "Duke Energy",
       "zh": "Duke Energy",
       "ko": "Duke Energy"
     },
+    "DUOL": {
+      "en": "Duolingo Inc",
+      "zh": "Duolingo Inc",
+      "ko": "Duolingo Inc"
+    },
     "DVY": {
       "en": "Dividend achievers ETF",
       "zh": "股息成就者 ETF",
       "ko": "배당 성취 ETF"
+    },
+    "DXCM": {
+      "en": "Dexcom Inc",
+      "zh": "Dexcom Inc",
+      "ko": "Dexcom Inc"
     },
     "DXJ": {
       "en": "Japan currency hedged ETF",
@@ -427,6 +642,11 @@
       "en": "Chile ETF",
       "zh": "Chile ETF",
       "ko": "Chile ETF"
+    },
+    "ECL": {
+      "en": "Ecolab Inc",
+      "zh": "Ecolab Inc",
+      "ko": "Ecolab Inc"
     },
     "EDV": {
       "en": "Extended duration Treasury ETF",
@@ -648,6 +868,11 @@
       "zh": "風力 ETF",
       "ko": "풍력 ETF"
     },
+    "FAST": {
+      "en": "Fastenal Co",
+      "zh": "Fastenal Co",
+      "ko": "Fastenal Co"
+    },
     "FBALX": {
       "en": "Fidelity Balanced",
       "zh": "Fidelity Balanced",
@@ -678,6 +903,16 @@
       "zh": "歐元區大型 ETF",
       "ko": "유로존 대형주 ETF"
     },
+    "FICO": {
+      "en": "Fair Isaac Corp",
+      "zh": "Fair Isaac Corp",
+      "ko": "Fair Isaac Corp"
+    },
+    "FIG": {
+      "en": "Figma Inc",
+      "zh": "Figma Inc",
+      "ko": "Figma Inc"
+    },
     "FINX": {
       "en": "Fintech ETF",
       "zh": "金融科技 ETF",
@@ -692,6 +927,11 @@
       "en": "Frontier markets ETF",
       "zh": "邊境市場 ETF",
       "ko": "프론티어 ETF"
+    },
+    "FRPT": {
+      "en": "Freshpet Inc",
+      "zh": "Freshpet Inc",
+      "ko": "Freshpet Inc"
     },
     "FSKAX": {
       "en": "Fidelity Total Market Index",
@@ -712,6 +952,16 @@
       "en": "Technology (Fidelity) ETF",
       "zh": "科技 (Fidelity) ETF",
       "ko": "기술 (Fidelity) ETF"
+    },
+    "FTI": {
+      "en": "TECHNIPFMC PLC",
+      "zh": "TECHNIPFMC PLC",
+      "ko": "TECHNIPFMC PLC"
+    },
+    "FTNT": {
+      "en": "Fortinet Inc",
+      "zh": "Fortinet Inc",
+      "ko": "Fortinet Inc"
     },
     "FTSL": {
       "en": "Senior loans (First Trust)",
@@ -778,6 +1028,16 @@
       "zh": "新興市場主動多因子 ETF",
       "ko": "신흥국 액티브 멀티팩터 ETF"
     },
+    "GEV": {
+      "en": "GE Vernova Inc",
+      "zh": "GE Vernova Inc",
+      "ko": "GE Vernova Inc"
+    },
+    "GH": {
+      "en": "Guardant Health Inc",
+      "zh": "Guardant Health Inc",
+      "ko": "Guardant Health Inc"
+    },
     "GILD": {
       "en": "GILD",
       "zh": "吉利德",
@@ -828,6 +1088,11 @@
       "zh": "已開發世界 ETF",
       "ko": "선진국 ETF"
     },
+    "GWRE": {
+      "en": "Guidewire Software Inc",
+      "zh": "Guidewire 軟體 Inc",
+      "ko": "Guidewire 소프트웨어 Inc"
+    },
     "GXC": {
       "en": "China large-cap (SPDR) ETF",
       "zh": "中國大型股 (SPDR) ETF",
@@ -863,10 +1128,30 @@
       "zh": "日本避險 ETF",
       "ko": "일본 헤지 ETF"
     },
+    "HNGE": {
+      "en": "Hinge Health Inc",
+      "zh": "Hinge Health Inc",
+      "ko": "Hinge Health Inc"
+    },
     "HON": {
       "en": "HON",
       "zh": "霍尼韋爾",
       "ko": "HON"
+    },
+    "HOOD": {
+      "en": "Robinhood Markets Inc",
+      "zh": "Robinhood Markets Inc",
+      "ko": "Robinhood Markets Inc"
+    },
+    "HQY": {
+      "en": "HealthEquity Inc",
+      "zh": "HealthEquity Inc",
+      "ko": "HealthEquity Inc"
+    },
+    "HUBS": {
+      "en": "HubSpot Inc",
+      "zh": "HubSpot Inc",
+      "ko": "HubSpot Inc"
     },
     "HYD": {
       "en": "High yield muni ETF",
@@ -908,6 +1193,11 @@
       "zh": "基礎建設收益 ETF",
       "ko": "인프라 인컴 ETF"
     },
+    "ICE": {
+      "en": "Intercontinental Exchange Inc",
+      "zh": "Intercontinental Exchange Inc",
+      "ko": "Intercontinental Exchange Inc"
+    },
     "ICLN": {
       "en": "iShares Global Clean Energy ETF",
       "zh": "潔淨能源 ETF",
@@ -917,6 +1207,11 @@
       "en": "Utilities (iShares) ETF",
       "zh": "公用事業 (iShares) ETF",
       "ko": "유틸리티 (iShares) ETF"
+    },
+    "IDXX": {
+      "en": "IDEXX Laboratories Inc",
+      "zh": "IDEXX Laboratories Inc",
+      "ko": "IDEXX Laboratories Inc"
     },
     "IEF": {
       "en": "iShares 7–10 Year Treasury Bond ETF",
@@ -1013,6 +1308,11 @@
       "zh": "工業 REIT ETF",
       "ko": "산업 리츠 ETF"
     },
+    "INSM": {
+      "en": "Insmed Inc",
+      "zh": "Insmed Inc",
+      "ko": "Insmed Inc"
+    },
     "INTC": {
       "en": "INTC",
       "zh": "英特爾",
@@ -1027,6 +1327,11 @@
       "en": "Global 100 ETF",
       "zh": "全球100 ETF",
       "ko": "글로벌 100 ETF"
+    },
+    "IR": {
+      "en": "Ingersoll-Rand Inc",
+      "zh": "Ingersoll-Rand Inc",
+      "ko": "Ingersoll-Rand Inc"
     },
     "ISRG": {
       "en": "ISRG",
@@ -1143,6 +1448,11 @@
       "zh": "科技 (iShares) ETF",
       "ko": "기술 (iShares) ETF"
     },
+    "JCI": {
+      "en": "Johnson Controls International plc",
+      "zh": "Johnson Controls International plc",
+      "ko": "Johnson Controls International plc"
+    },
     "JETS": {
       "en": "Airlines ETF",
       "zh": "航空 ETF",
@@ -1188,6 +1498,11 @@
       "zh": "管理期貨 (KFA) ETF",
       "ko": "관리 선물 (KFA) ETF"
     },
+    "KMTS": {
+      "en": "Kestra Medical Technologies Ltd",
+      "zh": "Kestra Medical Technologies Ltd",
+      "ko": "Kestra Medical Technologies Ltd"
+    },
     "KO": {
       "en": "KO",
       "zh": "可口可樂",
@@ -1198,10 +1513,25 @@
       "zh": "區域銀行 ETF",
       "ko": "지방은행 ETF"
     },
+    "KRMN": {
+      "en": "Karman Holdings Inc",
+      "zh": "Karman Holdings Inc",
+      "ko": "Karman Holdings Inc"
+    },
     "KSA": {
       "en": "Saudi Arabia ETF",
       "zh": "Saudi Arabia ETF",
       "ko": "Saudi Arabia ETF"
+    },
+    "KTOS": {
+      "en": "Kratos Defense & Security Solutions Inc",
+      "zh": "Kratos Defense & Security Solutions Inc",
+      "ko": "Kratos Defense & Security Solutions Inc"
+    },
+    "KVYO": {
+      "en": "Klaviyo Inc",
+      "zh": "Klaviyo Inc",
+      "ko": "Klaviyo Inc"
     },
     "KWEB": {
       "en": "KraneShares CSI China Internet ETF",
@@ -1212,6 +1542,16 @@
       "en": "EM local currency (iShares) ETF",
       "zh": "新興市場當地貨幣 (iShares) ETF",
       "ko": "신흥국 현지통화 (iShares) ETF"
+    },
+    "LGND": {
+      "en": "Ligand Pharmaceuticals Inc",
+      "zh": "Ligand 製藥ceuticals Inc",
+      "ko": "Ligand 제약ceuticals Inc"
+    },
+    "LIF": {
+      "en": "Life360 Inc",
+      "zh": "Life360 Inc",
+      "ko": "Life360 Inc"
     },
     "LIN": {
       "en": "Linde",
@@ -1258,6 +1598,11 @@
       "zh": "美國大型多因子 ETF",
       "ko": "미국 대형 멀티팩터 ETF"
     },
+    "LSCC": {
+      "en": "Lattice Semiconductor Corp",
+      "zh": "Lattice 半導體 Corp",
+      "ko": "Lattice 반도체 Corp"
+    },
     "LTPZ": {
       "en": "Long-term TIPS ETF",
       "zh": "長期 TIPS ETF",
@@ -1283,10 +1628,20 @@
       "zh": "中國大型股 ETF",
       "ko": "중국 대형주 ETF"
     },
+    "MCK": {
+      "en": "McKesson Corp",
+      "zh": "McKesson Corp",
+      "ko": "McKesson Corp"
+    },
     "MDY": {
       "en": "SPDR S&P MidCap 400 ETF Trust",
       "zh": "S&P 中型股 400 ETF",
       "ko": "S&P 중형주 400 ETF"
+    },
+    "MELI": {
+      "en": "MercadoLibre Inc",
+      "zh": "MercadoLibre Inc",
+      "ko": "MercadoLibre Inc"
     },
     "META": {
       "en": "Meta",
@@ -1298,15 +1653,35 @@
       "zh": "美國超大型成長 ETF",
       "ko": "미국 초대형 성장 ETF"
     },
+    "MLM": {
+      "en": "Martin Marietta Materials Inc",
+      "zh": "Martin Marietta 原物料 Inc",
+      "ko": "Martin Marietta 소재 Inc"
+    },
     "MLPA": {
       "en": "MLP ETF",
       "zh": "MLP ETF",
       "ko": "MLP ETF"
     },
+    "MMYT": {
+      "en": "MakeMyTrip Ltd",
+      "zh": "MakeMyTrip Ltd",
+      "ko": "MakeMyTrip Ltd"
+    },
     "MNA": {
       "en": "Merger arbitrage ETF",
       "zh": "合併套利 ETF",
       "ko": "합병 차익거래 ETF"
+    },
+    "MNDY": {
+      "en": "Monday.Com Ltd",
+      "zh": "Monday.Com Ltd",
+      "ko": "Monday.Com Ltd"
+    },
+    "MNST": {
+      "en": "Monster Beverage Corp",
+      "zh": "Monster Beverage Corp",
+      "ko": "Monster Beverage Corp"
     },
     "MO": {
       "en": "Altria",
@@ -1318,6 +1693,11 @@
       "zh": "抵押型 REIT (VanEck) ETF",
       "ko": "모기지 리츠 (VanEck) ETF"
     },
+    "MPWR": {
+      "en": "Monolithic Power Systems Inc",
+      "zh": "Monolithic Power Systems Inc",
+      "ko": "Monolithic Power Systems Inc"
+    },
     "MRK": {
       "en": "MRK",
       "zh": "默沙東",
@@ -1328,10 +1708,25 @@
       "zh": "摩根士丹利",
       "ko": "MS"
     },
+    "MSCI": {
+      "en": "MSCI Inc",
+      "zh": "MSCI Inc",
+      "ko": "MSCI Inc"
+    },
     "MSFT": {
       "en": "Microsoft",
       "zh": "微軟",
       "ko": "마이크로소프트"
+    },
+    "MSI": {
+      "en": "Motorola Solutions Inc",
+      "zh": "Motorola Solutions Inc",
+      "ko": "Motorola Solutions Inc"
+    },
+    "MTD": {
+      "en": "Mettler-Toledo International Inc",
+      "zh": "Mettler-Toledo International Inc",
+      "ko": "Mettler-Toledo International Inc"
     },
     "MTUM": {
       "en": "iShares MSCI USA Momentum Factor ETF",
@@ -1358,6 +1753,11 @@
       "zh": "NextEra",
       "ko": "NextEra"
     },
+    "NET": {
+      "en": "Cloudflare Inc",
+      "zh": "Cloudflare Inc",
+      "ko": "Cloudflare Inc"
+    },
     "NFLX": {
       "en": "Netflix",
       "zh": "Netflix",
@@ -1373,15 +1773,40 @@
       "zh": "核能 ETF",
       "ko": "원자력 ETF"
     },
+    "NOC": {
+      "en": "Northrop Grumman Corp",
+      "zh": "Northrop Grumman Corp",
+      "ko": "Northrop Grumman Corp"
+    },
     "NOW": {
       "en": "ServiceNow",
       "zh": "ServiceNow",
       "ko": "ServiceNow"
     },
+    "NTRA": {
+      "en": "Natera Inc",
+      "zh": "Natera Inc",
+      "ko": "Natera Inc"
+    },
     "NVDA": {
       "en": "NVIDIA",
       "zh": "輝達",
       "ko": "엔비디아"
+    },
+    "ODD": {
+      "en": "Oddity Tech Ltd",
+      "zh": "Oddity Tech Ltd",
+      "ko": "Oddity Tech Ltd"
+    },
+    "ODFL": {
+      "en": "Old Dominion Freight Line Inc",
+      "zh": "Old Dominion Freight Line Inc",
+      "ko": "Old Dominion Freight Line Inc"
+    },
+    "OII": {
+      "en": "Oceaneering International Inc",
+      "zh": "Oceaneering International Inc",
+      "ko": "Oceaneering International Inc"
     },
     "ORCL": {
       "en": "ORCL",
@@ -1448,10 +1873,20 @@
       "zh": "優先股 (全球) ETF",
       "ko": "우선주 ETF"
     },
+    "PH": {
+      "en": "Parker-Hannifin Corp",
+      "zh": "Parker-Hannifin Corp",
+      "ko": "Parker-Hannifin Corp"
+    },
     "PHB": {
       "en": "High yield (PowerShares) ETF",
       "zh": "高收益債 (PowerShares) ETF",
       "ko": "하이일드 (PowerShares) ETF"
+    },
+    "PINS": {
+      "en": "Pinterest Inc",
+      "zh": "Pinterest Inc",
+      "ko": "Pinterest Inc"
     },
     "PLTR": {
       "en": "Palantir",
@@ -1493,10 +1928,20 @@
       "zh": "T. Rowe Price Capital Appreciation",
       "ko": "T. Rowe Price Capital Appreciation"
     },
+    "PTC": {
+      "en": "PTC Inc",
+      "zh": "PTC Inc",
+      "ko": "PTC Inc"
+    },
     "PUTW": {
       "en": "Covered put write ETF",
       "zh": "備兌賣權 ETF",
       "ko": "커버드 풋 ETF"
+    },
+    "PWR": {
+      "en": "Quanta Services Inc",
+      "zh": "Quanta Services Inc",
+      "ko": "Quanta Services Inc"
     },
     "PYPL": {
       "en": "PayPal",
@@ -1533,6 +1978,21 @@
       "zh": "品質因子 ETF",
       "ko": "퀄리티 팩터 ETF"
     },
+    "QXO": {
+      "en": "QXO Inc",
+      "zh": "QXO Inc",
+      "ko": "QXO Inc"
+    },
+    "RBLX": {
+      "en": "ROBLOX Corp",
+      "zh": "ROBLOX Corp",
+      "ko": "ROBLOX Corp"
+    },
+    "RDDT": {
+      "en": "Reddit Inc",
+      "zh": "Reddit Inc",
+      "ko": "Reddit Inc"
+    },
     "REET": {
       "en": "Global REITs ETF",
       "zh": "全球 REITs ETF",
@@ -1553,6 +2013,11 @@
       "zh": "American Funds EuroPacific Growth R5",
       "ko": "American Funds EuroPacific Growth R5"
     },
+    "RKLB": {
+      "en": "Rocket Lab Corp",
+      "zh": "Rocket Lab Corp",
+      "ko": "Rocket Lab Corp"
+    },
     "RLY": {
       "en": "Real assets ETF",
       "zh": "實質資產 ETF",
@@ -1562,6 +2027,16 @@
       "en": "Robotics ETF",
       "zh": "機器人 ETF",
       "ko": "로봇 ETF"
+    },
+    "ROOT": {
+      "en": "Root Inc/OH",
+      "zh": "Root Inc/OH",
+      "ko": "Root Inc/OH"
+    },
+    "RSG": {
+      "en": "Republic Services Inc",
+      "zh": "Republic Services Inc",
+      "ko": "Republic Services Inc"
     },
     "RSP": {
       "en": "Invesco S&P 500 Equal Weight ETF",
@@ -1582,6 +2057,11 @@
       "en": "REIT (SPDR) ETF",
       "zh": "REIT (SPDR) ETF",
       "ko": "리츠 (SPDR) ETF"
+    },
+    "SARO": {
+      "en": "StandardAero Inc",
+      "zh": "StandardAero Inc",
+      "ko": "StandardAero Inc"
     },
     "SBUX": {
       "en": "SBUX",
@@ -1638,6 +2118,11 @@
       "zh": "美國綜合債券 ETF",
       "ko": "미국 종합채권 ETF"
     },
+    "SE": {
+      "en": "Sea Ltd",
+      "zh": "Sea Ltd",
+      "ko": "Sea Ltd"
+    },
     "SGOL": {
       "en": "Gold (Aberdeen) ETF",
       "zh": "黃金 (Aberdeen) ETF",
@@ -1647,6 +2132,11 @@
       "en": "0-3 month T-bills ETF",
       "zh": "0–3月國庫券 ETF",
       "ko": "0–3개월 단기국채 ETF"
+    },
+    "SHOP": {
+      "en": "Shopify Inc",
+      "zh": "Shopify Inc",
+      "ko": "Shopify Inc"
     },
     "SHV": {
       "en": "iShares Short Treasury Bond ETF",
@@ -1703,6 +2193,11 @@
       "zh": "Snowflake",
       "ko": "Snowflake"
     },
+    "SNPS": {
+      "en": "Synopsys Inc",
+      "zh": "Synopsys Inc",
+      "ko": "Synopsys Inc"
+    },
     "SO": {
       "en": "SO",
       "zh": "南方電力",
@@ -1733,6 +2228,11 @@
       "zh": "EM (SPDR) ETF",
       "ko": "EM (SPDR) ETF"
     },
+    "SPGI": {
+      "en": "S&P Global Inc",
+      "zh": "S&P Global Inc",
+      "ko": "S&P Global Inc"
+    },
     "SPHD": {
       "en": "S&P 500 high dividend low vol ETF",
       "zh": "標普500高股息低波動 ETF",
@@ -1762,6 +2262,11 @@
       "en": "S&P 500 momentum ETF",
       "zh": "標普500動能 ETF",
       "ko": "S&P 500 모멘텀 ETF"
+    },
+    "SPOT": {
+      "en": "Spotify Technology SA",
+      "zh": "Spotify 科技 SA",
+      "ko": "Spotify 기술 SA"
     },
     "SPSM": {
       "en": "S&P 600 small-cap ETF",
@@ -1858,6 +2363,16 @@
       "zh": "Schwab Target 2050 Index",
       "ko": "Schwab Target 2050 Index"
     },
+    "SYK": {
+      "en": "Stryker Corp",
+      "zh": "Stryker Corp",
+      "ko": "Stryker Corp"
+    },
+    "SYM": {
+      "en": "Symbotic Inc",
+      "zh": "Symbotic Inc",
+      "ko": "Symbotic Inc"
+    },
     "T": {
       "en": "AT&T",
       "zh": "AT&T",
@@ -1877,6 +2392,16 @@
       "en": "T-bill ETF",
       "zh": "國庫券 ETF",
       "ko": "단기국채 ETF"
+    },
+    "TEL": {
+      "en": "TE Connectivity PLC",
+      "zh": "TE Connectivity PLC",
+      "ko": "TE Connectivity PLC"
+    },
+    "TEM": {
+      "en": "Tempus AI Inc",
+      "zh": "Tempus AI Inc",
+      "ko": "Tempus AI Inc"
     },
     "TFLO": {
       "en": "Floating rate Treasury ETF",
@@ -1923,25 +2448,70 @@
       "zh": "T-Mobile",
       "ko": "T-Mobile"
     },
+    "TOST": {
+      "en": "Toast Inc",
+      "zh": "Toast Inc",
+      "ko": "Toast Inc"
+    },
     "TRBCX": {
       "en": "T. Rowe Price Blue Chip Growth",
       "zh": "T. Rowe Price Blue Chip Growth",
       "ko": "T. Rowe Price Blue Chip Growth"
+    },
+    "TRMB": {
+      "en": "Trimble Inc",
+      "zh": "Trimble Inc",
+      "ko": "Trimble Inc"
+    },
+    "TRU": {
+      "en": "TransUnion",
+      "zh": "TransUnion",
+      "ko": "TransUnion"
     },
     "TSLA": {
       "en": "TSLA",
       "zh": "特斯拉",
       "ko": "TSLA"
     },
+    "TSM": {
+      "en": "Taiwan Semiconductor Manufacturing Co Ltd",
+      "zh": "Taiwan 半導體 Manufacturing Co Ltd",
+      "ko": "Taiwan 반도체 Manufacturing Co Ltd"
+    },
+    "TT": {
+      "en": "Trane Technologies PLC",
+      "zh": "Trane Technologies PLC",
+      "ko": "Trane Technologies PLC"
+    },
+    "TTAN": {
+      "en": "Servicetitan Inc",
+      "zh": "Servicetitan Inc",
+      "ko": "Servicetitan Inc"
+    },
+    "TW": {
+      "en": "Tradeweb Markets Inc",
+      "zh": "Tradeweb Markets Inc",
+      "ko": "Tradeweb Markets Inc"
+    },
     "TXN": {
       "en": "TXN",
       "zh": "德州儀器",
       "ko": "TXN"
     },
+    "TYL": {
+      "en": "Tyler Technologies Inc",
+      "zh": "Tyler Technologies Inc",
+      "ko": "Tyler Technologies Inc"
+    },
     "UAE": {
       "en": "UAE ETF",
       "zh": "UAE ETF",
       "ko": "UAE ETF"
+    },
+    "UBER": {
+      "en": "Uber Technologies Inc",
+      "zh": "Uber Technologies Inc",
+      "ko": "Uber Technologies Inc"
     },
     "UNG": {
       "en": "Natural gas ETF",
@@ -2067,6 +2637,11 @@
       "en": "VEA",
       "zh": "已開發市場 (Vanguard) ETF",
       "ko": "VEA"
+    },
+    "VEEV": {
+      "en": "Veeva Systems Inc",
+      "zh": "Veeva Systems Inc",
+      "ko": "Veeva Systems Inc"
     },
     "VEU": {
       "en": "All-world ex-US ETF",
@@ -2208,6 +2783,11 @@
       "zh": "公用事業 Vanguard ETF",
       "ko": "유틸리티 Vanguard ETF"
     },
+    "VRSK": {
+      "en": "Verisk Analytics Inc",
+      "zh": "Verisk Analytics Inc",
+      "ko": "Verisk Analytics Inc"
+    },
     "VRTX": {
       "en": "Vertex",
       "zh": "Vertex",
@@ -2322,6 +2902,16 @@
       "en": "WFC",
       "zh": "富國銀行",
       "ko": "WFC"
+    },
+    "WGS": {
+      "en": "GeneDx Holdings Corp",
+      "zh": "GeneDx Holdings Corp",
+      "ko": "GeneDx Holdings Corp"
+    },
+    "WING": {
+      "en": "Wingstop Inc",
+      "zh": "Wingstop Inc",
+      "ko": "Wingstop Inc"
     },
     "WMT": {
       "en": "WMT",
@@ -2462,6 +3052,11 @@
       "en": "Internet & direct marketing ETF",
       "zh": "網路 & direct marketing ETF",
       "ko": "인터넷 & direct marketing ETF"
+    },
+    "XYL": {
+      "en": "Xylem Inc/NY",
+      "zh": "Xylem Inc/NY",
+      "ko": "Xylem Inc/NY"
     },
     "ZROZ": {
       "en": "25+ year Treasury ETF",

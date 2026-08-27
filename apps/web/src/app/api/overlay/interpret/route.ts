@@ -17,6 +17,7 @@ import {
   OVERLAY_INTERPRET_ERROR_CODES,
 } from "@/lib/overlay-interpret-errors";
 import { parseOverlayExtractFromGemini } from "@/lib/overlay-gemini-parse";
+import paramCatalog from "@/data/param-catalog.json";
 import {
   createSessionId,
   validateOverlayExtract,
@@ -142,6 +143,38 @@ function buildConversationPrompt(
   return `Conversation transcript:\n${transcript}\n\n${contextBlock}${priorBlock}${answersBlock}`;
 }
 
+function overlayParamCatalogBlock(): string {
+  const params = (
+    paramCatalog as {
+      params?: Array<{
+        key: string;
+        overlay_eligible?: boolean;
+        bounds?: number[];
+        description?: string;
+        client_hint?: string;
+      }>;
+    }
+  ).params ?? [];
+  const lines = params
+    .filter((p) => p.overlay_eligible)
+    .map((p) => {
+      const bounds =
+        Array.isArray(p.bounds) && p.bounds.length >= 2
+          ? `[${p.bounds[0]}~${p.bounds[1]}]`
+          : "";
+      return `- ${p.key} ${bounds} ${p.description ?? ""} Trigger: ${p.client_hint ?? ""}`.trim();
+    });
+  if (!lines.length) return "";
+  return `TUNABLE PARAMETERS (param_adjustments whitelist — only these keys):
+${lines.join("\n")}
+
+param_adjustments POLICY:
+- Shape: { "w_lowvol": { "mode": "fixed"|"search"|"off", "fixed"?: number, "min"?: number, "max"?: number } }.
+- mode=fixed → pin the value; mode=search → give Optuna [min,max] within the listed bounds; mode=off → disable that signal.
+- Prefer allocation.sleeve_targets / sub_sleeve_targets / max_single_position_pct for asset-class and single-name caps — do NOT put w_equity / w_bond / class budgets in param_adjustments.
+- Only emit param_adjustments when the conversation implies an explicit factor tilt or customization-drift preference; otherwise OMIT the key entirely.`;
+}
+
 function overlaySystemPrompt(lang: Lang): string {
   return `Private banking quant copilot. Extract client needs from RM conversation into structured overlay JSON.
 
@@ -189,7 +222,7 @@ Field rules:
 - optimization.objective: max_sharpe for risk-on/growth; min_max_drawdown for defensive/liquidity.
 - optimization.regime_adaptive: true when RM mentions regime/market switching.
 - clarification_questions: array of STRINGS only (not objects), each 4–200 chars, max 5.
-- param_adjustments: only for explicit factor tilts. Shape: { "w_lowvol": { "mode": "fixed"|"search"|"off", "fixed"?: number, "min"?: number, "max"?: number } }.
+${overlayParamCatalogBlock()}
 - experiment: only when RM explicitly wants regime objective-switch testing:
   { "enabled": true, "mode": "objective_switch", "regime_mode": "auto"|"risk_off"|"neutral"|"risk_on" }.
 - asks: when the RM brief has numbered requests (1/2/3…), emit one soft ask object per request (max 12). Each ask:

@@ -172,8 +172,8 @@ export function AssetClassFilter({ value, onChange, readOnly = false }: Props) {
         });
         setRationale(
           adds.length
-            ? `Locked model universe: kept holdings and added ${adds.join(", ")} (explicit symbols only).`
-            : "Locked model universe unchanged — name ticker symbols (e.g. GLD) to add, or use overlay supplements.",
+            ? t("assetFilter.lockedAdded", { adds: adds.join(", ") })
+            : t("assetFilter.lockedUnchanged"),
         );
         setPerRuleResults(
           prompts.map((rule_text, rule_index) => {

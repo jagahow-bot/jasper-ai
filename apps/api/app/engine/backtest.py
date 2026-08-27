@@ -3437,7 +3437,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         if client_needs:
             std_learning["client_needs"] = client_needs
         ai_generation = generate_ai_param_sets(
-            n=req.trials,
+            n=max(1, req.trials // 2),
             objective=trial_objective,
             rebalance_freq=rebalance_rule,
             max_weight_cap=req.max_weight,
@@ -3452,17 +3452,19 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             customization_drift_cap=req.customization_drift,
         )
         ai_param_sets = ai_generation.get("param_sets", []) if ai_generation else []
-        # Standard mode: evaluate only AI-generated seeds (no Optuna-random filler).
-        # If AI fails, fall back to the requested trial count with Optuna search.
+        # Standard mode hybrid: AI seeds warm-start Optuna (TPE); remaining
+        # trial budget explores locally around those seeds. Cap seeds at half
+        # so Optuna always keeps exploration room. AI failure → full Optuna.
+        effective_trials = req.trials
         if ai_generation.get("enabled") and ai_param_sets:
-            effective_trials = max(1, len(ai_param_sets))
-        else:
-            effective_trials = req.trials
-        ai_used = min(len(ai_param_sets), effective_trials)
-        if ai_generation.get("enabled"):
+            seed_cap = max(1, req.trials // 2)
+            ai_param_sets = ai_param_sets[:seed_cap]
+        ai_used = len(ai_param_sets) if ai_generation.get("enabled") else 0
+        if ai_generation.get("enabled") and ai_used:
+            explore = max(0, effective_trials - ai_used)
             seed_msg = (
-                f"AI done: {ai_used} AI seed sets — evaluating all as trials "
-                f"(no Optuna-random filler)"
+                f"AI done: {ai_used} seed sets queued — "
+                f"remaining {explore} trials explore locally with Optuna (TPE)"
             )
             if ai_generation.get("seeds_capped"):
                 seed_msg += (
@@ -3475,11 +3477,11 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
                 f"{seed_msg} — starting backtests…",
             )
         else:
-            err = ai_generation.get("error") or "unknown"
+            err = (ai_generation or {}).get("error") or "unknown"
             report_progress(
                 0,
                 effective_trials,
-                f"AI off ({err}) — falling back to Optuna random search…",
+                f"AI off ({err}) — falling back to Optuna search…",
             )
 
         def optuna_progress(

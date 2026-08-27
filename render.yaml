@@ -6,13 +6,17 @@
 #   - Dashboard → jasper-ai-api → Settings → Instance Type → Standard (1 GB RAM) or higher.
 #   - Blueprint env caps below help on 512 MB; upgrade instance for Pro / 50+ trials.
 #   - Env: OPTUNA_N_JOBS=1, SEARCH_RECORDS_MAX=48, RENDER_TRIALS_CAP=30,
-#     UNIVERSE_TICKER_CAP=28, WEIGHT_HISTORY_TICKER_CAP=28.
+#     UNIVERSE_TICKER_CAP=128 (raised for full-holdings fund model portfolios),
+#     WEIGHT_HISTORY_TICKER_CAP=28.
 #
-# Backtest history (jasper-ai-api): completed jobs persist under JOB_HISTORY_DIR.
-#   - Persistent disk is required — ephemeral container FS is wiped on redeploy.
+# Persistent disk (jasper-ai-api): mountPath /var/data survives redeploy.
+#   - Jobs: JOB_HISTORY_DIR=/var/data/jobs
+#   - Champions: CHAMPION_REGISTRY_PATH=/var/data/champions.db
+#   - Price/dividend caches: PRICE_CACHE_DIR + DIVIDEND_CACHE_DIR (durable cache;
+#     rebuilt from yfinance if the disk is cleared; delete service/disk to reset).
 #   - Free tier may not include disks; upgrade to a paid plan and confirm the disk
-#     addon in Dashboard → jasper-ai-api → Disks if history disappears after deploy.
-#   - Only writes under mountPath survive restarts; keep JOB_HISTORY_DIR inside it.
+#     addon in Dashboard → jasper-ai-api → Disks if data disappears after deploy.
+#   - Only writes under mountPath survive restarts; keep all paths inside it.
 #
 # Email notifications (jasper-ai-api, OPTIONAL): when a user supplies an email
 # with a run, a best-effort message is sent when the job completes/fails. The
@@ -43,11 +47,15 @@ services:
       - key: RENDER_TRIALS_CAP
         value: "30"
       - key: UNIVERSE_TICKER_CAP
-        value: "28"
+        value: "128"
       - key: JOB_HISTORY_DIR
         value: /var/data/jobs
       - key: CHAMPION_REGISTRY_PATH
         value: /var/data/champions.db
+      - key: PRICE_CACHE_DIR
+        value: /var/data/prices
+      - key: DIVIDEND_CACHE_DIR
+        value: /var/data/dividends
     disk:
       name: jasper-job-history
       mountPath: /var/data

@@ -59,8 +59,10 @@ export default function SettingsPage() {
         skipped: 0,
         errors: [
           err instanceof Error
-            ? `Backend validation unavailable: ${err.message}`
-            : "Backend validation unavailable",
+            ? t("settings.validationUnavailableDetail", {
+                message: err.message,
+              })
+            : t("settings.validationUnavailable"),
         ],
       });
       return;
@@ -95,8 +97,10 @@ export default function SettingsPage() {
         conflicts: [],
         errors: [
           err instanceof Error
-            ? `Backend validation unavailable: ${err.message}`
-            : "Backend validation unavailable",
+            ? t("settings.validationUnavailableDetail", {
+                message: err.message,
+              })
+            : t("settings.validationUnavailable"),
         ],
       });
       return;

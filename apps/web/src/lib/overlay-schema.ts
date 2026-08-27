@@ -749,6 +749,11 @@ export function clientContextFromOverlay(
   } else if (cashFromAsk != null && Number.isFinite(cashFromAsk)) {
     cashReserve = Math.min(0.4, Math.max(0, cashFromAsk));
   }
+  const stance = overlay.market_view?.stance ?? null;
+  const themes = (overlay.market_view?.themes ?? [])
+    .map((t) => String(t).trim())
+    .filter(Boolean)
+    .slice(0, 5);
   // Do not invent cash from liquidity_need + risk_tolerance alone.
   if (
     !risk &&
@@ -758,7 +763,9 @@ export function clientContextFromOverlay(
     singleCap == null &&
     themeCap == null &&
     cashReserve == null &&
-    tolerance == null
+    tolerance == null &&
+    !stance &&
+    themes.length === 0
   ) {
     return null;
   }
@@ -771,6 +778,8 @@ export function clientContextFromOverlay(
     theme_exposure_cap_pct: themeCap,
     cash_reserve_pct: cashReserve,
     needs_summary: summary ? summary.slice(0, 300) : null,
+    market_stance: stance,
+    market_themes: themes.length ? themes : null,
   };
 }
 

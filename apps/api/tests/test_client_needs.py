@@ -66,6 +66,8 @@ def test_client_needs_prompt_block_shape():
             "investment_horizon_years": 7,
             "max_drawdown_tolerance": 0.1,
             "needs_summary": "Prefer capital preservation with gradual equity exposure.",
+            "market_stance": "risk_off",
+            "market_themes": ["defensive income", "quality bonds"],
         }
     )
     assert block is not None
@@ -73,11 +75,19 @@ def test_client_needs_prompt_block_shape():
     assert block["max_drawdown_tolerance"] == 0.1
     assert "drawdown_floor_rule" in block
     assert "capital preservation" in block["needs_summary"]
+    assert block["market_stance"] == "risk_off"
+    assert block["market_themes"] == ["defensive income", "quality bonds"]
+
+
+def test_client_needs_prompt_block_stance_only():
+    block = client_needs_prompt_block({"market_stance": "risk_on"})
+    assert block == {"market_stance": "risk_on"}
 
 
 def test_client_needs_prompt_block_empty():
     assert client_needs_prompt_block(None) is None
     assert client_needs_prompt_block({}) is None
+    assert client_needs_prompt_block({"market_stance": "bogus"}) is None
 
 
 def test_single_name_and_cash_penalties():
@@ -95,3 +105,21 @@ def test_single_name_and_cash_penalties():
     assert att is not None
     assert att["within_single_name_cap"] is False
     assert att["within_cash_reserve"] is False
+
+
+def test_client_needs_prompt_line_includes_stance_themes():
+    from app.engine.ai_params import _client_needs_prompt_line
+
+    line = _client_needs_prompt_line(
+        {
+            "client_needs": {
+                "risk_tolerance": "moderate",
+                "market_stance": "risk_on",
+                "market_themes": ["AI", "semiconductors"],
+            }
+        }
+    )
+    assert line is not None
+    assert "stance=risk_on" in line
+    assert 'themes="AI;semiconductors"' in line
+    assert "risk=moderate" in line

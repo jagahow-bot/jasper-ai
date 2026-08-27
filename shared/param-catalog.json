@@ -1,0 +1,465 @@
+{
+  "version": 1,
+  "params": [
+    {
+      "key": "mode",
+      "kind": "setup_categorical",
+      "overlay_eligible": false,
+      "description": "Final portfolio weight solver (mean-variance, risk parity, etc.).",
+      "client_hint": "Pro-only; do not set from RM conversation — use optimization.objective instead.",
+      "choices": [
+        "min_var",
+        "mean_variance",
+        "risk_parity",
+        "max_diversification"
+      ]
+    },
+    {
+      "key": "lookback_days",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Return/covariance estimation window in trading days.",
+      "client_hint": "Pro-only technical window; omit unless the RM explicitly asks for shorter/longer estimation.",
+      "bounds": [
+        126,
+        504
+      ]
+    },
+    {
+      "key": "shrinkage",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Covariance shrinkage toward diagonal (0=raw, 1=diagonal).",
+      "client_hint": "Pro-only; omit from overlay.",
+      "bounds": [
+        0.0,
+        0.5
+      ]
+    },
+    {
+      "key": "risk_aversion",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Mean-variance risk aversion λ (higher = more defensive).",
+      "client_hint": "Pro-only; prefer risk_tolerance / max_drawdown fields instead.",
+      "bounds": [
+        0.5,
+        12.0
+      ]
+    },
+    {
+      "key": "max_weight_actual",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Per-name weight cap used inside the allocator.",
+      "client_hint": "Prefer allocation.max_single_position_pct when the client states a single-name max.",
+      "bounds": [
+        0.05,
+        1.0
+      ]
+    },
+    {
+      "key": "top_n_actual",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "How many top-ranked names enter the allocator each rebalance.",
+      "client_hint": "Pro-only; omit from overlay.",
+      "bounds": [
+        2,
+        150
+      ]
+    },
+    {
+      "key": "max_holdings_actual",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Hard cap on names held after allocation.",
+      "client_hint": "Pro-only; omit from overlay.",
+      "bounds": [
+        1,
+        150
+      ]
+    },
+    {
+      "key": "no_trade_tol",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Skip rebalance when weight drift is below this tolerance.",
+      "client_hint": "Pro-only; omit from overlay.",
+      "bounds": [
+        0.0,
+        0.05
+      ]
+    },
+    {
+      "key": "turnover_penalty_mult",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Soft penalty multiplier on portfolio turnover.",
+      "client_hint": "Pro-only; omit from overlay.",
+      "bounds": [
+        0.0,
+        5.0
+      ]
+    },
+    {
+      "key": "max_turnover_actual",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Hard turnover ceiling per rebalance.",
+      "client_hint": "Pro-only; omit from overlay.",
+      "bounds": [
+        0.05,
+        1.0
+      ]
+    },
+    {
+      "key": "customization_drift_actual",
+      "kind": "setup_numeric",
+      "overlay_eligible": true,
+      "description": "Allowed L1 drift from the model-portfolio anchor (0=hold anchor, 1=free).",
+      "client_hint": "Raise when the client wants freer customization; lower when they want to stay close to the model book.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_equity",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_equity).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_bond",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_bond).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_commodity",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_commodity).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_real_estate",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_real_estate).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_alternative",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_alternative).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_equity_us",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_equity_us).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_equity_intl",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_equity_intl).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_equity_em",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_equity_em).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_bond_us",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_bond_us).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_bond_intl",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_bond_intl).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_bond_credit",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_bond_credit).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_commodity_precious",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_commodity_precious).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_commodity_broad",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_commodity_broad).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_reit_us",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_reit_us).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "w_reit_intl",
+      "kind": "setup_numeric",
+      "overlay_eligible": false,
+      "description": "Asset-class / regional sleeve weight (w_reit_intl).",
+      "client_hint": "Use allocation.sleeve_targets / sub_sleeve_targets instead of param_adjustments.",
+      "bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "key": "factor_lookback_days",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Shared lookback for momentum / low-vol / trend / drawdown factors.",
+      "client_hint": "Technical; only set when the RM explicitly wants a shorter or longer signal window.",
+      "bounds": [
+        126,
+        504
+      ]
+    },
+    {
+      "key": "reversal_lookback_days",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Lookback for the short-term reversal factor.",
+      "client_hint": "Technical; omit unless the RM discusses mean-reversion horizons.",
+      "bounds": [
+        63,
+        252
+      ]
+    },
+    {
+      "key": "value_lookback_days",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Lookback for the value / cheapness factor.",
+      "client_hint": "Technical; omit unless the RM discusses value horizons.",
+      "bounds": [
+        63,
+        252
+      ]
+    },
+    {
+      "key": "w_mom",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Weight of medium-term momentum in the multi-factor score.",
+      "client_hint": "Raise when the client wants to chase winners / trend-follow / 動能 / 順勢.",
+      "bounds": [
+        0.0,
+        2.0
+      ]
+    },
+    {
+      "key": "w_reversal",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Weight of short-term reversal (mean-reversion) in the score.",
+      "client_hint": "Raise when the client prefers buying dips / mean-reversion / 逢低買進.",
+      "bounds": [
+        0.0,
+        2.0
+      ]
+    },
+    {
+      "key": "w_value",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Weight of value / cheapness in the score.",
+      "client_hint": "Raise when the client wants value / cheap stocks / 價值投資 / 便宜標的.",
+      "bounds": [
+        0.0,
+        2.0
+      ]
+    },
+    {
+      "key": "w_lowvol",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Weight of low-volatility preference in the score.",
+      "client_hint": "Raise for conservative / low-vol / 低波動 / 穩健 clients.",
+      "bounds": [
+        0.0,
+        2.0
+      ]
+    },
+    {
+      "key": "w_trend",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Weight of price-trend confirmation in the score.",
+      "client_hint": "Raise with w_mom when the client wants strong trend confirmation.",
+      "bounds": [
+        0.0,
+        1.5
+      ]
+    },
+    {
+      "key": "w_drawdown",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Weight of drawdown-avoidance in the score (penalizes deep-drawdown names).",
+      "client_hint": "Raise when the client fears large losses / 怕大回撤 / capital preservation.",
+      "bounds": [
+        0.0,
+        1.5
+      ]
+    },
+    {
+      "key": "w_income",
+      "kind": "factor_numeric",
+      "overlay_eligible": true,
+      "description": "Dividend-income tilt (quality-gated) in the score.",
+      "client_hint": "Raise when the client wants dividends / cash flow / 配息 / 存股 / income.",
+      "bounds": [
+        0.0,
+        0.4
+      ]
+    },
+    {
+      "key": "mom_indicator",
+      "kind": "factor_categorical",
+      "overlay_eligible": false,
+      "description": "Indicator variant for mom.",
+      "client_hint": "Pro-only categorical; omit from overlay."
+    },
+    {
+      "key": "reversal_indicator",
+      "kind": "factor_categorical",
+      "overlay_eligible": false,
+      "description": "Indicator variant for reversal.",
+      "client_hint": "Pro-only categorical; omit from overlay."
+    },
+    {
+      "key": "value_indicator",
+      "kind": "factor_categorical",
+      "overlay_eligible": false,
+      "description": "Indicator variant for value.",
+      "client_hint": "Pro-only categorical; omit from overlay."
+    },
+    {
+      "key": "lowvol_indicator",
+      "kind": "factor_categorical",
+      "overlay_eligible": false,
+      "description": "Indicator variant for lowvol.",
+      "client_hint": "Pro-only categorical; omit from overlay."
+    },
+    {
+      "key": "trend_indicator",
+      "kind": "factor_categorical",
+      "overlay_eligible": false,
+      "description": "Indicator variant for trend.",
+      "client_hint": "Pro-only categorical; omit from overlay."
+    },
+    {
+      "key": "drawdown_indicator",
+      "kind": "factor_categorical",
+      "overlay_eligible": false,
+      "description": "Indicator variant for drawdown.",
+      "client_hint": "Pro-only categorical; omit from overlay."
+    },
+    {
+      "key": "income_indicator",
+      "kind": "factor_categorical",
+      "overlay_eligible": false,
+      "description": "Indicator variant for income.",
+      "client_hint": "Pro-only categorical; omit from overlay."
+    }
+  ],
+  "overlay_eligible_keys": [
+    "customization_drift_actual",
+    "factor_lookback_days",
+    "reversal_lookback_days",
+    "value_lookback_days",
+    "w_mom",
+    "w_reversal",
+    "w_value",
+    "w_lowvol",
+    "w_trend",
+    "w_drawdown",
+    "w_income"
+  ]
+}

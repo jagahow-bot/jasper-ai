@@ -71,6 +71,10 @@ export interface ClientContext {
   cash_reserve_pct?: number | null;
   /** Plain-language client view, shown to AI prompts only. */
   needs_summary?: string | null;
+  /** RM/AI market stance from the overlay; prompt-only. */
+  market_stance?: "risk_on" | "neutral" | "risk_off" | null;
+  /** RM/AI investment themes from the overlay; prompt-only, max 5. */
+  market_themes?: string[] | null;
 }
 
 export interface BacktestRequest {

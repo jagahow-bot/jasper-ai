@@ -68,6 +68,15 @@ class ClientContext(BaseModel):
         max_length=300,
         description="Plain-language summary of the client view, shown to AI prompts only.",
     )
+    market_stance: Literal["risk_on", "neutral", "risk_off"] | None = Field(
+        default=None,
+        description="RM/AI market stance from the overlay; prompt-only, no scoring penalty.",
+    )
+    market_themes: list[str] | None = Field(
+        default=None,
+        max_length=5,
+        description="RM/AI investment themes from the overlay; prompt-only, capped at 5.",
+    )
 
 
 class JobStatus(str, Enum):
@@ -193,7 +202,7 @@ class BacktestRequest(BaseModel):
     max_holdings: int = Field(
         default=30,
         ge=1,
-        le=50,
+        le=150,
         description="Maximum portfolio holdings (non-zero positions) per rebalance",
     )
     max_turnover: float = Field(
@@ -392,7 +401,7 @@ class BacktestRequest(BaseModel):
             return self
         need = max(floor(1.0 / w) + 1, 2)
         if int(self.max_holdings) < need:
-            self.max_holdings = min(need, 50)
+            self.max_holdings = min(need, 150)
         return self
 
     def resolved_universe_filter_prompts(self) -> list[str]:

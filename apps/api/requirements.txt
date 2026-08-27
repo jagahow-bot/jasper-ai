@@ -10,3 +10,4 @@ httpx>=0.27.0
 optuna>=4.0.0
 vectorbt>=0.26.0
 numba>=0.59.0
+scipy>=1.14

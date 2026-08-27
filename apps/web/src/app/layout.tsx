@@ -15,7 +15,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JASPER 智慧投組平台",
+  title: "JASPER.AI · Portfolio Studio",
   description: "JASPER Portfolio Studio — AI portfolio customization for wealth managers",
 };
 

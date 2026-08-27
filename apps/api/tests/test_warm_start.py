@@ -96,7 +96,7 @@ def test_standard_mode_passes_registry_seed_to_optuna(
             )
 
     assert captured["n_trials"] == 6
-    assert captured["seed"]["mode"] == "risk_parity"
+    assert captured["seed"]["allocator_mode"] == "risk_parity"
     assert "model_code" not in captured["seed"]
 
 

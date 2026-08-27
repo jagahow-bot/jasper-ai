@@ -1,6 +1,6 @@
 {
   "version": "1.2",
-  "updated": "2026-07-28",
+  "updated": "2026-08-27",
   "criteria": "US-listed ETFs (typically >$500M AUM) plus popular mega/large-cap stocks and liquid mutual-fund share classes for wealth-management demos",
   "universe": [
     {
@@ -3946,6 +3946,1270 @@
       "region": "us",
       "category": "alt_hedge",
       "product_type": "etf"
+    },
+    {
+      "ticker": "APH",
+      "name": "Amphenol Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SNPS",
+      "name": "Synopsys Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TEL",
+      "name": "TE Connectivity PLC",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "NOC",
+      "name": "Northrop Grumman Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TT",
+      "name": "Trane Technologies PLC",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ASML",
+      "name": "ASML Holding NV NY REGD USD.09",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ICE",
+      "name": "Intercontinental Exchange Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MPWR",
+      "name": "Monolithic Power Systems Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "FAST",
+      "name": "Fastenal Co",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ADSK",
+      "name": "Autodesk Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PTC",
+      "name": "PTC Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SYK",
+      "name": "Stryker Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BWXT",
+      "name": "BWX Technologies Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SPGI",
+      "name": "S&P Global Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MLM",
+      "name": "Martin Marietta Materials Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MNST",
+      "name": "Monster Beverage Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MTD",
+      "name": "Mettler-Toledo International Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PH",
+      "name": "Parker-Hannifin Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BX",
+      "name": "Blackstone Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "IR",
+      "name": "Ingersoll-Rand Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "JCI",
+      "name": "Johnson Controls International plc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "XYL",
+      "name": "Xylem Inc/NY",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TW",
+      "name": "Tradeweb Markets Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ECL",
+      "name": "Ecolab Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AZN",
+      "name": "AstraZeneca PLC",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "RSG",
+      "name": "Republic Services Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AME",
+      "name": "AMETEK Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CW",
+      "name": "Curtiss-Wright Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "APD",
+      "name": "Air Products and Chemicals Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "A",
+      "name": "Agilent Technologies Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CMG",
+      "name": "Chipotle Mexican Grill Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CP",
+      "name": "Canadian Pacific Kansas City Ltd",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "VEEV",
+      "name": "Veeva Systems Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TYL",
+      "name": "Tyler Technologies Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MSI",
+      "name": "Motorola Solutions Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ODFL",
+      "name": "Old Dominion Freight Line Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MELI",
+      "name": "MercadoLibre Inc",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ARM",
+      "name": "ARM Holdings PLC",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SHOP",
+      "name": "Shopify Inc",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "VRSK",
+      "name": "Verisk Analytics Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "UBER",
+      "name": "Uber Technologies Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ADP",
+      "name": "Automatic Data Processing Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "FIG",
+      "name": "Figma Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AXON",
+      "name": "AXON ENTERPRISE INC",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SHOP",
+      "name": "Shopify Inc",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CDNS",
+      "name": "Cadence Design Systems Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SNPS",
+      "name": "Synopsys Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MELI",
+      "name": "MercadoLibre Inc",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "NET",
+      "name": "Cloudflare Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "APP",
+      "name": "Applovin Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CLS",
+      "name": "Celestica Inc",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DASH",
+      "name": "Doordash Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing Co Ltd",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TW",
+      "name": "Tradeweb Markets Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "RBLX",
+      "name": "ROBLOX Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SE",
+      "name": "Sea Ltd",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ADI",
+      "name": "Analog Devices Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "NTRA",
+      "name": "Natera Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "APH",
+      "name": "Amphenol Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MPWR",
+      "name": "Monolithic Power Systems Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ANET",
+      "name": "Arista Networks Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "HOOD",
+      "name": "Robinhood Markets Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "VEEV",
+      "name": "Veeva Systems Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ASML",
+      "name": "ASML Holding NV NY REGD USD.09",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ARGX",
+      "name": "Argenx SE",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "KTOS",
+      "name": "Kratos Defense & Security Solutions Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "GEV",
+      "name": "GE Vernova Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SPOT",
+      "name": "Spotify Technology SA",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DOCS",
+      "name": "Doximity Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "FTNT",
+      "name": "Fortinet Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CVNA",
+      "name": "Carvana Co",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "UBER",
+      "name": "Uber Technologies Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BSX",
+      "name": "Boston Scientific Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TTAN",
+      "name": "Servicetitan Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "HUBS",
+      "name": "HubSpot Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ASND",
+      "name": "Ascendis Pharma A/S",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MNDY",
+      "name": "Monday.Com Ltd",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "GWRE",
+      "name": "Guidewire Software Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TOST",
+      "name": "Toast Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PWR",
+      "name": "Quanta Services Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TYL",
+      "name": "Tyler Technologies Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "VRSK",
+      "name": "Verisk Analytics Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "INSM",
+      "name": "Insmed Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DSGX",
+      "name": "Descartes Systems Group Inc/The",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "GH",
+      "name": "Guardant Health Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ALNY",
+      "name": "Alnylam Pharmaceuticals Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "KRMN",
+      "name": "Karman Holdings Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "LIF",
+      "name": "Life360 Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "FTI",
+      "name": "TECHNIPFMC PLC",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DUOL",
+      "name": "Duolingo Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "RKLB",
+      "name": "Rocket Lab Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "RDDT",
+      "name": "Reddit Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "KVYO",
+      "name": "Klaviyo Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TEM",
+      "name": "Tempus AI Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ARM",
+      "name": "ARM Holdings PLC",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "IDXX",
+      "name": "IDEXX Laboratories Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ROOT",
+      "name": "Root Inc/OH",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "HNGE",
+      "name": "Hinge Health Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BKR",
+      "name": "Baker Hughes Co",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CRCL",
+      "name": "Circle Internet Group Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "LGND",
+      "name": "Ligand Pharmaceuticals Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SYK",
+      "name": "Stryker Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "HQY",
+      "name": "HealthEquity Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "COIN",
+      "name": "COINBASE GLOBAL INC",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AFRM",
+      "name": "Affirm Holdings Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SYM",
+      "name": "Symbotic Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CORT",
+      "name": "Corcept Therapeutics Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TRMB",
+      "name": "Trimble Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CHYM",
+      "name": "Chime Financial Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "OII",
+      "name": "Oceaneering International Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "WGS",
+      "name": "GeneDx Holdings Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MMYT",
+      "name": "MakeMyTrip Ltd",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BE",
+      "name": "Bloom Energy Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "FIG",
+      "name": "Figma Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AUR",
+      "name": "Aurora Innovation Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CAI",
+      "name": "Caris Life Sciences Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "KMTS",
+      "name": "Kestra Medical Technologies Ltd",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock_tech",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AXON",
+      "name": "AXON ENTERPRISE INC",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SNPS",
+      "name": "Synopsys Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "RBLX",
+      "name": "ROBLOX Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "APH",
+      "name": "Amphenol Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ARES",
+      "name": "ARES MANAGEMENT CORP",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MCK",
+      "name": "McKesson Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TT",
+      "name": "Trane Technologies PLC",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SPOT",
+      "name": "Spotify Technology SA",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "AZO",
+      "name": "AutoZone Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "RSG",
+      "name": "Republic Services Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SPGI",
+      "name": "S&P Global Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "VRSK",
+      "name": "Verisk Analytics Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "APP",
+      "name": "Applovin Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TYL",
+      "name": "Tyler Technologies Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BSX",
+      "name": "Boston Scientific Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "GEV",
+      "name": "GE Vernova Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "UBER",
+      "name": "Uber Technologies Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "WING",
+      "name": "Wingstop Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MPWR",
+      "name": "Monolithic Power Systems Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DXCM",
+      "name": "Dexcom Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "FICO",
+      "name": "Fair Isaac Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "BRBR",
+      "name": "BellRing Brands Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "DASH",
+      "name": "Doordash Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PH",
+      "name": "Parker-Hannifin Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "HUBS",
+      "name": "HubSpot Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CSGP",
+      "name": "CoStar Group Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MLM",
+      "name": "Martin Marietta Materials Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ADI",
+      "name": "Analog Devices Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "PINS",
+      "name": "Pinterest Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "CMG",
+      "name": "Chipotle Mexican Grill Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ODD",
+      "name": "Oddity Tech Ltd",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TRU",
+      "name": "TransUnion",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MSCI",
+      "name": "MSCI Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "LSCC",
+      "name": "Lattice Semiconductor Corp",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "MNDY",
+      "name": "Monday.Com Ltd",
+      "asset_class": "equity",
+      "region": "intl",
+      "category": "intl_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "FRPT",
+      "name": "Freshpet Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "QXO",
+      "name": "QXO Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "ADSK",
+      "name": "Autodesk Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "SARO",
+      "name": "StandardAero Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "TEM",
+      "name": "Tempus AI Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
+    },
+    {
+      "ticker": "FIG",
+      "name": "Figma Inc",
+      "asset_class": "equity",
+      "region": "us",
+      "category": "us_stock",
+      "product_type": "stock"
     }
   ]
 }
