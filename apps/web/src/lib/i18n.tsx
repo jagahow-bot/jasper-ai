@@ -1025,6 +1025,72 @@ const en: Dict = {
   "params.category.allocation": "Allocation & weights",
   "params.category.rebalance": "Cash & rebalance",
   "params.category.other": "Other",
+  "params.info.aria": "About {param}",
+  "params.info.scenario_style":
+    "Which named customization scenario this proposal came from (stay close to anchor, use full drift budget, defensive, or theme).",
+  "params.info.objective_mode":
+    "What this backtest optimizes for — e.g. max Sharpe, max return, or minimize max drawdown.",
+  "params.info.mode":
+    "How final weights are solved: return–risk balance, lowest volatility, equal risk contribution, or max diversification.",
+  "params.info.allocator_mode":
+    "How final weights are solved: return–risk balance, lowest volatility, equal risk contribution, or max diversification.",
+  "params.info.lookback_days":
+    "How many past trading days are used to estimate returns and risk. Longer = more stable; shorter = more reactive.",
+  "params.info.shrinkage":
+    "Pulls noisy correlation estimates toward a safer diagonal. 0 = raw data; 1 = fully diagonal.",
+  "params.info.risk_aversion":
+    "Risk penalty inside mean-variance. Higher = more defensive allocation.",
+  "params.info.max_weight_actual":
+    "Maximum weight any single name can take in the portfolio.",
+  "params.info.max_holdings_actual": "Maximum number of holdings allowed.",
+  "params.info.top_n_actual":
+    "After factor screening, how many names remain as candidates before weight allocation.",
+  "params.info.max_turnover_actual":
+    "Upper bound on how much the book can trade at each rebalance.",
+  "params.info.customization_drift_actual":
+    "How far this book may drift from the anchor portfolio (0 ≈ stay put; 1 = fully rebuild).",
+  "params.info.no_trade_tol":
+    "Ignore weight changes smaller than this threshold to cut micro-trades.",
+  "params.info.turnover_penalty_mult":
+    "Extra cost pressure on turnover; higher = prefer less trading.",
+  "params.info.rebalance_freq":
+    "How often the portfolio is rebalanced (weekly / monthly / quarterly / yearly).",
+  "params.info.factor_lookback_days":
+    "Lookback window used to compute most factor signals.",
+  "params.info.reversal_lookback_days":
+    "Lookback window for the short-term mean-reversion signal.",
+  "params.info.value_lookback_days":
+    "Lookback window for the value / valuation signal.",
+  "params.info.w_mom":
+    "Weight on momentum: how strongly recent winners are preferred.",
+  "params.info.w_reversal":
+    "Weight on short-term reversal: how strongly recent losers / oversold names are preferred.",
+  "params.info.w_value":
+    "Weight on value: how strongly cheaper / higher-yield names are preferred.",
+  "params.info.w_lowvol":
+    "Weight on low volatility: how strongly calmer names are preferred.",
+  "params.info.w_trend":
+    "Weight on medium/long-term trend: how strongly uptrending names are preferred.",
+  "params.info.w_drawdown":
+    "Weight on drawdown quality: how strongly names with milder recent drawdowns are preferred.",
+  "params.info.w_income":
+    "Weight on income: how strongly higher-yielding names are preferred.",
+  "params.info.w_equity": "Target sleeve weight for equities.",
+  "params.info.w_bond": "Target sleeve weight for bonds.",
+  "params.info.w_commodity": "Target sleeve weight for commodities.",
+  "params.info.w_real_estate": "Target sleeve weight for real estate.",
+  "params.info.w_alternative": "Target sleeve weight for alternatives.",
+  "params.info.mom_indicator":
+    "Which momentum formula is used (e.g. skip-month, trailing return).",
+  "params.info.reversal_indicator":
+    "Which short-term reversal formula is used.",
+  "params.info.value_indicator": "Which value / valuation formula is used.",
+  "params.info.lowvol_indicator":
+    "Which low-volatility formula is used (e.g. negative volatility).",
+  "params.info.trend_indicator": "Which trend formula is used.",
+  "params.info.drawdown_indicator":
+    "Which drawdown-quality formula is used (e.g. time since trough).",
+  "params.info.income_indicator": "Which income / yield formula is used.",
   "params.timeline.title": "Search round timeline",
   "params.timeline.hint":
     "How Pro rounds evolved — objective, key param changes, round champion, headline metrics.",
@@ -2782,6 +2848,58 @@ const zh: Dict = {
   "params.category.allocation": "權重配置",
   "params.category.rebalance": "現金／再平衡",
   "params.category.other": "其他",
+  "params.info.aria": "{param} 說明",
+  "params.info.scenario_style":
+    "此方案來自哪個具名客製化情境（貼近錨定、用滿漂移、防禦、或主題）。",
+  "params.info.objective_mode":
+    "這次回測追求的目標，例如最大夏普、最大報酬，或最小最大回撤。",
+  "params.info.mode":
+    "最終權重怎麼算：報酬—風險平衡、最低波動、等風險貢獻，或最大分散。",
+  "params.info.allocator_mode":
+    "最終權重怎麼算：報酬—風險平衡、最低波動、等風險貢獻，或最大分散。",
+  "params.info.lookback_days":
+    "用過去多少天的資料估計報酬與風險。越長越穩定，越短越靈敏。",
+  "params.info.shrinkage":
+    "把噪音大的相關性估計往保守方向收斂。0＝原始資料，1＝完全對角。",
+  "params.info.risk_aversion":
+    "均值變異模型裡的風險懲罰。數字越大越保守。",
+  "params.info.max_weight_actual": "單一標的最多能佔投組多少。",
+  "params.info.max_holdings_actual": "投組最多持有幾檔。",
+  "params.info.top_n_actual":
+    "因子篩選後，最多留下前幾名再進入權重配置。",
+  "params.info.max_turnover_actual": "每次再平衡允許的最大換手上限。",
+  "params.info.customization_drift_actual":
+    "相對錨定投組允許偏離多少（0≈幾乎不動，1＝完全重組）。",
+  "params.info.no_trade_tol":
+    "權重變動小於這個門檻就不交易，減少微調成本。",
+  "params.info.turnover_penalty_mult":
+    "對換手的懲罰強度；越大越傾向少動。",
+  "params.info.rebalance_freq":
+    "多久重新調整一次投組（週／月／季／年）。",
+  "params.info.factor_lookback_days": "多數因子訊號使用的回看窗口。",
+  "params.info.reversal_lookback_days": "短期均值回歸訊號的回看窗口。",
+  "params.info.value_lookback_days": "價值／評價訊號的回看窗口。",
+  "params.info.w_mom": "動能因子權重：近期漲多的標的加分程度。",
+  "params.info.w_reversal":
+    "反轉因子權重：短期超跌／超漲後回檔的標的加分程度。",
+  "params.info.w_value": "價值因子權重：評價偏低的標的加分程度。",
+  "params.info.w_lowvol": "低波動因子權重：波動較小的標的加分程度。",
+  "params.info.w_trend": "趨勢因子權重：中長期趨勢向上的標的加分程度。",
+  "params.info.w_drawdown":
+    "回撤品質因子權重：近期回撤較小的標的加分程度。",
+  "params.info.w_income": "收益因子權重：配息／殖利率較高的標的加分程度。",
+  "params.info.w_equity": "股票部位的目標權重。",
+  "params.info.w_bond": "債券部位的目標權重。",
+  "params.info.w_commodity": "商品部位的目標權重。",
+  "params.info.w_real_estate": "不動產部位的目標權重。",
+  "params.info.w_alternative": "另類部位的目標權重。",
+  "params.info.mom_indicator": "動能訊號使用哪一種計算公式。",
+  "params.info.reversal_indicator": "反轉訊號使用哪一種計算公式。",
+  "params.info.value_indicator": "價值訊號使用哪一種計算公式。",
+  "params.info.lowvol_indicator": "低波動訊號使用哪一種計算公式。",
+  "params.info.trend_indicator": "趨勢訊號使用哪一種計算公式。",
+  "params.info.drawdown_indicator": "回撤品質訊號使用哪一種計算公式。",
+  "params.info.income_indicator": "收益訊號使用哪一種計算公式。",
   "params.timeline.title": "搜尋輪次時間軸",
   "params.timeline.hint":
     "Pro 多輪搜尋歷程：目標、關鍵參數變更、當輪冠軍與核心指標。",
@@ -4527,6 +4645,58 @@ const ko: Dict = {
   "params.category.allocation": "배분·가중치",
   "params.category.rebalance": "현금·리밸런싱",
   "params.category.other": "기타",
+  "params.info.aria": "{param} 설명",
+  "params.info.scenario_style":
+    "이 제안이 나온 맞춤화 시나리오(앵커 근접, 전체 드리프트, 방어형, 테마).",
+  "params.info.objective_mode":
+    "이번 백테스트가 추구하는 목표 — 예: 최대 샤프, 최대 수익, 최대 낙폭 최소화.",
+  "params.info.mode":
+    "최종 비중 산출 방식: 수익–위험 균형, 최저 변동성, 균등 위험 기여, 최대 분산.",
+  "params.info.allocator_mode":
+    "최종 비중 산출 방식: 수익–위험 균형, 최저 변동성, 균등 위험 기여, 최대 분산.",
+  "params.info.lookback_days":
+    "수익·위험 추정에 쓰는 과거 거래일 수. 길수록 안정적, 짧을수록 민감.",
+  "params.info.shrinkage":
+    "노이즈가 큰 상관 추정치를 안전한 대각 쪽으로 당깁니다. 0=원자료, 1=완전 대각.",
+  "params.info.risk_aversion":
+    "평균–분산 모델의 위험 패널티. 클수록 더 방어적.",
+  "params.info.max_weight_actual": "단일 종목이 차지할 수 있는 최대 비중.",
+  "params.info.max_holdings_actual": "보유 가능한 최대 종목 수.",
+  "params.info.top_n_actual":
+    "팩터 스크리닝 후 비중 배분 전에 남기는 후보 종목 수.",
+  "params.info.max_turnover_actual": "리밸런싱 시 허용되는 최대 회전율.",
+  "params.info.customization_drift_actual":
+    "앵커 포트폴리오에서 얼마나 벗어날 수 있는지(0≈유지, 1=전면 재구성).",
+  "params.info.no_trade_tol":
+    "이 임계값보다 작은 비중 변화는 거래하지 않아 미세 조정을 줄입니다.",
+  "params.info.turnover_penalty_mult":
+    "회전에 대한 추가 비용 압력. 클수록 거래를 줄이려 합니다.",
+  "params.info.rebalance_freq":
+    "포트폴리오 리밸런싱 주기(주/월/분기/년).",
+  "params.info.factor_lookback_days": "대부분 팩터 신호에 쓰는 룩백 창.",
+  "params.info.reversal_lookback_days": "단기 평균회귀 신호의 룩백 창.",
+  "params.info.value_lookback_days": "가치/밸류에이션 신호의 룩백 창.",
+  "params.info.w_mom": "모멘텀 가중치: 최근 상승 종목을 얼마나 선호할지.",
+  "params.info.w_reversal":
+    "반전 가중치: 단기 과매도/되돌림 종목을 얼마나 선호할지.",
+  "params.info.w_value": "가치 가중치: 저평가 종목을 얼마나 선호할지.",
+  "params.info.w_lowvol": "저변동성 가중치: 변동성이 낮은 종목을 얼마나 선호할지.",
+  "params.info.w_trend": "추세 가중치: 중장기 상승 추세 종목을 얼마나 선호할지.",
+  "params.info.w_drawdown":
+    "낙폭 품질 가중치: 최근 낙폭이 작은 종목을 얼마나 선호할지.",
+  "params.info.w_income": "수익 가중치: 배당/수익률이 높은 종목을 얼마나 선호할지.",
+  "params.info.w_equity": "주식 슬리브 목표 비중.",
+  "params.info.w_bond": "채권 슬리브 목표 비중.",
+  "params.info.w_commodity": "원자재 슬리브 목표 비중.",
+  "params.info.w_real_estate": "부동산 슬리브 목표 비중.",
+  "params.info.w_alternative": "대안 슬리브 목표 비중.",
+  "params.info.mom_indicator": "모멘텀 신호에 쓰는 계산식.",
+  "params.info.reversal_indicator": "반전 신호에 쓰는 계산식.",
+  "params.info.value_indicator": "가치 신호에 쓰는 계산식.",
+  "params.info.lowvol_indicator": "저변동성 신호에 쓰는 계산식.",
+  "params.info.trend_indicator": "추세 신호에 쓰는 계산식.",
+  "params.info.drawdown_indicator": "낙폭 품질 신호에 쓰는 계산식.",
+  "params.info.income_indicator": "수익 신호에 쓰는 계산식.",
   "params.timeline.title": "탐색 라운드 타임라인",
   "params.timeline.hint":
     "Pro 다라운드 탐색 경과 — 목표, 핵심 파라미터 변경, 라운드 추천 방안, 핵심 지표.",

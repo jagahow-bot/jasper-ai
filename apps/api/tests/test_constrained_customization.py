@@ -8,13 +8,18 @@ import pytest
 
 from app.engine.constrained_customization import (
     MAX_TRADABLE_FOR_CONSTRAINED,
+    allocate_constrained_trial_budget,
     build_constrained_param_rationale,
     build_constrained_proposal_set,
     build_constrained_scenario_seeds,
     estimate_constrained_trial_count,
+    pin_scenario_controls,
     select_constrained_champion_code,
+    select_constrained_records_for_report,
     should_use_constrained_customization,
 )
+from app.engine.optimizer import prepare_enqueue_params
+from app.engine.param_bounds import RunBlueprint
 from app.models import BacktestRequest, Objective, OptimizationMode
 
 
@@ -41,7 +46,8 @@ def test_trigger_requires_anchor_and_small_universe():
     assert should_use_constrained_customization(
         req, tradable_count=5, must_include_count=1
     )
-    assert estimate_constrained_trial_count(req) == 4  # theme included (BOTZ)
+    # 4 scenarios + local exploration up to req.trials
+    assert estimate_constrained_trial_count(req) == 25
 
     no_anchor = _req(anchor_weights=None)
     assert not should_use_constrained_customization(
@@ -111,7 +117,7 @@ def test_scenario_seeds_omit_theme_without_must_include():
         "full_drift",
         "defensive",
     ]
-    assert estimate_constrained_trial_count(req) == 3
+    assert estimate_constrained_trial_count(req) == 25  # max(3, trials=25)
 
 
 def test_proposal_set_friendly_labels_no_alternative_n():
@@ -233,3 +239,80 @@ def test_param_rationale_en_and_ko_cover_styles():
     )
     assert "방어형" in ko
     assert "20%" in ko
+
+
+def test_estimate_trial_count_uses_max_of_scenarios_and_trials():
+    req = _req(trials=5)
+    # theme present → 4 scenarios; max(4, 5) = 5
+    assert estimate_constrained_trial_count(req) == 5
+    req3 = _req(
+        trials=5,
+        universe_tickers=["IVV", "TLT"],
+        anchor_weights={"IVV": 0.5, "TLT": 0.5},
+        universe_supplement_tickers=None,
+    )
+    assert estimate_constrained_trial_count(req3) == 5  # max(3, 5)
+
+
+def test_allocate_constrained_trial_budget_covers_all_scenarios():
+    assert allocate_constrained_trial_budget(3, 25) == [9, 8, 8]
+    assert sum(allocate_constrained_trial_budget(4, 5)) == 5
+    assert all(n >= 1 for n in allocate_constrained_trial_budget(4, 5))
+    assert allocate_constrained_trial_budget(3, 3) == [1, 1, 1]
+
+
+def test_pin_scenario_controls_identity_keys():
+    seed = {
+        "scenario_style": "defensive",
+        "allocator_mode": "min_var",
+        "objective_mode": "min_max_drawdown",
+        "customization_drift_actual": 0.11,
+        "rebalance_freq": "QE",
+        "w_mom": 0.4,
+    }
+    pinned = pin_scenario_controls(seed)
+    assert pinned["allocator_mode"] == {"mode": "fixed", "fixed": "min_var"}
+    assert pinned["customization_drift_actual"] == {
+        "mode": "fixed",
+        "fixed": 0.11,
+    }
+    assert pinned["rebalance_freq"]["fixed"] == "QE"
+    assert "w_mom" not in pinned
+
+
+def test_prepare_enqueue_skips_fixed_identity_keys():
+    bp = RunBlueprint(
+        max_weight=0.3,
+        max_turnover=0.5,
+        top_n=10,
+        max_holdings=10,
+        customization_drift=0.5,
+    )
+    seed = {
+        "allocator_mode": "min_var",
+        "lookback_days": 252,
+        "w_mom": 0.5,
+        "customization_drift_actual": 0.1,
+    }
+    controls = pin_scenario_controls(seed)
+    prepared = prepare_enqueue_params(seed, blueprint=bp, param_controls=controls)
+    assert "allocator_mode" not in prepared
+    assert "customization_drift_actual" not in prepared
+    assert prepared["w_mom"] == 0.5
+    assert "lookback_days" in prepared
+
+
+def test_select_constrained_records_keeps_best_per_style():
+    records = [
+        (1.0, {"scenario_style": "anchor_close", "model_code": "M0001"}, {"sharpe": 1.0}),
+        (2.0, {"scenario_style": "anchor_close", "model_code": "M0002"}, {"sharpe": 2.0}),
+        (1.5, {"scenario_style": "full_drift", "model_code": "M0003"}, {"sharpe": 1.5}),
+        (0.5, {"scenario_style": "defensive", "model_code": "M0004"}, {"sharpe": 0.5}),
+        (3.0, {"scenario_style": "full_drift", "model_code": "M0005"}, {"sharpe": 3.0}),
+    ]
+    picked = select_constrained_records_for_report(records, "max_sharpe", top_n_models=3)
+    styles = {r[1]["scenario_style"] for r in picked}
+    assert styles == {"anchor_close", "full_drift", "defensive"}
+    by_style = {r[1]["scenario_style"]: r[1]["model_code"] for r in picked}
+    assert by_style["anchor_close"] == "M0002"
+    assert by_style["full_drift"] == "M0005"

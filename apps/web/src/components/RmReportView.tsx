@@ -464,6 +464,7 @@ export function RmReportView({
                   candidates={compare.adjustedResult.candidates}
                   proposals={compare.adjustedResult.proposal_set}
                   baselineCode={primaryRecommendationCode}
+                  showExpand={false}
                 />
               </div>
             ) : null}

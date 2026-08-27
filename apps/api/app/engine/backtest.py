@@ -34,10 +34,13 @@ from app.engine.param_bounds import (
 from app.engine.mutable_params import GEMINI_LEARNING_MUTABLE_FIELDS
 from app.engine.customization import derive_must_include_tickers
 from app.engine.constrained_customization import (
+    allocate_constrained_trial_budget,
     build_constrained_param_rationale,
     build_constrained_proposal_set,
     build_constrained_scenario_seeds,
+    pin_scenario_controls,
     select_constrained_champion_code,
+    select_constrained_records_for_report,
     should_use_constrained_customization,
 )
 from app.engine.objectives import (
@@ -3283,36 +3286,28 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             must_include=must_include_tickers,
             objective=trial_objective,
         )
-        effective_trials = max(1, len(scenario_seeds))
+        n_seeds = max(1, len(scenario_seeds))
+        # Named scenarios + local Optuna exploration within each lane.
+        trial_budget = allocate_constrained_trial_budget(n_seeds, int(req.trials))
+        effective_trials = int(sum(trial_budget))
         ai_param_sets = scenario_seeds
-        # Anchored RM runs often fix customization_drift_actual to the slider.
-        # Scenarios need distinct drift_actual values ≤ that ceiling — open search
-        # within [0, ceiling] so seeds are not all clamped to the same fixed value.
-        constrained_param_controls = dict(param_controls_dict)
-        constrained_param_controls["customization_drift_actual"] = {
-            "mode": "search",
-            "min": 0.0,
-            "max": float(req.customization_drift),
-        }
-        # Prefer seed allocator_mode over a run-level fixed mode if present.
-        for mode_key in ("allocator_mode", "mode"):
-            ctl = constrained_param_controls.get(mode_key)
-            if isinstance(ctl, dict) and ctl.get("mode") == "fixed":
-                constrained_param_controls[mode_key] = {"mode": "search"}
         styles = [str(s.get("scenario_style") or "") for s in scenario_seeds]
+        explore_n = max(0, effective_trials - n_seeds)
         report_progress(
             0,
             effective_trials,
             (
-                f"Constrained customization: {effective_trials} named scenarios "
-                f"({', '.join(styles)}) — skipping Pro / large search…"
+                f"Constrained customization: {n_seeds} named scenarios "
+                f"({', '.join(styles)}) + {explore_n} local exploration "
+                "trials — skipping Pro / large search…"
             ),
         )
         ai_generation = {
             "enabled": True,
             "model": "constrained_scenarios",
-            "seed_sets_requested": effective_trials,
-            "seed_sets_used": effective_trials,
+            "seed_sets_requested": n_seeds,
+            "seed_sets_used": n_seeds,
+            "local_exploration_trials": explore_n,
             "rationale": build_constrained_param_rationale(
                 req.report_language,
                 styles,
@@ -3324,60 +3319,127 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             "scenario_styles": styles,
         }
 
-        def optuna_progress_constrained(
-            trial: int,
-            total: int,
-            best_score: float | None,
-            _latest_record: tuple[float, dict, dict] | None = None,
-        ) -> None:
-            style = ""
-            if _latest_record and isinstance(_latest_record[1], dict):
-                style = str(_latest_record[1].get("scenario_style") or "")
-            label = f" [{style}]" if style else ""
-            msg = f"Scenario {trial}/{total}{label}"
-            if best_score is not None:
-                obj_label, obj_text = _objective_progress_label_and_text(
-                    objective_effective, best_score
-                )
-                msg += f", best {obj_label} {obj_text}"
-            report_progress(trial, total, msg, best_score)
+        records: list[tuple[float, dict, dict]] = []
+        trials_done = 0
+        global_best: float | None = None
+        search_errors: list[str] = []
 
-        records = run_optuna_search(
-            prices_train,
-            prices_sim_panel=prices_sim_panel,
-            max_weight=req.max_weight,
-            min_weight=req.min_weight,
-            max_turnover=req.max_turnover,
-            top_n=req.top_n,
-            objective=trial_objective,
-            trials=effective_trials,
-            anchor_weights=req.anchor_weights,
-            customization_drift=req.customization_drift,
-            ai_seed_param_sets=ai_param_sets,
-            param_controls=constrained_param_controls,
-            spec=spec,
-            progress_cb=optuna_progress_constrained,
-            universe_by_ticker=universe_by_ticker,
-            prices_val=prices_val if oos and len(prices_val) > 60 else None,
-            select_on_is=bool(oos and len(prices_val) > 60),
-            asset_classes=req.asset_classes,
-            trial_report_cache=trial_report_cache,
-            allocator_resolver=(
-                dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
-            ),
-            class_budget_resolver=(
-                dynamic_ctx.get("class_budget_resolver") if dynamic_ctx else None
-            ),
-            active_regime_resolver=(
-                dynamic_ctx.get("active_regime_resolver") if dynamic_ctx else None
-            ),
-            enforce_class_weights=req.enforce_class_weights,
-            champion_seed=None,
-            client_context=(
-                req.client_context.model_dump() if req.client_context else None
-            ),
-            dividend_panel=dividend_panel,
-        )
+        for seed, trials_i in zip(scenario_seeds, trial_budget):
+            style = str(seed.get("scenario_style") or "")
+            # Per-scenario pinned identity + run-level controls (rebalance etc.).
+            scenario_controls = dict(param_controls_dict)
+            scenario_controls.update(pin_scenario_controls(seed))
+            # Prefer this scenario's allocator over a run-level fixed mode.
+            scenario_controls.pop("mode", None)
+
+            def optuna_progress_constrained(
+                trial: int,
+                _total: int,
+                best_score: float | None,
+                _latest_record: tuple[float, dict, dict] | None = None,
+                *,
+                _style: str = style,
+                _offset: int = trials_done,
+            ) -> None:
+                nonlocal global_best
+                if best_score is not None:
+                    global_best = (
+                        best_score
+                        if global_best is None
+                        else max(global_best, best_score)
+                    )
+                src = ""
+                if _latest_record and isinstance(_latest_record[1], dict):
+                    src = str(_latest_record[1].get("param_source") or "")
+                tag = _style or ("explore" if src == "optuna_tpe" else "")
+                label = f" [{tag}]" if tag else ""
+                cur = _offset + trial
+                msg = f"Trial {cur}/{effective_trials}{label}"
+                score_for_msg = global_best if global_best is not None else best_score
+                if score_for_msg is not None:
+                    obj_label, obj_text = _objective_progress_label_and_text(
+                        objective_effective, score_for_msg
+                    )
+                    msg += f", best {obj_label} {obj_text}"
+                report_progress(cur, effective_trials, msg, score_for_msg)
+
+            try:
+                lane_records = run_optuna_search(
+                    prices_train,
+                    prices_sim_panel=prices_sim_panel,
+                    max_weight=req.max_weight,
+                    min_weight=req.min_weight,
+                    max_turnover=req.max_turnover,
+                    top_n=req.top_n,
+                    objective=trial_objective,
+                    trials=max(1, int(trials_i)),
+                    anchor_weights=req.anchor_weights,
+                    customization_drift=req.customization_drift,
+                    ai_seed_param_sets=[seed],
+                    param_controls=scenario_controls,
+                    spec=spec,
+                    progress_cb=optuna_progress_constrained,
+                    universe_by_ticker=universe_by_ticker,
+                    prices_val=prices_val if oos and len(prices_val) > 60 else None,
+                    select_on_is=bool(oos and len(prices_val) > 60),
+                    asset_classes=req.asset_classes,
+                    trial_report_cache=trial_report_cache,
+                    allocator_resolver=(
+                        dynamic_ctx.get("allocator_resolver") if dynamic_ctx else None
+                    ),
+                    class_budget_resolver=(
+                        dynamic_ctx.get("class_budget_resolver")
+                        if dynamic_ctx
+                        else None
+                    ),
+                    active_regime_resolver=(
+                        dynamic_ctx.get("active_regime_resolver")
+                        if dynamic_ctx
+                        else None
+                    ),
+                    enforce_class_weights=req.enforce_class_weights,
+                    champion_seed=None,
+                    client_context=(
+                        req.client_context.model_dump() if req.client_context else None
+                    ),
+                    dividend_panel=dividend_panel,
+                )
+            except ValueError as exc:
+                search_errors.append(f"{style or 'scenario'}: {exc}")
+                logger.warning(
+                    "Constrained scenario %s produced no feasible trials: %s",
+                    style or "?",
+                    exc,
+                )
+                trials_done += max(1, int(trials_i))
+                continue
+
+            must_inc = seed.get("must_include_tickers")
+            for score, params, metrics in lane_records:
+                if not isinstance(params, dict):
+                    continue
+                # Exploration trials inherit the lane's scenario identity.
+                if style and not params.get("scenario_style"):
+                    params["scenario_style"] = style
+                if (
+                    isinstance(must_inc, list)
+                    and must_inc
+                    and not params.get("must_include_tickers")
+                ):
+                    params["must_include_tickers"] = list(must_inc)
+                # Drop per-study trial numbers so global model codes stay unique.
+                params.pop("model_code", None)
+                params.pop("optuna_trial_number", None)
+                records.append((score, params, metrics))
+            trials_done += max(1, int(trials_i))
+
+        if not records:
+            detail = "; ".join(search_errors) if search_errors else "unknown"
+            raise ValueError(
+                "No feasible parameter sets found in constrained scenarios "
+                f"({detail})"
+            )
+
         assign_search_model_codes(records, next_model_no=[1])
         for _, params, _ in records:
             trial_report_cache.register_model_code(params)
@@ -3593,10 +3655,18 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
                 mc = final_champion_params.get("model_code")
                 if mc:
                     final_champion_code = str(mc)
-    records_for_report = top_records_for_report(
-        list(records),
-        objective_effective,
-        top_n_models,
+    records_for_report = (
+        select_constrained_records_for_report(
+            list(records),
+            objective_effective,
+            top_n_models,
+        )
+        if constrained_mode
+        else top_records_for_report(
+            list(records),
+            objective_effective,
+            top_n_models,
+        )
     )
     final_full_codes = _champion_model_codes_from_records(
         records_for_report,
@@ -4265,11 +4335,24 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         "ai_param_generation": {
             "enabled": bool(ai_generation.get("enabled", False)),
             "model": ai_generation.get("model"),
-            "seed_sets_requested": trials_completed,
+            "seed_sets_requested": (
+                int(ai_generation.get("seed_sets_requested") or trials_completed)
+                if constrained_mode
+                else trials_completed
+            ),
             "seed_sets_used": (
                 int(refinement_meta.get("trials_total", 0))
                 if pro_mode
-                else min(len(ai_param_sets), req.trials)
+                else (
+                    int(ai_generation.get("seed_sets_used") or len(ai_param_sets))
+                    if constrained_mode
+                    else min(len(ai_param_sets), req.trials)
+                )
+            ),
+            "local_exploration_trials": (
+                int(ai_generation.get("local_exploration_trials") or 0)
+                if constrained_mode
+                else None
             ),
             "rationale": ai_generation.get("rationale"),
             "rationales_by_round": (

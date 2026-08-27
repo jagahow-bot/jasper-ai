@@ -54,6 +54,33 @@ function resolveParamLabel(key: string, t: TFn): string {
   return key.replace(/_/g, " ");
 }
 
+/** ⓘ next to a param label — shows RM-facing plain-language help. */
+function ParamInfoHint({ paramKey }: { paramKey: string }) {
+  const { t } = useI18n();
+  const infoKey = `params.info.${paramKey}`;
+  const text = t(infoKey);
+  if (!text || text === infoKey) return null;
+  const aria = t("params.info.aria", { param: resolveParamLabel(paramKey, t) });
+  return (
+    <span className="group relative ml-1 inline-flex align-middle">
+      <button
+        type="button"
+        aria-label={aria === "params.info.aria" ? text : aria}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] leading-none text-dim hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        ?
+      </button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-1.5 w-56 -translate-x-1/2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-left text-xs leading-snug text-[var(--fg)] opacity-0 shadow-md transition-opacity group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
 function formatRowDisplay(key: string, displayValue: string, t: TFn): string {
   if (key === "objective_mode") {
     return objectiveLabel(t, displayValue) || displayValue;
@@ -134,10 +161,13 @@ function ParamGroupsTable({
                   }`}
                 >
                   <td className="py-1 pr-2 text-dim">
-                    {resolveParamLabel(row.key, t)}
-                    {row.changed ? (
-                      <span className="ml-1 text-[var(--amber)]">●</span>
-                    ) : null}
+                    <span className="inline-flex items-baseline">
+                      {resolveParamLabel(row.key, t)}
+                      <ParamInfoHint paramKey={row.key} />
+                      {row.changed ? (
+                        <span className="ml-1 text-[var(--amber)]">●</span>
+                      ) : null}
+                    </span>
                   </td>
                   <td className="py-1 text-right tabular-nums text-[var(--fg)]">
                     {formatRowDisplay(row.key, row.displayValue, t)}
@@ -166,6 +196,7 @@ export function AiParamsExpandablePanel({
   isBaseline,
   defaultOpen = false,
   compact = false,
+  alwaysOpen = false,
 }: {
   params?: Record<string, unknown> | null;
   baselineParams?: Record<string, unknown> | null;
@@ -173,9 +204,11 @@ export function AiParamsExpandablePanel({
   isBaseline?: boolean;
   defaultOpen?: boolean;
   compact?: boolean;
+  /** When true, skip the toggle header and always render the param groups. */
+  alwaysOpen?: boolean;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(defaultOpen || alwaysOpen);
   const hasBaseline =
     Boolean(baselineParams) &&
     Object.keys(baselineParams ?? {}).length > 0 &&
@@ -195,46 +228,50 @@ export function AiParamsExpandablePanel({
         })
       : null;
 
+  const showBody = alwaysOpen || open;
   const toggleOpen = () => setOpen((v) => !v);
 
   return (
     <div
       className={
         compact
-          ? "mt-2"
+          ? alwaysOpen
+            ? ""
+            : "mt-2"
           : "mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2"
       }
       data-testid="ai-params-expand"
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      {/* Non-<button> so nested use inside proposal-card buttons is valid HTML. */}
-      <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={open}
-        onClick={(e) => {
-          e.stopPropagation();
-          toggleOpen();
-        }}
-        onKeyDown={(e) => {
-          e.stopPropagation();
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
+      {!alwaysOpen ? (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          onClick={(e) => {
+            e.stopPropagation();
             toggleOpen();
-          }
-        }}
-        className="flex w-full cursor-pointer items-center justify-between gap-2 text-left"
-      >
-        <span className="ui-body text-[var(--fg)]">{t("params.expand.title")}</span>
-        <span className="ui-hint text-dim">
-          {open ? t("rm.report.collapse") : t("rm.report.expand")}
-        </span>
-      </div>
-      {open ? (
+          }}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggleOpen();
+            }
+          }}
+          className="flex w-full cursor-pointer items-center justify-between gap-2 text-left"
+        >
+          <span className="ui-body text-[var(--fg)]">{t("params.expand.title")}</span>
+          <span className="ui-hint text-dim">
+            {open ? t("rm.report.collapse") : t("rm.report.expand")}
+          </span>
+        </div>
+      ) : null}
+      {showBody ? (
         <>
           {hasBaseline ? (
-            <p className="ui-hint mt-2 text-dim">
+            <p className={`ui-hint text-dim ${alwaysOpen ? "" : "mt-2"}`}>
               {t("params.expand.diffHint", { code: baselineCode ?? "—" })}
             </p>
           ) : null}

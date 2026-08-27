@@ -853,9 +853,20 @@ export function ResultsDashboard({
       if (idx >= 0) {
         setSelectedRowKey(candidateRowKey(result.candidates[idx], idx));
       }
+      // If params detail is open, keep it in sync with the newly selected card.
+      setParamsDetailModelCode((cur) => (cur ? code : cur));
     },
     [result.candidates, setSelectedRowKey],
   );
+
+  const [paramsDetailModelCode, setParamsDetailModelCode] = useState<
+    string | null
+  >(null);
+
+  const toggleParamsDetail = useCallback((code: string) => {
+    const upper = code.toUpperCase();
+    setParamsDetailModelCode((cur) => (cur === upper ? null : upper));
+  }, []);
 
   const proposalCards = useMemo(
     () => buildDisplayProposalSet(result.proposal_set, result.candidates),
@@ -870,6 +881,11 @@ export function ResultsDashboard({
     }
     return map;
   }, [result.candidates]);
+
+  const paramsDetailCandidate = useMemo(() => {
+    if (!paramsDetailModelCode) return null;
+    return candidatesByCode.get(paramsDetailModelCode.toUpperCase()) ?? null;
+  }, [candidatesByCode, paramsDetailModelCode]);
 
   const baselineCandidate = useMemo(() => {
     if (!primaryRecommendationCode) return null;
@@ -1668,13 +1684,8 @@ export function ResultsDashboard({
       {proposalCards.length ? (
         <div className="pixel-panel">
           <h3 className="ui-panel-title">{t("results.proposalSetTitle")}</h3>
-          <div
-            className={`mt-3 grid gap-3 ${
-              isRmCompact
-                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
-            }`}
-          >
+          <div className="scrollbar-hide -mx-1 mt-3 overflow-x-auto pb-2">
+            <div className="flex snap-x snap-mandatory gap-3 px-1">
             {proposalCards.map((proposal) => {
               const labelKey = proposalLabelI18nKey(proposal.label);
               const labelText = labelKey ? t(labelKey) : proposal.label;
@@ -1688,12 +1699,14 @@ export function ResultsDashboard({
               const floorRows = needsFloorRows(proposal.needs_attainment);
               const cand =
                 candidatesByCode.get(proposal.model_code.toUpperCase()) ?? null;
+              const codeUpper = proposal.model_code.toUpperCase();
+              const paramsOpen = paramsDetailModelCode === codeUpper;
               return (
                 <button
                   key={proposal.model_code}
                   type="button"
                   onClick={() => selectProposalModel(proposal)}
-                  className={`rounded-lg border-2 bg-[var(--surface-2)] p-3 text-left transition-colors ${
+                  className={`w-[16.5rem] shrink-0 snap-start self-start rounded-lg border-2 bg-[var(--surface-2)] p-3 text-left transition-colors sm:w-[17.5rem] ${
                     isActive
                       ? "border-[var(--primary)] ring-1 ring-[var(--primary)]"
                       : "border-[var(--border)] hover:border-[var(--primary-muted)]"
@@ -1708,11 +1721,7 @@ export function ResultsDashboard({
                     ) : null}
                   </div>
                   <p className="ui-hint mt-1 text-dim">{proposal.model_code}</p>
-                  <div
-                    className={`mt-2 grid gap-1 ui-body ${
-                      isRmCompact ? "grid-cols-3" : "grid-cols-3"
-                    }`}
-                  >
+                  <div className="mt-2 grid grid-cols-3 gap-1 ui-body">
                     <div>
                       <div className="text-dim">Sharpe</div>
                       <div>{proposal.sharpe.toFixed(3)}</div>
@@ -1731,13 +1740,34 @@ export function ResultsDashboard({
                     needs={cand?.needs_attainment ?? proposal.needs_attainment}
                     weights={cand?.weights}
                   />
-                  <AiParamsExpandablePanel
-                    params={cand?.params}
-                    baselineParams={baselineCandidate?.params}
-                    baselineCode={primaryRecommendationCode}
-                    isBaseline={Boolean(proposal.is_recommended)}
-                    compact
-                  />
+                  {/* Nested interactive control: role=button avoids invalid <button> nesting. */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={paramsOpen}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleParamsDetail(codeUpper);
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleParamsDetail(codeUpper);
+                      }
+                    }}
+                    className="mt-2 flex w-full cursor-pointer items-center justify-between gap-2 text-left"
+                    data-testid="proposal-params-toggle"
+                  >
+                    <span className="ui-hint text-[var(--primary)] underline-offset-2 hover:underline">
+                      {t("params.expand.title")}
+                    </span>
+                    <span className="ui-hint text-dim">
+                      {paramsOpen
+                        ? t("rm.report.collapse")
+                        : t("rm.report.expand")}
+                    </span>
+                  </div>
                   {floorRows.length > 0 ? (
                     <table className="mt-3 w-full ui-hint">
                       <tbody>
@@ -1763,7 +1793,39 @@ export function ResultsDashboard({
                 </button>
               );
             })}
+            </div>
           </div>
+          {paramsDetailCandidate ? (
+            <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="ui-body text-[var(--fg)]">
+                  {paramsDetailCandidate.model_code ?? paramsDetailModelCode}
+                  {" · "}
+                  {t("params.expand.title")}
+                </span>
+                <button
+                  type="button"
+                  className="ui-hint text-dim hover:text-[var(--fg)]"
+                  onClick={() => setParamsDetailModelCode(null)}
+                >
+                  {t("rm.report.collapse")}
+                </button>
+              </div>
+              <AiParamsExpandablePanel
+                params={paramsDetailCandidate.params}
+                baselineParams={baselineCandidate?.params}
+                baselineCode={primaryRecommendationCode}
+                isBaseline={
+                  Boolean(primaryRecommendationCode) &&
+                  (paramsDetailCandidate.model_code || "").toUpperCase() ===
+                    primaryRecommendationCode
+                }
+                defaultOpen
+                compact
+                alwaysOpen
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 

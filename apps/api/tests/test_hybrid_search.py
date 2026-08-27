@@ -107,3 +107,30 @@ def test_ai_seed_enqueue_capped_by_trial_budget(tiny_prices: pd.DataFrame):
 
     assert captured["n_trials"] == 3
     assert len(captured["enqueued"]) == 3
+
+
+def test_prepare_enqueue_omits_fixed_controls():
+    bp = RunBlueprint(
+        max_weight=0.3,
+        max_turnover=0.5,
+        top_n=10,
+        max_holdings=10,
+        customization_drift=1.0,
+    )
+    prepared = prepare_enqueue_params(
+        {
+            "allocator_mode": "min_var",
+            "lookback_days": 252,
+            "w_mom": 0.8,
+            "customization_drift_actual": 0.2,
+        },
+        blueprint=bp,
+        param_controls={
+            "allocator_mode": {"mode": "fixed", "fixed": "min_var"},
+            "customization_drift_actual": {"mode": "fixed", "fixed": 0.2},
+        },
+    )
+    assert "allocator_mode" not in prepared
+    assert "customization_drift_actual" not in prepared
+    assert prepared["w_mom"] == 0.8
+    assert prepared["lookback_days"] == 252

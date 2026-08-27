@@ -168,8 +168,14 @@ def prepare_enqueue_params(
     if mode_val is not None and str(mode_val) not in RUN_OBJECTIVE_MODE_VALUES:
         clamped["allocator_mode"] = str(mode_val)
     out: dict = {}
+    controls = param_controls or {}
     for key, raw in clamped.items():
         if key not in _ENQUEUE_PARAM_KEYS:
+            continue
+        # Fixed/off keys are resolved without suggest_* — omit from enqueue
+        # so Optuna does not warn about unused parameters.
+        ctl = controls.get(key)
+        if isinstance(ctl, dict) and str(ctl.get("mode")) in {"fixed", "off"}:
             continue
         if key in _INT_STEP_KEYS:
             lo, hi, step = _INT_STEP_KEYS[key]

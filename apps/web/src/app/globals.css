@@ -363,6 +363,15 @@ input[type="range"] {
   accent-color: var(--primary);
 }
 
+/* Horizontal proposal carousel: hide native scrollbar for a cleaner strip. */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Investment Proposal print: isolate the draft document */
 @media print {
   body * {

@@ -11,6 +11,10 @@ Instead we evaluate 2–4 **named, optimizer-based** scenarios on the fixed univ
 3. ``defensive`` — min-variance / drawdown-oriented allocation
 4. ``theme`` — only when must-include / overlay adds exist
 
+Each scenario is then refined with a small local Optuna budget (identity keys
+pinned: allocator / objective / drift / rebalance; factor weights and lookbacks
+remain searchable). Total trials = max(scenario_count, req.trials).
+
 Trigger thresholds (documented here; tune carefully):
 - ``MAX_TRADABLE_FOR_CONSTRAINED`` = 20 — locked model books are typically ≤ this
 - ``MAX_OVERLAY_SUPPLEMENTS_FOR_CONSTRAINED`` = 8 — overlay rarely adds more names
@@ -119,13 +123,8 @@ def should_use_constrained_customization(
     return small_tradable and n_tradable <= MAX_TRADABLE_FOR_CONSTRAINED
 
 
-def estimate_constrained_trial_count(req: Any) -> int | None:
-    """Pre-flight trial estimate for job progress (request fields only).
-
-    Returns None when the request does not look constrained.
-    """
-    if not should_use_constrained_customization(req):
-        return None
+def _constrained_scenario_count(req: Any) -> int:
+    """3 base scenarios + optional theme when must-include / supplements exist."""
     must_n = 0
     anchor = getattr(req, "anchor_weights", None) or {}
     whitelist = list(getattr(req, "universe_tickers", None) or [])
@@ -145,8 +144,110 @@ def estimate_constrained_trial_count(req: Any) -> int | None:
                 if str(t).upper() not in anchor_pos and str(t).upper() != "CASH"
             }
         )
-    # 3 base scenarios + optional theme.
     return 4 if must_n > 0 else 3
+
+
+def estimate_constrained_trial_count(req: Any) -> int | None:
+    """Pre-flight trial estimate for job progress (request fields only).
+
+    Returns None when the request does not look constrained.
+    With local Optuna exploration, total trials = max(scenario_count, req.trials).
+    """
+    if not should_use_constrained_customization(req):
+        return None
+    n_scenarios = _constrained_scenario_count(req)
+    trials = int(getattr(req, "trials", 25) or 25)
+    return max(n_scenarios, trials)
+
+
+def allocate_constrained_trial_budget(n_seeds: int, trials: int) -> list[int]:
+    """Distribute trial budget across scenarios (at least 1 each).
+
+    Extra capacity beyond the seed count is local Optuna exploration per lane.
+    """
+    n = max(1, int(n_seeds))
+    total = max(n, int(trials))
+    base = total // n
+    rem = total % n
+    return [base + (1 if i < rem else 0) for i in range(n)]
+
+
+def pin_scenario_controls(seed: dict[str, Any]) -> dict[str, dict]:
+    """Pin scenario identity keys so local Optuna stays in-lane.
+
+    ``allocator_mode``, ``objective_mode``, ``customization_drift_actual``, and
+    ``rebalance_freq`` define the named scenario; factor weights / lookback /
+    shrinkage remain searchable for local refinement.
+    """
+    out: dict[str, dict] = {}
+    for key in (
+        "allocator_mode",
+        "objective_mode",
+        "customization_drift_actual",
+        "rebalance_freq",
+    ):
+        v = seed.get(key)
+        if v is None and key == "allocator_mode":
+            v = seed.get("mode")
+        if v is None:
+            continue
+        out[key] = {"mode": "fixed", "fixed": v}
+    return out
+
+
+def select_constrained_records_for_report(
+    records: list[tuple[float, dict, dict]],
+    objective_effective: str,
+    top_n_models: int,
+) -> list[tuple[float, dict, dict]]:
+    """Keep best-of-each scenario_style, then fill remaining slots by score.
+
+    Ensures proposal cards still cover named scenarios after local exploration
+    produces many trials in the same lane.
+    """
+    from app.engine.refinement import (
+        record_objective_sort_value,
+        records_in_model_code_order,
+    )
+
+    if not records:
+        return []
+    n = max(1, int(top_n_models))
+
+    def _sort_key(r: tuple[float, dict, dict]) -> float:
+        return float(record_objective_sort_value(objective_effective, r[0], r[2]))
+
+    by_style: dict[str, tuple[float, dict, dict]] = {}
+    unstyled: list[tuple[float, dict, dict]] = []
+    for r in records:
+        params = r[1] if isinstance(r[1], dict) else {}
+        style = str(params.get("scenario_style") or "").strip()
+        if style in SCENARIO_STYLES:
+            prev = by_style.get(style)
+            if prev is None or _sort_key(r) > _sort_key(prev):
+                by_style[style] = r
+        else:
+            unstyled.append(r)
+
+    # Prefer scenario order for stable display.
+    picked: list[tuple[float, dict, dict]] = []
+    picked_ids: set[int] = set()
+    for style in SCENARIO_STYLES:
+        row = by_style.get(style)
+        if row is None:
+            continue
+        picked.append(row)
+        picked_ids.add(id(row))
+        if len(picked) >= n:
+            break
+
+    remainder = [r for r in records if id(r) not in picked_ids]
+    remainder.sort(key=_sort_key, reverse=True)
+    for r in remainder:
+        if len(picked) >= n:
+            break
+        picked.append(r)
+    return records_in_model_code_order(picked)
 
 
 def _allocator_for_objective(objective: str) -> str:
@@ -252,7 +353,7 @@ def build_constrained_scenario_seeds(
     must_include: list[str] | None,
     objective: str,
 ) -> list[dict[str, Any]]:
-    """Build 2–4 complete Optuna AI-seed param packs (no random search)."""
+    """Build 2–4 named scenario seed packs for per-lane Optuna refinement."""
     drift_cap = float(getattr(req, "customization_drift", 0.5) or 0.5)
     drift_cap = float(max(0.0, min(1.0, drift_cap)))
     primary_alloc = _allocator_for_objective(objective)
