@@ -3,12 +3,11 @@
 import { useI18n } from "@/lib/i18n";
 import type { WizardPhase } from "@/lib/types";
 
-type StepId = "anchor" | "overlay" | "execute" | "report";
+type StepId = "overlay" | "execute" | "report";
 
-const STEPS: StepId[] = ["anchor", "overlay", "execute", "report"];
+const STEPS: StepId[] = ["overlay", "execute", "report"];
 
 function phaseToStep(phase: WizardPhase): StepId {
-  if (phase === "anchor") return "anchor";
   if (phase === "overlay") return "overlay";
   if (phase === "constraints" || phase === "running") return "execute";
   return "report";
@@ -29,7 +28,6 @@ export function RmWizardStepIndicator({ phase, hasOverlay, contextSlot, onStepSe
   const currentIdx = STEPS.indexOf(current);
 
   const labels: Record<StepId, string> = {
-    anchor: t("rm.step.anchor"),
     overlay: t("rm.step.overlay"),
     execute: t("rm.step.execute"),
     report: t("rm.step.report"),

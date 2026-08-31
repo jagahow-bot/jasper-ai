@@ -204,6 +204,29 @@ export const overlayAskSchema = z
 
 export type OverlayAsk = z.infer<typeof overlayAskSchema>;
 
+export const overlayClarificationOptionSchema = z
+  .object({
+    id: z.string().min(1).max(40),
+    label: z.string().min(1).max(40),
+  })
+  .strip();
+
+export type OverlayClarificationOption = z.infer<
+  typeof overlayClarificationOptionSchema
+>;
+
+export const overlayClarificationSchema = z
+  .object({
+    id: z.string().min(1).max(40),
+    question: z.string().min(4).max(200),
+    options: z.array(overlayClarificationOptionSchema).max(5).default([]),
+    allow_free_text: z.boolean().optional(),
+    allow_multiple: z.boolean().optional(),
+  })
+  .strip();
+
+export type OverlayClarification = z.infer<typeof overlayClarificationSchema>;
+
 /** Gemini structured-extract output (no audit envelope). */
 export const overlayExtractSchema = z
   .object({
@@ -216,6 +239,7 @@ export const overlayExtractSchema = z
     param_adjustments: z.record(z.string(), paramControlSchema).optional(),
     experiment: experimentOverlaySchema.optional(),
     asks: z.array(overlayAskSchema).max(12).optional(),
+    clarifications: z.array(overlayClarificationSchema).max(5).optional(),
     clarification_questions: z.array(z.string().min(4).max(200)).max(5),
     confidence: z.number().min(0).max(1),
     rationale: z.string().min(8).max(600),
@@ -234,6 +258,7 @@ export const clientOverlaySchema = z.object({
   param_adjustments: z.record(z.string(), paramControlSchema).optional(),
   experiment: experimentOverlaySchema.optional(),
   asks: z.array(overlayAskSchema).max(12).optional(),
+  clarifications: z.array(overlayClarificationSchema).max(5).optional(),
   clarification_questions: z.array(z.string()).optional(),
   confidence: z.number().min(0).max(1),
   rationale: z.string().min(8),
@@ -257,10 +282,13 @@ export function validateOverlayExtract(value: unknown): OverlayExtractOutput {
 }
 
 export function inferPhaseFromExtract(extract: OverlayExtractOutput): OverlayPhase {
-  if (extract.confidence >= 0.7 && extract.clarification_questions.length === 0) {
+  const pending =
+    (extract.clarifications?.length ?? 0) > 0 ||
+    extract.clarification_questions.length > 0;
+  if (extract.confidence >= 0.7 && !pending) {
     return "confirm";
   }
-  if (extract.confidence >= 0.4 || extract.clarification_questions.length > 0) {
+  if (extract.confidence >= 0.4 || pending) {
     return "clarify";
   }
   return "discovery";
@@ -433,6 +461,7 @@ export function wrapExtractAsOverlay(
     param_adjustments: extract.param_adjustments,
     experiment: extract.experiment,
     ...(asks?.length ? { asks } : {}),
+    clarifications: extract.clarifications,
     clarification_questions: extract.clarification_questions,
     confidence: extract.confidence,
     rationale: extract.rationale,
@@ -441,20 +470,8 @@ export function wrapExtractAsOverlay(
   return applyAsksToOverlayLevers(base);
 }
 
-export function formatOverlayAssistantReply(
-  overlay: ClientOverlay,
-  lang: "zh" | "en" | "ko",
-): string {
-  const questions = overlay.clarification_questions ?? [];
-  const parts = [overlay.rationale];
-
-  if (questions.length) {
-    const header =
-      lang === "zh" ? "待澄清：" : lang === "ko" ? "확인 필요:" : "Open questions:";
-    parts.push(`${header}\n${questions.map((q) => `• ${q}`).join("\n")}`);
-  }
-
-  return parts.join("\n\n");
+export function formatOverlayAssistantReply(overlay: ClientOverlay): string {
+  return overlay.rationale;
 }
 
 export type ClarificationAnswerPair = {
@@ -981,6 +998,7 @@ export function signOffOverlay(
       source: "manual",
     },
     clarification_questions: [],
+    clarifications: [],
   };
 }
 

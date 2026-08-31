@@ -371,6 +371,46 @@ function normalizeClarificationQuestions(raw: unknown): string[] {
   return out;
 }
 
+function normalizeClarifications(raw: unknown): Array<Record<string, unknown>> | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: Array<Record<string, unknown>> = [];
+  for (const [index, item] of raw.entries()) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const obj = item as Record<string, unknown>;
+    const question =
+      typeof obj.question === "string"
+        ? obj.question.trim().slice(0, 200)
+        : "";
+    if (question.length < 4) continue;
+    const optionsRaw = Array.isArray(obj.options) ? obj.options : [];
+    const options: Array<{ id: string; label: string }> = [];
+    for (const [oi, opt] of optionsRaw.entries()) {
+      if (!opt || typeof opt !== "object" || Array.isArray(opt)) continue;
+      const o = opt as Record<string, unknown>;
+      const label = typeof o.label === "string" ? o.label.trim().slice(0, 40) : "";
+      if (!label) continue;
+      const id =
+        typeof o.id === "string" && o.id.trim()
+          ? o.id.trim().slice(0, 40)
+          : `opt-${index}-${oi}`;
+      options.push({ id, label });
+      if (options.length >= 5) break;
+    }
+    out.push({
+      id:
+        typeof obj.id === "string" && obj.id.trim()
+          ? obj.id.trim().slice(0, 40)
+          : `q-${index + 1}`,
+      question,
+      options,
+      allow_free_text: obj.allow_free_text !== false,
+      allow_multiple: obj.allow_multiple !== false,
+    });
+    if (out.length >= 5) break;
+  }
+  return out.length ? out : undefined;
+}
+
 function normalizeUniversePrompts(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -905,7 +945,21 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
     root.confidence = 0.5;
   }
 
-  root.clarification_questions = normalizeClarificationQuestions(root.clarification_questions);
+  const clarificationQuestions = normalizeClarificationQuestions(
+    root.clarification_questions,
+  );
+  root.clarification_questions = clarificationQuestions;
+  const clarifications = normalizeClarifications(root.clarifications);
+  if (clarifications) {
+    root.clarifications = clarifications;
+    if (!clarificationQuestions.length) {
+      root.clarification_questions = clarifications.map(
+        (c) => String(c.question ?? ""),
+      );
+    }
+  } else {
+    delete root.clarifications;
+  }
 
   if (typeof root.rationale !== "string" || root.rationale.trim().length < 8) {
     const narrative =

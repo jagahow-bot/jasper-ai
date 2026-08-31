@@ -90,3 +90,67 @@ export function categoryLabel(lang: Lang, key: string): string {
   if (lang === "ko") return ko[key] ?? CATEGORY_LABELS[key] ?? key;
   return CATEGORY_LABELS[key] ?? key;
 }
+
+const SECTOR_LABELS_EN: Record<string, string> = {
+  tech: "Technology",
+  comms: "Communication services",
+  financials: "Financials",
+  healthcare: "Health care",
+  consumer_disc: "Consumer discretionary",
+  consumer_staples: "Consumer staples",
+  industrials: "Industrials",
+  energy: "Energy",
+  utilities: "Utilities",
+  materials: "Materials",
+  real_estate: "Real estate",
+  broad_market: "Broad market / diversified",
+  bond: "Fixed income",
+  commodity: "Commodities",
+  alternative: "Alternatives",
+  other: "Other",
+};
+
+const SECTOR_LABELS_ZH: Record<string, string> = {
+  tech: "科技",
+  comms: "通訊服務",
+  financials: "金融",
+  healthcare: "醫療保健",
+  consumer_disc: "非必需消費",
+  consumer_staples: "必需消費",
+  industrials: "工業",
+  energy: "能源",
+  utilities: "公用事業",
+  materials: "原物料",
+  real_estate: "不動產",
+  broad_market: "廣泛市場／分散",
+  bond: "固定收益",
+  commodity: "商品",
+  alternative: "另類",
+  other: "其他",
+};
+
+const SECTOR_LABELS_KO: Record<string, string> = {
+  tech: "기술",
+  comms: "커뮤니케이션",
+  financials: "금융",
+  healthcare: "헬스케어",
+  consumer_disc: "임의소비재",
+  consumer_staples: "필수소비재",
+  industrials: "산업재",
+  energy: "에너지",
+  utilities: "유틸리티",
+  materials: "소재",
+  real_estate: "부동산",
+  broad_market: "광범위／분산",
+  bond: "채권",
+  commodity: "원자재",
+  alternative: "대체",
+  other: "기타",
+};
+
+/** Equity sector / non-equity sleeve label for holdings composition. */
+export function sectorLabel(lang: Lang, key: string): string {
+  if (lang === "zh") return SECTOR_LABELS_ZH[key] ?? SECTOR_LABELS_EN[key] ?? key;
+  if (lang === "ko") return SECTOR_LABELS_KO[key] ?? SECTOR_LABELS_EN[key] ?? key;
+  return SECTOR_LABELS_EN[key] ?? key.replace(/_/g, " ");
+}

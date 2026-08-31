@@ -428,7 +428,6 @@ export interface BacktestResult {
 
 export type WizardPhase =
   | "scenario"
-  | "anchor"
   | "overlay"
   | "constraints"
   | "running"

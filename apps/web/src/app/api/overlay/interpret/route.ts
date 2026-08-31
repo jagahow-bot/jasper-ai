@@ -25,6 +25,7 @@ import {
   type ClientOverlay,
   type OverlayConversationMessage,
 } from "@/lib/overlay-schema";
+import { syncExtractClarifications } from "@/lib/overlay-clarifications";
 import {
   parseReportLanguage,
   rationaleLanguageDirective,
@@ -188,7 +189,10 @@ Required top-level keys (always present):
 - allocation (object)
 - universe (object)
 - optimization (object)
-- clarification_questions (array of strings) — use [] if none
+- clarification_questions (array of strings) — use [] if none; keep in sync with clarifications[].question
+- clarifications (optional array, max 5) — structured clarification cards with preset answer chips:
+  { "id": "q1", "question": "…", "options": [{ "id": "opt-a", "label": "…" }, …], "allow_multiple": true, "allow_free_text": true }
+  Each question: 2–5 short preset options (label ≤ 20 chars, report language). Options may combine (non-mutually-exclusive). Do NOT include an "Other" option — UI adds free text. Open-ended questions may use options: [].
 - confidence (number 0–1)
 - rationale (string, 8–600 chars)
 
@@ -221,7 +225,7 @@ Field rules:
 - Never add large thematic ETF lists to supplement_tickers automatically; use proposed_tickers for suggestions and wait for RM confirmation. Direct indexing is the exception: propose stocks, not thematic ETFs.
 - optimization.objective: max_sharpe for risk-on/growth; min_max_drawdown for defensive/liquidity.
 - optimization.regime_adaptive: true when RM mentions regime/market switching.
-- clarification_questions: array of STRINGS only (not objects), each 4–200 chars, max 5.
+- clarification_questions: array of STRINGS only (not objects), each 4–200 chars, max 5. MUST mirror clarifications[].question when clarifications is present.
 ${overlayParamCatalogBlock()}
 - experiment: only when RM explicitly wants regime objective-switch testing:
   { "enabled": true, "mode": "objective_switch", "regime_mode": "auto"|"risk_off"|"neutral"|"risk_on" }.
@@ -287,6 +291,30 @@ Example (aggressive growth HNWI, US multi-cap anchor, reduce QQQ concentration, 
       "summary": "Optimize for maximum Sharpe under an aggressive growth mandate.",
       "kind": "objective",
       "objective": "max_sharpe"
+    }
+  ],
+  "clarifications": [
+    {
+      "id": "q1",
+      "question": "Preferred equity vs bond sleeve split for the core book?",
+      "options": [
+        { "id": "70-30", "label": "70% equity / 30% bonds" },
+        { "id": "60-40", "label": "60% equity / 40% bonds" },
+        { "id": "80-20", "label": "80% equity / 20% bonds" }
+      ],
+      "allow_multiple": false,
+      "allow_free_text": true
+    },
+    {
+      "id": "q2",
+      "question": "Cash deployment schedule?",
+      "options": [
+        { "id": "3m", "label": "3 months" },
+        { "id": "6m", "label": "6 months" },
+        { "id": "12m", "label": "12 months" }
+      ],
+      "allow_multiple": false,
+      "allow_free_text": true
     }
   ],
   "clarification_questions": [
@@ -432,6 +460,7 @@ export async function POST(req: Request) {
     let extract;
     try {
       extract = validateOverlayExtract(parseOverlayExtractFromGemini(result.text));
+      extract = syncExtractClarifications(extract, lang);
       extract = applyDirectIndexingToExtract(extract, diSourceText, lang);
     } catch (parseError) {
       if (useRulesFallback) {

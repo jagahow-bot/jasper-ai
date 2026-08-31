@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnchorPortfolioSelector } from "@/components/AnchorPortfolioSelector";
 import { AppNav } from "@/components/AppNav";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
 import { CustomizationScopePanel } from "@/components/CustomizationScopePanel";
@@ -72,7 +71,10 @@ import {
 import {
   getManagedPortfolioById,
   getSelectableAnchorPortfolios,
+  readManagedPortfolios,
+  type ManagedModelPortfolio,
 } from "@/lib/model-portfolios-store";
+import { readInvestmentPool } from "@/lib/investment-pool";
 import {
   overlayToBacktestRequest,
   type ClientOverlay,
@@ -140,7 +142,7 @@ function buildDefaultRequest(): BacktestRequest {
 
 export default function HomePage() {
   const { t, lang } = useI18n();
-  const [phase, setPhase] = useState<WizardPhase>("anchor");
+  const [phase, setPhase] = useState<WizardPhase>("overlay");
   const [anchorPortfolioId, setAnchorPortfolioId] = useState(SPY_ANCHOR_ID);
   const [activeClient, setActiveClient] = useState<DemoClient | null>(null);
   const [scopeGroupIds, setScopeGroupIds] = useState<string[]>([]);
@@ -148,6 +150,8 @@ export default function HomePage() {
   /** True when launched via ?client= from the dashboard (confirm-first handoff). */
   const [launchedFromDashboard, setLaunchedFromDashboard] = useState(false);
   const [scopeEditorsOpen, setScopeEditorsOpen] = useState(true);
+  /** Dashboard launch: scope/anchor context acknowledged — show the overlay chat. */
+  const [scopeConfirmed, setScopeConfirmed] = useState(false);
   const [signedOverlay, setSignedOverlay] = useState<ClientOverlay | null>(null);
   const [overlaySession, setOverlaySession] = useState<ClientOverlay | null>(null);
   const [overlayMessages, setOverlayMessages] =
@@ -253,8 +257,22 @@ export default function HomePage() {
       .filter((group) => group.holdings.length > 0);
   }, [scopeGroups, scopeGroupIds, t, lang]);
 
+  const [managedAnchors, setManagedAnchors] = useState<ManagedModelPortfolio[]>([]);
+
+  useEffect(() => {
+    const pool = readInvestmentPool();
+    setManagedAnchors(readManagedPortfolios(pool));
+  }, []);
+
   const overlayAnchorOptions = useMemo(() => {
-    const catalog = getSelectableAnchorPortfolios().map((p) => ({
+    const selectable = getSelectableAnchorPortfolios();
+    const catalogSource =
+      managedAnchors.length === 0
+        ? selectable
+        : managedAnchors.filter(
+            (p) => p.enabled && p.conflict_tickers.length === 0,
+          );
+    const catalog = catalogSource.map((p) => ({
       id: p.id,
       label: getPortfolioLabel(p, lang),
     }));
@@ -268,7 +286,7 @@ export default function HomePage() {
       ];
     }
     return catalog;
-  }, [currentHoldingsAnchor, lang]);
+  }, [managedAnchors, currentHoldingsAnchor, lang]);
 
   const anchorLabel = useMemo(
     () => getPortfolioLabel(anchorPortfolio, lang),
@@ -299,7 +317,7 @@ export default function HomePage() {
   // Keep the synthetic baseline in sync when the RM changes which sleeves are in scope.
   useEffect(() => {
     if (
-      (phase !== "anchor" && phase !== "overlay") ||
+      phase !== "overlay" ||
       anchorPortfolioId !== CURRENT_HOLDINGS_ANCHOR_ID ||
       !currentHoldingsAnchor
     ) {
@@ -885,9 +903,9 @@ export default function HomePage() {
     [currentHoldingsAnchor, onAnchorSelect],
   );
 
-  const onAnchorContinue = useCallback(() => {
+  const onScopeConfirm = useCallback(() => {
     syncRequestFromAnchor();
-    setPhase("overlay");
+    setScopeConfirmed(true);
   }, [syncRequestFromAnchor]);
 
   const onOverlayConfirm = useCallback(
@@ -1021,7 +1039,6 @@ export default function HomePage() {
   const header = useMemo(() => {
     const labels: Record<WizardPhase, string> = {
       scenario: t("header.phase.scenario"),
-      anchor: t("header.phase.anchor"),
       overlay: t("header.phase.overlay"),
       constraints: t("header.phase.constraints"),
       running: t("header.phase.running"),
@@ -1057,8 +1074,7 @@ export default function HomePage() {
           phase={phase}
           hasOverlay={Boolean(signedOverlay) || phase === "overlay"}
           onStepSelect={(step) => {
-            if (step === "anchor") setPhase("anchor");
-            else if (step === "overlay") setPhase("overlay");
+            if (step === "overlay") setPhase("overlay");
             else if (step === "execute") setPhase("constraints");
           }}
           contextSlot={
@@ -1091,9 +1107,10 @@ export default function HomePage() {
         />
 
         {activeClient &&
-        phase === "anchor" &&
+        phase === "overlay" &&
         launchedFromDashboard &&
-        !scopeEditorsOpen ? (
+        !scopeEditorsOpen &&
+        !scopeConfirmed ? (
           <LaunchScopeConfirm
             title={t("customization.confirmTitle")}
             hint={t("customization.confirmHint")}
@@ -1109,13 +1126,13 @@ export default function HomePage() {
             nameValue={portfolioName}
             confirmLabel={t("customization.confirmContinue")}
             editLabel={t("customization.editScope")}
-            onConfirm={onAnchorContinue}
+            onConfirm={onScopeConfirm}
             onEdit={() => setScopeEditorsOpen(true)}
           />
         ) : null}
 
         {activeClient &&
-        phase === "anchor" &&
+        phase === "overlay" &&
         (!launchedFromDashboard || scopeEditorsOpen) ? (
           <>
             <CustomizationScopePanel
@@ -1139,17 +1156,13 @@ export default function HomePage() {
           </>
         ) : null}
 
-        {phase === "anchor" &&
-        (!launchedFromDashboard || scopeEditorsOpen || !activeClient) ? (
-          <AnchorPortfolioSelector
-            selectedId={anchorPortfolioId}
-            onSelect={onAnchorSelect}
-            onContinue={onAnchorContinue}
-            currentHoldingsAnchor={currentHoldingsAnchor}
-          />
-        ) : null}
-
-        {phase === "overlay" && (
+        {phase === "overlay" &&
+        !(
+          activeClient &&
+          launchedFromDashboard &&
+          !scopeEditorsOpen &&
+          !scopeConfirmed
+        ) ? (
           <div className="space-y-3">
             <OverlayContextSummary
               groups={scopeGroups}
@@ -1182,7 +1195,7 @@ export default function HomePage() {
               {t("overlay.skipToConfig")}
             </button>
           </div>
-        )}
+        ) : null}
 
         {phase === "constraints" && request && (
           signedOverlay ? (

@@ -7,9 +7,19 @@ export type UniverseItem = {
   asset_class: string;
   region?: string;
   category?: string;
+  /** GICS-like sector bucket for equity holdings composition. */
+  sector?: string;
   /** Instrument type: etf (default), stock, fund, … */
   product_type?: string;
 };
+
+export function getUniverseMap(): Map<string, UniverseItem> {
+  const map = new Map<string, UniverseItem>();
+  for (const item of getUniverseItems()) {
+    map.set(item.ticker.toUpperCase(), item);
+  }
+  return map;
+}
 
 export type UniverseFilterOptions = {
   assetClasses?: AssetClass[];

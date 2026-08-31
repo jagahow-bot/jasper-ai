@@ -14,6 +14,7 @@ import {
   type OverlayExtractOutput,
 } from "./overlay-schema";
 import { applyDirectIndexingToExtract } from "./overlay-direct-index";
+import { syncExtractClarifications } from "./overlay-clarifications";
 
 function parseAmountUsd(text: string): number | undefined {
   return parseLiquidityUsdAmount(text);
@@ -444,7 +445,10 @@ export function interpretOverlayFallback(
   turns: number,
   prior?: ClientOverlay | null,
 ): ClientOverlay {
-  const extracted = applyDirectIndexingToExtract(baseExtract(text, lang), text, lang);
+  const extracted = syncExtractClarifications(
+    applyDirectIndexingToExtract(baseExtract(text, lang), text, lang),
+    lang,
+  );
   const now = new Date().toISOString();
   const asks =
     extracted.asks?.length
@@ -483,6 +487,7 @@ export function interpretOverlayFallback(
     param_adjustments: extracted.param_adjustments,
     experiment: extracted.experiment,
     ...(asks?.length ? { asks } : {}),
+    clarifications: extracted.clarifications,
     clarification_questions: extracted.clarification_questions,
     confidence: extracted.confidence,
     rationale: extracted.rationale,

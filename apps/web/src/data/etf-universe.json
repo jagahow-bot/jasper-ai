@@ -9,7 +9,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "global_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "ARKG",
@@ -17,7 +18,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "ARKK",
@@ -25,7 +27,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "ARKW",
@@ -33,7 +36,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "ASHR",
@@ -41,7 +45,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "AVUV",
@@ -49,7 +54,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "BOTZ",
@@ -57,7 +63,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "CIBR",
@@ -65,7 +72,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "CLOU",
@@ -73,7 +81,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "CQQQ",
@@ -81,7 +90,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "DBEF",
@@ -89,7 +99,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "DFAC",
@@ -97,7 +108,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "DGRO",
@@ -105,7 +117,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "DGRW",
@@ -113,7 +126,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "DIA",
@@ -121,7 +135,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "DRIV",
@@ -129,7 +144,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "DVY",
@@ -137,7 +153,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "DXJ",
@@ -145,7 +162,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "ECH",
@@ -153,7 +171,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EEM",
@@ -161,7 +180,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_em",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EFA",
@@ -169,7 +189,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EFAV",
@@ -177,7 +198,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EFV",
@@ -185,7 +207,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EIDO",
@@ -193,7 +216,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EIS",
@@ -201,7 +225,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EMQQ",
@@ -209,7 +234,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EMXC",
@@ -217,7 +243,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_em",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "ENOR",
@@ -225,7 +252,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EPHE",
@@ -233,7 +261,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EPI",
@@ -241,7 +270,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EPOL",
@@ -249,7 +279,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "ESGU",
@@ -257,7 +288,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_esg",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "ESGV",
@@ -265,7 +297,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_esg",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWA",
@@ -273,7 +306,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWC",
@@ -281,7 +315,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWD",
@@ -289,7 +324,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWG",
@@ -297,7 +333,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWH",
@@ -305,7 +342,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWI",
@@ -313,7 +351,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWJ",
@@ -321,7 +360,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWL",
@@ -329,7 +369,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWM",
@@ -337,7 +378,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWN",
@@ -345,7 +387,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWP",
@@ -353,7 +396,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWQ",
@@ -361,7 +405,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWS",
@@ -369,7 +414,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWT",
@@ -377,7 +423,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWU",
@@ -385,7 +432,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWUS",
@@ -393,7 +441,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWW",
@@ -401,7 +450,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWY",
@@ -409,7 +459,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EWZ",
@@ -417,7 +468,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "EZU",
@@ -425,7 +477,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "FAN",
@@ -433,7 +486,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "FDN",
@@ -441,7 +495,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "FEZ",
@@ -449,7 +504,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "FINX",
@@ -457,7 +513,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "intl_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "FM",
@@ -465,7 +522,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_frontier",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "FTEC",
@@ -473,7 +531,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "FVD",
@@ -481,7 +540,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "FXH",
@@ -489,7 +549,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "FXI",
@@ -497,7 +558,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "GDXJ",
@@ -505,7 +567,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "GEM",
@@ -513,7 +576,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_em",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "GWL",
@@ -521,7 +585,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "global_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "GXC",
@@ -529,7 +594,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "HACK",
@@ -537,7 +603,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "HDV",
@@ -545,7 +612,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "HEFA",
@@ -553,7 +621,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "HEWJ",
@@ -561,7 +630,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IBB",
@@ -569,7 +639,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "ICLN",
@@ -577,7 +648,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "IDU",
@@ -585,7 +657,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IEFA",
@@ -593,7 +666,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IEMG",
@@ -601,7 +675,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_em",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IEUR",
@@ -609,7 +684,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IGV",
@@ -617,7 +693,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IHF",
@@ -625,7 +702,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IHI",
@@ -633,7 +711,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IJH",
@@ -641,7 +720,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IJK",
@@ -649,7 +729,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IJR",
@@ -657,7 +738,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IJS",
@@ -665,7 +747,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IJT",
@@ -673,7 +756,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "INDA",
@@ -681,7 +765,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IOO",
@@ -689,7 +774,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "global_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "ITA",
@@ -697,7 +783,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "ITB",
@@ -705,7 +792,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "ITOT",
@@ -713,7 +801,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IVE",
@@ -721,7 +810,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IVV",
@@ -729,7 +819,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IVW",
@@ -737,7 +828,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IWB",
@@ -745,7 +837,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IWD",
@@ -753,7 +846,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IWF",
@@ -761,7 +855,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IWM",
@@ -769,7 +864,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IWN",
@@ -777,7 +873,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IWO",
@@ -785,7 +882,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IWV",
@@ -793,7 +891,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IXUS",
@@ -801,7 +900,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "IYC",
@@ -809,7 +909,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IYE",
@@ -817,7 +918,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IYF",
@@ -825,7 +927,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IYK",
@@ -833,7 +936,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IYM",
@@ -841,7 +945,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IYT",
@@ -849,7 +954,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "IYW",
@@ -857,7 +963,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "JETS",
@@ -865,7 +972,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "KBE",
@@ -873,7 +981,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "KIE",
@@ -881,7 +990,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "KRE",
@@ -889,7 +999,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "KSA",
@@ -897,7 +1008,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "KWEB",
@@ -905,7 +1017,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "LIT",
@@ -913,7 +1026,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "LRGF",
@@ -921,7 +1035,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "MCHI",
@@ -929,7 +1044,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "MDY",
@@ -937,7 +1053,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "MGK",
@@ -945,7 +1062,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_growth",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "MTUM",
@@ -953,7 +1071,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "NLR",
@@ -961,7 +1080,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "PAVE",
@@ -969,7 +1089,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "PPH",
@@ -977,7 +1098,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "PRF",
@@ -985,7 +1107,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "PRFZ",
@@ -993,7 +1116,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "QAT",
@@ -1001,7 +1125,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "QQQ",
@@ -1009,7 +1134,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_growth",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "QQQM",
@@ -1017,7 +1143,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_growth",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "QUAL",
@@ -1025,7 +1152,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "ROBO",
@@ -1033,7 +1161,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "RSP",
@@ -1041,7 +1170,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SCHB",
@@ -1049,7 +1179,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SCHD",
@@ -1057,7 +1188,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SCHE",
@@ -1065,7 +1197,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_em",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SCHX",
@@ -1073,7 +1206,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SIZE",
@@ -1081,7 +1215,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SKYY",
@@ -1089,7 +1224,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "SMH",
@@ -1097,7 +1233,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "SOXX",
@@ -1105,7 +1242,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "SPEM",
@@ -1113,7 +1251,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_em",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPHD",
@@ -1121,7 +1260,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPHQ",
@@ -1129,7 +1269,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPLG",
@@ -1137,7 +1278,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPLV",
@@ -1145,7 +1287,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPMD",
@@ -1153,7 +1296,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPMO",
@@ -1161,7 +1305,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPSM",
@@ -1169,7 +1314,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPTM",
@@ -1177,7 +1323,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPY",
@@ -1185,7 +1332,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPYG",
@@ -1193,7 +1341,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SPYV",
@@ -1201,7 +1350,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "SUSA",
@@ -1209,7 +1359,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_esg",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "TAN",
@@ -1217,7 +1368,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "THD",
@@ -1225,7 +1377,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "UAE",
@@ -1233,7 +1386,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "URA",
@@ -1241,7 +1395,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_thematic",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "tech"
     },
     {
       "ticker": "URTH",
@@ -1249,7 +1404,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "global_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "USMC",
@@ -1257,7 +1413,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "USMV",
@@ -1265,7 +1422,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VB",
@@ -1273,7 +1431,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VBK",
@@ -1281,7 +1440,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VBR",
@@ -1289,7 +1449,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VCR",
@@ -1297,7 +1458,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VDC",
@@ -1305,7 +1467,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VDE",
@@ -1313,7 +1476,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VEA",
@@ -1321,7 +1485,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VEU",
@@ -1329,7 +1494,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "global_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VFH",
@@ -1337,7 +1503,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VGK",
@@ -1345,7 +1512,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_developed",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VGT",
@@ -1353,7 +1521,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VHT",
@@ -1361,7 +1530,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VIG",
@@ -1369,7 +1539,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VIOG",
@@ -1377,7 +1548,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VIOO",
@@ -1385,7 +1557,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VIOV",
@@ -1393,7 +1566,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VIS",
@@ -1401,7 +1575,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VLUE",
@@ -1409,7 +1584,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VNM",
@@ -1417,7 +1593,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_country",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VO",
@@ -1425,7 +1602,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_size",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VONE",
@@ -1433,7 +1611,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VOO",
@@ -1441,7 +1620,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VOX",
@@ -1449,7 +1629,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VPU",
@@ -1457,7 +1638,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VT",
@@ -1465,7 +1647,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "global_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VTI",
@@ -1473,7 +1656,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VTV",
@@ -1481,7 +1665,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VUG",
@@ -1489,7 +1674,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VV",
@@ -1497,7 +1683,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VWO",
@@ -1505,7 +1692,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_em",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VXUS",
@@ -1513,7 +1701,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "VYM",
@@ -1521,7 +1710,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_factor",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XAR",
@@ -1529,7 +1719,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XBI",
@@ -1537,7 +1728,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XES",
@@ -1545,7 +1737,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XHB",
@@ -1553,7 +1746,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XHE",
@@ -1561,7 +1755,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XHS",
@@ -1569,7 +1764,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XLB",
@@ -1577,7 +1773,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XLC",
@@ -1585,7 +1782,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XLE",
@@ -1593,7 +1791,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XLF",
@@ -1601,7 +1800,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XLI",
@@ -1609,7 +1809,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XLK",
@@ -1617,7 +1818,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XLP",
@@ -1625,7 +1827,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XLU",
@@ -1633,7 +1836,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XLV",
@@ -1641,7 +1845,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XLY",
@@ -1649,7 +1854,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "broad_market"
     },
     {
       "ticker": "XME",
@@ -1657,7 +1863,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XNTK",
@@ -1665,7 +1872,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XOP",
@@ -1673,7 +1881,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XPH",
@@ -1681,7 +1890,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XRT",
@@ -1689,7 +1899,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XSD",
@@ -1697,7 +1908,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XSW",
@@ -1705,7 +1917,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XTL",
@@ -1713,7 +1926,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "XWEB",
@@ -1721,7 +1935,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_industry",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "industrials"
     },
     {
       "ticker": "AAPL",
@@ -1729,7 +1944,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "ABBV",
@@ -1737,7 +1953,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "ABNB",
@@ -1745,7 +1962,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "ABT",
@@ -1753,7 +1971,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "ADBE",
@@ -1761,7 +1980,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "AMAT",
@@ -1769,7 +1989,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_semi",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "AMD",
@@ -1777,7 +1998,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_semi",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "AMGN",
@@ -1785,7 +2007,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "AMZN",
@@ -1793,7 +2016,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "AVGO",
@@ -1801,7 +2025,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "AXP",
@@ -1809,7 +2034,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "BA",
@@ -1817,7 +2043,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "BAC",
@@ -1825,7 +2052,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "BKNG",
@@ -1833,7 +2061,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "BLK",
@@ -1841,7 +2070,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "BMY",
@@ -1849,7 +2079,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "BRK-B",
@@ -1857,7 +2088,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "C",
@@ -1865,7 +2097,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "CAT",
@@ -1873,7 +2106,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "CMCSA",
@@ -1881,7 +2115,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_comms",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "COF",
@@ -1889,7 +2124,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "COP",
@@ -1897,7 +2133,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_energy",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "energy"
     },
     {
       "ticker": "COST",
@@ -1905,7 +2142,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "CRM",
@@ -1913,7 +2151,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CRWD",
@@ -1921,7 +2160,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CSCO",
@@ -1929,7 +2169,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CVX",
@@ -1937,7 +2178,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_energy",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "energy"
     },
     {
       "ticker": "DE",
@@ -1945,7 +2187,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "DHR",
@@ -1953,7 +2196,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "DIS",
@@ -1961,7 +2205,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_comms",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "DUK",
@@ -1969,7 +2214,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_utilities",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "utilities"
     },
     {
       "ticker": "EOG",
@@ -1977,7 +2223,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_energy",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "energy"
     },
     {
       "ticker": "ETN",
@@ -1985,7 +2232,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "GE",
@@ -1993,7 +2241,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "GILD",
@@ -2001,7 +2250,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "GOOG",
@@ -2009,7 +2259,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "GOOGL",
@@ -2017,7 +2268,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "GS",
@@ -2025,7 +2277,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "HD",
@@ -2033,7 +2286,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "HON",
@@ -2041,7 +2295,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "IBM",
@@ -2049,7 +2304,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "INTC",
@@ -2057,7 +2313,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_semi",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "INTU",
@@ -2065,7 +2322,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "ISRG",
@@ -2073,7 +2331,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "JNJ",
@@ -2081,7 +2340,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "JPM",
@@ -2089,7 +2349,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "KLAC",
@@ -2097,7 +2358,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_semi",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "KO",
@@ -2105,7 +2367,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_staples",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_staples"
     },
     {
       "ticker": "LIN",
@@ -2113,7 +2376,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_materials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "materials"
     },
     {
       "ticker": "LLY",
@@ -2121,7 +2385,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "LMT",
@@ -2129,7 +2394,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "LOW",
@@ -2137,7 +2403,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "LRCX",
@@ -2145,7 +2412,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_semi",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "MA",
@@ -2153,7 +2421,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "MCD",
@@ -2161,7 +2430,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "META",
@@ -2169,7 +2439,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "MO",
@@ -2177,7 +2448,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_staples",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_staples"
     },
     {
       "ticker": "MRK",
@@ -2185,7 +2457,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "MS",
@@ -2193,7 +2466,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "MSFT",
@@ -2201,7 +2475,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "MU",
@@ -2209,7 +2484,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_semi",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "NEE",
@@ -2217,7 +2493,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_utilities",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "utilities"
     },
     {
       "ticker": "NFLX",
@@ -2225,7 +2502,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_comms",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "NKE",
@@ -2233,7 +2511,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "NOW",
@@ -2241,7 +2520,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "NVDA",
@@ -2249,7 +2529,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "ORCL",
@@ -2257,7 +2538,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "PANW",
@@ -2265,7 +2547,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "PEP",
@@ -2273,7 +2556,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_staples",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_staples"
     },
     {
       "ticker": "PFE",
@@ -2281,7 +2565,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "PG",
@@ -2289,7 +2574,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_staples",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_staples"
     },
     {
       "ticker": "PLTR",
@@ -2297,7 +2583,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "PM",
@@ -2305,7 +2592,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_staples",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_staples"
     },
     {
       "ticker": "PYPL",
@@ -2313,7 +2601,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "QCOM",
@@ -2321,7 +2610,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_semi",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "REGN",
@@ -2329,7 +2619,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "RTX",
@@ -2337,7 +2628,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "SBUX",
@@ -2345,7 +2637,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "SCHW",
@@ -2353,7 +2646,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "SHW",
@@ -2361,7 +2655,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_materials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "materials"
     },
     {
       "ticker": "SLB",
@@ -2369,7 +2664,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_energy",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "energy"
     },
     {
       "ticker": "SNOW",
@@ -2377,7 +2673,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SO",
@@ -2385,7 +2682,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_utilities",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "utilities"
     },
     {
       "ticker": "T",
@@ -2393,7 +2691,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_comms",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "TGT",
@@ -2401,7 +2700,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "TJX",
@@ -2409,7 +2709,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "TMO",
@@ -2417,7 +2718,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "TMUS",
@@ -2425,7 +2727,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_comms",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "TSLA",
@@ -2433,7 +2736,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_mega",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "TXN",
@@ -2441,7 +2745,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_semi",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "UNH",
@@ -2449,7 +2754,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "UNP",
@@ -2457,7 +2763,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "UPS",
@@ -2465,7 +2772,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_industrials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "V",
@@ -2473,7 +2781,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "VRTX",
@@ -2481,7 +2790,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_healthcare",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "VZ",
@@ -2489,7 +2799,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_comms",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "WFC",
@@ -2497,7 +2808,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_financials",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "WMT",
@@ -2505,7 +2817,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_consumer",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "XOM",
@@ -2513,7 +2826,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_energy",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "energy"
     },
     {
       "ticker": "AGTHX",
@@ -2521,7 +2835,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_growth",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "tech"
     },
     {
       "ticker": "AIVSX",
@@ -2529,7 +2844,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "AMECX",
@@ -2537,7 +2853,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_income",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "financials"
     },
     {
       "ticker": "AMRMX",
@@ -2545,7 +2862,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_value",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "financials"
     },
     {
       "ticker": "ANCFX",
@@ -2553,7 +2871,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "AWSHX",
@@ -2561,7 +2880,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_value",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "financials"
     },
     {
       "ticker": "CAIBX",
@@ -2569,7 +2889,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "global_fund_income",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "CWGFX",
@@ -2577,7 +2898,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "global_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "DODFX",
@@ -2585,7 +2907,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_fund_value",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "financials"
     },
     {
       "ticker": "DODGX",
@@ -2593,7 +2916,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_value",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "financials"
     },
     {
       "ticker": "FBALX",
@@ -2601,7 +2925,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_balanced",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "FBGRX",
@@ -2609,7 +2934,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_growth",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "tech"
     },
     {
       "ticker": "FCNTX",
@@ -2617,7 +2943,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_growth",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "tech"
     },
     {
       "ticker": "FDGRX",
@@ -2625,7 +2952,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_growth",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "tech"
     },
     {
       "ticker": "FSKAX",
@@ -2633,7 +2961,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "FSPGX",
@@ -2641,7 +2970,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_growth",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "tech"
     },
     {
       "ticker": "FXAIX",
@@ -2649,7 +2979,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "FZILX",
@@ -2657,7 +2988,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "FZROX",
@@ -2665,7 +2997,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "PRGFX",
@@ -2673,7 +3006,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_growth",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "tech"
     },
     {
       "ticker": "PRWCX",
@@ -2681,7 +3015,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_balanced",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "RERFX",
@@ -2689,7 +3024,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_fund_growth",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "tech"
     },
     {
       "ticker": "SWISX",
@@ -2697,7 +3033,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "SWPPX",
@@ -2705,7 +3042,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "SWTSX",
@@ -2713,7 +3051,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "SWYGX",
@@ -2721,7 +3060,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_target",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "SWYNX",
@@ -2729,7 +3069,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_target",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "TRBCX",
@@ -2737,7 +3078,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_growth",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "tech"
     },
     {
       "ticker": "VDIGX",
@@ -2745,7 +3087,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_dividend",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "financials"
     },
     {
       "ticker": "VFIAX",
@@ -2753,7 +3096,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "VHYAX",
@@ -2761,7 +3105,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_dividend",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "financials"
     },
     {
       "ticker": "VIGAX",
@@ -2769,7 +3114,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_growth",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "tech"
     },
     {
       "ticker": "VIMAX",
@@ -2777,7 +3123,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_size",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "VSMAX",
@@ -2785,7 +3132,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_size",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "VTIAX",
@@ -2793,7 +3141,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "VTSAX",
@@ -2801,7 +3150,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "VTWAX",
@@ -2809,7 +3159,8 @@
       "asset_class": "equity",
       "region": "global",
       "category": "global_fund_core",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "VWELX",
@@ -2817,7 +3168,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_balanced",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "VWENX",
@@ -2825,7 +3177,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_balanced",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "broad_market"
     },
     {
       "ticker": "VWNDX",
@@ -2833,7 +3186,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_fund_value",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "financials"
     },
     {
       "ticker": "AGG",
@@ -2841,7 +3195,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "aggregate",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "ANGL",
@@ -2849,7 +3204,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_hy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "BIL",
@@ -2857,7 +3213,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "BIV",
@@ -2865,7 +3222,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "aggregate",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "BLV",
@@ -2873,7 +3231,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "aggregate",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "BND",
@@ -2881,7 +3240,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "aggregate",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "BNDX",
@@ -2889,7 +3249,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "intl_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "BSV",
@@ -2897,7 +3258,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "aggregate",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "BWX",
@@ -2905,7 +3267,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "intl_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "BWZ",
@@ -2913,7 +3276,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "intl_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "CMBS",
@@ -2921,7 +3285,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "bond_mbs",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "EDV",
@@ -2929,7 +3294,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "EMB",
@@ -2937,7 +3303,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "em_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "EMHY",
@@ -2945,7 +3312,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "em_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "EMLC",
@@ -2953,7 +3321,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "em_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "FALN",
@@ -2961,7 +3330,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_hy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "FLOT",
@@ -2969,7 +3339,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "bond_floating",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "GNMA",
@@ -2977,7 +3348,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "bond_mbs",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "GOVT",
@@ -2985,7 +3357,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "HYD",
@@ -2993,7 +3366,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "muni",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "HYG",
@@ -3001,7 +3375,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_hy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "HYLB",
@@ -3009,7 +3384,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_hy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "IAGG",
@@ -3017,7 +3393,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "intl_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "IEF",
@@ -3025,7 +3402,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "IEI",
@@ -3033,7 +3411,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "IGIB",
@@ -3041,7 +3420,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_ig",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "IGLB",
@@ -3049,7 +3429,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_ig",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "IGOV",
@@ -3057,7 +3438,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "intl_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "IGSB",
@@ -3065,7 +3447,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_ig",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "JNK",
@@ -3073,7 +3456,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_hy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "JPMB",
@@ -3081,7 +3465,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "em_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "LEMB",
@@ -3089,7 +3474,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "em_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "LMBS",
@@ -3097,7 +3483,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "bond_mbs",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "LQD",
@@ -3105,7 +3492,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_ig",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "LTPZ",
@@ -3113,7 +3501,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "inflation",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "MBB",
@@ -3121,7 +3510,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "bond_mbs",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "MUB",
@@ -3129,7 +3519,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "muni",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "MUNI",
@@ -3137,7 +3528,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "muni",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "PCY",
@@ -3145,7 +3537,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "em_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "PHB",
@@ -3153,7 +3546,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_hy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SCHO",
@@ -3161,7 +3555,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SCHP",
@@ -3169,7 +3564,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "inflation",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SCHR",
@@ -3177,7 +3573,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SCHZ",
@@ -3185,7 +3582,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "aggregate",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SGOV",
@@ -3193,7 +3591,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SHV",
@@ -3201,7 +3600,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SHY",
@@ -3209,7 +3609,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SHYG",
@@ -3217,7 +3618,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_hy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SJNK",
@@ -3225,7 +3627,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_hy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SPAB",
@@ -3233,7 +3636,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "aggregate",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SPBO",
@@ -3241,7 +3645,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_ig",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SPTI",
@@ -3249,7 +3654,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SPTL",
@@ -3257,7 +3663,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SPTS",
@@ -3265,7 +3672,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "STIP",
@@ -3273,7 +3681,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "inflation",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "SUB",
@@ -3281,7 +3690,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "muni",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "TBIL",
@@ -3289,7 +3699,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "TFLO",
@@ -3297,7 +3708,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "TIP",
@@ -3305,7 +3717,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "inflation",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "TIPX",
@@ -3313,7 +3726,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "inflation",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "TLT",
@@ -3321,7 +3735,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "USFR",
@@ -3329,7 +3744,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "bond_floating",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "USHY",
@@ -3337,7 +3753,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_hy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VCIT",
@@ -3345,7 +3762,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_ig",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VCSH",
@@ -3353,7 +3771,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "credit_ig",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VGIT",
@@ -3361,7 +3780,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VGLT",
@@ -3369,7 +3789,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VGSH",
@@ -3377,7 +3798,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VMBS",
@@ -3385,7 +3807,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "bond_mbs",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VTEB",
@@ -3393,7 +3816,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "muni",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VTIP",
@@ -3401,7 +3825,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "inflation",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VUSB",
@@ -3409,7 +3834,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "VWOB",
@@ -3417,7 +3843,8 @@
       "asset_class": "bond",
       "region": "intl",
       "category": "em_bond",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "ZROZ",
@@ -3425,7 +3852,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "treasury",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "bond"
     },
     {
       "ticker": "ABNDX",
@@ -3433,7 +3861,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "us_fund_bond",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "bond"
     },
     {
       "ticker": "DODIX",
@@ -3441,7 +3870,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "us_fund_bond",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "bond"
     },
     {
       "ticker": "FAGIX",
@@ -3449,7 +3879,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "us_fund_credit",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "bond"
     },
     {
       "ticker": "FTBFX",
@@ -3457,7 +3888,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "us_fund_bond",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "bond"
     },
     {
       "ticker": "FXNAX",
@@ -3465,7 +3897,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "us_fund_bond",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "bond"
     },
     {
       "ticker": "SWAGX",
@@ -3473,7 +3906,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "us_fund_bond",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "bond"
     },
     {
       "ticker": "VBTLX",
@@ -3481,7 +3915,8 @@
       "asset_class": "bond",
       "region": "us",
       "category": "us_fund_bond",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "bond"
     },
     {
       "ticker": "BCI",
@@ -3489,7 +3924,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "BNO",
@@ -3497,7 +3933,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "energy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "COMT",
@@ -3505,7 +3942,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "CORN",
@@ -3513,7 +3951,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "commodity_agriculture",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "CPER",
@@ -3521,7 +3960,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "industrial",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "DBA",
@@ -3529,7 +3969,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "commodity_agriculture",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "DBC",
@@ -3537,7 +3978,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "GCC",
@@ -3545,7 +3987,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "GDX",
@@ -3553,7 +3996,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "precious",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "GLD",
@@ -3561,7 +4005,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "precious",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "GLDM",
@@ -3569,7 +4014,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "precious",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "GSG",
@@ -3577,7 +4023,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "IAU",
@@ -3585,7 +4032,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "precious",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "PALL",
@@ -3593,7 +4041,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "precious",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "PDBC",
@@ -3601,7 +4050,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "broad",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "PPLT",
@@ -3609,7 +4059,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "precious",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "SGOL",
@@ -3617,7 +4068,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "precious",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "SLV",
@@ -3625,7 +4077,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "precious",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "SOYB",
@@ -3633,7 +4086,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "commodity_agriculture",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "TAGS",
@@ -3641,7 +4095,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "commodity_agriculture",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "UNG",
@@ -3649,7 +4104,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "energy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "USL",
@@ -3657,7 +4113,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "energy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "USO",
@@ -3665,7 +4122,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "energy",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "WEAT",
@@ -3673,7 +4131,8 @@
       "asset_class": "commodity",
       "region": "global",
       "category": "commodity_agriculture",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "commodity"
     },
     {
       "ticker": "HAUZ",
@@ -3681,7 +4140,8 @@
       "asset_class": "real_estate",
       "region": "intl",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "INDS",
@@ -3689,7 +4149,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "reit_sector",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "IYR",
@@ -3697,7 +4158,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "MORT",
@@ -3705,7 +4167,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "reit_mortgage",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "REET",
@@ -3713,7 +4176,8 @@
       "asset_class": "real_estate",
       "region": "global",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "REM",
@@ -3721,7 +4185,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "reit_mortgage",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "RWO",
@@ -3729,7 +4194,8 @@
       "asset_class": "real_estate",
       "region": "global",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "RWR",
@@ -3737,7 +4203,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "SCHH",
@@ -3745,7 +4212,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "USRT",
@@ -3753,7 +4221,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "VNQ",
@@ -3761,7 +4230,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "VNQI",
@@ -3769,7 +4239,8 @@
       "asset_class": "real_estate",
       "region": "intl",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "XLRE",
@@ -3777,7 +4248,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "reit",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "real_estate"
     },
     {
       "ticker": "VGSLX",
@@ -3785,7 +4257,8 @@
       "asset_class": "real_estate",
       "region": "us",
       "category": "us_fund_reit",
-      "product_type": "fund"
+      "product_type": "fund",
+      "sector": "real_estate"
     },
     {
       "ticker": "AMLP",
@@ -3793,7 +4266,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "income",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "BKLN",
@@ -3801,7 +4275,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "credit_alt",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "BTAL",
@@ -3809,7 +4284,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "alt_hedge",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "CTA",
@@ -3817,7 +4293,8 @@
       "asset_class": "alternative",
       "region": "global",
       "category": "alt_managed_futures",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "DBMF",
@@ -3825,7 +4302,8 @@
       "asset_class": "alternative",
       "region": "global",
       "category": "alt_managed_futures",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "ENFR",
@@ -3833,7 +4311,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "income",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "FTSL",
@@ -3841,7 +4320,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "credit_alt",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "ICAP",
@@ -3849,7 +4329,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "income",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "KMLM",
@@ -3857,7 +4338,8 @@
       "asset_class": "alternative",
       "region": "global",
       "category": "alt_managed_futures",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "MLPA",
@@ -3865,7 +4347,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "income",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "MNA",
@@ -3873,7 +4356,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "alt_hedge",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "PFF",
@@ -3881,7 +4365,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "preferred",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "PFFA",
@@ -3889,7 +4374,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "preferred",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "PFFD",
@@ -3897,7 +4383,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "preferred",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "PGX",
@@ -3905,7 +4392,8 @@
       "asset_class": "alternative",
       "region": "global",
       "category": "preferred",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "PUTW",
@@ -3913,7 +4401,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "alt_hedge",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "QAI",
@@ -3921,7 +4410,8 @@
       "asset_class": "alternative",
       "region": "global",
       "category": "multi_alt",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "RLY",
@@ -3929,7 +4419,8 @@
       "asset_class": "alternative",
       "region": "global",
       "category": "multi_alt",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "SRLN",
@@ -3937,7 +4428,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "credit_alt",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "SVOL",
@@ -3945,7 +4437,8 @@
       "asset_class": "alternative",
       "region": "us",
       "category": "alt_hedge",
-      "product_type": "etf"
+      "product_type": "etf",
+      "sector": "alternative"
     },
     {
       "ticker": "APH",
@@ -3953,7 +4446,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SNPS",
@@ -3961,7 +4455,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "TEL",
@@ -3969,7 +4464,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "NOC",
@@ -3977,7 +4473,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "TT",
@@ -3985,7 +4482,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "ASML",
@@ -3993,7 +4491,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "ICE",
@@ -4001,7 +4500,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "MPWR",
@@ -4009,7 +4509,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "FAST",
@@ -4017,7 +4518,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "ADSK",
@@ -4025,7 +4527,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "PTC",
@@ -4033,7 +4536,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SYK",
@@ -4041,7 +4545,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "BWXT",
@@ -4049,7 +4554,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "SPGI",
@@ -4057,7 +4563,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "MLM",
@@ -4065,7 +4572,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "materials"
     },
     {
       "ticker": "MNST",
@@ -4073,7 +4581,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_staples"
     },
     {
       "ticker": "MTD",
@@ -4081,7 +4590,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "PH",
@@ -4089,7 +4599,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "BX",
@@ -4097,7 +4608,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "IR",
@@ -4105,7 +4617,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "JCI",
@@ -4113,7 +4626,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "XYL",
@@ -4121,7 +4635,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "TW",
@@ -4129,7 +4644,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "ECL",
@@ -4137,7 +4653,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "materials"
     },
     {
       "ticker": "AZN",
@@ -4145,7 +4662,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "RSG",
@@ -4153,7 +4671,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "AME",
@@ -4161,7 +4680,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "CW",
@@ -4169,7 +4689,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "APD",
@@ -4177,7 +4698,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "materials"
     },
     {
       "ticker": "A",
@@ -4185,7 +4707,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "CMG",
@@ -4193,7 +4716,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "CP",
@@ -4201,7 +4725,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "VEEV",
@@ -4209,7 +4734,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "TYL",
@@ -4217,7 +4743,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "MSI",
@@ -4225,7 +4752,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "ODFL",
@@ -4233,7 +4761,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "MELI",
@@ -4241,7 +4770,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "ARM",
@@ -4249,7 +4779,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SHOP",
@@ -4257,7 +4788,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "VRSK",
@@ -4265,7 +4797,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "UBER",
@@ -4273,7 +4806,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "ADP",
@@ -4281,7 +4815,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "FIG",
@@ -4289,7 +4824,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "AXON",
@@ -4297,7 +4833,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SHOP",
@@ -4305,7 +4842,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "CDNS",
@@ -4313,7 +4851,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SNPS",
@@ -4321,7 +4860,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "MELI",
@@ -4329,7 +4869,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "NET",
@@ -4337,7 +4878,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "APP",
@@ -4345,7 +4887,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CLS",
@@ -4353,7 +4896,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "DASH",
@@ -4361,7 +4905,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "TSM",
@@ -4369,7 +4914,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "TW",
@@ -4377,7 +4923,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "RBLX",
@@ -4385,7 +4932,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "SE",
@@ -4393,7 +4941,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "ADI",
@@ -4401,7 +4950,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "NTRA",
@@ -4409,7 +4959,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "APH",
@@ -4417,7 +4968,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "MPWR",
@@ -4425,7 +4977,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "ANET",
@@ -4433,7 +4986,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "HOOD",
@@ -4441,7 +4995,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "VEEV",
@@ -4449,7 +5004,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "ASML",
@@ -4457,7 +5013,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "ARGX",
@@ -4465,7 +5022,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "KTOS",
@@ -4473,7 +5031,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "GEV",
@@ -4481,7 +5040,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "SPOT",
@@ -4489,7 +5049,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "DOCS",
@@ -4497,7 +5058,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "FTNT",
@@ -4505,7 +5067,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CVNA",
@@ -4513,7 +5076,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "UBER",
@@ -4521,7 +5085,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "BSX",
@@ -4529,7 +5094,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "TTAN",
@@ -4537,7 +5103,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "HUBS",
@@ -4545,7 +5112,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "ASND",
@@ -4553,7 +5121,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "MNDY",
@@ -4561,7 +5130,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "GWRE",
@@ -4569,7 +5139,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "TOST",
@@ -4577,7 +5148,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "PWR",
@@ -4585,7 +5157,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "TYL",
@@ -4593,7 +5166,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "VRSK",
@@ -4601,7 +5175,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "INSM",
@@ -4609,7 +5184,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "DSGX",
@@ -4617,7 +5193,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "GH",
@@ -4625,7 +5202,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "ALNY",
@@ -4633,7 +5211,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "KRMN",
@@ -4641,7 +5220,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "LIF",
@@ -4649,7 +5229,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "FTI",
@@ -4657,7 +5238,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "DUOL",
@@ -4665,7 +5247,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "RKLB",
@@ -4673,7 +5256,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "RDDT",
@@ -4681,7 +5265,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "KVYO",
@@ -4689,7 +5274,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "TEM",
@@ -4697,7 +5283,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "ARM",
@@ -4705,7 +5292,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "IDXX",
@@ -4713,7 +5301,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "ROOT",
@@ -4721,7 +5310,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "HNGE",
@@ -4729,7 +5319,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "BKR",
@@ -4737,7 +5328,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CRCL",
@@ -4745,7 +5337,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "LGND",
@@ -4753,7 +5346,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SYK",
@@ -4761,7 +5355,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "HQY",
@@ -4769,7 +5364,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "COIN",
@@ -4777,7 +5373,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "AFRM",
@@ -4785,7 +5382,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SYM",
@@ -4793,7 +5391,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CORT",
@@ -4801,7 +5400,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "TRMB",
@@ -4809,7 +5409,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CHYM",
@@ -4817,7 +5418,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "OII",
@@ -4825,7 +5427,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "WGS",
@@ -4833,7 +5436,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "MMYT",
@@ -4841,7 +5445,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "BE",
@@ -4849,7 +5454,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "FIG",
@@ -4857,7 +5463,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "AUR",
@@ -4865,7 +5472,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CAI",
@@ -4873,7 +5481,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "KMTS",
@@ -4881,7 +5490,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock_tech",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "AXON",
@@ -4889,7 +5499,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SNPS",
@@ -4897,7 +5508,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "RBLX",
@@ -4905,7 +5517,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "APH",
@@ -4913,7 +5526,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "ARES",
@@ -4921,7 +5535,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "MCK",
@@ -4929,7 +5544,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "TT",
@@ -4937,7 +5553,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "SPOT",
@@ -4945,7 +5562,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "AZO",
@@ -4953,7 +5571,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "RSG",
@@ -4961,7 +5580,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "SPGI",
@@ -4969,7 +5589,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "VRSK",
@@ -4977,7 +5598,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "APP",
@@ -4985,7 +5607,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "TYL",
@@ -4993,7 +5616,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "BSX",
@@ -5001,7 +5625,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "GEV",
@@ -5009,7 +5634,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "UBER",
@@ -5017,7 +5643,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "WING",
@@ -5025,7 +5652,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "MPWR",
@@ -5033,7 +5661,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "DXCM",
@@ -5041,7 +5670,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "FICO",
@@ -5049,7 +5679,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "BRBR",
@@ -5057,7 +5688,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_staples"
     },
     {
       "ticker": "DASH",
@@ -5065,7 +5697,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "PH",
@@ -5073,7 +5706,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "HUBS",
@@ -5081,7 +5715,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "CSGP",
@@ -5089,7 +5724,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "real_estate"
     },
     {
       "ticker": "MLM",
@@ -5097,7 +5733,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "materials"
     },
     {
       "ticker": "ADI",
@@ -5105,7 +5742,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "PINS",
@@ -5113,7 +5751,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "comms"
     },
     {
       "ticker": "CMG",
@@ -5121,7 +5760,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_disc"
     },
     {
       "ticker": "ODD",
@@ -5129,7 +5769,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "TRU",
@@ -5137,7 +5778,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "MSCI",
@@ -5145,7 +5787,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     },
     {
       "ticker": "LSCC",
@@ -5153,7 +5796,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "MNDY",
@@ -5161,7 +5805,8 @@
       "asset_class": "equity",
       "region": "intl",
       "category": "intl_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "broad_market"
     },
     {
       "ticker": "FRPT",
@@ -5169,7 +5814,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "consumer_staples"
     },
     {
       "ticker": "QXO",
@@ -5177,7 +5823,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "materials"
     },
     {
       "ticker": "ADSK",
@@ -5185,7 +5832,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "tech"
     },
     {
       "ticker": "SARO",
@@ -5193,7 +5841,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "industrials"
     },
     {
       "ticker": "TEM",
@@ -5201,7 +5850,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "healthcare"
     },
     {
       "ticker": "FIG",
@@ -5209,7 +5859,8 @@
       "asset_class": "equity",
       "region": "us",
       "category": "us_stock",
-      "product_type": "stock"
+      "product_type": "stock",
+      "sector": "financials"
     }
   ]
 }

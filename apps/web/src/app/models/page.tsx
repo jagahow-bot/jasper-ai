@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppNav } from "@/components/AppNav";
-import { resolveHoldingProductType, tagClassForRisk } from "@/lib/clients";
-import { useI18n, productTypeLabel, riskProfileLabel } from "@/lib/i18n";
-import { etfDisplayName } from "@/lib/etf-display-name";
+import { PortfolioComposition } from "@/components/PortfolioComposition";
+import { tagClassForRisk } from "@/lib/clients";
+import { useI18n, riskProfileLabel } from "@/lib/i18n";
 import {
   getAssetManagerLabel,
   getPortfolioDescription,
@@ -218,40 +218,9 @@ export default function ModelPortfoliosPage() {
                   </button>
                 </div>
                 {open ? (
-                  <table className="mt-4 w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-[var(--border)] text-[var(--text-dim)]">
-                        <th className="py-1 font-medium">{t("pool.col.ticker")}</th>
-                        <th className="py-1 font-medium">{t("pool.col.name")}</th>
-                        <th className="py-1 font-medium">
-                          {t("pool.col.productType")}
-                        </th>
-                        <th className="py-1 text-right font-medium">
-                          {t("clients.weight")}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {p.holdings.map((h) => (
-                        <tr key={h.ticker} className="border-b border-[var(--border)]/50">
-                          <td className="py-1.5 font-medium">{h.ticker}</td>
-                          <td className="py-1.5">{etfDisplayName(h.ticker, lang)}</td>
-                          <td className="py-1.5">
-                            {productTypeLabel(
-                              t,
-                              resolveHoldingProductType({
-                                ticker: h.ticker,
-                                asset_class: "equity",
-                              }),
-                            )}
-                          </td>
-                          <td className="py-1.5 text-right tabular-nums">
-                            {(h.weight * 100).toFixed(1)}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="mt-4">
+                    <PortfolioComposition holdings={p.holdings} />
+                  </div>
                 ) : null}
               </div>
             );
