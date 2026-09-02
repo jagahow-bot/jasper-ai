@@ -246,4 +246,73 @@ describe("overlay-gemini-parse", () => {
     expect(overlay.allocation.max_single_position_pct).toBe(0.4);
     expect(overlay.market_view.stance).toBe("risk_on");
   });
+
+  it("keeps structured clarifications with distinct options through normalize + strip", () => {
+    const normalized = parseOverlayExtractFromGemini({
+      client_profile: { risk_tolerance: "aggressive" },
+      market_view: {
+        stance: "risk_on",
+        themes: ["ai"],
+        narrative_summary: "Client wants higher AI exposure with explicit implementation choices.",
+      },
+      allocation: { asset_classes: ["equity", "bond"] },
+      universe: { prompts: [] },
+      optimization: { objective: "max_sharpe" },
+      clarifications: [
+        {
+          id: "q1",
+          question: "客戶預期將 AI 產業或科技板塊的比重提高至多少？",
+          options: [
+            { id: "20", label: "整體配置 20%" },
+            { id: "30", label: "整體配置 30%" },
+            { id: "40", label: "整體配置 40%以上" },
+          ],
+          allow_multiple: false,
+          allow_free_text: true,
+          extra_gemini_field: "drop-me",
+        },
+        {
+          id: "q2",
+          question: "偏好採用何種方式加碼 AI 曝險？",
+          options: [
+            { id: "etf", label: "引入主題型 ETF" },
+            { id: "single", label: "調升既有 AI 龍頭個股" },
+            { id: "both", label: "ETF與個股複合" },
+          ],
+          allow_multiple: false,
+        },
+      ],
+      clarification_questions: [
+        "客戶預期將 AI 產業或科技板塊的比重提高至多少？",
+        "偏好採用何種方式加碼 AI 曝險？",
+      ],
+      confidence: 0.55,
+      rationale: "Need explicit AI sleeve target and implementation preference.",
+    }) as {
+      clarifications?: Array<{
+        question: string;
+        options: Array<{ label: string }>;
+        allow_multiple?: boolean;
+      }>;
+    };
+
+    expect(normalized.clarifications).toHaveLength(2);
+    expect(normalized.clarifications?.[0].options.map((o) => o.label)).toEqual([
+      "整體配置 20%",
+      "整體配置 30%",
+      "整體配置 40%以上",
+    ]);
+    expect(normalized.clarifications?.[1].options.map((o) => o.label)).toEqual([
+      "引入主題型 ETF",
+      "調升既有 AI 龍頭個股",
+      "ETF與個股複合",
+    ]);
+    expect(normalized.clarifications?.[0].allow_multiple).toBe(false);
+
+    const stripped = stripOverlayExtractKeys(normalized as Record<string, unknown>) as {
+      clarifications?: Array<{ options: Array<{ label: string }> }>;
+    };
+    expect(stripped.clarifications?.[0].options).toHaveLength(3);
+    expect(stripped.clarifications?.[1].options).toHaveLength(3);
+  });
 });

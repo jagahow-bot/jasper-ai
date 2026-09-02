@@ -46,7 +46,7 @@ export function buildClarificationAnswer(
 export function clarificationAllowsMultiple(
   clarification: OverlayClarification,
 ): boolean {
-  return clarification.allow_multiple !== false;
+  return clarification.allow_multiple === true;
 }
 
 function slugId(label: string, index: number): string {
@@ -82,15 +82,39 @@ export function clarificationFromQuestion(
   index: number,
   lang: "zh" | "en" | "ko",
   options?: OverlayClarificationOption[],
+  flags?: Pick<OverlayClarification, "allow_free_text" | "allow_multiple">,
 ): OverlayClarification {
+  const normalizedOptions = normalizeClarificationOptions(options);
   return {
     id: `q-${index + 1}`,
     question,
-    options: normalizeClarificationOptions(
-      options ?? inferClarificationOptions(question, lang),
-    ),
-    allow_free_text: true,
-    allow_multiple: true,
+    options:
+      normalizedOptions.length > 0
+        ? normalizedOptions
+        : normalizeClarificationOptions(inferClarificationOptions(question, lang)),
+    allow_free_text: flags?.allow_free_text !== false,
+    allow_multiple: flags?.allow_multiple === true,
+  };
+}
+
+/** Preserve LLM structured clarifications; infer options only when absent. */
+export function finalizeStructuredClarification(
+  clarification: OverlayClarification,
+  index: number,
+  lang: "zh" | "en" | "ko",
+): OverlayClarification {
+  const normalizedOptions = normalizeClarificationOptions(clarification.options);
+  return {
+    id: clarification.id || `q-${index + 1}`,
+    question: clarification.question,
+    options:
+      normalizedOptions.length > 0
+        ? normalizedOptions
+        : normalizeClarificationOptions(
+            inferClarificationOptions(clarification.question, lang),
+          ),
+    allow_free_text: clarification.allow_free_text !== false,
+    allow_multiple: clarification.allow_multiple === true,
   };
 }
 
@@ -104,13 +128,9 @@ export function resolveClarifications(
 ): OverlayClarification[] {
   if (!overlay) return [];
   if (overlay.clarifications?.length) {
-    return overlay.clarifications.map((c, i) => ({
-      ...c,
-      id: c.id || `q-${i + 1}`,
-      options: normalizeClarificationOptions(c.options),
-      allow_free_text: c.allow_free_text !== false,
-      allow_multiple: c.allow_multiple !== false,
-    }));
+    return overlay.clarifications.map((c, i) =>
+      finalizeStructuredClarification(c, i, lang),
+    );
   }
   const questions = overlay.clarification_questions ?? [];
   return questions.map((q, i) => clarificationFromQuestion(q, i, lang));
@@ -122,12 +142,7 @@ export function syncExtractClarifications(
 ): OverlayExtractOutput {
   if (extract.clarifications?.length) {
     const clarifications = extract.clarifications.map((c, i) =>
-      clarificationFromQuestion(
-        c.question,
-        i,
-        lang,
-        normalizeClarificationOptions(c.options),
-      ),
+      finalizeStructuredClarification(c, i, lang),
     );
     return {
       ...extract,
