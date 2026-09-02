@@ -1,5 +1,50 @@
-import { uniqueTickers } from "@/lib/locked-universe";
-import type { ClientOverlay, OverlayProposedTicker } from "@/lib/overlay-schema";
+import {
+  extractExplicitTickersFromTexts,
+  uniqueTickers,
+} from "@/lib/locked-universe";
+import type {
+  ClientOverlay,
+  OverlayClarification,
+  OverlayProposedTicker,
+} from "@/lib/overlay-schema";
+
+/** Known catalog tickers named in clarification questions or option chips. */
+export function tickersNamedInClarifications(
+  clarifications: readonly OverlayClarification[],
+  proposed?: readonly OverlayProposedTicker[],
+): Set<string> {
+  if (!clarifications.length) return new Set();
+  const texts = clarifications.flatMap((c) => [
+    c.question,
+    ...c.options.flatMap((o) => [o.label, o.id]),
+  ]);
+  const haystack = texts.join("\n").toUpperCase();
+  const covered = new Set(
+    extractExplicitTickersFromTexts(texts).map((t) => t.toUpperCase()),
+  );
+  // Symbols in proposed_tickers but absent from catalog (e.g. AIQ) still count
+  // when literally named in clarification chips.
+  for (const p of proposed ?? []) {
+    const sym = p.ticker.toUpperCase();
+    if (sym && haystack.includes(sym)) covered.add(sym);
+  }
+  return covered;
+}
+
+/**
+ * During clarify stage, hide proposed_tickers already offered as clarification
+ * choices (e.g. AIQ/BOTZ/SMH chips) so RM is not asked twice.
+ */
+export function proposedTickersAfterClarificationDedup(
+  proposed: readonly OverlayProposedTicker[] | undefined,
+  clarifications: readonly OverlayClarification[],
+): OverlayProposedTicker[] {
+  if (!proposed?.length) return [];
+  if (!clarifications.length) return [...proposed];
+  const covered = tickersNamedInClarifications(clarifications, proposed);
+  if (!covered.size) return [...proposed];
+  return proposed.filter((p) => !covered.has(p.ticker.toUpperCase()));
+}
 
 /** Fingerprint of universe prompts used to gate one-shot filter interrupts. */
 export function overlayPromptsKey(overlay: ClientOverlay): string {
