@@ -30,7 +30,10 @@ import {
   type OverlayConversationMessage,
   type OverlayProposedTicker,
 } from "@/lib/overlay-schema";
-import { clearProposedTickers } from "@/lib/overlay-filter-proposals";
+import {
+  clearProposedTickers,
+  proposedTickersAfterClarificationDedup,
+} from "@/lib/overlay-filter-proposals";
 import {
   shouldPushUpToParent,
   shouldSyncDownFromParent,
@@ -471,10 +474,13 @@ export function OverlayConversationPanel({
     el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_PX)}px`;
   }, [input]);
 
-  const proposedTickers =
-    confirmed || !overlay
-      ? EMPTY_PROPOSED
-      : (overlay.universe.proposed_tickers ?? EMPTY_PROPOSED);
+  const proposedTickers = useMemo(() => {
+    if (confirmed || !overlay) return EMPTY_PROPOSED;
+    return proposedTickersAfterClarificationDedup(
+      overlay.universe.proposed_tickers,
+      clarifications,
+    );
+  }, [confirmed, overlay, clarifications]);
 
   return (
     <div

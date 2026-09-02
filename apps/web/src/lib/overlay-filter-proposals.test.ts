@@ -7,7 +7,10 @@ import {
   novelFilterProposedTickers,
   overlayAlreadyShowsProposedTickers,
   overlayPromptsKey,
+  proposedTickersAfterClarificationDedup,
+  tickersNamedInClarifications,
 } from "./overlay-filter-proposals";
+import type { OverlayClarification } from "./overlay-schema";
 
 function baseOverlay(
   partial: Partial<ClientOverlay["universe"]> = {},
@@ -148,5 +151,87 @@ describe("overlay-filter-proposals", () => {
   it("clearProposedTickers is a no-op when empty", () => {
     const overlay = baseOverlay();
     expect(clearProposedTickers(overlay)).toBe(overlay);
+  });
+});
+
+const AI_THEME_CLARIFICATIONS: OverlayClarification[] = [
+  {
+    id: "q-etf",
+    question: "偏好採用哪種 AI 主題 ETF 布局？",
+    options: [
+      { id: "aiq-botz", label: "AIQ + BOTZ 綜合布局" },
+      { id: "smh", label: "納入 SMH 半導體晶片" },
+      { id: "algo", label: "由演算法從池中挑選" },
+    ],
+  },
+];
+
+describe("clarification / proposed_tickers dedupe", () => {
+  it("extracts tickers named in clarification option labels", () => {
+    const proposed = [
+      { ticker: "BOTZ" },
+      { ticker: "AIQ" },
+      { ticker: "SMH" },
+    ];
+    const covered = tickersNamedInClarifications(
+      AI_THEME_CLARIFICATIONS,
+      proposed,
+    );
+    expect([...covered].sort()).toEqual(["AIQ", "BOTZ", "SMH"]);
+  });
+
+  it("hides proposed tickers already offered as clarification chips", () => {
+    const proposed = [
+      { ticker: "BOTZ", name: "Robotics" },
+      { ticker: "AIQ", name: "AI ETF" },
+      { ticker: "SMH", name: "Semis" },
+      { ticker: "IRBO", name: "Robotics & AI" },
+    ];
+    const visible = proposedTickersAfterClarificationDedup(
+      proposed,
+      AI_THEME_CLARIFICATIONS,
+    );
+    expect(visible.map((p) => p.ticker)).toEqual(["IRBO"]);
+  });
+
+  it("shows all proposed tickers when no pending clarifications", () => {
+    const proposed = [
+      { ticker: "BOTZ" },
+      { ticker: "AIQ" },
+      { ticker: "SMH" },
+    ];
+    expect(
+      proposedTickersAfterClarificationDedup(proposed, []).map((p) => p.ticker),
+    ).toEqual(["BOTZ", "AIQ", "SMH"]);
+  });
+
+  it("hides entire panel when every proposed ticker is in clarification options", () => {
+    const proposed = [
+      { ticker: "BOTZ" },
+      { ticker: "AIQ" },
+      { ticker: "SMH" },
+    ];
+    expect(
+      proposedTickersAfterClarificationDedup(proposed, AI_THEME_CLARIFICATIONS),
+    ).toEqual([]);
+  });
+
+  it("leaves proposed list unchanged when clarifications have no ticker names", () => {
+    const clarifications: OverlayClarification[] = [
+      {
+        id: "q-risk",
+        question: "這筆投資的風險屬性偏好？",
+        options: [
+          { id: "conservative", label: "保守" },
+          { id: "moderate", label: "穩健" },
+        ],
+      },
+    ];
+    const proposed = [{ ticker: "BOTZ" }, { ticker: "AIQ" }];
+    expect(
+      proposedTickersAfterClarificationDedup(proposed, clarifications).map(
+        (p) => p.ticker,
+      ),
+    ).toEqual(["BOTZ", "AIQ"]);
   });
 });
