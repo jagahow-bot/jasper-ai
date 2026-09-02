@@ -404,7 +404,7 @@ function normalizeClarifications(raw: unknown): Array<Record<string, unknown>> |
       question,
       options,
       allow_free_text: obj.allow_free_text !== false,
-      allow_multiple: obj.allow_multiple !== false,
+      allow_multiple: obj.allow_multiple === true,
     });
     if (out.length >= 5) break;
   }
@@ -515,6 +515,7 @@ const OVERLAY_EXTRACT_KEYS = new Set([
   "param_adjustments",
   "experiment",
   "asks",
+  "clarifications",
   "clarification_questions",
   "confidence",
   "rationale",
@@ -545,6 +546,16 @@ const ASK_KEYS = new Set([
   "cash_reserve_pct",
   "status",
 ]);
+
+const CLARIFICATION_KEYS = new Set([
+  "id",
+  "question",
+  "options",
+  "allow_free_text",
+  "allow_multiple",
+]);
+
+const CLARIFICATION_OPTION_KEYS = new Set(["id", "label"]);
 
 const CLIENT_PROFILE_KEYS = new Set([
   "risk_tolerance",
@@ -609,6 +620,26 @@ export function stripOverlayExtractKeys(root: Record<string, unknown>): Record<s
       })
       .filter(Boolean);
     if (!(out.asks as unknown[]).length) delete out.asks;
+  }
+
+  if (Array.isArray(out.clarifications)) {
+    out.clarifications = out.clarifications
+      .map((row) => {
+        const rec = asRecord(row);
+        if (!rec) return null;
+        const clarification = pickKeys(rec, CLARIFICATION_KEYS);
+        if (Array.isArray(clarification.options)) {
+          clarification.options = clarification.options
+            .map((opt) => {
+              const option = asRecord(opt);
+              return option ? pickKeys(option, CLARIFICATION_OPTION_KEYS) : null;
+            })
+            .filter(Boolean);
+        }
+        return clarification;
+      })
+      .filter(Boolean);
+    if (!(out.clarifications as unknown[]).length) delete out.clarifications;
   }
 
   return out;
