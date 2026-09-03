@@ -39,15 +39,13 @@ from app.engine.factors import (
     FactorParams,
 )
 from app.engine.portfolio import simulate_dynamic_portfolio
-from app.engine.customization import (
-    derive_must_include_tickers,
-    min_holdings_for_customization,
-)
+from app.engine.customization import derive_must_include_tickers
 from app.engine.weights import min_holdings_for_cap
-from app.engine.objectives import (
+from app.engine.objectives import metrics_snapshot
+from app.engine.stages.accessors import (
     compute_client_needs_penalty,
     compute_objective_score,
-    metrics_snapshot,
+    min_holdings_for_customization,
 )
 from app.engine.refinement import assess_overfitting, attach_full_period_objective, model_signature
 from app.engine.param_bounds import (

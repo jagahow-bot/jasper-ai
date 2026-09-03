@@ -18,6 +18,11 @@
     "sync-etf-names": "node -e \"require('fs').copyFileSync('shared/etf-names.json','apps/web/src/data/etf-names.json')\"",
     "generate-param-catalog": "python scripts/export_param_catalog.py",
     "sync-param-catalog": "node -e \"require('fs').copyFileSync('shared/param-catalog.json','apps/web/src/data/param-catalog.json')\"",
+    "generate-stage-cards": "python scripts/export_stage_cards.py",
+    "sync-stage-cards": "node -e \"require('fs').mkdirSync('apps/web/src/data',{recursive:true});require('fs').copyFileSync('shared/stage-cards.json','apps/web/src/data/stage-cards.json')\"",
+    "check-stage-cards": "python scripts/check_stage_cards_drift.py",
+    "check-ast-policy": "python scripts/ast_policy.py",
+    "new-stage-contribution": "python scripts/new_stage_contribution.py",
     "generate-etf-names": "node scripts/generate_etf_names.js"
   },
   "devDependencies": {

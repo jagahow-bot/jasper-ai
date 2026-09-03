@@ -424,6 +424,17 @@ export interface BacktestResult {
   } | null;
   /** 2–3 trade-off proposals (recommended / defensive / growth) for RM comparison. */
   proposal_set?: ProposalCard[] | null;
+  /** Phase 0+ stage catalog pin (legacy jobs → v0-legacy). */
+  stage_catalog_version?: string | null;
+  stage_implementations?: Record<string, string> | string | null;
+  param_catalog_version?: number | null;
+  capabilities_used?: Array<{
+    stage: string;
+    implementation_id: string;
+    version: string;
+    status: "rm_confirmed" | "approved";
+    pending_supervisor_signoff?: boolean;
+  }> | null;
 }
 
 export type WizardPhase =

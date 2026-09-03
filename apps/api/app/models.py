@@ -572,6 +572,25 @@ class CandidateChartsPayload(BaseModel):
     )
 
 
+class CapabilityUsage(BaseModel):
+    """Snapshot of a non-legacy stage capability used by a job (L1/L2 audit)."""
+
+    stage: Literal[
+        "universe",
+        "signals",
+        "allocator",
+        "constraints",
+        "objective",
+        "rebalance",
+        "cash_schedule",
+        "reporting",
+    ]
+    implementation_id: str
+    version: str
+    status: Literal["rm_confirmed", "approved"]
+    pending_supervisor_signoff: bool = False
+
+
 class BacktestResult(BaseModel):
     job_id: str
     scenario_id: str
@@ -592,6 +611,11 @@ class BacktestResult(BaseModel):
         default=None,
         description="2–3 trade-off proposals (recommended / defensive / growth) for RM comparison.",
     )
+    # Phase 0 stage catalog pin (optional for legacy jobs → see job_history v0-legacy).
+    stage_catalog_version: str | None = None
+    stage_implementations: dict[str, str] | str | None = None
+    param_catalog_version: int | None = None
+    capabilities_used: list[CapabilityUsage] | None = None
 
 
 class ScenarioCard(BaseModel):

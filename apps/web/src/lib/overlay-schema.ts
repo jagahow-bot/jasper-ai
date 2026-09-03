@@ -227,6 +227,55 @@ export const overlayClarificationSchema = z
 
 export type OverlayClarification = z.infer<typeof overlayClarificationSchema>;
 
+/** Pipeline stages a capability gap may attach to (design §3.1). */
+export const CAPABILITY_GAP_STAGES = [
+  "universe",
+  "signals",
+  "allocator",
+  "constraints",
+  "objective",
+  "rebalance",
+  "cash_schedule",
+  "reporting",
+] as const;
+
+export type CapabilityGapStage = (typeof CAPABILITY_GAP_STAGES)[number];
+
+export const capabilityGapSchema = z
+  .object({
+    stage: z.enum(CAPABILITY_GAP_STAGES),
+    kind: z.enum([
+      "unsupported_lever",
+      "infeasible_combination",
+      "bounds_exceeded",
+    ]),
+    missing_capability: z.string().min(3).max(80),
+    summary: z.string().min(8).max(600),
+    requested: z.record(z.string(), z.unknown()),
+    nearest_supported: z.record(z.string(), z.unknown()).optional(),
+    severity: z.enum(["blocking", "degradable"]),
+  })
+  .strip();
+
+export type CapabilityGap = z.infer<typeof capabilityGapSchema>;
+
+/** Conflict card when mechanical feasibility fails (design §3.4). */
+export const overlayConflictSchema = z
+  .object({
+    id: z.string().min(1).max(40),
+    code: z.string().min(1).max(60),
+    title: z.string().min(4).max(120),
+    explanation: z.string().min(8).max(800),
+    options: z.array(overlayClarificationOptionSchema).max(5).default([]),
+    /** When raising drift, values ≤0.6 are RM-alone; >0.6 need supervisor (§8). */
+    suggested_drift: z.number().min(0).max(1).optional(),
+    requires_supervisor: z.boolean().optional(),
+    gap_stub: capabilityGapSchema.optional(),
+  })
+  .strip();
+
+export type OverlayConflict = z.infer<typeof overlayConflictSchema>;
+
 /** Gemini structured-extract output (no audit envelope). */
 export const overlayExtractSchema = z
   .object({
@@ -240,6 +289,8 @@ export const overlayExtractSchema = z
     experiment: experimentOverlaySchema.optional(),
     asks: z.array(overlayAskSchema).max(12).optional(),
     clarifications: z.array(overlayClarificationSchema).max(5).optional(),
+    capability_gaps: z.array(capabilityGapSchema).max(5).optional(),
+    conflicts: z.array(overlayConflictSchema).max(5).optional(),
     clarification_questions: z.array(z.string().min(4).max(200)).max(5),
     confidence: z.number().min(0).max(1),
     rationale: z.string().min(8).max(600),
@@ -259,6 +310,8 @@ export const clientOverlaySchema = z.object({
   experiment: experimentOverlaySchema.optional(),
   asks: z.array(overlayAskSchema).max(12).optional(),
   clarifications: z.array(overlayClarificationSchema).max(5).optional(),
+  capability_gaps: z.array(capabilityGapSchema).max(5).optional(),
+  conflicts: z.array(overlayConflictSchema).max(5).optional(),
   clarification_questions: z.array(z.string()).optional(),
   confidence: z.number().min(0).max(1),
   rationale: z.string().min(8),
@@ -284,6 +337,8 @@ export function validateOverlayExtract(value: unknown): OverlayExtractOutput {
 export function inferPhaseFromExtract(extract: OverlayExtractOutput): OverlayPhase {
   const pending =
     (extract.clarifications?.length ?? 0) > 0 ||
+    (extract.conflicts?.length ?? 0) > 0 ||
+    (extract.capability_gaps?.some((g) => g.severity === "blocking") ?? false) ||
     extract.clarification_questions.length > 0;
   if (extract.confidence >= 0.7 && !pending) {
     return "confirm";
@@ -462,6 +517,8 @@ export function wrapExtractAsOverlay(
     experiment: extract.experiment,
     ...(asks?.length ? { asks } : {}),
     clarifications: extract.clarifications,
+    capability_gaps: extract.capability_gaps,
+    conflicts: extract.conflicts,
     clarification_questions: extract.clarification_questions,
     confidence: extract.confidence,
     rationale: extract.rationale,

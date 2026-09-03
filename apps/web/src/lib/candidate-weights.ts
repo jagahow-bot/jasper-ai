@@ -82,6 +82,14 @@ export function buildAllocationRows(
   minWeight = HOLDINGS_WEIGHT_EPS,
 ): Array<{ ticker: string; weight: number; pct: number; isRemainder: boolean }> {
   const raw = weights ?? {};
+  let rawNamedSum = 0;
+  for (const [ticker, rawW] of Object.entries(raw)) {
+    const w = asFiniteWeight(rawW);
+    if (w == null || w <= 0) continue;
+    if (isMetaKey(ticker)) continue;
+    rawNamedSum += w;
+  }
+
   const kept: Record<string, number> = {};
   for (const [ticker, rawW] of Object.entries(raw)) {
     const w = asFiniteWeight(rawW);
@@ -89,6 +97,19 @@ export function buildAllocationRows(
     if (isMetaKey(ticker)) continue;
     const key = ticker.toUpperCase();
     kept[key] = (kept[key] ?? 0) + w;
+  }
+
+  const keptNamedSum = Object.entries(kept)
+    .filter(([ticker]) => ticker !== "CASH")
+    .reduce((sum, [, weight]) => sum + weight, 0);
+  // Engine scales holdings by (1 - cash_reserve_pct); packaged weights omit the
+  // uninvested sleeve. Only infer CASH when no holdings were dropped by minWeight.
+  if (
+    kept.CASH == null &&
+    keptNamedSum < 1 - 5e-4 &&
+    Math.abs(keptNamedSum - rawNamedSum) <= 1e-9
+  ) {
+    kept.CASH = Math.max(0, 1 - keptNamedSum);
   }
 
   const pcts = largestRemainderPercents(kept, 2);

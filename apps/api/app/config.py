@@ -22,7 +22,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002"
     )
     gemini_model: str = Field(
-        default="gemini-3.6-flash",
+        default="gemini-3.8-flash",
         validation_alias=AliasChoices("gemini_model", "GEMINI_MODEL"),
     )
     gemini_api_key: str | None = Field(
@@ -157,6 +157,29 @@ class Settings(BaseSettings):
     )
     use_mock_engine: bool = False
     optuna_trials: int = 50
+    # Phase 0 pipeline-stage plugin facade (design §2.8). When True, constraints /
+    # allocator / objective call sites go through the stage registry wrappers.
+    engine_stages_enabled: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "engine_stages_enabled",
+            "ENGINE_STAGES_ENABLED",
+        ),
+    )
+    # Phase 2 codegen model (defaults to Kimi / ai_reasoning_model).
+    codegen_model: str = Field(
+        default="",
+        description="Override for codegen_draft; empty → ai_reasoning_model (kimi-k3).",
+        validation_alias=AliasChoices("codegen_model", "CODEGEN_MODEL"),
+    )
+    # Phase 3: block proposal print/export when pending L2 capabilities exist.
+    proposal_requires_supervisor_signoff: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "proposal_requires_supervisor_signoff",
+            "PROPOSAL_REQUIRES_SUPERVISOR_SIGNOFF",
+        ),
+    )
 
     # --- Email notifications (optional) ---------------------------------------
     # When SMTP_HOST is set, completed/failed backtest jobs that carry a

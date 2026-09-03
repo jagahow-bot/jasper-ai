@@ -1,0 +1,512 @@
+{
+  "catalog_version": "c87934b6afb2e6dd",
+  "stage_implementations": {
+    "universe": "etf_catalog_v1@1.0.0",
+    "signals": "factor_lib_v1@1.0.0",
+    "allocator": "slsqp_classic_v1@1.0.0",
+    "constraints": "l1_drift_v1@1.0.0",
+    "objective": "metrics_score_v1@1.0.0",
+    "rebalance": "calendar_qe_v1@1.0.0",
+    "cash_schedule": "dca_v1@1.0.0",
+    "reporting": "needs_attainment_v1@1.0.0"
+  },
+  "cards": [
+    {
+      "stage": "universe",
+      "implementation_id": "etf_catalog_v1",
+      "version": "1.0.0",
+      "summary": {
+        "zh": "ETF 目錄宇宙建構（Phase 0 骨架）",
+        "en": "ETF catalog universe builder (Phase 0 scaffold)",
+        "ko": "ETF 카탈로그 유니버스 (Phase 0 스캐폴드)"
+      },
+      "inputs": [
+        {
+          "name": "ctx",
+          "type": "StageContext",
+          "meaning": "universe.build parameter"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "build_return",
+          "type": "UniverseResult",
+          "meaning": "Return of universe.build"
+        }
+      ],
+      "tunables": [],
+      "invariants": [],
+      "since_pr": null
+    },
+    {
+      "stage": "signals",
+      "implementation_id": "factor_lib_v1",
+      "version": "1.0.0",
+      "summary": {
+        "zh": "內建因子庫訊號（mom/reversal/value/lowvol/trend/drawdown/income）",
+        "en": "Built-in factor library signals",
+        "ko": "내장 팩터 라이브러리 시그널"
+      },
+      "inputs": [
+        {
+          "name": "ctx",
+          "type": "StageContext",
+          "meaning": "signals.score parameter"
+        },
+        {
+          "name": "date",
+          "type": "Timestamp",
+          "meaning": "signals.score parameter"
+        },
+        {
+          "name": "universe",
+          "type": "UniverseResult",
+          "meaning": "signals.score parameter"
+        },
+        {
+          "name": "params",
+          "type": "FactorParams",
+          "meaning": "signals.score parameter"
+        },
+        {
+          "name": "prices",
+          "type": "DataFrame",
+          "meaning": "signals.score_assets_with_details parameter"
+        },
+        {
+          "name": "rets",
+          "type": "DataFrame",
+          "meaning": "signals.score_assets_with_details parameter"
+        },
+        {
+          "name": "dividend_panel",
+          "type": "pandas.core.frame.DataFrame | None",
+          "meaning": "signals.score_assets_with_details parameter"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "score_return",
+          "type": "SignalResult",
+          "meaning": "Return of signals.score"
+        },
+        {
+          "name": "score_assets_with_details_return",
+          "type": "tuple[pandas.core.series.Series, dict]",
+          "meaning": "Return of signals.score_assets_with_details"
+        }
+      ],
+      "tunables": [],
+      "invariants": [],
+      "since_pr": null
+    },
+    {
+      "stage": "allocator",
+      "implementation_id": "slsqp_classic_v1",
+      "version": "1.0.0",
+      "summary": {
+        "zh": "SLSQP 經典配置器（min_var / mean_variance / risk_parity / max_diversification）",
+        "en": "Classic SLSQP allocator (min_var / mean_variance / risk_parity / max_diversification)",
+        "ko": "SLSQP 클래식 배분기 (min_var / mean_variance / risk_parity / max_diversification)"
+      },
+      "inputs": [
+        {
+          "name": "ctx",
+          "type": "StageContext",
+          "meaning": "allocator.solve parameter"
+        },
+        {
+          "name": "mu",
+          "type": "ndarray",
+          "meaning": "allocator.solve parameter"
+        },
+        {
+          "name": "cov",
+          "type": "ndarray",
+          "meaning": "allocator.solve parameter"
+        },
+        {
+          "name": "chosen",
+          "type": "list[str]",
+          "meaning": "allocator.solve parameter"
+        },
+        {
+          "name": "params",
+          "type": "AllocatorParams",
+          "meaning": "allocator.solve parameter"
+        },
+        {
+          "name": "w0",
+          "type": "numpy.ndarray | None",
+          "meaning": "allocator.solve parameter"
+        },
+        {
+          "name": "mu_annual",
+          "type": "ndarray",
+          "meaning": "allocator.solve_weights parameter"
+        },
+        {
+          "name": "cov_annual",
+          "type": "ndarray",
+          "meaning": "allocator.solve_weights parameter"
+        },
+        {
+          "name": "max_weight",
+          "type": "float",
+          "meaning": "allocator.solve_weights parameter"
+        },
+        {
+          "name": "anchor_weights",
+          "type": "numpy.ndarray | None",
+          "meaning": "allocator.solve_weights parameter"
+        },
+        {
+          "name": "customization_drift",
+          "type": "float | None",
+          "meaning": "allocator.solve_weights parameter"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "solve_return",
+          "type": "ndarray",
+          "meaning": "Return of allocator.solve"
+        },
+        {
+          "name": "solve_weights_return",
+          "type": "ndarray",
+          "meaning": "Return of allocator.solve_weights"
+        }
+      ],
+      "tunables": [],
+      "invariants": [
+        "len(w) == len(chosen)",
+        "w_i ∈ [0, max_weight]",
+        "sum(w) ≤ 1 (cash via cash_schedule)",
+        "deterministic given seed/inputs"
+      ],
+      "since_pr": null
+    },
+    {
+      "stage": "constraints",
+      "implementation_id": "l1_drift_v1",
+      "version": "1.0.0",
+      "summary": {
+        "zh": "單層 L1 漂移球投影與持股/上限可行性預檢（內建）",
+        "en": "Single-layer L1 drift ball projection and holdings/cap feasibility (built-in)",
+        "ko": "단층 L1 드리프트 투영 및 보유/상한 타당성 검사 (내장)"
+      },
+      "inputs": [
+        {
+          "name": "ctx",
+          "type": "StageContext",
+          "meaning": "constraints.feasibility parameter"
+        },
+        {
+          "name": "universe",
+          "type": "Any",
+          "meaning": "constraints.feasibility parameter"
+        },
+        {
+          "name": "config",
+          "type": "dict[str, Any]",
+          "meaning": "constraints.feasibility parameter"
+        },
+        {
+          "name": "w",
+          "type": "ndarray",
+          "meaning": "constraints.project parameter"
+        },
+        {
+          "name": "anchor",
+          "type": "numpy.ndarray | None",
+          "meaning": "constraints.project parameter"
+        },
+        {
+          "name": "must_include_idx",
+          "type": "list[int]",
+          "meaning": "constraints.project parameter"
+        },
+        {
+          "name": "max_weight",
+          "type": "float",
+          "meaning": "constraints.project_max_weight parameter"
+        },
+        {
+          "name": "max_iter",
+          "type": "int",
+          "meaning": "constraints.project_max_weight parameter"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "feasibility_return",
+          "type": "list[app.engine.stages.base.StageIssue]",
+          "meaning": "Return of constraints.feasibility"
+        },
+        {
+          "name": "project_return",
+          "type": "ndarray",
+          "meaning": "Return of constraints.project"
+        },
+        {
+          "name": "project_max_weight_return",
+          "type": "ndarray",
+          "meaning": "Return of constraints.project_max_weight"
+        }
+      ],
+      "tunables": [],
+      "invariants": [
+        "sum(w) ≈ 1 after projection (cash handled elsewhere)",
+        "w_i ∈ [0, max_weight]",
+        "L1(w, anchor) ≤ drift when drift is set (last transform)",
+        "deterministic given inputs"
+      ],
+      "since_pr": null
+    },
+    {
+      "stage": "objective",
+      "implementation_id": "metrics_score_v1",
+      "version": "1.0.0",
+      "summary": {
+        "zh": "指標目標分數與客戶需求 soft penalty（內建）",
+        "en": "Metric objective score plus client-needs soft penalty (built-in)",
+        "ko": "지표 목적 점수 및 고객 니즈 soft penalty (내장)"
+      },
+      "inputs": [
+        {
+          "name": "metrics",
+          "type": "dict[str, Any]",
+          "meaning": "objective.score parameter"
+        },
+        {
+          "name": "ctx",
+          "type": "StageContext",
+          "meaning": "objective.score parameter"
+        },
+        {
+          "name": "objective_mode",
+          "type": "str",
+          "meaning": "objective.compute_objective_score parameter"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "score_return",
+          "type": "float",
+          "meaning": "Return of objective.score"
+        },
+        {
+          "name": "compute_objective_score_return",
+          "type": "float",
+          "meaning": "Return of objective.compute_objective_score"
+        }
+      ],
+      "tunables": [],
+      "invariants": [
+        "higher score is better for all objective modes",
+        "needs_penalty == 0 when client_context is empty",
+        "deterministic given metrics and context"
+      ],
+      "since_pr": null
+    },
+    {
+      "stage": "rebalance",
+      "implementation_id": "calendar_qe_v1",
+      "version": "1.0.0",
+      "summary": {
+        "zh": "日曆再平衡（QE/ME 等規則）與周轉率上限（Phase 0 骨架）",
+        "en": "Calendar rebalance (QE/ME) with turnover cap (Phase 0 scaffold)",
+        "ko": "캘린더 리밸런스 및 회전율 상한 (Phase 0 스캐폴드)"
+      },
+      "inputs": [
+        {
+          "name": "ctx",
+          "type": "StageContext",
+          "meaning": "rebalance.schedule parameter"
+        },
+        {
+          "name": "index",
+          "type": "DatetimeIndex",
+          "meaning": "rebalance.schedule parameter"
+        },
+        {
+          "name": "w_new",
+          "type": "ndarray",
+          "meaning": "rebalance.apply parameter"
+        },
+        {
+          "name": "w_prev",
+          "type": "ndarray",
+          "meaning": "rebalance.apply parameter"
+        },
+        {
+          "name": "max_turnover",
+          "type": "float",
+          "meaning": "rebalance.apply parameter"
+        },
+        {
+          "name": "no_trade_tol",
+          "type": "float",
+          "meaning": "rebalance.apply parameter"
+        },
+        {
+          "name": "rule",
+          "type": "str",
+          "meaning": "rebalance.trading_day_rebalance_dates parameter"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "schedule_return",
+          "type": "list[pandas._libs.tslibs.timestamps.Timestamp]",
+          "meaning": "Return of rebalance.schedule"
+        },
+        {
+          "name": "apply_return",
+          "type": "ndarray",
+          "meaning": "Return of rebalance.apply"
+        },
+        {
+          "name": "trading_day_rebalance_dates_return",
+          "type": "list[pandas._libs.tslibs.timestamps.Timestamp]",
+          "meaning": "Return of rebalance.trading_day_rebalance_dates"
+        }
+      ],
+      "tunables": [],
+      "invariants": [],
+      "since_pr": null
+    },
+    {
+      "stage": "cash_schedule",
+      "implementation_id": "dca_v1",
+      "version": "1.0.0",
+      "summary": {
+        "zh": "DCA 部署比例 × 現金保留（Phase 0 骨架）",
+        "en": "DCA deployment fraction × cash reserve (Phase 0 scaffold)",
+        "ko": "DCA 투입 비율 × 현금 보유 (Phase 0 스캐폴드)"
+      },
+      "inputs": [
+        {
+          "name": "ctx",
+          "type": "StageContext",
+          "meaning": "cash_schedule.invested_fraction parameter"
+        },
+        {
+          "name": "date",
+          "type": "Timestamp",
+          "meaning": "cash_schedule.invested_fraction parameter"
+        },
+        {
+          "name": "t_index",
+          "type": "int",
+          "meaning": "cash_schedule.invested_fraction parameter"
+        },
+        {
+          "name": "dt",
+          "type": "Timestamp",
+          "meaning": "cash_schedule.deployment_fraction parameter"
+        },
+        {
+          "name": "start",
+          "type": "Timestamp",
+          "meaning": "cash_schedule.deployment_fraction parameter"
+        },
+        {
+          "name": "months",
+          "type": "int | None",
+          "meaning": "cash_schedule.deployment_fraction parameter"
+        },
+        {
+          "name": "tranches",
+          "type": "int | None",
+          "meaning": "cash_schedule.deployment_fraction parameter"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "invested_fraction_return",
+          "type": "float",
+          "meaning": "Return of cash_schedule.invested_fraction"
+        },
+        {
+          "name": "deployment_fraction_return",
+          "type": "float",
+          "meaning": "Return of cash_schedule.deployment_fraction"
+        }
+      ],
+      "tunables": [],
+      "invariants": [
+        "invested_fraction ∈ [0, 1]"
+      ],
+      "since_pr": null
+    },
+    {
+      "stage": "reporting",
+      "implementation_id": "needs_attainment_v1",
+      "version": "1.0.0",
+      "summary": {
+        "zh": "客戶需求達標檢查與 Pareto 提案卡（Phase 0 骨架）",
+        "en": "Client needs attainment and Pareto proposal cards (Phase 0 scaffold)",
+        "ko": "고객 니즈 달성 검사 및 Pareto 제안 카드 (Phase 0 스캐폴드)"
+      },
+      "inputs": [
+        {
+          "name": "metrics",
+          "type": "dict[str, Any]",
+          "meaning": "reporting.attainment parameter"
+        },
+        {
+          "name": "holdings",
+          "type": "dict[str, float]",
+          "meaning": "reporting.attainment parameter"
+        },
+        {
+          "name": "ctx",
+          "type": "StageContext",
+          "meaning": "reporting.attainment parameter"
+        },
+        {
+          "name": "client_context",
+          "type": "Any | None",
+          "meaning": "reporting.needs_attainment parameter"
+        },
+        {
+          "name": "ticker_meta",
+          "type": "dict[str, dict[str, Any]] | None",
+          "meaning": "reporting.needs_attainment parameter"
+        },
+        {
+          "name": "must_include_tickers",
+          "type": "list[str] | None",
+          "meaning": "reporting.needs_attainment parameter"
+        },
+        {
+          "name": "anchor_weights",
+          "type": "dict[str, float] | None",
+          "meaning": "reporting.needs_attainment parameter"
+        },
+        {
+          "name": "customization_drift",
+          "type": "float | None",
+          "meaning": "reporting.needs_attainment parameter"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "attainment_return",
+          "type": "dict[str, Any] | None",
+          "meaning": "Return of reporting.attainment"
+        },
+        {
+          "name": "needs_attainment_return",
+          "type": "dict[str, Any] | None",
+          "meaning": "Return of reporting.needs_attainment"
+        }
+      ],
+      "tunables": [],
+      "invariants": [],
+      "since_pr": null
+    }
+  ]
+}

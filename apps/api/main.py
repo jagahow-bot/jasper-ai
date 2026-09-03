@@ -8,7 +8,9 @@ from app.job_history import warmup_history_index
 from app.notifications import notifications_configured
 from app.routers import (
     backcast,
+    capabilities,
     clients,
+    gaps,
     jobs,
     lab_objective_switch,
     scenarios,
@@ -48,6 +50,8 @@ app.add_middleware(
 app.include_router(scenarios.router)
 app.include_router(universe.router)
 app.include_router(jobs.router)
+app.include_router(gaps.router)
+app.include_router(capabilities.router)
 app.include_router(lab_objective_switch.router)
 app.include_router(settings_router.router)
 app.include_router(backcast.router)

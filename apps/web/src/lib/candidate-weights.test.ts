@@ -132,4 +132,20 @@ describe("candidate-weights", () => {
     expect(rows.find((r) => r.ticker === "CASH")?.pct).toBeCloseTo(5, 2);
     expect(rows.some((r) => r.ticker === "OTHER")).toBe(false);
   });
+
+  it("adds implicit CASH when cash_reserve leaves partial investment", () => {
+    const rows = buildAllocationRows({
+      SPY: 0.0669,
+      AVGO: 0.0667,
+      BOTZ: 0.0667,
+      GLD: 0.0667,
+      GOOGL: 0.0666,
+      MSFT: 0.0666,
+      NVDA: 0.0666,
+      SMH: 0.0666,
+      TLT: 0.0666,
+    });
+    expect(rows.find((r) => r.ticker === "CASH")?.pct).toBeCloseTo(40, 1);
+    expect(rows.reduce((s, r) => s + r.pct, 0)).toBeCloseTo(100, 6);
+  });
 });
