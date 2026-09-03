@@ -125,6 +125,7 @@ import {
 } from "@/lib/needs-fulfillment";
 import {
   buildAllocationRows,
+  enrichWeightHistoryWithCash,
   formatWeightPct,
   resolveCandidateWeights,
 } from "@/lib/candidate-weights";
@@ -766,15 +767,22 @@ export function ResultsDashboard({
     const raw = chartCandidate?.equity_curve ?? result.equity_curve ?? [];
     return Array.isArray(raw) ? raw : [];
   }, [chartCandidate?.equity_curve, result.equity_curve]);
-  const historySeries = useMemo(() => {
-    if (!weightHistory.length) return [];
+  const { history: historySeries, tickers: chartWeightTickers } = useMemo(() => {
+    const raw = ((chartCandidate?.analytics?.weight_history ?? []) as (
+      | { date: string }
+      & Record<string, number>
+    )[]);
+    const tickers = ((chartCandidate?.analytics?.weight_history_tickers ?? []) as string[]).filter(
+      (t) => t !== "date",
+    );
+    if (!raw.length) return { history: [], tickers: [] as string[] };
     const firstEquityDate = equity[0]?.date ? String(equity[0].date) : "";
     const trimmed = firstEquityDate
-      ? weightHistory.filter((row) => String(row.date) >= firstEquityDate)
-      : weightHistory;
+      ? raw.filter((row) => String(row.date) >= firstEquityDate)
+      : raw;
     const aligned = alignWeightHistoryToEquityStart(trimmed, firstEquityDate);
-    return aligned;
-  }, [weightHistory, weightHistoryTickers, equity]);
+    return enrichWeightHistoryWithCash(aligned, tickers);
+  }, [chartCandidate?.analytics?.weight_history, chartCandidate?.analytics?.weight_history_tickers, equity]);
 
   const latestAllocationDate = useMemo(() => {
     if (weightHistory.length > 0) {
@@ -2576,7 +2584,7 @@ export function ResultsDashboard({
             benchmarkCurve={benchmarkEquity}
             benchmarkLabel={activeBenchLabel}
             weightHistory={historySeries}
-            weightTickers={weightHistoryTickers}
+            weightTickers={chartWeightTickers}
             colors={COLORS}
             regimeTimeline={dynamicObjectiveChart?.timeline}
           />

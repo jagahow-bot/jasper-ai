@@ -28,6 +28,16 @@ class OptimizationMode(str, Enum):
     pro_auto = "pro_auto"
 
 
+class GroupWeightBand(BaseModel):
+    """Signed overlay group_weight_band — enforced in simulate before drift."""
+
+    group_id: str | None = None
+    tickers: list[str] = Field(default_factory=list)
+    target_pct: float | None = Field(default=None, ge=0.0, le=1.0)
+    min_pct: float | None = Field(default=None, ge=0.0, le=1.0)
+    max_pct: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
 class ClientContext(BaseModel):
     """Structured client needs forwarded from the signed RM overlay.
 
@@ -76,6 +86,13 @@ class ClientContext(BaseModel):
         default=None,
         max_length=5,
         description="RM/AI investment themes from the overlay; prompt-only, capped at 5.",
+    )
+    group_weight_bands: list[GroupWeightBand] | None = Field(
+        default=None,
+        description=(
+            "Signed overlay sleeve targets (group_weight_band asks / theme sleeves). "
+            "Enforced in rebalance before customization_drift projection."
+        ),
     )
 
 

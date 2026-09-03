@@ -5,13 +5,14 @@ export const ASSET_CLASS_CHART_ORDER = [...ASSET_CLASSES, "other"] as const;
 
 export type AssetClassChartKey = (typeof ASSET_CLASS_CHART_ORDER)[number];
 
-export const ASSET_CLASS_CHART_COLORS: Record<AssetClassChartKey, string> = {
+export const ASSET_CLASS_CHART_COLORS: Record<AssetClassChartKey | "cash", string> = {
   equity: "#39ff14",
   bond: "#00f5ff",
   commodity: "#ffb000",
   real_estate: "#a78bfa",
   alternative: "#ff2bd6",
   other: "#64748b",
+  cash: "#94a3b8",
 };
 
 export function buildTickerAssetClassMap(
@@ -32,9 +33,10 @@ export function aggregateWeightHistoryByAssetClass(
   tickerToClass: Map<string, string>,
 ): {
   data: ({ date: string; ts: number } & Record<string, number>)[];
-  classKeys: AssetClassChartKey[];
+  classKeys: Array<AssetClassChartKey | "cash">;
 } {
   const presentClasses = new Set<AssetClassChartKey>();
+  let hasCash = false;
   const tickerSet = new Set(weightTickers.map((t) => t.toUpperCase()));
 
   const data = weightHistory.map((row) => {
@@ -46,12 +48,18 @@ export function aggregateWeightHistoryByAssetClass(
     for (const cls of ASSET_CLASS_CHART_ORDER) {
       out[cls] = 0;
     }
+    out.cash = 0;
 
     const rowRecord = row as Record<string, unknown>;
     for (const [key, raw] of Object.entries(rowRecord)) {
       if (key === "date" || key === "ts" || key === "OTHER") continue;
       const w = Number(raw ?? 0);
       if (!Number.isFinite(w) || w <= 0) continue;
+      if (key.toUpperCase() === "CASH") {
+        out.cash += w;
+        hasCash = true;
+        continue;
+      }
       if (tickerSet.size > 0 && !tickerSet.has(key.toUpperCase())) continue;
       const rawClass = tickerToClass.get(key.toUpperCase()) ?? "other";
       const ac = (ASSET_CLASS_CHART_ORDER as readonly string[]).includes(rawClass)
@@ -70,6 +78,9 @@ export function aggregateWeightHistoryByAssetClass(
     return out;
   });
 
-  const classKeys = ASSET_CLASS_CHART_ORDER.filter((cls) => presentClasses.has(cls));
+  const classKeys: Array<AssetClassChartKey | "cash"> = [
+    ...ASSET_CLASS_CHART_ORDER.filter((cls) => presentClasses.has(cls)),
+    ...(hasCash ? (["cash"] as const) : []),
+  ];
   return { data, classKeys };
 }

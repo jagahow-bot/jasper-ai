@@ -75,6 +75,16 @@ export interface ClientContext {
   market_stance?: "risk_on" | "neutral" | "risk_off" | null;
   /** RM/AI investment themes from the overlay; prompt-only, max 5. */
   market_themes?: string[] | null;
+  /** Signed overlay sleeve targets — enforced in engine simulate. */
+  group_weight_bands?: GroupWeightBand[] | null;
+}
+
+export interface GroupWeightBand {
+  group_id?: string | null;
+  tickers: string[];
+  target_pct?: number | null;
+  min_pct?: number | null;
+  max_pct?: number | null;
 }
 
 export interface BacktestRequest {

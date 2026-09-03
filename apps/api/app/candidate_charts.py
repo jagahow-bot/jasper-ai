@@ -16,6 +16,7 @@ from app.engine.backtest import (
     _sim_inputs_from_params,
     _weights_dict,
 )
+from app.engine.group_weights import group_weight_bands_from_client_context
 from app.engine.data import fetch_prices
 from app.engine.dynamic_objective import (
     apply_allocator_resolver,
@@ -469,6 +470,7 @@ def rebuild_candidate_charts(
             class_budget=class_budget,
             anchor_weights=req.anchor_weights,
             customization_drift=customization_drift_actual,
+            group_weight_bands=group_weight_bands_from_client_context(req.client_context),
         ),
         prices,
         resolver,

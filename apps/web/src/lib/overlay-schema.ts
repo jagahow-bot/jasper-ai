@@ -19,6 +19,7 @@ import type {
   BacktestRequest,
   ClientContext,
   ExperimentRequest,
+  GroupWeightBand,
   Objective,
   OptimizationMode,
   ParamControl,
@@ -788,6 +789,162 @@ function asksNeedsSummary(overlay: ClientOverlay): string | null {
   return bits.join(" ").slice(0, 300);
 }
 
+const OVERLAY_HEDGE_TICKERS = new Set([
+  "GLD",
+  "IAU",
+  "GLDM",
+  "TLT",
+  "IEF",
+  "IEI",
+  "SHY",
+  "AGG",
+  "BND",
+  "BNDX",
+  "TIP",
+  "BTAL",
+  "TAIL",
+  "BIL",
+  "SGOV",
+]);
+
+const OVERLAY_AI_TICKERS = new Set([
+  "BOTZ",
+  "AIQ",
+  "IRBO",
+  "ROBO",
+  "THNQ",
+  "WTAI",
+  "CHAT",
+  "SMH",
+  "SOXX",
+  "NVDA",
+  "GOOGL",
+  "GOOG",
+  "META",
+  "MSFT",
+]);
+
+function overlayThemeClass(ticker: string): "ai" | "hedge" | "other" {
+  const t = ticker.toUpperCase();
+  if (OVERLAY_HEDGE_TICKERS.has(t)) return "hedge";
+  if (OVERLAY_AI_TICKERS.has(t)) return "ai";
+  return "other";
+}
+
+function sleeveKeyTheme(key: string): "ai" | "hedge" | "other" {
+  const k = key.toLowerCase();
+  if (/ai|theme|tech|satellite|growth|主題|科技|機器人/.test(k)) return "ai";
+  if (/hedge|defensive|避險|对冲|gold|bond|債券|黃金/.test(k)) return "hedge";
+  return "other";
+}
+
+function bandTargetFromAsk(ask: OverlayAsk): number | null {
+  if (ask.target_pct != null && Number.isFinite(ask.target_pct)) return ask.target_pct;
+  if (ask.min_pct != null && ask.max_pct != null) return (ask.min_pct + ask.max_pct) / 2;
+  if (ask.min_pct != null) return ask.min_pct;
+  if (ask.max_pct != null) return ask.max_pct;
+  return null;
+}
+
+/** Compile signed overlay group_weight_band asks + theme sleeve_targets for the engine. */
+export function groupWeightBandsFromOverlay(overlay: ClientOverlay): GroupWeightBand[] {
+  const signedOff = Boolean(overlay.audit.rm_sign_off);
+  const bands: GroupWeightBand[] = [];
+  const seen = new Set<string>();
+
+  // Pool tickers from supplements, proposed, AND group_weight_band asks so
+  // sleeve_targets and ticker-less asks can resolve tickers via theme classification.
+  const askTickers = (overlay.asks ?? [])
+    .filter((a) => a.kind === "group_weight_band" && a.tickers?.length)
+    .flatMap((a) => a.tickers!);
+  const supplementTickers = [
+    ...(overlay.universe.supplement_tickers ?? []),
+    ...(overlay.universe.proposed_tickers ?? []).map((p) => p.ticker),
+    ...askTickers,
+  ]
+    .map((t) => String(t).toUpperCase())
+    .filter(Boolean);
+
+  const pushBand = (band: GroupWeightBand) => {
+    const tickers = [...new Set(band.tickers.map((t) => t.toUpperCase()).filter(Boolean))];
+    if (!tickers.length) return;
+    const target = band.target_pct ?? band.min_pct ?? band.max_pct;
+    if (target == null || !Number.isFinite(target) || target <= 0) return;
+    const key = `${band.group_id ?? ""}|${tickers.join(",")}|${target}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    bands.push({ ...band, tickers });
+  };
+
+  for (const ask of overlay.asks ?? []) {
+    if (ask.kind !== "group_weight_band") continue;
+    if (!signedOff && ask.status !== "signed") continue;
+    let tickers = ask.tickers ?? [];
+    // When the ask specifies a group_id but no tickers, infer from the
+    // supplement/proposed pool using theme classification so Gemini doesn't
+    // need to duplicate ticker lists on every ask.
+    if (!tickers.length && ask.group_id) {
+      const theme = sleeveKeyTheme(ask.group_id);
+      tickers =
+        theme === "other"
+          ? supplementTickers
+          : supplementTickers.filter((t) => overlayThemeClass(t) === theme);
+    }
+    if (!tickers.length) continue;
+    const target = bandTargetFromAsk(ask);
+    pushBand({
+      group_id: ask.group_id ?? ask.id,
+      tickers,
+      target_pct: ask.target_pct ?? target,
+      min_pct: ask.min_pct ?? null,
+      max_pct: ask.max_pct ?? null,
+    });
+  }
+
+  const sleeves = overlay.allocation.sleeve_targets;
+  if (sleeves) {
+    for (const [key, raw] of Object.entries(sleeves)) {
+      if (key.startsWith("w_")) continue;
+      const target = Number(raw);
+      if (!Number.isFinite(target) || target <= 0) continue;
+      const theme = sleeveKeyTheme(key);
+      const tickers =
+        theme === "other"
+          ? supplementTickers
+          : supplementTickers.filter((t) => overlayThemeClass(t) === theme);
+      if (tickers.length) {
+        pushBand({ group_id: key, tickers, target_pct: target });
+      }
+    }
+  }
+
+  const subSleeves = overlay.allocation.sub_sleeve_targets;
+  if (subSleeves && sleeves) {
+    for (const [key, raw] of Object.entries(subSleeves)) {
+      const target = Number(raw);
+      if (!Number.isFinite(target) || target <= 0) continue;
+      const parentTheme = sleeveKeyTheme(key);
+      let parentTickers: string[] = [];
+      for (const [sKey] of Object.entries(sleeves)) {
+        if (sKey.startsWith("w_")) continue;
+        if (sleeveKeyTheme(sKey) === parentTheme || sKey.toLowerCase() === key.toLowerCase()) {
+          parentTickers = supplementTickers.filter((t) => overlayThemeClass(t) === parentTheme);
+          break;
+        }
+      }
+      const member = supplementTickers.filter(
+        (t) => t.includes(key.toUpperCase()) || key.toUpperCase().includes(t),
+      );
+      const tickers = member.length ? member : parentTickers.filter((t) => t === key.toUpperCase());
+      if (tickers.length) {
+        pushBand({ group_id: `${key}-sub`, tickers, target_pct: target });
+      }
+    }
+  }
+
+  return bands;
+}
+
 /**
  * Compile the overlay's client profile + market view into the engine's
  * ClientContext. Returns null when nothing usable was captured, so legacy
@@ -813,6 +970,7 @@ export function clientContextFromOverlay(
   // set it — never invent a default here.
   const singleCap = overlay.allocation?.max_single_position_pct ?? null;
   const themeCap = shouldApplyThemeExposureCap(overlay) ? 0.25 : null;
+  const groupBands = groupWeightBandsFromOverlay(overlay);
   const scheduleBuffer = overlay.deployment_schedule?.liquidity_buffer_pct;
   const cashAsk = (overlay.asks ?? []).find((a) => a.kind === "cash_reserve");
   const cashFromAsk =
@@ -839,7 +997,8 @@ export function clientContextFromOverlay(
     cashReserve == null &&
     tolerance == null &&
     !stance &&
-    themes.length === 0
+    themes.length === 0 &&
+    groupBands.length === 0
   ) {
     return null;
   }
@@ -854,6 +1013,7 @@ export function clientContextFromOverlay(
     needs_summary: summary ? summary.slice(0, 300) : null,
     market_stance: stance,
     market_themes: themes.length ? themes : null,
+    group_weight_bands: groupBands.length ? groupBands : null,
   };
 }
 

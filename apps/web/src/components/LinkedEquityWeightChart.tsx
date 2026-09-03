@@ -569,14 +569,22 @@ export function LinkedEquityWeightChart({
               />
               <Legend
                 wrapperStyle={{ fontSize: legendFont }}
-                formatter={(value) => assetClassLabel(t, String(value))}
+                formatter={(value) =>
+                  String(value) === "cash"
+                    ? t("results.cashSleeveLabel")
+                    : assetClassLabel(t, String(value))
+                }
               />
               {assetClassKeys.map((cls) => (
                 <Area
                   key={cls}
                   type="stepAfter"
                   dataKey={cls}
-                  name={assetClassLabel(t, cls)}
+                  name={
+                    cls === "cash"
+                      ? t("results.cashSleeveLabel")
+                      : assetClassLabel(t, cls)
+                  }
                   stackId="assetClasses"
                   stroke={ASSET_CLASS_CHART_COLORS[cls]}
                   fill={ASSET_CLASS_CHART_COLORS[cls]}
