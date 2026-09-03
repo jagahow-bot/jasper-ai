@@ -119,15 +119,3 @@ export function providerOptionsFor(
   return { google: googleOptions };
 }
 
-// Re-export task routing (design §4.6) so routes can import from one place.
-export {
-  LLM_TASK_ROUTING,
-  ModelUnavailableError,
-  isCodegenTask,
-  modelForTask,
-  providerOptionsForTask,
-  resolveModelIdForTask,
-  type LlmTask,
-  type LlmTaskRoute,
-} from "./llm-task-routing";
-

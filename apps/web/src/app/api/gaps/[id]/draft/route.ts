@@ -4,7 +4,7 @@ import {
   modelForTask,
   providerOptionsForTask,
   resolveModelIdForTask,
-} from "@/lib/ai-provider";
+} from "@/lib/llm-task-routing";
 import {
   buildBehaviorSpecCard,
   buildLocalCodegenDraft,

@@ -4,7 +4,7 @@ import {
   modelForTask,
   providerOptionsForTask,
   resolveModelIdForTask,
-} from "@/lib/ai-provider";
+} from "@/lib/llm-task-routing";
 import { generateTextWithAudit } from "@/lib/llm-audit";
 
 export const runtime = "nodejs";
