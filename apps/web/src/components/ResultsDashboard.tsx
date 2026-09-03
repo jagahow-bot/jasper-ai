@@ -756,6 +756,7 @@ export function ResultsDashboard({
       )[]),
     [chartCandidate?.analytics?.weight_history],
   );
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const weightHistoryTickers = useMemo(
     () =>
       ((chartCandidate?.analytics?.weight_history_tickers ?? []) as string[]).filter(

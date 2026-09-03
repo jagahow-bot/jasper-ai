@@ -205,7 +205,7 @@ export function enrichWeightHistoryWithCash<
   if (!history.length) return { history, tickers };
   let needsCash = tickers.some((t) => t.toUpperCase() === CASH_TICKER);
   const enriched = history.map((row) => {
-    const copy = { ...row } as T;
+    const copy: Record<string, number | string> = { ...row };
     let namedSum = 0;
     for (const [key, raw] of Object.entries(row)) {
       if (key === "date" || isMetaKey(key)) continue;
@@ -216,13 +216,13 @@ export function enrichWeightHistoryWithCash<
     if (explicit != null && explicit > HOLDINGS_WEIGHT_EPS) {
       needsCash = true;
       copy[CASH_TICKER] = explicit;
-      return copy;
+      return copy as T;
     }
     if (namedSum < 1 - 5e-4) {
       needsCash = true;
       copy[CASH_TICKER] = Math.max(0, 1 - namedSum);
     }
-    return copy;
+    return copy as T;
   });
   if (!needsCash) return { history, tickers };
   const outTickers = [
