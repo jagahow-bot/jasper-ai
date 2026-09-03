@@ -6,6 +6,7 @@ import {
   OverlayChatTimeline,
   type SummarySnapshot,
 } from "@/components/OverlayChatTimeline";
+import { OverlayConflictDialog } from "@/components/OverlayConflictDialog";
 import { useI18n } from "@/lib/i18n";
 import {
   parseOverlayInterpretResponseJson,
@@ -55,14 +56,20 @@ type ContextGroup = {
 type OverlayConfirmResult = void | boolean | ClientOverlay;
 
 const COMPOSER_MAX_PX = 240;
+const QUANT_API =
+  process.env.NEXT_PUBLIC_QUANT_API_BASE || "http://127.0.0.1:8001";
 
 type Props = {
   rmId?: string;
   clientRef?: string;
   baseScenarioId?: string;
+  /** Current run customization_drift for mechanical conflict pre-check. */
+  customizationDrift?: number;
   onConfirm?: (
     overlay: ClientOverlay,
   ) => OverlayConfirmResult | Promise<OverlayConfirmResult>;
+  /** When RM chooses raise-drift, parent can sync BacktestRequest.customization_drift. */
+  onRaiseDrift?: (drift: number) => void;
   selectedGroups?: ContextGroup[];
   anchorPositions?: ContextPosition[];
   anchorLabel?: string;
@@ -97,7 +104,9 @@ export function OverlayConversationPanel({
   rmId = "rm-demo",
   clientRef,
   baseScenarioId,
+  customizationDrift,
   onConfirm,
+  onRaiseDrift,
   selectedGroups = EMPTY_GROUPS,
   anchorPositions = EMPTY_POSITIONS,
   anchorLabel,
@@ -194,6 +203,8 @@ export function OverlayConversationPanel({
   const chatMessages = useMemo(() => toChatMessages(messages), [messages]);
 
   const hasPendingClarifications = clarifications.length > 0;
+  const pendingConflicts = overlay?.conflicts ?? [];
+  const hasPendingConflicts = pendingConflicts.length > 0;
   const answeredCount = clarifications.filter((c, i) =>
     buildClarificationAnswer(
       c,
@@ -205,6 +216,7 @@ export function OverlayConversationPanel({
   const canSend =
     !loading &&
     !confirmLockedRef.current &&
+    !hasPendingConflicts &&
     (input.trim().length > 0 || hasClarifyAnswers);
 
   const interpret = useCallback(
@@ -236,6 +248,7 @@ export function OverlayConversationPanel({
             selected_groups: selectedGroups,
             anchor_positions: anchorPositions,
             anchor_label: anchorLabel,
+            customization_drift: customizationDrift,
             ...(clarificationAnswers?.length
               ? { clarification_answers: clarificationAnswers }
               : {}),
@@ -324,7 +337,7 @@ export function OverlayConversationPanel({
         }
       }
     },
-    [overlay, rmId, clientRef, baseScenarioId, selectedGroups, anchorPositions, anchorLabel, t],
+    [overlay, rmId, clientRef, baseScenarioId, selectedGroups, anchorPositions, anchorLabel, customizationDrift, t],
   );
 
   const send = async () => {
@@ -386,7 +399,15 @@ export function OverlayConversationPanel({
   };
 
   const handleConfirm = async () => {
-    if (!overlay || loading || confirming || confirmLockedRef.current) return;
+    if (
+      !overlay ||
+      loading ||
+      confirming ||
+      confirmLockedRef.current ||
+      hasPendingConflicts
+    ) {
+      return;
+    }
     const signed = signOffOverlay(overlay, rmId);
     interpretGenerationRef.current += 1;
     confirmLockedRef.current = true;
@@ -430,6 +451,129 @@ export function OverlayConversationPanel({
     setOverlay(finalized);
     setConfirmed(true);
   };
+
+  const clearConflicts = useCallback((next: ClientOverlay): ClientOverlay => {
+    const { conflicts: _drop, ...rest } = next;
+    return {
+      ...rest,
+      conflicts: undefined,
+      audit: {
+        ...rest.audit,
+        phase: rest.audit.phase === "clarify" ? "confirm" : rest.audit.phase,
+      },
+    };
+  }, []);
+
+  const handleConflictChoice = useCallback(
+    async (optionId: string) => {
+      if (!overlay || !pendingConflicts.length) return;
+      const conflict = pendingConflicts[0]!;
+      const gap = conflict.gap_stub;
+
+      if (optionId === "raise-drift") {
+        const drift = Math.max(
+          0,
+          Math.min(1, conflict.suggested_drift ?? customizationDrift ?? 0.5),
+        );
+        onRaiseDrift?.(drift);
+        const raised: ClientOverlay = clearConflicts({
+          ...overlay,
+          param_adjustments: {
+            ...overlay.param_adjustments,
+            customization_drift_actual: {
+              mode: "fixed",
+              fixed: drift,
+            },
+          },
+        });
+        setOverlay(raised);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              overlayLang === "zh"
+                ? `已將客製化偏離上限調整為 ${Math.round(drift * 100)}%。請再確認 Overlay。`
+                : `Customization drift raised to ${Math.round(drift * 100)}%. Confirm the overlay when ready.`,
+          },
+        ]);
+        return;
+      }
+
+      if (optionId === "submit-gap" && gap) {
+        try {
+          await fetch(`${QUANT_API}/gaps`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              stage: gap.stage,
+              kind: gap.kind,
+              missing_capability: gap.missing_capability,
+              summary: gap.summary,
+              requested: gap.requested ?? {},
+              nearest_supported: gap.nearest_supported ?? null,
+              rm_id: rmId,
+              client_ref: clientRef ?? null,
+              overlay_session_id: overlay.audit.session_id,
+              lang: overlayLang,
+            }),
+          });
+        } catch {
+          // Non-blocking: still clear the card so RM is not stuck.
+        }
+        const after = clearConflicts(overlay);
+        const withGap: ClientOverlay = {
+          ...after,
+          capability_gaps: [
+            ...(after.capability_gaps ?? []).filter(
+              (g) => g.missing_capability !== gap.missing_capability,
+            ),
+            gap,
+          ],
+        };
+        setOverlay(withGap);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              overlayLang === "zh"
+                ? `已提交能力缺口（${gap.missing_capability}）。目前可繼續用最接近方案，或改寫需求後再送出。`
+                : `Capability gap submitted (${gap.missing_capability}). You may continue with the nearest supported plan.`,
+          },
+        ]);
+        return;
+      }
+
+      // accept-nearest | soften-target | default → acknowledge and unblock confirm
+      const softened = clearConflicts(overlay);
+      setOverlay(softened);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content:
+            optionId === "soften-target"
+              ? overlayLang === "zh"
+                ? "已記錄為縮小配置差異。請用較小衛星權重改寫需求，或直接確認目前最接近方案。"
+                : "Recorded as soften-target. Adjust to smaller satellite weights, or confirm the nearest plan."
+              : overlayLang === "zh"
+                ? "已接受目前最接近方案（單層偏離）。確認 Overlay 後可繼續回測。"
+                : "Accepted the nearest single-layer plan. Confirm the overlay to continue.",
+        },
+      ]);
+    },
+    [
+      overlay,
+      pendingConflicts,
+      customizationDrift,
+      onRaiseDrift,
+      clearConflicts,
+      overlayLang,
+      rmId,
+      clientRef,
+    ],
+  );
 
   const confirmProposedTickers = (tickers: string[]) => {
     if (!overlay || tickers.length === 0) return;
@@ -531,17 +675,33 @@ export function OverlayConversationPanel({
         onConfirmProposed={confirmProposedTickers}
       />
 
+      {hasPendingConflicts
+        ? pendingConflicts.map((conflict) => (
+            <OverlayConflictDialog
+              key={conflict.id}
+              conflict={conflict}
+              onChoose={(optionId) => {
+                void handleConflictChoice(optionId);
+              }}
+            />
+          ))
+        : null}
+
       <div className="flex shrink-0 flex-wrap items-end gap-2">
         <textarea
           ref={composerRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          disabled={loading || confirming}
+          disabled={loading || confirming || hasPendingConflicts}
           rows={2}
           placeholder={
-            hasPendingClarifications
-              ? t("overlay.clarify.composerPending")
-              : t("overlay.chat.placeholder")
+            hasPendingConflicts
+              ? overlayLang === "zh"
+                ? "請先處理上方衝突選項…"
+                : "Resolve the conflict card above first…"
+              : hasPendingClarifications
+                ? t("overlay.clarify.composerPending")
+                : t("overlay.chat.placeholder")
           }
           className="pixel-input min-h-[44px] max-h-[240px] min-w-[12rem] flex-1 resize-none overflow-y-auto"
           onKeyDown={(e) => {
@@ -563,7 +723,9 @@ export function OverlayConversationPanel({
           <button
             type="button"
             onClick={() => void handleConfirm()}
-            disabled={confirmed || loading || confirming}
+            disabled={
+              confirmed || loading || confirming || hasPendingConflicts
+            }
             className="pixel-btn shrink-0 self-end border border-[var(--primary)] bg-white text-[var(--primary)] hover:bg-[var(--primary-muted)] disabled:opacity-40"
           >
             {confirmed

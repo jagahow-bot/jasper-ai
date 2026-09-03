@@ -60,11 +60,15 @@ class EtfCatalogUniverseV1:
         self,
         tickers: list[str],
         anchor_weights: dict[str, float] | None,
+        *,
+        explicit: list[str] | None = None,
     ) -> list[str]:
         """Legacy-compatible entry matching customization.derive_must_include_tickers."""
         from app.engine.customization import derive_must_include_tickers
 
-        return list(derive_must_include_tickers(tickers, anchor_weights))
+        return list(
+            derive_must_include_tickers(tickers, anchor_weights, explicit=explicit)
+        )
 
     def build(self, ctx: StageContext) -> UniverseResult:
         tickers = list(ctx.req.universe_tickers or [])

@@ -27,6 +27,49 @@ def test_derive_must_include_from_anchor_gap():
     assert must == ["BOTZ", "AIQ", "ROBO"]
 
 
+def test_accessor_derive_must_include_accepts_explicit():
+    """Regression: Phase 0–3 stage accessor dropped ``explicit=``, crashing every trial."""
+    from app.engine.stages.accessors import (
+        derive_must_include_tickers as stage_derive,
+    )
+
+    tickers = ["SPY", "XLV", "BOTZ", "AIQ", "GLD"]
+    anchor = {"SPY": 0.7, "XLV": 0.3}
+    assert stage_derive(tickers, anchor) == ["BOTZ", "AIQ", "GLD"]
+    assert stage_derive(tickers, anchor, explicit=["BOTZ", "GLD"]) == ["BOTZ", "GLD"]
+    # Portfolio path passes explicit= even when None — must not TypeError.
+    assert stage_derive(tickers, anchor, explicit=None) == ["BOTZ", "AIQ", "GLD"]
+
+
+def test_simulate_with_explicit_must_include_does_not_typeerror():
+    """Every Optuna trial called simulate with explicit=; accessor TypeError → all infeasible."""
+    rng = np.random.default_rng(7)
+    n = 280
+    idx = pd.bdate_range("2019-01-01", periods=n)
+    tickers = ["SPY", "XLV", "XLF", "BOTZ", "AIQ", "GLD", "TLT"]
+    prices = pd.DataFrame(
+        {
+            t: 100 * np.cumprod(1 + rng.normal(0.0003, 0.01, size=n))
+            for t in tickers
+        },
+        index=idx,
+    )
+    anchor = {"SPY": 0.5, "XLV": 0.25, "XLF": 0.25}
+    m = simulate_dynamic_portfolio(
+        prices,
+        spec=BacktestSpec(rebalance_rule="QE", max_holdings=7, min_holdings=2),
+        max_weight=0.5,
+        min_weight=0.005,
+        allocator=AllocatorParams(mode="mean_variance", lookback_days=63),
+        top_n=None,
+        anchor_weights=anchor,
+        customization_drift=0.25,
+        must_include_tickers=["BOTZ", "AIQ", "GLD", "TLT"],
+    )
+    assert not m.get("metrics_suspect")
+    assert float(m.get("sharpe", 0.0)) > -1e5
+
+
 def test_pin_must_include_survives_top_n_trim():
     scores = pd.Series({"A": 3.0, "B": 2.0, "C": 1.0, "BOTZ": -1.0, "AIQ": -2.0})
     chosen = ["A", "B", "C"]

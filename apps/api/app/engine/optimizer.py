@@ -250,6 +250,7 @@ def run_optuna_search(
 ) -> list[tuple[float, dict, dict]]:
     records: list[tuple[float, dict, dict]] = []
     trial_records: dict[int, tuple[float, dict, dict]] = {}
+    trial_failure_reasons: list[str] = []
     best_value: float | None = None
     n_assets = int(prices_train.shape[1])
     top_n_cap = resolve_top_n_cap(top_n, n_assets, spec)
@@ -850,10 +851,17 @@ def run_optuna_search(
                 report_start=report_train,
                 **sim_common,
             )
-        except Exception:
+        except Exception as exc:
+            reason = f"{type(exc).__name__}: {exc}"
+            if len(trial_failure_reasons) < 8 and reason not in trial_failure_reasons:
+                trial_failure_reasons.append(reason)
             return INFEASIBLE_SCORE
 
         if metrics.get("metrics_suspect"):
+            if len(trial_failure_reasons) < 8:
+                note = "metrics_suspect (extreme sharpe / near-zero vol or drawdown)"
+                if note not in trial_failure_reasons:
+                    trial_failure_reasons.append(note)
             return INFEASIBLE_SCORE
 
         score = compute_objective_score(objective_mode, metrics)
@@ -1119,6 +1127,26 @@ def run_optuna_search(
 
     feasible_records = [r for r in records if r[0] > INFEASIBLE_SCORE / 2]
     if not feasible_records:
+        detail = "; ".join(trial_failure_reasons[:3]) if trial_failure_reasons else ""
+        if detail and any(
+            key in detail
+            for key in (
+                "TypeError",
+                "ValueError",
+                "KeyError",
+                "AttributeError",
+                "INFEASIBLE",
+                "must_include",
+                "lookback",
+                "Not enough",
+            )
+        ):
+            raise ValueError(f"No feasible parameter sets found ({detail})")
+        if detail:
+            raise ValueError(
+                "No feasible parameter sets found "
+                f"(try a longer backtest window or check data quality; also saw: {detail})"
+            )
         raise ValueError(
             "No feasible parameter sets found (try a longer backtest window or check data quality)"
         )

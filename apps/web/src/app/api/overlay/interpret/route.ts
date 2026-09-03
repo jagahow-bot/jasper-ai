@@ -26,7 +26,10 @@ import {
   type OverlayConversationMessage,
 } from "@/lib/overlay-schema";
 import { syncExtractClarifications } from "@/lib/overlay-clarifications";
-import { validateCapabilityGapStages } from "@/lib/overlay-feasibility";
+import {
+  attachMechanicalOverlayConflicts,
+  validateCapabilityGapStages,
+} from "@/lib/overlay-feasibility";
 import {
   parseReportLanguage,
   rationaleLanguageDirective,
@@ -65,6 +68,8 @@ type InterpretBody = {
   /** Target model portfolio anchor holdings (display context for the AI). */
   anchor_positions?: ContextPosition[];
   anchor_label?: string;
+  /** Current customization_drift cap for mechanical feasibility (§3.3). */
+  customization_drift?: number;
   /** Optional structured Q→A pairs for the latest clarification round. */
   clarification_answers?: ClarificationAnswerPair[];
 };
@@ -428,8 +433,14 @@ export async function POST(req: Request) {
   const useRulesFallback = allowOverlayRulesFallback(req);
 
   const runFallback = () => {
-    const overlay = interpretOverlayFallback(diSourceText, lang, sessionId, turns, body.prior_overlay);
+    let overlay = interpretOverlayFallback(diSourceText, lang, sessionId, turns, body.prior_overlay);
     attachAuditFields(overlay, body);
+    overlay = attachMechanicalOverlayConflicts(overlay, {
+      lang,
+      declaredDrift: body.customization_drift,
+      anchorPositions: body.anchor_positions,
+      transcript: userTranscript,
+    });
     logInterpretResult("rules", overlay, turns);
     return overlay;
   };
@@ -491,7 +502,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const overlay = wrapExtractAsOverlay(extract, sessionId, turns, "gemini", body.prior_overlay);
+    let overlay = wrapExtractAsOverlay(extract, sessionId, turns, "gemini", body.prior_overlay);
     attachAuditFields(overlay, body);
 
     // Stage attribution: LLM fills + BFF validates (§8).
@@ -511,6 +522,15 @@ export async function POST(req: Request) {
       ];
       overlay.audit.phase = "clarify";
     }
+
+    // Mechanical feasibility / second-layer conflict cards (design §3.3–3.4).
+    // Prefer deterministic checks over relying solely on LLM capability_gaps.
+    overlay = attachMechanicalOverlayConflicts(overlay, {
+      lang,
+      declaredDrift: body.customization_drift,
+      anchorPositions: body.anchor_positions,
+      transcript: userTranscript,
+    });
 
     logInterpretResult("gemini", overlay, turns);
 
