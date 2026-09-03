@@ -77,6 +77,33 @@ def test_select_weight_chart_tickers_filters_dust():
     assert set(keep) == {"A", "B"}
 
 
+def test_weight_history_includes_cash_ticker_when_reserve():
+    from app.engine.allocator import AllocatorParams
+    from app.engine.portfolio import simulate_dynamic_portfolio
+    from app.engine.spec import BacktestSpec
+
+    dates = pd.bdate_range("2020-01-01", periods=280)
+    rng = np.random.default_rng(11)
+    cols = [f"E{i}" for i in range(6)]
+    prices = pd.DataFrame(
+        {c: 100 * np.cumprod(1 + rng.normal(0.0003, 0.012, len(dates))) for c in cols},
+        index=dates,
+    )
+    m = simulate_dynamic_portfolio(
+        prices,
+        spec=BacktestSpec(rebalance_rule="ME", fee_bps=0.0, cash_reserve_pct=0.4),
+        max_weight=0.35,
+        min_weight=0.0,
+        allocator=AllocatorParams(mode="mean_variance", lookback_days=126),
+        top_n=6,
+    )
+    wh = m.get("weight_history") or []
+    tickers = m.get("weight_history_tickers") or []
+    assert "CASH" in tickers
+    assert wh
+    assert any(float(r.get("CASH", 0.0) or 0.0) >= 0.35 for r in wh)
+
+
 def test_weight_history_integration_no_other():
     from app.engine.allocator import AllocatorParams
     from app.engine.portfolio import simulate_dynamic_portfolio

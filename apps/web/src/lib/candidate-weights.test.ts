@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAllocationRows,
+  enrichWeightHistoryWithCash,
   formatWeightPct,
   largestRemainderPercents,
   resolveCandidateWeights,
@@ -147,5 +148,14 @@ describe("candidate-weights", () => {
     });
     expect(rows.find((r) => r.ticker === "CASH")?.pct).toBeCloseTo(40, 1);
     expect(rows.reduce((s, r) => s + r.pct, 0)).toBeCloseTo(100, 6);
+  });
+
+  it("enrichWeightHistoryWithCash adds CASH layer for stacked charts", () => {
+    const { history, tickers } = enrichWeightHistoryWithCash(
+      [{ date: "2020-01-01", SPY: 0.1, BOTZ: 0.1, AIQ: 0.1, BIL: 0.1, GLD: 0.1, GOOGL: 0.1 }],
+      ["SPY", "BOTZ", "AIQ", "BIL", "GLD", "GOOGL"],
+    );
+    expect(tickers).toContain("CASH");
+    expect(history[0]?.CASH).toBeCloseTo(0.4, 2);
   });
 });

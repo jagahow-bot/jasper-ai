@@ -40,6 +40,7 @@ from app.engine.factors import (
 )
 from app.engine.portfolio import simulate_dynamic_portfolio
 from app.engine.customization import derive_must_include_tickers
+from app.engine.group_weights import group_weight_bands_from_client_context
 from app.engine.weights import min_holdings_for_cap
 from app.engine.objectives import metrics_snapshot
 from app.engine.stages.accessors import (
@@ -843,6 +844,7 @@ def run_optuna_search(
             factor_params_resolver=factor_params_resolver,
             anchor_weights=anchor_weights,
             customization_drift=float(customization_drift_actual),
+            group_weight_bands=group_weight_bands_from_client_context(client_context),
             dividend_panel=dividend_panel,
         )
         try:

@@ -195,3 +195,39 @@ export function resolveCandidateWeights(
 export function formatWeightPct(pct: number): string {
   return `${pct.toFixed(2)}%`;
 }
+
+const CASH_TICKER = "CASH";
+
+/** Ensure stacked weight-history charts include implicit/explicit CASH when sum < 1. */
+export function enrichWeightHistoryWithCash<
+  T extends { date: string } & Record<string, number | string>,
+>(history: T[], tickers: string[]): { history: T[]; tickers: string[] } {
+  if (!history.length) return { history, tickers };
+  let needsCash = tickers.some((t) => t.toUpperCase() === CASH_TICKER);
+  const enriched = history.map((row) => {
+    const copy = { ...row } as T;
+    let namedSum = 0;
+    for (const [key, raw] of Object.entries(row)) {
+      if (key === "date" || isMetaKey(key)) continue;
+      const w = asFiniteWeight(raw);
+      if (w != null && w > 0) namedSum += w;
+    }
+    const explicit = asFiniteWeight(row[CASH_TICKER]);
+    if (explicit != null && explicit > HOLDINGS_WEIGHT_EPS) {
+      needsCash = true;
+      copy[CASH_TICKER] = explicit;
+      return copy;
+    }
+    if (namedSum < 1 - 5e-4) {
+      needsCash = true;
+      copy[CASH_TICKER] = Math.max(0, 1 - namedSum);
+    }
+    return copy;
+  });
+  if (!needsCash) return { history, tickers };
+  const outTickers = [
+    ...tickers.filter((t) => t.toUpperCase() !== CASH_TICKER),
+    CASH_TICKER,
+  ];
+  return { history: enriched, tickers: outTickers };
+}

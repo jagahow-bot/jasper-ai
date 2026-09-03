@@ -28,6 +28,7 @@ from app.engine.weights import (
 from app.engine.customization import (
     pin_must_include_into_chosen,
 )
+from app.engine.group_weights import GroupWeightBand, apply_group_weight_bands
 from app.engine.stages.accessors import (
     apply_must_include_floor,
     deployment_fraction as stage_deployment_fraction,
@@ -717,6 +718,7 @@ def _rebalance_schedule_dynamic(
     anchor_weights: dict[str, float] | None = None,
     customization_drift: float | None = None,
     must_include_tickers: list[str] | None = None,
+    group_weight_bands: list[GroupWeightBand] | None = None,
     dividend_panel: pd.DataFrame | None = None,
 ) -> tuple[
     pd.DataFrame,
@@ -1034,6 +1036,13 @@ def _rebalance_schedule_dynamic(
                     active_tickers=chosen,
                     max_weight=max_weight,
                 )
+            if group_weight_bands:
+                w = apply_group_weight_bands(
+                    w,
+                    list(prices.columns),
+                    group_weight_bands,
+                    max_weight=max_weight,
+                )
             # Hard customization_drift last ??nothing after this may expand L1 vs anchor.
             if drift is not None and anchor_weights:
                 w = project_anchor_l1_drift(w, anchor_w, float(drift), max_weight)
@@ -1311,6 +1320,7 @@ def _simulate_pandas(
     anchor_weights: dict[str, float] | None = None,
     customization_drift: float | None = None,
     must_include_tickers: list[str] | None = None,
+    group_weight_bands: list[GroupWeightBand] | None = None,
     dividend_panel: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     holdings_top_n = effective_top_n(top_n, spec, n_assets=len(prices.columns))
@@ -1346,6 +1356,7 @@ def _simulate_pandas(
             anchor_weights=anchor_weights,
             customization_drift=customization_drift,
             must_include_tickers=must_include_tickers,
+            group_weight_bands=group_weight_bands,
             dividend_panel=dividend_panel,
         )
     else:
@@ -1445,6 +1456,10 @@ def _simulate_pandas(
         applied_on_or_after=applied_rebalance_dates,
     )
     metrics["weight_history"] = weight_history
+    if weight_history:
+        max_cash = max(float(r.get("CASH", 0.0) or 0.0) for r in weight_history)
+        if max_cash >= WEIGHT_CHART_MIN_PCT and "CASH" not in keep_tickers:
+            keep_tickers = [*keep_tickers, "CASH"]
     metrics["weight_history_tickers"] = keep_tickers
     cap_audit = (factor_summary or {}).get("weight_cap_audit")
     if cap_audit:
@@ -1486,6 +1501,7 @@ def simulate_dynamic_portfolio(
     anchor_weights: dict[str, float] | None = None,
     customization_drift: float | None = None,
     must_include_tickers: list[str] | None = None,
+    group_weight_bands: list[GroupWeightBand] | None = None,
     dividend_panel: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     w0 = np.ones(len(prices.columns), dtype=float) / max(len(prices.columns), 1)
@@ -1512,6 +1528,7 @@ def simulate_dynamic_portfolio(
         anchor_weights=anchor_weights,
         customization_drift=customization_drift,
         must_include_tickers=must_include_tickers,
+        group_weight_bands=group_weight_bands,
         dividend_panel=dividend_panel,
     )
 

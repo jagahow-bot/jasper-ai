@@ -42,6 +42,7 @@ from app.engine.constrained_customization import (
     select_constrained_records_for_report,
     should_use_constrained_customization,
 )
+from app.engine.group_weights import group_weight_bands_from_client_context
 from app.engine.objectives import (
     metrics_snapshot,
     objective_label,
@@ -1524,6 +1525,7 @@ def _ensure_pool_full_sims_for_champion(
                 class_budget=class_budget,
                 anchor_weights=req.anchor_weights,
                 customization_drift=customization_drift_actual,
+                group_weight_bands=group_weight_bands_from_client_context(req.client_context),
                 dividend_panel=dividend_panel,
             ),
             prices,
@@ -2049,6 +2051,7 @@ def _assemble_candidates_from_records(
                 class_budget=class_budget,
                 anchor_weights=req.anchor_weights,
                 customization_drift=customization_drift_actual,
+                group_weight_bands=group_weight_bands_from_client_context(req.client_context),
                 dividend_panel=dividend_panel,
             ),
             prices,
@@ -4078,6 +4081,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             class_budget=best_class_budget,
             anchor_weights=req.anchor_weights,
             customization_drift=best_customization_drift,
+            group_weight_bands=group_weight_bands_from_client_context(req.client_context),
             dividend_panel=dividend_panel,
         ),
         prices,
