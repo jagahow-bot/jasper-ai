@@ -198,6 +198,13 @@ def test_golden_universe_derive_must_include() -> None:
     assert derive_must_include_tickers(tickers, anchor) == legacy_derive_must(
         tickers, anchor
     )
+    # Stage accessor must forward explicit= (portfolio rebalance path).
+    assert derive_must_include_tickers(
+        tickers, anchor, explicit=["TLT", "MISSING"]
+    ) == legacy_derive_must(tickers, anchor, explicit=["TLT", "MISSING"])
+    assert derive_must_include_tickers(
+        tickers, anchor, explicit=["TLT", "MISSING"]
+    ) == ["TLT"]
 
 
 def test_golden_canonical_scenario_slices_smoke() -> None:
