@@ -453,13 +453,12 @@ export function OverlayConversationPanel({
   };
 
   const clearConflicts = useCallback((next: ClientOverlay): ClientOverlay => {
-    const { conflicts: _drop, ...rest } = next;
     return {
-      ...rest,
+      ...next,
       conflicts: undefined,
       audit: {
-        ...rest.audit,
-        phase: rest.audit.phase === "clarify" ? "confirm" : rest.audit.phase,
+        ...next.audit,
+        phase: next.audit.phase === "clarify" ? "confirm" : next.audit.phase,
       },
     };
   }, []);
