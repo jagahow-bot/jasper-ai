@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC, effective_top_n, resolve_candidate_top_n
-from app.engine.allocator import AllocatorParams, solve_weights
+from app.engine.allocator import AllocatorParams
 from app.engine.asset_class_policy import (
     CLASS_BUDGET_KEYS,
     enforce_class_weight_budget,
@@ -23,19 +23,26 @@ from app.engine.weights import (
     audit_weight_cap,
     max_weight_violation_amount,
     min_holdings_for_cap,
-    project_max_weight,
     scale_invested_weights,
 )
 from app.engine.customization import (
+    pin_must_include_into_chosen,
+)
+from app.engine.stages.accessors import (
     apply_must_include_floor,
+    deployment_fraction as stage_deployment_fraction,
     derive_must_include_tickers,
     min_holdings_for_customization,
-    pin_must_include_into_chosen,
     project_anchor_l1_drift,
+    project_max_weight,
+    score_assets_with_details,
+    solve_weights,
+    apply_max_turnover as stage_apply_max_turnover,
+    trading_day_rebalance_dates as stage_trading_day_rebalance_dates,
 )
 
 logger = logging.getLogger(__name__)
-from app.engine.factors import FactorParams, pick_top_n, score_assets_with_details
+from app.engine.factors import FactorParams, pick_top_n
 
 
 def deployment_fraction(
@@ -44,10 +51,13 @@ def deployment_fraction(
     months: int | None,
     tranches: int | None,
 ) -> float:
-    """Fraction of the *target invested book* deployed by ``dt`` (0→1).
+    """Fraction of the *target invested book* deployed by ``dt`` (0??).
 
     Lump-sum (months is None) returns 1.0. With DCA, day-0 is undeployed (0);
     equal tranches step up across ``months`` calendar months.
+
+    Pure primitive ??orchestrators should prefer
+    ``stages.accessors.deployment_fraction`` so the cash_schedule stage can swap.
     """
     if months is None or int(months) <= 0:
         return 1.0
@@ -65,7 +75,7 @@ def deployment_fraction(
 def _apply_execution_overlay(
     schedule: pd.DataFrame, spec: BacktestSpec
 ) -> pd.DataFrame:
-    """Scale fully-invested schedule rows by cash reserve × DCA deployment fraction.
+    """Scale fully-invested schedule rows by cash reserve ? DCA deployment fraction.
 
     Allocator still solves on sum(w)=1; this is the execution overlay so residual
     weight is true uninvested cash.
@@ -78,7 +88,7 @@ def _apply_execution_overlay(
     tranches = getattr(spec, "deployment_tranches", None)
     out = schedule.copy()
     for dt in out.index:
-        dep = deployment_fraction(pd.Timestamp(dt), start, months, tranches)
+        dep = stage_deployment_fraction(pd.Timestamp(dt), start, months, tranches)
         frac = float(np.clip(dep * target, 0.0, 1.0))
         row = np.asarray(out.loc[dt].to_numpy(dtype=float), dtype=float)
         out.loc[dt] = scale_invested_weights(row, frac)
@@ -126,7 +136,7 @@ WEIGHT_CHART_MIN_PCT = 0.001
 WEIGHT_CHART_DEFAULT_TOP_N = 15
 # Soft legend budget for UI perf; selection is not truncated below Other cap.
 WEIGHT_CHART_TICKER_CAP = 40
-# Rebalance snapshot rows sent to the holdings chart (ME ≈ 1 row/month).
+# Rebalance snapshot rows sent to the holdings chart (ME ??1 row/month).
 WEIGHT_HISTORY_SNAPSHOT_CAP = 72
 
 
@@ -165,7 +175,7 @@ def select_weight_chart_tickers(
     *,
     top_n: int = WEIGHT_CHART_DEFAULT_TOP_N,
 ) -> list[str]:
-    """Return ALL tickers that ever had a meaningful weight — no Other grouping."""
+    """Return ALL tickers that ever had a meaningful weight ??no Other grouping."""
     del top_n
 
     keep_set: set[str] = set()
@@ -463,7 +473,7 @@ def _rebalance_schedule(
     schedule = pd.DataFrame(index=prices.index, columns=prices.columns, dtype=float)
     schedule.iloc[0] = w
 
-    for dt in _trading_day_rebalance_dates(prices.index, rule):
+    for dt in stage_trading_day_rebalance_dates(prices.index, rule):
         if dt in schedule.index:
             schedule.loc[dt] = w
 
@@ -492,7 +502,7 @@ def _simulate_buy_and_hold_path(
     returns. A trade occurs on an explicit rebalance date and/or when the target
     row changes (e.g. DCA deployment step). That day's return still uses
     start-of-day (drifted) weights; after prices move, holdings are traded to the
-    new target and a fee is charged on L1 turnover from drifted → target
+    new target and a fee is charged on L1 turnover from drifted ??target
     (assets + cash), matching the prior fee accounting shape.
     """
     if len(rets) != len(target_schedule) or not rets.index.equals(target_schedule.index):
@@ -583,7 +593,7 @@ def _finalize_rebalance_weights(
         diff = np.abs(w - w_prev)
         w = np.where(diff < tol, w_prev, w)
     if max_turnover is not None and max_turnover > 0:
-        w = _apply_max_turnover(w, w_prev, max_turnover)
+        w = stage_apply_max_turnover(w, w_prev, max_turnover)
     for _ in range(8):
         w_next = project_max_weight(w, max_weight)
         if max_weight_violation_amount(w_next, max_weight) <= 1e-6:
@@ -759,7 +769,7 @@ def _rebalance_schedule_dynamic(
         w = project_max_weight(np.ones(n) / max(n, 1), max_weight)
     w = apply_min_holding_weight(w, min_weight, max_weight=max_weight)
     if drift is not None and anchor_weights:
-        # min-weight pass can reopen L1 slightly — re-close before day-0.
+        # min-weight pass can reopen L1 slightly ??re-close before day-0.
         w = project_anchor_l1_drift(w, anchor_w, float(drift), max_weight)
     schedule.iloc[0] = w
     cap_audit_rows.append(
@@ -771,7 +781,7 @@ def _rebalance_schedule_dynamic(
         )
     )
 
-    rebalance_dates = _trading_day_rebalance_dates(prices.index, rule)
+    rebalance_dates = stage_trading_day_rebalance_dates(prices.index, rule)
     rebalance_dates = _inject_report_start_rebalance_dates(
         rebalance_dates, prices.index, report_start
     )
@@ -889,7 +899,7 @@ def _rebalance_schedule_dynamic(
                     if str(prices.columns[i]) not in set(chosen) and anchor_w[i] > 0.0
                 ]
                 non_chosen_anchor.sort(key=lambda x: -x[1])
-                # Never evict confirmed overlay adds to make room for anchors —
+                # Never evict confirmed overlay adds to make room for anchors ??
                 # expand holdings instead when possible.
                 replaceable = sorted(
                     [
@@ -1024,7 +1034,7 @@ def _rebalance_schedule_dynamic(
                     active_tickers=chosen,
                     max_weight=max_weight,
                 )
-            # Hard customization_drift last — nothing after this may expand L1 vs anchor.
+            # Hard customization_drift last ??nothing after this may expand L1 vs anchor.
             if drift is not None and anchor_weights:
                 w = project_anchor_l1_drift(w, anchor_w, float(drift), max_weight)
             row_audit = audit_weight_cap(
@@ -1342,7 +1352,7 @@ def _simulate_pandas(
         schedule = _rebalance_schedule(prices, weights, spec.rebalance_rule)
         last_w = schedule.iloc[-1].to_numpy(dtype=float)
         avg_w = schedule.mean(axis=0).to_numpy(dtype=float)
-        rebalance_dates = _trading_day_rebalance_dates(prices.index, spec.rebalance_rule)
+        rebalance_dates = stage_trading_day_rebalance_dates(prices.index, spec.rebalance_rule)
         applied_rebalance_dates = list(rebalance_dates)
         applied_rebalances = len(rebalance_dates)
         factor_summary = {}

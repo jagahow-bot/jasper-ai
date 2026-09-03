@@ -26,6 +26,7 @@ import {
   type OverlayConversationMessage,
 } from "@/lib/overlay-schema";
 import { syncExtractClarifications } from "@/lib/overlay-clarifications";
+import { validateCapabilityGapStages } from "@/lib/overlay-feasibility";
 import {
   parseReportLanguage,
   rationaleLanguageDirective,
@@ -200,6 +201,16 @@ Optional top-level keys (omit entirely if unused — do not invent wrong shapes)
 - param_adjustments
 - experiment
 - asks — numbered soft client asks from the RM brief (preferred when the brief is numbered)
+- capability_gaps — when the client need CANNOT be honestly expressed with whitelist fields (param_adjustments / allocation / universe / optimization), emit up to 5 gaps instead of forcing a wrong mapping:
+  { "stage": one of universe|signals|allocator|constraints|objective|rebalance|cash_schedule|reporting,
+    "kind": "unsupported_lever"|"infeasible_combination"|"bounds_exceeded",
+    "missing_capability": machine key 3–80 chars (e.g. "two_layer_sleeve_allocation"),
+    "summary": RM-readable 8–600 chars in report language,
+    "requested": structured excerpt of the ask,
+    "nearest_supported": optional best currently expressible approx,
+    "severity": "blocking"|"degradable" }
+  Iron rule: structural asks with no field → capability_gaps; do NOT silently half-answer.
+- conflicts — reserved for mechanical feasibility cards produced by the server (usually omit)
 
 Field rules:
 - client_profile.risk_tolerance: "conservative" | "moderate" | "aggressive" only.
@@ -482,6 +493,25 @@ export async function POST(req: Request) {
 
     const overlay = wrapExtractAsOverlay(extract, sessionId, turns, "gemini", body.prior_overlay);
     attachAuditFields(overlay, body);
+
+    // Stage attribution: LLM fills + BFF validates (§8).
+    const { valid, clarifications: stageClarifs } = validateCapabilityGapStages(
+      overlay.capability_gaps,
+    );
+    overlay.capability_gaps = valid.length ? valid : undefined;
+    if (stageClarifs.length) {
+      overlay.clarifications = [
+        ...(overlay.clarifications ?? []),
+        ...stageClarifs.map((c) => ({
+          id: c.id,
+          question: c.question,
+          options: [],
+          allow_free_text: true,
+        })),
+      ];
+      overlay.audit.phase = "clarify";
+    }
+
     logInterpretResult("gemini", overlay, turns);
 
     return NextResponse.json({ overlay, source: "gemini", llm_log: llmLog });

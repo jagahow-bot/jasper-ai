@@ -179,8 +179,11 @@ def load_persisted_job(job_id: str) -> tuple[BacktestRequest, BacktestResult] | 
     if not isinstance(raw, dict):
         return None
     try:
+        from app.engine.stages.registry import apply_legacy_stage_defaults
+
+        result_raw = apply_legacy_stage_defaults(dict(raw.get("result") or {}))
         req = BacktestRequest.model_validate(raw["request"])
-        result = BacktestResult.model_validate(raw["result"])
+        result = BacktestResult.model_validate(result_raw)
     except (KeyError, ValueError):
         return None
     return req, result

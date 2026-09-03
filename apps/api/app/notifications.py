@@ -174,3 +174,27 @@ def send_job_notification(
         return False
 
     return _send(to_email, subject, body)
+
+
+def notify_capability_rm_confirmed(
+    *,
+    to_email: str,
+    summary: str,
+    missing_capability: str,
+    catalog_version: str,
+) -> bool:
+    """L1 complete: capability is usable in backtests (design §5.2)."""
+    if not notifications_configured() or not is_valid_email(to_email):
+        return False
+    subject = f"JASPER.AI capability ready — {missing_capability}"
+    body = "\n".join(
+        [
+            f"您回報的客戶需求「{summary}」已可表達——能力 `{missing_capability}` "
+            f"已於引擎版本 {catalog_version} 上線（L1 RM 確認完成）。",
+            "",
+            "You can re-run the original overlay session against the new catalog.",
+            "L2 supervisor sign-off is only required when generating a client proposal.",
+        ]
+    )
+    return _send(to_email.strip(), subject, body)
+

@@ -31,6 +31,12 @@ import {
 } from "@/lib/rm-report-utils";
 import { useAiTalkingSummary } from "@/lib/use-ai-talking-summary";
 import { resolveTickerDisplayName } from "@/lib/ticker-display-name";
+import {
+  pendingCapabilitiesBadgeLabel,
+  pendingSupervisorCapabilities,
+  proposalPrintBlockedMessage,
+  proposalRequiresSupervisorSignoff,
+} from "@/lib/proposal-capability-badge";
 import type {
   BacktestRequest,
   BacktestResult,
@@ -144,6 +150,17 @@ export function RmReportView({
     const rec = proposalCards.find((p) => p.is_recommended);
     return (rec?.model_code || "").toUpperCase() || null;
   }, [proposalCards]);
+
+  const pendingCaps = useMemo(
+    () =>
+      pendingSupervisorCapabilities(
+        compare.adjustedResult.capabilities_used ?? null,
+      ),
+    [compare.adjustedResult.capabilities_used],
+  );
+  const blockProposalPrint = proposalRequiresSupervisorSignoff(
+    compare.adjustedResult.capabilities_used ?? null,
+  );
 
   useEffect(() => {
     // Prefer proposal_set recommended (= search champion) as the single default.
@@ -392,6 +409,33 @@ export function RmReportView({
       ) : (
         <div className="space-y-5">
           <ComplianceBadge />
+          {pendingCaps.length > 0 ? (
+            <div
+              role="status"
+              className="border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+            >
+              <strong>
+                {pendingCapabilitiesBadgeLabel(
+                  pendingCaps.length,
+                  lang === "en" || lang === "ko" ? lang : "zh",
+                )}
+              </strong>
+              <ul className="mt-1 list-disc pl-5 text-xs">
+                {pendingCaps.map((c) => (
+                  <li key={`${c.stage}-${c.implementation_id}`}>
+                    {c.stage}/{c.implementation_id}@{c.version}
+                  </li>
+                ))}
+              </ul>
+              {blockProposalPrint ? (
+                <p className="mt-2 text-xs">
+                  {proposalPrintBlockedMessage(
+                    lang === "en" || lang === "ko" ? lang : "zh",
+                  )}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {/* 1. Recommended portfolio — one conclusion */}
           <section className="pixel-panel border-2 border-[var(--primary)]/35 bg-[var(--primary)]/5">

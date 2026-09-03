@@ -20,7 +20,7 @@ def test_append_and_pop_logs() -> None:
         append_llm_audit_entry(
             build_audit_entry(
                 provider="google",
-                model_id="gemini-3.6-flash",
+                model_id="gemini-3.8-flash",
                 call_type="json",
                 prompt="prompt",
                 system="system",
@@ -37,7 +37,7 @@ def test_append_and_pop_logs() -> None:
     logs = pop_llm_audit_logs(job_id)
     assert len(logs) == 1
     assert logs[0]["provider"] == "google"
-    assert logs[0]["model_id"] == "gemini-3.6-flash"
+    assert logs[0]["model_id"] == "gemini-3.8-flash"
     assert logs[0]["usage"]["total_tokens"] == 15
 
 

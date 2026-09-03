@@ -31,6 +31,16 @@ const TOOLS_NAV: NavItem[] = [
   { href: "/pool", labelKey: "nav.pool", match: (p) => p === "/pool" },
   { href: "/models", labelKey: "nav.models", match: (p) => p === "/models" },
   {
+    href: "/gaps",
+    labelKey: "nav.gaps",
+    match: (p) => p === "/gaps" || p.startsWith("/gaps/"),
+  },
+  {
+    href: "/docs/engine",
+    labelKey: "nav.engineDocs",
+    match: (p) => p.startsWith("/docs/engine"),
+  },
+  {
     href: "/settings",
     labelKey: "nav.settings",
     match: (p) => p === "/settings" || p.startsWith("/settings/"),

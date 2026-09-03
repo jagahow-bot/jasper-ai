@@ -22,7 +22,7 @@ import {
  * (same Gemini Flash id); keep Kimi out of real-time overlay confirm paths.
  */
 export const DEFAULT_FLASH_MODEL_ID =
-  process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
+  process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
 
 export const KIMI_K3_MODEL_ID =
   process.env.MOONSHOT_MODEL?.trim() || "kimi-k3";
@@ -118,3 +118,16 @@ export function providerOptionsFor(
   }
   return { google: googleOptions };
 }
+
+// Re-export task routing (design §4.6) so routes can import from one place.
+export {
+  LLM_TASK_ROUTING,
+  ModelUnavailableError,
+  isCodegenTask,
+  modelForTask,
+  providerOptionsForTask,
+  resolveModelIdForTask,
+  type LlmTask,
+  type LlmTaskRoute,
+} from "./llm-task-routing";
+

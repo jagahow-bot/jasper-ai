@@ -10,7 +10,7 @@ describe("thinkingConfigForGoogleModel", () => {
   it("omits thinkingConfig instead of sending MINIMAL", () => {
     expect(thinkingConfigForGoogleModel(DEFAULT_FLASH_MODEL_ID)).toBeUndefined();
     expect(thinkingConfigForGoogleModel("gemini-3.7-flash")).toBeUndefined();
-    expect(thinkingConfigForGoogleModel("gemini-3.6-flash")).toBeUndefined();
+    expect(thinkingConfigForGoogleModel("gemini-3.8-flash")).toBeUndefined();
     expect(thinkingConfigForGoogleModel("gemini-3.1-pro-preview")).toBeUndefined();
   });
 });

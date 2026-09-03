@@ -36,7 +36,7 @@ npm run dev
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8001
 GOOGLE_GENERATIVE_AI_API_KEY=你的_Gemini_Key
-GEMINI_MODEL=gemini-3.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 GEMINI_MAX_OUTPUT_TOKENS=4096
 ```
 

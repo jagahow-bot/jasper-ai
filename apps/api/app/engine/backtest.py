@@ -32,7 +32,6 @@ from app.engine.param_bounds import (
     normalize_param_controls,
 )
 from app.engine.mutable_params import GEMINI_LEARNING_MUTABLE_FIELDS
-from app.engine.customization import derive_must_include_tickers
 from app.engine.constrained_customization import (
     allocate_constrained_trial_budget,
     build_constrained_param_rationale,
@@ -45,9 +44,12 @@ from app.engine.constrained_customization import (
 )
 from app.engine.objectives import (
     metrics_snapshot,
-    needs_attainment,
     objective_label,
     pick_pareto_proposals,
+)
+from app.engine.stages.accessors import (
+    derive_must_include_tickers,
+    needs_attainment,
 )
 from app.engine.optimizer import run_optuna_search
 from app.engine.portfolio import (
@@ -4576,6 +4578,21 @@ def run_backtest(req: BacktestRequest, job_id: str, progress_cb=None) -> Backtes
     with set_llm_audit_job_id(job_id):
         result = _run_backtest_engine(req, job_id, progress_cb=progress_cb)
     result.llm_logs = pop_llm_audit_logs(job_id) or None
+    try:
+        from app.engine.stages import stage_pin_fields
+
+        pins = stage_pin_fields()
+        caps = pins.get("capabilities_used")
+        result = result.model_copy(
+            update={
+                "stage_catalog_version": pins.get("stage_catalog_version"),
+                "stage_implementations": pins.get("stage_implementations"),
+                "param_catalog_version": pins.get("param_catalog_version"),
+                "capabilities_used": caps,
+            }
+        )
+    except Exception:  # noqa: BLE001 — pin metadata must never fail a job
+        logger.debug("stage catalog pin skipped", exc_info=True)
     return result
 
 

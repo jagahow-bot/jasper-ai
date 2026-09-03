@@ -134,7 +134,7 @@ Do **not** expose port 8001 publicly; only nginx (80/443) should be public.
    |----------|--------|
    | `QUANT_API_URL` | `https://your-railway-api-url` (no trailing slash) |
    | `GOOGLE_GENERATIVE_AI_API_KEY` | your key |
-   | `GEMINI_MODEL` | `gemini-3.5-flash` |
+   | `GEMINI_MODEL` | `gemini-3.8-flash` |
 
 3. Deploy. Browser uses `/quant-api` proxy; `QUANT_API_URL` is read server-side in `apps/web/src/app/quant-api/[[...path]]/route.ts`.
 

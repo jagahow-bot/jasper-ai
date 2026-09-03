@@ -30,10 +30,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.engine.customization import (
-    derive_must_include_tickers,
-    min_holdings_for_customization,
-)
+from app.engine.customization import derive_must_include_tickers
+from app.engine.stages.accessors import min_holdings_for_customization
 from app.engine.objectives import _needs_score, weights_signature
 from app.engine.weights import feasible_max_weight
 
