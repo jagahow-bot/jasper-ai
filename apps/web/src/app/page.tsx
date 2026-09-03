@@ -1178,6 +1178,13 @@ export default function HomePage() {
             <OverlayConversationPanel
               baseScenarioId={`anchor-${anchorPortfolioId}`}
               clientRef={activeClient?.client_id}
+              customizationDrift={request?.customization_drift ?? 0.5}
+              onRaiseDrift={(drift) => {
+                setRequest((prev) => ({
+                  ...(prev ?? buildDefaultRequest()),
+                  customization_drift: drift,
+                }));
+              }}
               onConfirm={onOverlayConfirm}
               selectedGroups={selectedScopeGroups}
               anchorPositions={anchorPositions}

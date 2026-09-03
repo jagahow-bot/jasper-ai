@@ -1,0 +1,3 @@
+id,name,benchmark,ticker,weight
+model-1,Model One,SPY,AAPL,0.3
+model-1,Model One,SPY,MSFT,0.5

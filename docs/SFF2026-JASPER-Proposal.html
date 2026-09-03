@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JASPER AI — SFF 2026 Proposal</title>
+  <style>
+:root {
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --muted: #555;
+  --border: #d0d0d0;
+  --accent: #0b5cab;
+  --code-bg: #f0f0f0;
+  --blockquote-bg: #eef4fb;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  line-height: 1.65;
+  color: var(--fg);
+  background: var(--bg);
+  margin: 0;
+  padding: 2rem 1rem 4rem;
+}
+main {
+  max-width: 52rem;
+  margin: 0 auto;
+  background: #fff;
+  padding: 2.5rem 3rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+h1 { font-size: 1.85rem; border-bottom: 2px solid var(--accent); padding-bottom: .4rem; margin-top: 0; }
+h2 { font-size: 1.45rem; margin-top: 2.2rem; color: var(--accent); }
+h3 { font-size: 1.15rem; margin-top: 1.6rem; }
+p { margin: .75rem 0; }
+strong { font-weight: 600; }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+ul { margin: .5rem 0 1rem; padding-left: 1.5rem; }
+li { margin: .35rem 0; }
+blockquote {
+  margin: 1rem 0;
+  padding: .75rem 1rem;
+  border-left: 4px solid var(--accent);
+  background: var(--blockquote-bg);
+  color: var(--muted);
+}
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-family: Consolas, "Cascadia Code", monospace;
+  font-size: .88rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0 1.5rem;
+  font-size: .92rem;
+}
+th, td {
+  border: 1px solid var(--border);
+  padding: .5rem .65rem;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: #e8f0f8; font-weight: 600; }
+tr:nth-child(even) td { background: #f8f9fa; }
+.meta { color: var(--muted); font-size: .95rem; }
+.footer { margin-top: 2rem; font-size: .9rem; color: var(--muted); font-style: italic; }
+@media (max-width: 640px) {
+  main { padding: 1.5rem 1.25rem; }
+  table { font-size: .82rem; }
+}
+</style>
+</head>
+<body>
+<main>
+<h1>JASPER AI 智能量化助手</h1>
+<h2>重新想像私人銀行：為數位原生高淨值客戶打造超個人化投資旅程</h2>
+<p class="meta"><strong>提案團隊</strong>：TradingValley</p>
+<p class="meta"><strong>競賽</strong>：Singapore FinTech Festival (SFF) Global FinTech Hackcelerator 2026</p>
+<p class="meta"><strong>Corporate Champion</strong>：Julius Baer</p>
+<p class="meta"><strong>題目</strong>：Reimagining Private Banking for Digitally Native HNW Clients</p>
+<hr>
+<h2>1. Executive Summary</h2>
+<p>Relationship Managers (RMs) in private banking face a structural mismatch: digitally native High-Net-Worth (HNW) clients expect hyper-personalized, transparent, and continuously adaptive advice—yet most institutions still deliver standardized model portfolios designed for operational efficiency, not individual fit. With an estimated <strong>US$84 trillion wealth transfer</strong> underway, the next generation of clients will not accept one-size-fits-all allocation.</p>
+<p><strong>JASPER AI</strong> is an institutional-grade quantitative copilot that empowers RMs to design, validate, and explain <strong>client-specific investment strategies</strong> in a single working session—without replacing human judgment or compliance oversight. Built on a core principle—<strong>the math engine computes numbers; generative AI only writes narratives and research hypotheses</strong>—JASPER transforms the RM workflow from manual spreadsheet iteration to a closed loop of hypothesis → backtest → champion selection → institutional report → client-ready narrative.</p>
+<p>Unlike model portfolios from large asset managers, JASPER enables:</p>
+<ul>
+<li><strong>Per-client strategy construction</strong> aligned to risk tolerance, liquidity needs, ESG preferences, and market views</li>
+<li><strong>Regime-adaptive optimization</strong> that adjusts objectives across risk-on, neutral, and risk-off environments</li>
+<li><strong>Pro multi-round convergence</strong> with champion–challenger selection, warm-start, and continuation across sessions</li>
+<li><strong>Out-of-sample validation</strong> and benchmark-relative analytics to suppress overfitting before client presentation</li>
+<li><strong>Zero-hallucination narrative guardrails</strong> that bind AI text to engine-computed facts</li>
+</ul>
+<p>Our team, <strong>TradingValley</strong>, has supported Taiwanese financial institutions in building robo-advisory infrastructure since 2017 and was previously selected in the <strong>SFF Global FinTech Hackcelerator</strong> (2025, Growin / wealth management track). We combine deep wealth-management domain expertise with production-grade AI and quantitative engineering—positioning us to deliver a working prototype that demonstrates immediate RM productivity gains and a differentiated client experience for Julius Baer.</p>
+<p><strong>Hackcelerator goal</strong>: Deliver a pilot-ready JASPER RM copilot integrated with Julius Baer&#x27;s product universe and RM workflows, proving that hyper-personalization at scale is achievable without proportional headcount growth.</p>
+<hr>
+<h2>2. 問題陳述：對齊 Julius Baer 挑戰</h2>
+<h3>2.1 世代財富轉移與客戶期待落差</h3>
+<p>全球約 <strong>84 兆美元</strong> 財富正由嬰兒潮世代轉移至數位原生接班人。這群客戶具備以下特徵：</p>
+<ul>
+<li>習慣即時、透明、可互動的數位體驗（投資 App、即時報價、個人化推薦）</li>
+<li>不接受「標準型投資組合 + 年度檢視」的慢節奏服務</li>
+<li>要求投資建議能對應其價值觀（ESG、地緣偏好、流動性事件）與人生階段</li>
+</ul>
+<p>然而，多數私人銀行仍依賴<strong>大型資產管理公司的模型投資組合（Model Portfolio）</strong>作為配置骨幹——高效、合規、可規模化，卻本質上是<strong>一體適用（one-size-fits-all）</strong>。</p>
+<h3>2.2 理專（RM）工作流的結構性瓶頸</h3>
+<p>現代私人銀行的 RM 是客戶體驗的樞紐，但其效率持續被以下痛點侵蝕：</p>
+<table><thead><tr><th>痛點</th><th>現況</th><th>對機構的影響</th></tr></thead><tbody><tr><td><strong>資訊過載</strong></td><td>RM 需手動消化國際財經新聞、地緣風險、產品公告</td><td>研究時間過長，建議品質因個人能力而異</td></tr><tr><td><strong>個人化不足</strong></td><td>模型投資組合覆蓋 80% 客戶，僅在邊緣做微調</td><td>高淨值客戶感受不到「為我設計」的專屬感</td></tr><tr><td><strong>策略驗證耗時</strong></td><td>組合調整依賴 Excel / 內部試算，缺乏樣本外驗證</td><td>推薦前難以快速證明「歷史上是否合理」</td></tr><tr><td><strong>靜態客戶報告</strong></td><td>系統報表呈現數據，缺乏市場脈絡與前瞻敘事</td><td>客戶檢視會流於形式，信任感難以深化</td></tr><tr><td><strong>再平衡反應慢</strong></td><td>市場 regime 切換時，調整週期以週／月計</td><td>錯失主動溝通與交叉銷售時機</td></tr></tbody></table>
+<p>這些效率問題轉化為：<strong>較高的營運成本、較慢的 AUM 成長、客戶流失風險，以及財富管理事業難以在不大幅增聘 RM 的前提下規模化</strong>。</p>
+<h3>2.3 Julius Baer 挑戰的核心命題</h3>
+<blockquote><p>如何運用 AI，為數位原生高淨值客戶打造從<strong>開戶（onboarding）到投資組合顧問（portfolio advisory）</strong>的無縫、超個人化旅程？</p></blockquote>
+<p>我們的理解是：答案不在於用聊天機器人取代 RM，而在於讓 RM 能在<strong>每一次客戶互動中</strong>，以機構級量化能力快速產出<strong>專屬於該客戶</strong>的策略假設、回測證據與可審計敘事——這是模型投資組合架構上無法提供的體驗。</p>
+<hr>
+<h2>3. 解決方案：JASPER AI — 私人銀行理專智能副駕</h2>
+<h3>3.1 產品定位</h3>
+<p><strong>JASPER AI 智能量化助手</strong>是一套 <strong>RM Copilot（理專副駕）</strong>，服務於私人銀行內部工作流程：</p>
+<ul>
+<li><strong>不是</strong> 對客直接下單的 Robo-Advisor</li>
+<li><strong>不是</strong> 取代 RM 判斷的「黑箱推薦引擎」</li>
+<li><strong>是</strong> 讓 RM 在單次工作階段內，完成「客戶輪廓 → 市場觀點 → 策略回測 → 冠軍遴選 → 機構級報告 → 客戶敘事」的閉環</li>
+</ul>
+<p><strong>設計原則</strong>：數學引擎算數字，生成式 AI 只寫敘事與研究假設。所有績效數字（夏普比率、最大回撤、相對基準超額等）均由同一套量化引擎計算，AI 敘事經<strong>零幻覺校驗（narrative_facts）</strong>自動比對，杜絕捏造報酬。</p>
+<h3>3.2 核心能力一覽</h3>
+<table><thead><tr><th>能力模組</th><th>功能說明</th><th>RM 價值</th></tr></thead><tbody><tr><td><strong>AI 投資搜尋（Pro 優化）</strong></td><td>生成式 AI 提供回合種子（round seed）+ Optuna 貝葉斯搜尋，在宣告邊界內探索最優權重與因子組合</td><td>從「手動試參數」升級為「AI 引導的智能收斂」</td></tr><tr><td><strong>Regime 自適應</strong></td><td>自動偵測 risk-on / neutral / risk-off 市場型態，動態切換優化目標</td><td>市場轉折時主動調整策略方向，而非年度再平衡才反應</td></tr><tr><td><strong>多資產類別槽位規劃</strong></td><td>依股、債、商品、REITs、另類等資產類別設定預算槽位（class budget）與區域子權重</td><td>對齊客戶約束與 Julius Baer 產品貨架結構</td></tr><tr><td><strong>冠軍遴選（Champion Selection）</strong></td><td>多回合 champion–challenger 機制，樣本內外分離評分，排行榜支援 OOS 排序</td><td>RM 可自信地向客戶展示「經得起樣本外考驗」的策略</td></tr><tr><td><strong>延續／暖啟動（Continuation / Warm-start）</strong></td><td>跨工作階段延續 Pro 收斂狀態；相似情境快取冠軍策略即時載入</td><td>客戶回訪或市場微調時無需從零開始</td></tr><tr><td><strong>機構級報告（Institutional Report）</strong></td><td>多期間績效、相對基準追蹤誤差／資訊比率、資產類別曝險、核心持股、回撤事件分析</td><td>直接作為客戶檢視會簡報素材，提升專業感</td></tr><tr><td><strong>自訂市場觀點</strong></td><td>RM 以自然語言描述市場看法 → AI 結構化為可回測情境（無金鑰時規則備援）</td><td>將 RM 的判斷力注入量化流程，而非被動套用模板</td></tr><tr><td><strong>多語系 B2C 介面（i18n）</strong></td><td>支援英文、繁體中文、韓文，適配數位原生客戶語言偏好</td><td>客戶共閱報告時降低語言障礙，強化信任</td></tr><tr><td><strong>標的池（Universe）</strong></td><td>目前約 328 檔 ETF，涵蓋美／歐／亞／新興股票、各類債券、商品、REITs、另類</td><td>POC 快速驗證；量產可擴充至 Julius Baer 基金／結構型產品目錄</td></tr></tbody></table>
+<h3>3.3 與模型投資組合（Model Portfolio）的本質差異</h3>
+<table><thead><tr><th>維度</th><th>模型投資組合（大型資管）</th><th>JASPER AI 超個人化</th></tr></thead><tbody><tr><td><strong>設計邏輯</strong></td><td>機構效率優先，服務成千上萬客戶</td><td>客戶輪廓優先，每位客戶可獨立策略</td></tr><tr><td><strong>市場觀點</strong></td><td>總部統一觀點，季度調整</td><td>RM 輸入個別觀點，即時結構化回測</td></tr><tr><td><strong>資產配置</strong></td><td>固定資產類別權重區間</td><td>多資產槽位 + 區域子權重動態優化</td></tr><tr><td><strong>市場型態適應</strong></td><td>靜態或緩慢再平衡</td><td>Regime 自適應，目標函數隨市場切換</td></tr><tr><td><strong>驗證嚴謹度</strong></td><td>回溯績效為主，樣本外驗證有限</td><td>預設 70% 訓練 / 30% 樣本外，冠軍須經 OOS 考驗</td></tr><tr><td><strong>敘事能力</strong></td><td>標準化產品說明書</td><td>AI 生成客製敘事，數字經零幻覺校驗</td></tr><tr><td><strong>迭代速度</strong></td><td>週／月級調整週期</td><td>單次工作階段內多回合收斂 + 暖啟動</td></tr><tr><td><strong>RM 角色</strong></td><td>產品銷售與合規填表</td><td>策略設計師 + 客戶關係深化</td></tr><tr><td><strong>規模化方式</strong></td><td>標準化複製</td><td>AI 放大 RM 產能，每位 RM 服務更多客戶而不犧牲品質</td></tr></tbody></table>
+<blockquote><p><strong>一句話差異化</strong>：模型投資組合回答「這個風險等級的客戶應買什麼」；JASPER 回答「<strong>這位</strong>客戶在<strong>當前</strong>市場環境下，<strong>為什麼</strong>這套配置對他／她最合理」。</p></blockquote>
+<hr>
+<h2>4. RM 工作流轉型：開戶到再平衡</h2>
+<h3>4.1 現況（Before JASPER）</h3>
+<pre>開戶 → 填寫 KYC / 風險問卷 → 指派模型投資組合 → 年度檢視
+         ↓                        ↓                    ↓
+    紙本／表單流程            標準化配置              靜態報表 + RM 口頭說明</pre>
+<p><strong>痛點</strong>：從開戶到首次有意義的個人化對話，可能需數週；市場劇變時 RM 難以即時提供有數據支撐的調整建議。</p>
+<h3>4.2 導入 JASPER 後（After JASPER）</h3>
+<table><thead><tr><th>階段</th><th>RM 操作</th><th>JASPER 支援</th><th>客戶體驗提升</th></tr></thead><tbody><tr><td><strong>① 開戶（Onboarding）</strong></td><td>輸入客戶風險等級、流動性需求、ESG 偏好、投資年限</td><td>自動對應資產類別約束與槽位預算</td><td>首次會議即有量化輪廓，非空談</td></tr><tr><td><strong>② 需求探索（Discovery）</strong></td><td>以對話方式了解客戶市場觀點、人生事件（購屋、傳承）</td><td>自訂觀點 → AI 結構化為可回測情境</td><td>客戶感受到「被理解」，而非被推銷</td></tr><tr><td><strong>③ 組合建構（Construction）</strong></td><td>選擇標的池範圍、啟動 Pro 多回合優化</td><td>AI 回合種子 + Optuna 搜尋 + 冠軍遴選</td><td>數分鐘內產出經樣本外驗證的策略候選</td></tr><tr><td><strong>④ 績效監控（Monitoring）</strong></td><td>定期檢視客戶組合 vs. 策略基準</td><td>Regime 偵測 + 機構級報告（追蹤誤差、回撤事件）</td><td>主動式溝通：「市場進入 risk-off，建議檢視債券曝險」</td></tr><tr><td><strong>⑤ 再平衡（Rebalancing）</strong></td><td>觸發微調或延續上次 Pro 收斂</td><td>Warm-start 載入冠軍 + Continuation 跨 session</td><td>調整有連續性與審計軌跡，非從零開始</td></tr></tbody></table>
+<h3>4.3 工作流示意</h3>
+<pre>客戶輪廓 + 市場觀點
+        ↓
+  JASPER 情境結構化
+        ↓
+  Pro 多回合優化（AI 種子 → Optuna → 冠軍遴選）
+        ↓
+  樣本外驗證 + 基準比較
+        ↓
+  機構級報告 + AI 敘事（零幻覺校驗）
+        ↓
+  RM 人審 → 客戶簡報 / 數位共閱（i18n）
+        ↓
+  監控 → Regime 切換 → 暖啟動微調 → 循環</pre>
+<hr>
+<h2>5. 技術架構（高階）</h2>
+<pre>┌─────────────────────────────────────────────────────────────┐
+│                    RM / 客戶介面層                            │
+│   Next.js Web App（對話式精靈｜多語系 EN / 繁中 / 한국어）      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │ REST API
+┌─────────────────────────▼───────────────────────────────────┐
+│                    FastAPI 服務層                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐ │
+│  │ Job 管理      │  │ Champion     │  │ Continuation     │ │
+│  │ 非同步任務    │  │ Registry     │  │ Warm-start       │ │
+│  └──────────────┘  └──────────────┘  └──────────────────┘ │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                    量化引擎層（Python）                        │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌───────────┐ │
+│  │ VectorBT   │ │ Optuna     │ │ Regime     │ │ Asset     │ │
+│  │ 組合回測   │ │ 貝葉斯搜尋  │ │ Detection  │ │ Class     │ │
+│  │            │ │            │ │ V2         │ │ Slot Plan │ │
+│  └────────────┘ └────────────┘ └────────────┘ └───────────┘ │
+│  ┌────────────┐ ┌────────────┐ ┌────────────────────────────┐│
+│  │ OOS 驗證   │ │ 基準比較   │ │ Institutional Analytics   ││
+│  │ 70/30 切分 │ │ TE / IR    │ │ 曝險 / 回撤 / 持股分析     ││
+│  └────────────┘ └────────────┘ └────────────────────────────┘│
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                    生成式 AI 層（Gemini）                      │
+│  回合種子｜市場觀點結構化｜策略敘事｜績效評估                    │
+│  ⚠ 僅輸出假設與文字；績效數字由引擎計算並經 narrative_facts 校驗 │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────▼───────────────────────────────────┐
+│                    資料層                                      │
+│  ETF Universe（328 檔）｜公開行情｜策略情境設定檔               │
+│  [量產] Julius Baer 產品目錄 API 介面（基金／債券／結構型）     │
+└─────────────────────────────────────────────────────────────┘</pre>
+<p><strong>整合設計原則</strong>：</p>
+<ul>
+<li><strong>API-first</strong>：可嵌入 Julius Baer 現有 CRM、組合管理系統</li>
+<li><strong>無客戶 PII 進模型</strong>：客戶個資不進入 LLM prompt；僅傳入匿名化約束參數</li>
+<li><strong>可審計</strong>：每次回測留下完整參數、冠軍紀錄、收斂歷程</li>
+<li><strong>部署彈性</strong>：Docker Compose 本機 PoC → Vercel + Railway 雲端 → 私有雲</li>
+</ul>
+<hr>
+<h2>6. 與 Julius Baer 的試點計畫（Pilot / PoC）</h2>
+<h3>6.1 試點目標</h3>
+<p>在 Hackcelerator 期間，與 Julius Baer 團隊共創一個<strong>可演示、可審計</strong>的 RM Copilot 原型，驗證：</p>
+<p>1. RM 能否在 <strong>30 分鐘內</strong> 完成一位模擬高淨值客戶的策略建構與報告產出</p>
+<p>2. 超個人化策略的樣本外表現是否優於對應風險等級的模型投資組合基準</p>
+<p>3. RM 對 AI 敘事與機構級報告的採用意願與信任度</p>
+<h3>6.2 三階段實施路線</h3>
+<table><thead><tr><th>階段</th><th>時間</th><th>重點工作</th><th>交付物</th></tr></thead><tbody><tr><td><strong>Phase 1：探索與對齊</strong></td><td>第 1 個月</td><td>深入理解 Julius Baer RM 工作流、產品目錄結構、合規邊界；定義試點客戶輪廓與基準</td><td>需求規格書、整合架構圖</td></tr><tr><td><strong>Phase 2：開發與整合</strong></td><td>第 2 個月</td><td>產品目錄介面對接（或模擬資料）；RM 專屬 UI 流程；冠軍快取與延續功能驗證</td><td>可運行原型、API 文件</td></tr><tr><td><strong>Phase 3：測試與迭代</strong></td><td>第 3 個月</td><td>邀請 RM 試用、收集回饋、快速迭代；準備 Demo 簡報與 3 分鐘影片</td><td>試用報告、Demo 腳本、路線圖建議</td></tr></tbody></table>
+<h3>6.3 建議試點場景</h3>
+<p><strong>場景</strong>：數位原生繼承人（35 歲），風險中等偏積極，關注 ESG 與亞洲曝險，認為未來 12 個月市場震盪加劇。</p>
+<table><thead><tr><th>步驟</th><th>RM 操作</th><th>預期產出</th></tr></thead><tbody><tr><td>1</td><td>設定資產類別（股 60% / 債 30% / 另類 10%）、ESG 篩選</td><td>約束面板</td></tr><tr><td>2</td><td>輸入「亞洲成長放緩、美債殖利率見頂」觀點</td><td>AI 結構化情境</td></tr><tr><td>3</td><td>啟動 Pro 優化（3 回合、樣本外 30%）</td><td>冠軍策略 + 排行榜</td></tr><tr><td>4</td><td>檢視機構級報告、AI 敘事</td><td>客戶簡報草稿</td></tr><tr><td>5</td><td>RM 微調權重、匯出 CSV</td><td>可審計紀錄</td></tr></tbody></table>
+<h3>6.4 成功指標（待與 Julius Baer 共定）</h3>
+<table><thead><tr><th>指標類別</th><th>方向性目標</th></tr></thead><tbody><tr><td><strong>RM 效率</strong></td><td>策略建構時間從「數天」縮短至「單次會議內」</td></tr><tr><td><strong>建議品質</strong></td><td>樣本外夏普 ≥ 對應模型投資組合基準</td></tr><tr><td><strong>採用度</strong></td><td>試用 RM 中 ≥ 70% 願意在客戶會議中使用 JASPER 報告</td></tr><tr><td><strong>客戶體驗</strong></td><td>試點客戶回饋「感受到個人化」比例提升</td></tr></tbody></table>
+<blockquote><p>⚠️ 以上為合理推論方向，非財務或轉換率承諾；具體 KPI 待試點啟動後與 Julius Baer 共定。</p></blockquote>
+<hr>
+<h2>7. 團隊與既有成果</h2>
+<h3>7.1 TradingValley</h3>
+<p>自 <strong>2017 年</strong> 起，團隊持續協助台灣金融機構建置 Robo-Advisor 與量化投資基礎設施，深刻理解財富管理產業的營運流程、法規環境與真實痛點。</p>
+<h3>7.2 核心競爭力</h3>
+<table><thead><tr><th>維度</th><th>說明</th></tr></thead><tbody><tr><td><strong>產業經驗</strong></td><td>7+ 年財富科技落地經驗，熟悉 RM 工作流與合規審查節奏</td></tr><tr><td><strong>AI × 量化雙棲</strong></td><td>團隊同時具備生成式 AI 工程與量化交易研究能力，確保方案既智能又穩健</td></tr><tr><td><strong>SFF 歷屆入選</strong></td><td><strong>2025 年 SFF Global FinTech Hackcelerator 入選</strong>（Growin 財富管理賽道，WinwinGPT RM 智能助手提案）</td></tr><tr><td><strong>產品成熟度</strong></td><td>JASPER AI 已具備 MVP v0.3 可演示功能，非從零概念</td></tr></tbody></table>
+<h3>7.3 團隊分工</h3>
+<table><thead><tr><th>角色</th><th>專長</th></tr></thead><tbody><tr><td>產品與場景設計</td><td>財富管理 UX、RM 訪談、合規溝通</td></tr><tr><td>量化引擎</td><td>VectorBT、Optuna、Regime 偵測、OOS 驗證</td></tr><tr><td>生成式 AI</td><td>Gemini 整合、零幻覺校驗、Pro 回合種子</td></tr><tr><td>部署與整合</td><td>Docker、API 設計、CRM 對接</td></tr></tbody></table>
+<hr>
+<h2>8. 路線圖、合規與免責聲明</h2>
+<h3>8.1 產品路線圖</h3>
+<table><thead><tr><th>階段</th><th>時間</th><th>里程碑</th></tr></thead><tbody><tr><td><strong>Hackcelerator PoC</strong></td><td>2026 Q3</td><td>Julius Baer RM Copilot 原型、試點驗證</td></tr><tr><td><strong>產品目錄擴充</strong></td><td>2026 Q4</td><td>接入基金、債券、結構型產品 API</td></tr><tr><td><strong>CRM 深度整合</strong></td><td>2027 H1</td><td>單一登入、客戶檔案同步、審計日誌</td></tr><tr><td><strong>客戶共閱入口</strong></td><td>2027 H2</td><td>白標 B2C 介面，客戶可即時檢視組合與報告</td></tr><tr><td><strong>多市場部署</strong></td><td>2027+</td><td>支援歐洲、中東、亞洲多時區與監管框架</td></tr></tbody></table>
+<h3>8.2 合規設計原則</h3>
+<table><thead><tr><th>原則</th><th>實作方式</th></tr></thead><tbody><tr><td><strong>Human-in-the-Loop</strong></td><td>所有對客建議須經 RM 審核後方可發送；JASPER 為內部工具</td></tr><tr><td><strong>研究與教育定位</strong></td><td>系統標示「研究與教育用途，不構成投資建議」</td></tr><tr><td><strong>可審計軌跡</strong></td><td>每次回測保留完整參數、冠軍紀錄、AI 敘事與校驗結果</td></tr><tr><td><strong>資料邊界</strong></td><td>客戶 PII 不進入 LLM；僅傳入匿名化風險參數</td></tr><tr><td><strong>樣本外驗證</strong></td><td>預設 70/30 切分，抑制過擬合後才呈現給 RM</td></tr><tr><td><strong>參數上限</strong></td><td>Pro 優化僅在宣告邊界內搜尋，防止極端配置</td></tr></tbody></table>
+<h3>8.3 免責聲明</h3>
+<blockquote><p><strong>JASPER AI 智能量化助手僅供研究與教育用途，不構成任何形式之投資建議、要約或招攬。</strong> 所有策略回測結果基於歷史資料，過往績效不代表未來表現。任何投資決策應由合格之關係經理人（RM）依客戶個別情況審慎評估，並遵循當地法規與機構內部合規流程。本提案所述效益為方向性推論，非財務承諾。</p></blockquote>
+<hr>
+<h2>9. 結語：為什麼是我們</h2>
+<p>84 兆美元的財富轉移，不是危機，而是私人銀行重新定義客戶體驗的契機。數位原生高淨值客戶要的不是另一個模型投資組合，而是<strong>真正理解他們</strong>的顧問——能即時回應市場變化、以數據支撐建議、並用他們的語言溝通。</p>
+<p><strong>JASPER AI</strong> 讓每一位 RM 都具備機構級量化能力，在不增加人力的前提下，將超個人化服務規模化。我們不是在取代 RM，而是在放大他們的專業價值。</p>
+<p>我們期待與 <strong>Julius Baer</strong> 攜手，在 SFF Hackcelerator 期間打造一個可演示、可審計、可擴展的 RM Copilot 原型，為私人銀行的下一個世代奠定基礎。</p>
+<hr>
+<p><strong>聯絡資訊</strong></p>
+<p>TradingValley</p>
+<p>[聯絡人姓名 / Email / 電話 — 提交前填入]</p>
+<hr>
+<p>*文件版本：v1.0｜2026 年 7 月｜SFF Global FinTech Hackcelerator — Julius Baer Track*</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,2 @@
+ticker,name,asset_class,region,product_type,enabled
+AAPL,Apple Inc.,equity,us,stock,true
