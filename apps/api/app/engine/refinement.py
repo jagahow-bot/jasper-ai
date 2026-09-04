@@ -19,7 +19,12 @@ from app.engine.objectives import (
     objective_label,
 )
 from app.engine.portfolio import metrics_for_horizon_window, stitch_full_path_from_slices
-from app.engine.ai_json import dumps_for_ai, round_ai_float, sanitize_for_ai
+from app.engine.ai_json import (
+    dumps_for_ai,
+    round_ai_float,
+    sanitize_for_ai,
+    truncate_at_sentence,
+)
 from app.engine.param_taxonomy import summarize_prior_round_seed
 from app.engine.spec import BacktestSpec, DEFAULT_SPEC
 
@@ -919,6 +924,11 @@ def build_round_seed_learning_payload(
     return ctx
 
 
+# needs_summary carries the client's full plain-language view into AI prompts;
+# keep it generous and truncate at sentence boundaries, never mid-sentence.
+_NEEDS_SUMMARY_MAX_LEN = 2000
+
+
 def client_needs_prompt_block(client_context: Any | None) -> dict[str, Any] | None:
     """Compact client-needs card injected into AI seed / narration prompts.
 
@@ -983,7 +993,9 @@ def client_needs_prompt_block(client_context: Any | None) -> dict[str, Any] | No
         )
     summary = client_context.get("needs_summary")
     if isinstance(summary, str) and summary.strip():
-        block["needs_summary"] = summary.strip()[:300]
+        block["needs_summary"] = truncate_at_sentence(
+            summary.strip(), _NEEDS_SUMMARY_MAX_LEN
+        )
     stance = client_context.get("market_stance")
     if stance in ("risk_on", "neutral", "risk_off"):
         block["market_stance"] = stance

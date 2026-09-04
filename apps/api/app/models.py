@@ -75,7 +75,7 @@ class ClientContext(BaseModel):
     )
     needs_summary: str | None = Field(
         default=None,
-        max_length=300,
+        max_length=2000,
         description="Plain-language summary of the client view, shown to AI prompts only.",
     )
     market_stance: Literal["risk_on", "neutral", "risk_off"] | None = Field(

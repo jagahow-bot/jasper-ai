@@ -123,3 +123,75 @@ def test_client_needs_prompt_line_includes_stance_themes():
     assert "stance=risk_on" in line
     assert 'themes="AI;semiconductors"' in line
     assert "risk=moderate" in line
+
+
+def test_truncate_at_sentence_boundaries():
+    from app.engine.ai_json import truncate_at_sentence
+
+    short = "short view"
+    assert truncate_at_sentence(short, 2000) == short
+
+    text = "First sentence. Second sentence. Third sentence."
+    assert truncate_at_sentence(text, 32) == "First sentence. Second sentence."
+
+    cjk = "第一句話。第二句話。第三句話。"
+    assert truncate_at_sentence(cjk, 14) == "第一句話。第二句話。"
+
+    # Numbered-list periods ("1.") are not sentence boundaries.
+    listed = "1. AI 配置: 核心衛星策略,聚焦供應鏈龍頭。" + "補充說明。" * 10
+    out = truncate_at_sentence(listed, 40)
+    assert out.startswith("1. AI")
+    assert out.endswith("。")
+
+
+def test_client_needs_prompt_line_preserves_full_view():
+    """Regression: view= was cut mid-sentence at 120 chars; full rationale must pass."""
+    from app.engine.ai_params import _client_needs_prompt_line
+
+    view = (
+        "1. AI 直接指數化配置: 客戶希望以 AI 供應鏈為核心衛星配置。"
+        "2. 避開高估值科技股以外的擁擠交易。"
+        "3. 配置避險資產以對沖尾部風險,包含黃金與短天期公債。"
+        "4. 維持百分之五現金緩衝以因應流動性需求。"
+        "5. 單一持股上限百分之十五,主題曝險上限百分之二十五。"
+    )
+    assert len(view) > 120  # old cap cut this mid-sentence
+    line = _client_needs_prompt_line(
+        {
+            "client_needs": {
+                "risk_tolerance": "aggressive",
+                "investment_horizon_years": 5.0,
+                "market_stance": "risk_on",
+                "needs_summary": view,
+            }
+        }
+    )
+    assert line is not None
+    assert f'view="{view}"' in line
+    assert "..." not in line
+
+
+def test_client_needs_prompt_line_truncates_huge_view_at_sentence_boundary():
+    from app.engine.ai_params import (
+        _CLIENT_NEEDS_VIEW_MAX_LEN,
+        _client_needs_prompt_line,
+    )
+
+    view = "這是一句關於客戶投資觀點的完整描述。" * 200  # ~3600 chars, over budget
+    line = _client_needs_prompt_line({"client_needs": {"needs_summary": view}})
+    assert line is not None
+    payload = line.split('view="', 1)[1].rstrip('"')
+    assert len(payload) <= _CLIENT_NEEDS_VIEW_MAX_LEN
+    assert payload.endswith("。")  # sentence boundary, not mid-sentence
+
+
+def test_client_needs_prompt_block_preserves_long_summary():
+    """Regression: prompt block used to hard-cut needs_summary at 300 chars."""
+    summary = "Prefer capital preservation. " + (
+        "Gradual equity exposure with quality tilt. " * 60
+    )
+    block = client_needs_prompt_block({"needs_summary": summary})
+    assert block is not None
+    assert len(block["needs_summary"]) > 300
+    assert "capital preservation" in block["needs_summary"]
+    assert block["needs_summary"].endswith(".")

@@ -18,6 +18,11 @@ import {
   resolveAuditChampion,
 } from "@/lib/audit-raw-data";
 import { formatWeightPct } from "@/lib/candidate-weights";
+import {
+  formatStageImplementations,
+  hasEngineCapabilityReviewContent,
+  isLegacyEnginePin,
+} from "@/lib/engine-capability-review";
 import { useI18n } from "@/lib/i18n";
 import type { ClientOverlay } from "@/lib/overlay-schema";
 import type { BacktestRequest, BacktestResult } from "@/lib/types";
@@ -678,6 +683,10 @@ export function AuditRawDataPanel({ result, request, overlay = null }: Props) {
         </Section>
       ) : null}
 
+      {hasEngineCapabilityReviewContent(result, overlay) ? (
+        <EngineCapabilityReviewBlock result={result} overlay={overlay} />
+      ) : null}
+
       <details className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
         <summary className="cursor-pointer ui-body font-medium">
           {t("results.audit.fullNarrativeFacts")}
@@ -687,6 +696,102 @@ export function AuditRawDataPanel({ result, request, overlay = null }: Props) {
         </pre>
       </details>
     </div>
+  );
+}
+
+function EngineCapabilityReviewBlock({
+  result,
+  overlay,
+}: {
+  result: BacktestResult;
+  overlay?: ClientOverlay | null;
+}) {
+  const { t } = useI18n();
+  const stageRows = formatStageImplementations(result.stage_implementations);
+  const caps = result.capabilities_used ?? [];
+  const gaps = overlay?.capability_gaps ?? [];
+
+  return (
+    <details className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+      <summary className="cursor-pointer ui-body font-medium">
+        {t("results.audit.engineCapabilities")}
+      </summary>
+      <p className="ui-hint mt-2">{t("results.audit.engineCapabilitiesHint")}</p>
+      {isLegacyEnginePin(result) ? (
+        <p className="ui-body mt-2 text-amber-800">
+          {t("results.audit.engineLegacyNote")}
+        </p>
+      ) : null}
+      <div className="mt-3">
+        <MetaGrid
+          rows={[
+            {
+              label: t("results.audit.stageCatalogVersion"),
+              value: result.stage_catalog_version ?? "—",
+            },
+            {
+              label: t("results.audit.paramCatalogVersion"),
+              value:
+                result.param_catalog_version != null
+                  ? String(result.param_catalog_version)
+                  : "—",
+            },
+          ]}
+        />
+      </div>
+      {stageRows.length > 0 ? (
+        <div className="mt-3 space-y-1">
+          <p className="ui-hint font-medium">
+            {t("results.audit.stageImplementations")}
+          </p>
+          <ul className="list-inside list-disc ui-body">
+            {stageRows.map((row) => (
+              <li key={row.stage}>
+                <span className="text-dim">{row.stage}</span>: {row.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {caps.length > 0 ? (
+        <div className="mt-3 space-y-1">
+          <p className="ui-hint font-medium">
+            {t("results.audit.capabilitiesUsed")}
+          </p>
+          <ul className="list-inside list-disc ui-body">
+            {caps.map((cap) => (
+              <li key={`${cap.stage}-${cap.implementation_id}-${cap.version}`}>
+                {cap.stage}/{cap.implementation_id}@{cap.version}
+                {cap.pending_supervisor_signoff
+                  ? ` · ${t("results.audit.capabilityPendingSignoff")}`
+                  : ` · ${cap.status}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {gaps.length > 0 ? (
+        <div className="mt-3 space-y-1">
+          <p className="ui-hint font-medium">
+            {t("results.audit.capabilityGaps")}
+          </p>
+          <ul className="space-y-2">
+            {gaps.map((gap, i) => (
+              <li
+                key={`${gap.stage}-${gap.missing_capability}-${i}`}
+                className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 ui-body"
+              >
+                <div className="font-medium">
+                  {gap.stage} · {gap.missing_capability}
+                  <span className="ml-1 text-dim">({gap.severity})</span>
+                </div>
+                <p className="ui-hint mt-0.5">{gap.summary}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </details>
   );
 }
 
