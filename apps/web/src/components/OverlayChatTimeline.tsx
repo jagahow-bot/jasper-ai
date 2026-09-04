@@ -14,6 +14,7 @@ import type {
   OverlayProposedTicker,
 } from "@/lib/overlay-schema";
 import { formatOverlaySummary } from "@/lib/overlay-schema";
+import type { OverlayDriftHints } from "@/lib/overlay-drift-sync";
 import { useI18n, type Lang } from "@/lib/i18n";
 
 export type SummarySnapshot = {
@@ -35,6 +36,7 @@ type Props = {
   confirmed?: boolean;
   confirming?: boolean;
   disabled?: boolean;
+  driftHint?: OverlayDriftHints | null;
   onAskChange: (asks: OverlayAsk[]) => void;
   onClarifyDraftChange: (index: number, draft: ClarificationDraft) => void;
   onConfirmProposed: (tickers: string[]) => void;
@@ -263,6 +265,7 @@ export function OverlayChatTimeline({
   confirmed,
   confirming,
   disabled,
+  driftHint = null,
   onAskChange,
   onClarifyDraftChange,
   onConfirmProposed,
@@ -337,6 +340,34 @@ export function OverlayChatTimeline({
             <pre className="mt-1 whitespace-pre-wrap text-xs leading-snug text-[var(--ui-color-body)]">
               {formatOverlaySummary(overlay, overlayLang)}
             </pre>
+            {driftHint && driftHint.minRequiredDrift > 0 ? (
+              <div
+                className={`mt-2 border-t border-[var(--border)]/60 pt-2 text-xs ${
+                  driftHint.feasible ? "text-emerald-700" : "text-amber-800"
+                }`}
+              >
+                <p className="font-medium">{t("overlay.driftHint.title")}</p>
+                <p className="mt-0.5">
+                  {driftHint.feasible
+                    ? t("overlay.driftHint.ok", {
+                        pct: Math.round(driftHint.minRequiredDrift * 100),
+                        current: Math.round(driftHint.currentDrift * 100),
+                      })
+                    : t("overlay.driftHint.need", {
+                        pct: Math.round(driftHint.minRequiredDrift * 100),
+                        current: Math.round(driftHint.currentDrift * 100),
+                        suggested: Math.round(driftHint.suggestedDrift * 100),
+                      })}
+                </p>
+                {driftHint.requiresSupervisor ? (
+                  <p className="mt-1 text-amber-800">
+                    {t("overlay.driftHint.supervisor", {
+                      pct: Math.round(driftHint.suggestedDrift * 100),
+                    })}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           <AskCardsInline

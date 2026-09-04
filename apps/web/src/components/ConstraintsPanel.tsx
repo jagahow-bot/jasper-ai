@@ -23,6 +23,7 @@ import {
   type TFn,
 } from "@/lib/i18n";
 import type { BacktestRequest, Objective, ParamControl } from "@/lib/types";
+import type { OverlayDriftHints } from "@/lib/overlay-drift-sync";
 import {
   ensureMaxHoldingsForCap,
   minHoldingsForCap,
@@ -44,6 +45,8 @@ type Props = {
   emailNotificationsEnabled?: boolean | null;
   /** RM mode: universe is fixed at overlay sign-off. */
   universeReadOnly?: boolean;
+  /** Optional overlay drift floor for the customization slider ruler. */
+  driftFloorHint?: OverlayDriftHints | null;
 };
 
 export function ConstraintsPanel({
@@ -53,6 +56,7 @@ export function ConstraintsPanel({
   apiOnline,
   emailNotificationsEnabled,
   universeReadOnly = false,
+  driftFloorHint = null,
 }: Props) {
   const { t } = useI18n();
   const [quantMode, setQuantMode] = useState(false);
@@ -280,10 +284,15 @@ export function ConstraintsPanel({
 
       {!universeReadOnly ? (
         <label className="block space-y-2">
-          <span className="ui-label">
+          <span className="ui-label flex flex-wrap items-center gap-2">
             {t("config.customizationDrift", {
               pct: Math.round((value.customization_drift ?? 0.5) * 100),
             })}
+            {driftFloorHint?.requiresSupervisor ? (
+              <span className="pixel-badge pixel-badge-warn">
+                {t("rm.run.driftSupervisorBadge")}
+              </span>
+            ) : null}
           </span>
           <input
             type="range"
@@ -296,6 +305,34 @@ export function ConstraintsPanel({
             }
             className="w-full"
           />
+          {driftFloorHint && driftFloorHint.minRequiredDrift > 0 ? (
+            <div className="space-y-1">
+              <div className="relative h-1.5 rounded bg-[var(--border)]">
+                <div
+                  className={`absolute inset-y-0 left-0 rounded ${
+                    driftFloorHint.feasible
+                      ? "bg-emerald-300/50"
+                      : "bg-amber-300/60"
+                  }`}
+                  style={{
+                    width: `${driftFloorHint.minRequiredDrift * 100}%`,
+                  }}
+                />
+                <div
+                  className="absolute -top-1 -bottom-1 w-0.5 bg-amber-500"
+                  style={{
+                    left: `${driftFloorHint.minRequiredDrift * 100}%`,
+                    transform: "translateX(-50%)",
+                  }}
+                />
+              </div>
+              <p className="text-[10px] text-dim">
+                {t("rm.run.driftFloorMarker", {
+                  pct: Math.round(driftFloorHint.minRequiredDrift * 100),
+                })}
+              </p>
+            </div>
+          ) : null}
           <p className="ui-hint">{t("config.customizationDriftHint")}</p>
         </label>
       ) : null}

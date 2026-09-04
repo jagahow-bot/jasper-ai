@@ -35,6 +35,7 @@ import {
   clearProposedTickers,
   proposedTickersAfterClarificationDedup,
 } from "@/lib/overlay-filter-proposals";
+import { computeOverlayDriftHints } from "@/lib/overlay-drift-sync";
 import {
   shouldPushUpToParent,
   shouldSyncDownFromParent,
@@ -625,6 +626,15 @@ export function OverlayConversationPanel({
     );
   }, [confirmed, overlay, clarifications]);
 
+  const driftHint = useMemo(
+    () =>
+      computeOverlayDriftHints(overlay, {
+        anchorPositions,
+        currentDrift: customizationDrift ?? 0.5,
+      }),
+    [overlay, anchorPositions, customizationDrift],
+  );
+
   return (
     <div
       className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3"
@@ -655,6 +665,7 @@ export function OverlayConversationPanel({
         loading={loading}
         confirmed={confirmed}
         confirming={confirming}
+        driftHint={driftHint}
         onAskChange={(asks) => {
           if (!overlay) return;
           setOverlay({ ...overlay, asks });

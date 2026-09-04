@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
+import {
+  computeOverlayDriftHints,
+  type OverlayDriftHints,
+} from "@/lib/overlay-drift-sync";
 import { formatOverlaySummary } from "@/lib/overlay-schema";
 import type { ClientOverlay } from "@/lib/overlay-schema";
 import { getCustomizedVsAnchorLabel } from "@/lib/model-portfolios";
@@ -9,6 +13,12 @@ import type { ModelPortfolio } from "@/lib/model-portfolios";
 import { useI18n } from "@/lib/i18n";
 import { combinedUniverseFromRequest, countUniverse } from "@/lib/universe";
 import type { BacktestRequest } from "@/lib/types";
+
+type DriftSyncNotice = {
+  from: number;
+  to: number;
+  requiresSupervisor: boolean;
+};
 
 type Props = {
   overlay: ClientOverlay;
@@ -18,7 +28,40 @@ type Props = {
   onRun: () => void;
   apiOnline?: boolean | null;
   emailNotificationsEnabled?: boolean | null;
+  driftSyncNotice?: DriftSyncNotice | null;
+  onDismissDriftSyncNotice?: () => void;
 };
+
+function DriftFloorRuler({
+  hints,
+  t,
+}: {
+  hints: OverlayDriftHints;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  if (hints.minRequiredDrift <= 0) return null;
+  const pct = Math.round(hints.minRequiredDrift * 100);
+  const left = `${hints.minRequiredDrift * 100}%`;
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="relative h-1.5 rounded bg-[var(--border)]">
+        <div
+          className={`absolute inset-y-0 left-0 rounded ${
+            hints.feasible ? "bg-emerald-300/50" : "bg-amber-300/60"
+          }`}
+          style={{ width: left }}
+        />
+        <div
+          className="absolute -top-1 -bottom-1 w-0.5 bg-amber-500"
+          style={{ left, transform: "translateX(-50%)" }}
+        />
+      </div>
+      <p className="text-[10px] text-dim">
+        {t("rm.run.driftFloorMarker", { pct })}
+      </p>
+    </div>
+  );
+}
 
 export function RmRunPanel({
   overlay,
@@ -28,9 +71,14 @@ export function RmRunPanel({
   onRun,
   apiOnline,
   emailNotificationsEnabled,
+  driftSyncNotice = null,
+  onDismissDriftSyncNotice,
 }: Props) {
   const { t, lang } = useI18n();
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [pendingLowerDrift, setPendingLowerDrift] = useState<number | null>(
+    null,
+  );
   const summary = formatOverlaySummary(overlay, lang);
   const customizedLabel = getCustomizedVsAnchorLabel(anchorPortfolio, lang);
   const universeCount = countUniverse(combinedUniverseFromRequest(request));
@@ -42,6 +90,24 @@ export function RmRunPanel({
   ];
   const isPro = request.optimization_mode === "pro_auto";
 
+  const anchorWeights = useMemo(
+    () =>
+      Object.fromEntries(
+        anchorPortfolio.holdings
+          .filter((h) => h.weight > 0)
+          .map((h) => [h.ticker.toUpperCase(), h.weight]),
+      ),
+    [anchorPortfolio],
+  );
+  const driftHints = useMemo(
+    () =>
+      computeOverlayDriftHints(overlay, {
+        anchorWeights,
+        currentDrift: request.customization_drift ?? 0.5,
+      }),
+    [overlay, anchorWeights, request.customization_drift],
+  );
+
   const setProSearch = (on: boolean) => {
     onChange({
       ...request,
@@ -50,11 +116,68 @@ export function RmRunPanel({
     });
   };
 
+  const onDriftSliderChange = (next: number) => {
+    const floor = driftHints.minRequiredDrift;
+    const cur = request.customization_drift ?? 0.5;
+    if (floor > 0 && next < floor - 1e-9 && cur >= floor - 1e-9) {
+      setPendingLowerDrift(next);
+      return;
+    }
+    setPendingLowerDrift(null);
+    onChange({ ...request, customization_drift: next });
+  };
+
+  const sourceLine =
+    driftHints.sources.length > 0
+      ? t("overlay.driftSync.sourceLine", {
+          sources: driftHints.sources
+            .slice(0, 3)
+            .map((s) => s.ref)
+            .join(lang === "zh" ? "、" : ", "),
+        })
+      : null;
+
   return (
     <div className="space-y-4">
       <div className="pixel-panel">
         <h2 className="ui-panel-title">{t("rm.run.title")}</h2>
         <p className="ui-body mt-2 text-dim">{t("rm.run.subtitle")}</p>
+
+        {driftSyncNotice ? (
+          <div
+            className={`mt-3 flex items-start justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
+              driftSyncNotice.requiresSupervisor
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-emerald-200 bg-emerald-50 text-emerald-900"
+            }`}
+          >
+            <div className="space-y-0.5">
+              <p>
+                {driftSyncNotice.requiresSupervisor
+                  ? t("overlay.driftSync.raisedSupervisor", {
+                      to: Math.round(driftSyncNotice.to * 100),
+                    })
+                  : t("overlay.driftSync.raised", {
+                      from: Math.round(driftSyncNotice.from * 100),
+                      to: Math.round(driftSyncNotice.to * 100),
+                    })}
+              </p>
+              {sourceLine ? (
+                <p className="text-xs opacity-80">{sourceLine}</p>
+              ) : null}
+            </div>
+            {onDismissDriftSyncNotice ? (
+              <button
+                type="button"
+                onClick={onDismissDriftSyncNotice}
+                className="shrink-0 text-lg leading-none opacity-60 hover:opacity-100"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="saas-inset">
@@ -130,10 +253,15 @@ export function RmRunPanel({
 
         <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
           <label className="block space-y-2">
-            <span className="ui-label">
+            <span className="ui-label flex flex-wrap items-center gap-2">
               {t("config.customizationDrift", {
                 pct: Math.round((request.customization_drift ?? 0.5) * 100),
               })}
+              {driftHints.requiresSupervisor ? (
+                <span className="pixel-badge pixel-badge-warn">
+                  {t("rm.run.driftSupervisorBadge")}
+                </span>
+              ) : null}
             </span>
             <input
               type="range"
@@ -142,13 +270,54 @@ export function RmRunPanel({
               step={5}
               value={Math.round((request.customization_drift ?? 0.5) * 100)}
               onChange={(e) =>
-                onChange({
-                  ...request,
-                  customization_drift: Number(e.target.value) / 100,
-                })
+                onDriftSliderChange(Number(e.target.value) / 100)
               }
               className="w-full"
             />
+            <DriftFloorRuler hints={driftHints} t={t} />
+            {!driftHints.feasible && driftHints.minRequiredDrift > 0 ? (
+              <p className="text-xs text-amber-700">
+                {t("rm.run.driftBelowFloorWarning", {
+                  current: Math.round((request.customization_drift ?? 0.5) * 100),
+                  pct: Math.round(driftHints.minRequiredDrift * 100),
+                })}
+              </p>
+            ) : null}
+            {pendingLowerDrift != null ? (
+              <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <p className="font-medium">
+                  {t("rm.run.driftLowerConfirmTitle")}
+                </p>
+                <p className="mt-1">
+                  {t("rm.run.driftLowerConfirmBody", {
+                    to: Math.round(pendingLowerDrift * 100),
+                    pct: Math.round(driftHints.minRequiredDrift * 100),
+                  })}
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    className="pixel-btn px-2 py-1 text-xs"
+                    onClick={() => {
+                      onChange({
+                        ...request,
+                        customization_drift: pendingLowerDrift,
+                      });
+                      setPendingLowerDrift(null);
+                    }}
+                  >
+                    {t("rm.run.driftLowerConfirmOk")}
+                  </button>
+                  <button
+                    type="button"
+                    className="pixel-btn border border-[var(--border)] bg-white px-2 py-1 text-xs text-[var(--ui-color-body)]"
+                    onClick={() => setPendingLowerDrift(null)}
+                  >
+                    {t("rm.run.driftLowerConfirmCancel")}
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <p className="ui-hint">{t("config.customizationDriftHint")}</p>
           </label>
         </div>
@@ -210,6 +379,7 @@ export function RmRunPanel({
           apiOnline={apiOnline}
           emailNotificationsEnabled={emailNotificationsEnabled}
           universeReadOnly
+          driftFloorHint={driftHints}
         />
       )}
     </div>

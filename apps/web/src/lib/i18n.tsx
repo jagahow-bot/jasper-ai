@@ -1244,6 +1244,18 @@ const en: Dict = {
   "overlay.clarify.questionProgress": "Question {current} / {total}",
   "overlay.chat.summaryCard": "Adjustment summary",
   "overlay.chat.summaryCardCollapsed": "Previous summary ▸",
+  "overlay.driftHint.need":
+    "This overlay needs at least {pct}% customization drift (current cap {current}%) — it will auto-raise to {suggested}% on confirm",
+  "overlay.driftHint.ok":
+    "Drift cap is sufficient (need {pct}% ≤ current {current}%)",
+  "overlay.driftHint.supervisor":
+    "Suggested {pct}% exceeds 60% — supervisor approval will be recorded",
+  "overlay.driftHint.title": "Drift requirement",
+  "overlay.driftSync.raised":
+    "Customization drift auto-raised from {from}% to {to}% to match the overlay.",
+  "overlay.driftSync.raisedSupervisor":
+    "Auto-raised to {to}%; above 60% — supervisor approval will be recorded.",
+  "overlay.driftSync.sourceLine": "Sources: {sources}",
   "overlay.clarify.sendCount": "Send {count} answer",
   "overlay.clarify.sendCountPlural": "Send {count} answers",
   "overlay.clarify.sending": "Analyzing…",
@@ -1289,6 +1301,15 @@ const en: Dict = {
   "rm.run.execute": "Start trial comparison",
   "rm.run.showAdvanced": "Advanced settings",
   "rm.run.hideAdvanced": "Hide advanced settings",
+  "rm.run.driftFloorMarker": "Overlay minimum {pct}%",
+  "rm.run.driftBelowFloorWarning":
+    "Current cap {current}% is below the overlay minimum {pct}% — some allocation targets cannot be fully met.",
+  "rm.run.driftLowerConfirmTitle": "Lower anyway?",
+  "rm.run.driftLowerConfirmBody":
+    "Lowering to {to}% goes below the overlay minimum {pct}%; some targets will not be met.",
+  "rm.run.driftLowerConfirmOk": "Lower anyway",
+  "rm.run.driftLowerConfirmCancel": "Cancel",
+  "rm.run.driftSupervisorBadge": ">60% needs supervisor",
   "rm.universe.fixedTitle": "Investment candidate list (fixed)",
   "rm.universe.fixedCount": "{n} tickers pinned for projection",
   "rm.universe.lockedTitle": "Model portfolio holdings (locked)",
@@ -3081,6 +3102,17 @@ const zh: Dict = {
   "overlay.clarify.questionProgress": "問題 {current} / {total}",
   "overlay.chat.summaryCard": "調整方案摘要",
   "overlay.chat.summaryCardCollapsed": "上一輪摘要 ▸",
+  "overlay.driftHint.need":
+    "此 Overlay 至少需要 {pct}% 客製化偏離（目前上限 {current}%）— 確認時將自動調升至 {suggested}%",
+  "overlay.driftHint.ok": "偏離上限已足夠（需求 {pct}% ≤ 目前 {current}%）",
+  "overlay.driftHint.supervisor":
+    "建議值 {pct}% 超過 60%，需主管核准留痕",
+  "overlay.driftHint.title": "偏離需求",
+  "overlay.driftSync.raised":
+    "已依 Overlay 需求將客製化偏離從 {from}% 自動調升至 {to}%。",
+  "overlay.driftSync.raisedSupervisor":
+    "已自動調升至 {to}%；超過 60%，需主管核准留痕。",
+  "overlay.driftSync.sourceLine": "來源：{sources}",
   "overlay.clarify.sendCount": "送出 {count} 則回覆",
   "overlay.clarify.sendCountPlural": "送出 {count} 則回覆",
   "overlay.clarify.sending": "分析中…",
@@ -3125,6 +3157,15 @@ const zh: Dict = {
   "rm.run.execute": "開始試算比較",
   "rm.run.showAdvanced": "進階設定",
   "rm.run.hideAdvanced": "收合進階設定",
+  "rm.run.driftFloorMarker": "Overlay 最低需求 {pct}%",
+  "rm.run.driftBelowFloorWarning":
+    "目前上限 {current}% 低於 Overlay 最低需求 {pct}%——部分配置目標將無法完整達成。",
+  "rm.run.driftLowerConfirmTitle": "確定要調降嗎？",
+  "rm.run.driftLowerConfirmBody":
+    "調降至 {to}% 將低於 Overlay 最低需求 {pct}%，部分配置目標會無法達成。",
+  "rm.run.driftLowerConfirmOk": "確定調降",
+  "rm.run.driftLowerConfirmCancel": "取消",
+  "rm.run.driftSupervisorBadge": ">60% 需主管核准",
   "rm.universe.fixedTitle": "投資標的（已固定）",
   "rm.universe.fixedCount": "已固定 {n} 檔標的",
   "rm.universe.lockedTitle": "模型投組持倉（已鎖定）",
@@ -4920,6 +4961,18 @@ const ko: Dict = {
   "overlay.clarify.questionProgress": "질문 {current} / {total}",
   "overlay.chat.summaryCard": "조정 요약",
   "overlay.chat.summaryCardCollapsed": "이전 요약 ▸",
+  "overlay.driftHint.need":
+    "이 오버레이는 맞춤화 편차가 최소 {pct}% 필요합니다(현재 상한 {current}%) — 확인 시 {suggested}%로 자동 상향됩니다",
+  "overlay.driftHint.ok":
+    "편차 상한이 충분합니다(필요 {pct}% ≤ 현재 {current}%)",
+  "overlay.driftHint.supervisor":
+    "권장값 {pct}%가 60%를 초과하여 관리자 승인이 기록됩니다",
+  "overlay.driftHint.title": "편차 요구량",
+  "overlay.driftSync.raised":
+    "오버레이에 맞춰 맞춤화 편차가 {from}%에서 {to}%로 자동 상향되었습니다.",
+  "overlay.driftSync.raisedSupervisor":
+    "{to}%로 자동 상향되었으며, 60% 초과로 관리자 승인이 기록됩니다.",
+  "overlay.driftSync.sourceLine": "출처: {sources}",
   "overlay.clarify.sendCount": "답변 {count}개 보내기",
   "overlay.clarify.sendCountPlural": "답변 {count}개 보내기",
   "overlay.clarify.sending": "분석 중…",
@@ -4963,6 +5016,15 @@ const ko: Dict = {
   "rm.run.execute": "시산 비교 시작",
   "rm.run.showAdvanced": "고급 설정",
   "rm.run.hideAdvanced": "고급 설정 숨기기",
+  "rm.run.driftFloorMarker": "오버레이 최소 요구 {pct}%",
+  "rm.run.driftBelowFloorWarning":
+    "현재 상한 {current}%가 오버레이 최소 {pct}%보다 낮아 일부 배분 목표를 완전히 충족할 수 없습니다.",
+  "rm.run.driftLowerConfirmTitle": "낮추시겠습니까?",
+  "rm.run.driftLowerConfirmBody":
+    "{to}%로 낮추면 오버레이 최소 {pct}%보다 낮아 일부 목표를 달성할 수 없습니다.",
+  "rm.run.driftLowerConfirmOk": "낮추기",
+  "rm.run.driftLowerConfirmCancel": "취소",
+  "rm.run.driftSupervisorBadge": "60% 초과 관리자 승인 필요",
   "rm.universe.fixedTitle": "투자 유니버스 (고정됨)",
   "rm.universe.fixedCount": "{n}개 종목 고정",
   "rm.universe.lockedTitle": "모델 포트폴리오 보유종목 (잠금)",
