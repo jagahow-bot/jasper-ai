@@ -32,6 +32,8 @@ type Props = {
   clarifyDrafts: ClarificationDraft[];
   asks: OverlayAsk[];
   proposedTickers: OverlayProposedTicker[];
+  /** Thematic needs exist but proposals are empty — show ack / hint panel. */
+  tickerReviewRequired?: boolean;
   loading?: boolean;
   confirmed?: boolean;
   confirming?: boolean;
@@ -40,6 +42,7 @@ type Props = {
   onAskChange: (asks: OverlayAsk[]) => void;
   onClarifyDraftChange: (index: number, draft: ClarificationDraft) => void;
   onConfirmProposed: (tickers: string[]) => void;
+  onSkipProposedNoAdds?: () => void;
 };
 
 function MessageBubble({ message }: { message: ChatMessage }) {
@@ -135,11 +138,15 @@ function AskCardsInline({
 function ProposedTickersInline({
   candidates,
   disabled,
+  reviewRequired,
   onConfirm,
+  onSkipNoAdds,
 }: {
   candidates: OverlayProposedTicker[];
   disabled?: boolean;
+  reviewRequired?: boolean;
   onConfirm: (tickers: string[]) => void;
+  onSkipNoAdds?: () => void;
 }) {
   const { t } = useI18n();
   const candidateKey = candidates.map((c) => c.ticker).join("\0");
@@ -160,7 +167,7 @@ function ProposedTickersInline({
     });
   }, [candidateKey]);
 
-  if (!candidates.length) return null;
+  if (!candidates.length && !reviewRequired) return null;
 
   const allSelected = selected.size === candidates.length && candidates.length > 0;
 
@@ -170,53 +177,74 @@ function ProposedTickersInline({
         <span className="text-xs font-semibold text-[var(--foreground)]">
           {t("overlay.proposedTickers.title")}
         </span>
-        <button
-          type="button"
-          onClick={() =>
-            setSelected(
-              allSelected ? new Set() : new Set(candidates.map((c) => c.ticker)),
-            )
-          }
-          className="text-xs text-[var(--primary)] hover:underline"
-        >
-          {allSelected
-            ? t("overlay.proposedTickers.none")
-            : t("overlay.proposedTickers.all")}
-        </button>
+        {candidates.length > 0 ? (
+          <button
+            type="button"
+            onClick={() =>
+              setSelected(
+                allSelected ? new Set() : new Set(candidates.map((c) => c.ticker)),
+              )
+            }
+            className="text-xs text-[var(--primary)] hover:underline"
+          >
+            {allSelected
+              ? t("overlay.proposedTickers.none")
+              : t("overlay.proposedTickers.all")}
+          </button>
+        ) : null}
       </div>
-      <div className="space-y-2">
-        {candidates.map((c) => (
-          <label key={c.ticker} className="flex cursor-pointer items-start gap-2">
-            <input
-              type="checkbox"
-              checked={selected.has(c.ticker)}
-              onChange={() => {
-                setSelected((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(c.ticker)) next.delete(c.ticker);
-                  else next.add(c.ticker);
-                  return next;
-                });
-              }}
-              className="mt-0.5"
-              disabled={disabled}
-            />
-            <div className="text-sm leading-snug">
-              <span className="font-semibold">{c.ticker}</span>
-              {c.name && <span className="text-dim"> — {c.name}</span>}
-              {c.rationale && <p className="text-xs text-dim">{c.rationale}</p>}
-            </div>
-          </label>
-        ))}
+      {!candidates.length && reviewRequired ? (
+        <p className="text-xs text-dim">{t("overlay.proposedTickers.emptyNeedsHint")}</p>
+      ) : null}
+      {candidates.length > 0 ? (
+        <div className="space-y-2">
+          {candidates.map((c) => (
+            <label key={c.ticker} className="flex cursor-pointer items-start gap-2">
+              <input
+                type="checkbox"
+                checked={selected.has(c.ticker)}
+                onChange={() => {
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(c.ticker)) next.delete(c.ticker);
+                    else next.add(c.ticker);
+                    return next;
+                  });
+                }}
+                className="mt-0.5"
+                disabled={disabled}
+              />
+              <div className="text-sm leading-snug">
+                <span className="font-semibold">{c.ticker}</span>
+                {c.name && <span className="text-dim"> — {c.name}</span>}
+                {c.rationale && <p className="text-xs text-dim">{c.rationale}</p>}
+              </div>
+            </label>
+          ))}
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {candidates.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => onConfirm([...selected])}
+            disabled={disabled || selected.size === 0}
+            className="pixel-btn flex-1 disabled:opacity-40"
+          >
+            {t("overlay.proposedTickers.addSelected", { count: selected.size })}
+          </button>
+        ) : null}
+        {onSkipNoAdds ? (
+          <button
+            type="button"
+            onClick={onSkipNoAdds}
+            disabled={disabled}
+            className="pixel-btn flex-1 border border-[var(--border)] bg-white text-[var(--foreground)] hover:bg-[var(--surface)] disabled:opacity-40"
+          >
+            {t("overlay.proposedTickers.skipNoAdds")}
+          </button>
+        ) : null}
       </div>
-      <button
-        type="button"
-        onClick={() => onConfirm([...selected])}
-        disabled={disabled || selected.size === 0}
-        className="pixel-btn w-full disabled:opacity-40"
-      >
-        {t("overlay.proposedTickers.addSelected", { count: selected.size })}
-      </button>
     </div>
   );
 }
@@ -261,6 +289,7 @@ export function OverlayChatTimeline({
   clarifyDrafts,
   asks,
   proposedTickers,
+  tickerReviewRequired = false,
   loading,
   confirmed,
   confirming,
@@ -269,6 +298,7 @@ export function OverlayChatTimeline({
   onAskChange,
   onClarifyDraftChange,
   onConfirmProposed,
+  onSkipProposedNoAdds,
 }: Props) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -390,7 +420,11 @@ export function OverlayChatTimeline({
             <ProposedTickersInline
               candidates={proposedTickers}
               disabled={cardsDisabled}
+              reviewRequired={tickerReviewRequired}
               onConfirm={onConfirmProposed}
+              onSkipNoAdds={
+                tickerReviewRequired ? onSkipProposedNoAdds : undefined
+              }
             />
           ) : null}
         </>

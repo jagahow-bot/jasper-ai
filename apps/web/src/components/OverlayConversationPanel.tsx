@@ -33,6 +33,9 @@ import {
 } from "@/lib/overlay-schema";
 import {
   clearProposedTickers,
+  ensureProposedTickersForReview,
+  instrumentNeedsKey,
+  isTickerReviewBlocking,
   proposedTickersAfterClarificationDedup,
 } from "@/lib/overlay-filter-proposals";
 import { computeOverlayDriftHints } from "@/lib/overlay-drift-sync";
@@ -135,6 +138,8 @@ export function OverlayConversationPanel({
   const [clarificationHistory, setClarificationHistory] = useState<
     ClarificationSnapshot[]
   >([]);
+  /** instrumentNeedsKey acknowledged via「無新增標的」. */
+  const [noAddsAckKey, setNoAddsAckKey] = useState<string | null>(null);
   const [summaryHistory, setSummaryHistory] = useState<SummarySnapshot[]>([]);
 
   const lastPushedMessagesRef = useRef(initialMessages);
@@ -156,6 +161,7 @@ export function OverlayConversationPanel({
     if (initialMessages.length === 0) {
       setClarificationHistory([]);
       setSummaryHistory([]);
+      setNoAddsAckKey(null);
     }
   }, [initialMessages]);
 
@@ -168,6 +174,7 @@ export function OverlayConversationPanel({
     if (!initialOverlay) {
       setClarificationHistory([]);
       setSummaryHistory([]);
+      setNoAddsAckKey(null);
     }
   }, [initialOverlay]);
 
@@ -312,7 +319,9 @@ export function OverlayConversationPanel({
           });
         }
 
-        setOverlay(interpretedOverlay);
+        setOverlay(
+          ensureProposedTickersForReview(interpretedOverlay, detectedLang),
+        );
         setOverlayLang(detectedLang);
 
         setMessages((prev) => [
@@ -407,6 +416,20 @@ export function OverlayConversationPanel({
       confirmLockedRef.current ||
       hasPendingConflicts
     ) {
+      return;
+    }
+    const visibleForGate = proposedTickersAfterClarificationDedup(
+      overlay.universe.proposed_tickers,
+      clarifications,
+    );
+    if (
+      isTickerReviewBlocking(overlay, {
+        visibleProposed: visibleForGate,
+        noAddsAckKey,
+        hasPendingClarifications,
+      })
+    ) {
+      setError({ message: t("overlay.proposedTickers.reviewRequired") });
       return;
     }
     const signed = signOffOverlay(overlay, rmId);
@@ -596,6 +619,8 @@ export function OverlayConversationPanel({
     };
     setOverlay(updatedOverlay);
     setConfirmed(false);
+    // Adding names satisfies the review gate for this needs fingerprint.
+    setNoAddsAckKey(null);
 
     const list = normalized.join(overlayLang === "zh" ? "、" : ", ");
     const userMsg = t("overlay.chat.confirmAdd", { list });
@@ -606,6 +631,26 @@ export function OverlayConversationPanel({
       ...prev,
       { role: "user", content: userMsg },
       { role: "assistant", content: assistantMsg },
+    ]);
+  };
+
+  const skipProposedNoAdds = () => {
+    if (!overlay) return;
+    const key = instrumentNeedsKey(overlay);
+    setNoAddsAckKey(key);
+    setOverlay(clearProposedTickers(overlay));
+    setConfirmed(false);
+    setError(null);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: t("overlay.proposedTickers.skipNoAdds"),
+      },
+      {
+        role: "assistant",
+        content: t("overlay.proposedTickers.skipNoAddsMessage"),
+      },
     ]);
   };
 
@@ -625,6 +670,15 @@ export function OverlayConversationPanel({
       clarifications,
     );
   }, [confirmed, overlay, clarifications]);
+
+  const tickerReviewRequired = useMemo(() => {
+    if (confirmed || !overlay) return false;
+    return isTickerReviewBlocking(overlay, {
+      visibleProposed: proposedTickers,
+      noAddsAckKey,
+      hasPendingClarifications,
+    });
+  }, [confirmed, overlay, proposedTickers, noAddsAckKey, hasPendingClarifications]);
 
   const driftHint = useMemo(
     () =>
@@ -662,6 +716,7 @@ export function OverlayConversationPanel({
         clarifyDrafts={clarifyDrafts}
         asks={overlay?.asks ?? []}
         proposedTickers={proposedTickers}
+        tickerReviewRequired={tickerReviewRequired}
         loading={loading}
         confirmed={confirmed}
         confirming={confirming}
@@ -683,6 +738,7 @@ export function OverlayConversationPanel({
           setConfirmed(false);
         }}
         onConfirmProposed={confirmProposedTickers}
+        onSkipProposedNoAdds={skipProposedNoAdds}
       />
 
       {hasPendingConflicts
@@ -734,9 +790,18 @@ export function OverlayConversationPanel({
             type="button"
             onClick={() => void handleConfirm()}
             disabled={
-              confirmed || loading || confirming || hasPendingConflicts
+              confirmed ||
+              loading ||
+              confirming ||
+              hasPendingConflicts ||
+              tickerReviewRequired
             }
             className="pixel-btn shrink-0 self-end border border-[var(--primary)] bg-white text-[var(--primary)] hover:bg-[var(--primary-muted)] disabled:opacity-40"
+            title={
+              tickerReviewRequired
+                ? t("overlay.proposedTickers.reviewRequired")
+                : undefined
+            }
           >
             {confirmed
               ? t("overlay.chat.confirmed")
