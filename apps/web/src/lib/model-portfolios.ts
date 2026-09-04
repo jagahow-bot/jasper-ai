@@ -110,6 +110,13 @@ export const SPY_ANCHOR_ID = "spy-benchmark";
 /** Baseline = selected client holdings; not tied to any house model portfolio. */
 export const CURRENT_HOLDINGS_ANCHOR_ID = "current-holdings";
 
+/**
+ * Cash / no-model path: do not treat a house model as the UI "starting portfolio".
+ * Engine still needs a minimal investable seed (SPY) for universe + risk ticker —
+ * that seed must never be shown as the user's chosen 基準組合 label.
+ */
+export const SKIP_BASELINE_ANCHOR_ID = "skip-baseline";
+
 export const SPY_ANCHOR: ModelPortfolio = {
   id: SPY_ANCHOR_ID,
   am_id: "state-street-spdr",
@@ -129,6 +136,33 @@ export const SPY_ANCHOR: ModelPortfolio = {
   benchmark: "SPY",
   risk_level: "moderate",
 };
+
+/**
+ * Synthetic "no baseline compare" portfolio for cash-first customization.
+ * Holdings are an engine-only seed (SPY); UI labels use SKIP_BASELINE copy, not SPY.
+ */
+export const SKIP_BASELINE_ANCHOR: ModelPortfolio = {
+  id: SKIP_BASELINE_ANCHOR_ID,
+  am_id: "client-book",
+  asset_manager: "Client book",
+  theme: "No baseline portfolio",
+  name: "No baseline portfolio",
+  description:
+    "Cash deployment without anchoring to a house model. SPY is retained only as a minimal investable seed / market ticker for the engine — not as the selected baseline portfolio.",
+  source: { name: "Skip baseline compare", url: "" },
+  asset_class_mix: { equity: 1 },
+  // Minimal tradable seed so cash-only scope can still open Overlay + Optuna
+  // before the RM adds names; never surface these holdings as the UI baseline.
+  holdings: [
+    { ticker: "SPY", weight: 1, name: "Engine seed (not UI baseline)" },
+  ],
+  benchmark: "SPY",
+  risk_level: "moderate",
+};
+
+export function isSkipBaselineAnchorId(id: string | null | undefined): boolean {
+  return (id ?? "").trim() === SKIP_BASELINE_ANCHOR_ID;
+}
 
 /** Localized AM labels keyed by `am_id` (house catalog + SPY benchmark). */
 const ASSET_MANAGER_LABELS: Record<Lang, Record<string, string>> = {
@@ -154,6 +188,7 @@ const PORTFOLIO_LABELS: Record<Lang, Record<string, string>> = {
   en: {
     [SPY_ANCHOR_ID]: "S&P 500 Benchmark",
     [CURRENT_HOLDINGS_ANCHOR_ID]: "Current holdings (no model)",
+    [SKIP_BASELINE_ANCHOR_ID]: "Do not compare vs baseline portfolio",
     "classic-60-40": "Balanced Core",
     "bogleheads-three-fund-80-20": "Three-Fund Plus",
     "global-equity-market-cap": "Global Equity",
@@ -165,6 +200,7 @@ const PORTFOLIO_LABELS: Record<Lang, Record<string, string>> = {
   zh: {
     [SPY_ANCHOR_ID]: "標普 500 基準",
     [CURRENT_HOLDINGS_ANCHOR_ID]: "現況持倉（不參照模型）",
+    [SKIP_BASELINE_ANCHOR_ID]: "不對標基準投組",
     "classic-60-40": "平衡核心",
     "bogleheads-three-fund-80-20": "三基金強化",
     "global-equity-market-cap": "全球股票",
@@ -176,6 +212,7 @@ const PORTFOLIO_LABELS: Record<Lang, Record<string, string>> = {
   ko: {
     [SPY_ANCHOR_ID]: "S&P 500 벤치마크",
     [CURRENT_HOLDINGS_ANCHOR_ID]: "현재 보유(모델 미참조)",
+    [SKIP_BASELINE_ANCHOR_ID]: "기준 포트폴리오 대비하지 않음",
     "classic-60-40": "균형 코어",
     "bogleheads-three-fund-80-20": "3-펀드 플러스",
     "global-equity-market-cap": "글로벌 주식",
@@ -273,6 +310,7 @@ export function getAnchorPortfolios(): ModelPortfolio[] {
 
 export function getAnchorPortfolioById(id: string): ModelPortfolio | undefined {
   if (id === SPY_ANCHOR_ID) return SPY_ANCHOR;
+  if (id === SKIP_BASELINE_ANCHOR_ID) return SKIP_BASELINE_ANCHOR;
   // Dynamic — use buildCurrentHoldingsAnchor with live scope holdings.
   if (id === CURRENT_HOLDINGS_ANCHOR_ID) return undefined;
   return getModelPortfolioById(id);
@@ -281,6 +319,8 @@ export function getAnchorPortfolioById(id: string): ModelPortfolio | undefined {
 /**
  * Synthetic anchor from the client's selected scope holdings (not a house model).
  * Cash is excluded from the investable baseline and weights are renormalized.
+ * Pure-cash scope returns null — callers should use SKIP_BASELINE_ANCHOR_ID
+ * instead of silently labeling SPY as the UI baseline.
  */
 export function buildCurrentHoldingsAnchor(
   holdings: Array<{ ticker: string; weight: number; name?: string; asset_class?: string }>,
@@ -345,6 +385,8 @@ const PORTFOLIO_DESCRIPTIONS: Record<Lang, Record<string, string>> = {
       "State Street SPDR single-ticker US large-cap benchmark (SPY). Common starting point for personalized variants.",
     [CURRENT_HOLDINGS_ANCHOR_ID]:
       "Use the selected client holdings as the baseline — do not tie this run to a house model portfolio. Suitable for satellite / stock sleeves customized on their own.",
+    [SKIP_BASELINE_ANCHOR_ID]:
+      "Cash-first path: skip dual-track compare vs a house model. A minimal SPY seed remains for the engine universe / risk ticker only — not shown as the selected baseline.",
     "classic-60-40":
       "60/40 balanced core: S&P 500 ETF + flagship equity mutual fund, aggregate bond ETF + bond fund, with blue-chip stock satellites (JPM, JNJ).",
     "bogleheads-three-fund-80-20":
@@ -365,6 +407,8 @@ const PORTFOLIO_DESCRIPTIONS: Record<Lang, Record<string, string>> = {
       "State Street SPDR 單一標的美股大型股基準（SPY），常用於客製化變體的起點。",
     [CURRENT_HOLDINGS_ANCHOR_ID]:
       "以本次勾選的客戶現況持倉為基準，不掛靠任一自家模型組合。適合只優化個股／衛星部位時使用。",
+    [SKIP_BASELINE_ANCHOR_ID]:
+      "現金部署路徑：不對標自家模型投組、略過雙軌比較。引擎仍保留最小 SPY 種子作為標的池／風險指標用，不會顯示為所選基準組合。",
     "classic-60-40":
       "約 60/40 平衡核心：標普 500 ETF＋旗艦股票基金、綜合債 ETF＋債券基金，並配置藍籌個股衛星（JPM、JNJ）。",
     "bogleheads-three-fund-80-20":
@@ -385,6 +429,8 @@ const PORTFOLIO_DESCRIPTIONS: Record<Lang, Record<string, string>> = {
       "State Street SPDR 미국 대형주 단일 벤치마크(SPY). 맞춤 변형의 출발점.",
     [CURRENT_HOLDINGS_ANCHOR_ID]:
       "선택한 고객 보유를 기준으로 하며 하우스 모델에 묶지 않습니다. 개별주/위성 구간만 최적화할 때 적합합니다.",
+    [SKIP_BASELINE_ANCHOR_ID]:
+      "현금 우선 경로: 하우스 모델 대비 이중 비교를 건너뜁니다. 엔진용 최소 SPY 시드는 유니버스/위험 지표용이며 UI 기준 구성으로 표시되지 않습니다.",
     "classic-60-40":
       "약 60/40 균형 코어: S&P 500 ETF + 대표 주식 펀드, 종합채권 ETF + 채권 펀드, 블루칩 개별주 위성(JPM, JNJ).",
     "bogleheads-three-fund-80-20":
@@ -410,6 +456,11 @@ export function getCustomizedVsAnchorLabel(
   anchor: ModelPortfolio,
   lang: Lang,
 ): string {
+  if (isSkipBaselineAnchorId(anchor.id)) {
+    if (lang === "zh") return "客製化配置（不對標基準投組）";
+    if (lang === "ko") return "맞춤 구성 (기준 대비 생략)";
+    return "Customized (no baseline compare)";
+  }
   const anchorLabel = getPortfolioLabel(anchor, lang);
   if (lang === "zh") return `客製化配置 vs ${anchorLabel}`;
   if (lang === "ko") return `맞춤 구성 vs ${anchorLabel}`;
@@ -482,6 +533,10 @@ export function buildAnchorBacktestRequest(
     static_replay_holdings: staticHoldings,
     anchor_weights: staticHoldings,
     customization_drift: defaults.customization_drift ?? 0.5,
+    // Selecting skip-baseline at step 1 pre-checks RmRunPanel's toggle.
+    skip_anchor_compare: isSkipBaselineAnchorId(portfolio.id)
+      ? true
+      : defaults.skip_anchor_compare,
     param_controls: {
       ...(defaults.param_controls ?? {}),
       ...sleeveControls,
