@@ -156,6 +156,11 @@ export interface BacktestRequest {
    * 0 = hold the anchor exactly, 1 = allow full customization.
    */
   customization_drift?: number;
+  /**
+   * UI-only: Overlay confirm-time minimum drift floor (RmRunPanel marker / audit).
+   * Not sent to the engine — createJob strips it (same as top_n).
+   */
+  overlay_drift_floor?: number | null;
   /** Anchor model portfolio weights used by the drift constraint. */
   anchor_weights?: Record<string, number> | null;
   /** Structured client needs from the signed overlay (soft constraints + AI context). */

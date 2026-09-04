@@ -502,6 +502,41 @@ export type MechanicalConflictOpts = {
   transcript?: string;
 };
 
+export type ThemeSleevePlan = {
+  targetSleeves: Record<string, number>;
+  membership: Record<string, string[]>;
+};
+
+/**
+ * Build an L1 plan from explicit theme sleeve_targets (non-w_* keys).
+ * Membership = supplement ∪ proposed outside the anchor; empty pool falls back
+ * to anchor keys (same as the prior inline conflict-card logic).
+ */
+export function themeSleevePlanFromOverlay(
+  overlay: ClientOverlay,
+  anchor: Record<string, number>,
+): ThemeSleevePlan | null {
+  const sleeves = overlay.allocation.sleeve_targets;
+  if (!sleeves) return null;
+  const themeEntries = Object.entries(sleeves).filter(
+    ([k, v]) => !k.startsWith("w_") && Number(v) > 0,
+  );
+  if (!themeEntries.length) return null;
+  const anchorTickers = new Set(Object.keys(anchor));
+  const allExtra = uniqTickers([
+    ...(overlay.universe.supplement_tickers ?? []),
+    ...(overlay.universe.proposed_tickers ?? []).map((p) => p.ticker),
+  ]).filter((t) => !anchorTickers.has(t));
+  const membership: Record<string, string[]> = {};
+  for (const [key] of themeEntries) {
+    membership[key] = allExtra.length ? allExtra : Object.keys(anchor);
+  }
+  return {
+    targetSleeves: Object.fromEntries(themeEntries),
+    membership,
+  };
+}
+
 /**
  * Attach mechanical conflicts (and promote blocking LLM gaps) onto an overlay.
  * Idempotent for known conflict ids. Forces phase to clarify when conflicts exist.
@@ -553,25 +588,13 @@ export function attachMechanicalOverlayConflicts(
         }),
       );
     }
-  } else if (overlay.allocation.sleeve_targets && Object.keys(anchor).length > 0) {
-    // Explicit theme sleeves (non w_*) vs drift.
-    const sleeves = overlay.allocation.sleeve_targets;
-    const themeEntries = Object.entries(sleeves).filter(
-      ([k, v]) => !k.startsWith("w_") && Number(v) > 0,
-    );
-    if (themeEntries.length > 0) {
-      const membership: Record<string, string[]> = {};
-      const allExtra = uniqTickers([
-        ...(overlay.universe.supplement_tickers ?? []),
-        ...(overlay.universe.proposed_tickers ?? []).map((p) => p.ticker),
-      ]).filter((t) => !anchorTickers.has(t));
-      for (const [key] of themeEntries) {
-        membership[key] = allExtra.length ? allExtra : Object.keys(anchor);
-      }
+  } else if (Object.keys(anchor).length > 0) {
+    const plan = themeSleevePlanFromOverlay(overlay, anchor);
+    if (plan) {
       const check = minL1DriftForTarget(
         anchor,
-        Object.fromEntries(themeEntries),
-        membership,
+        plan.targetSleeves,
+        plan.membership,
         declaredDrift,
       );
       if (!check.feasible && !hasCode("INFEASIBLE_DRIFT")) {

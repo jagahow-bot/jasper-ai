@@ -76,6 +76,31 @@ export const experimentOverlaySchema = z
   })
   .strip();
 
+export const overlayDriftSyncAuditSchema = z
+  .object({
+    min_required_drift: z.number().min(0).max(1),
+    applied_drift: z.number().min(0).max(1),
+    auto_raised: z.boolean(),
+    requires_supervisor: z.boolean(),
+    sources: z
+      .array(
+        z.object({
+          kind: z.enum([
+            "sleeve_targets",
+            "group_weight_band",
+            "must_include",
+            "narrative",
+          ]),
+          ref: z.string().max(80),
+          required_drift: z.number().min(0).max(1),
+        }),
+      )
+      .max(12)
+      .optional(),
+    synced_at: z.string(),
+  })
+  .strip();
+
 export const overlaySessionAuditSchema = z.object({
   session_id: z.string().min(8),
   rm_id: z.string().optional(),
@@ -95,6 +120,7 @@ export const overlaySessionAuditSchema = z.object({
   base_scenario_id: z.string().optional(),
   base_job_id: z.string().optional(),
   adjusted_job_id: z.string().optional(),
+  drift_sync: overlayDriftSyncAuditSchema.optional(),
 });
 
 export const clientProfileOverlaySchema = z
@@ -867,7 +893,7 @@ function sleeveKeyTheme(key: string): "ai" | "hedge" | "other" {
   return "other";
 }
 
-function bandTargetFromAsk(ask: OverlayAsk): number | null {
+export function bandTargetFromAsk(ask: OverlayAsk): number | null {
   if (ask.target_pct != null && Number.isFinite(ask.target_pct)) return ask.target_pct;
   if (ask.min_pct != null && ask.max_pct != null) return (ask.min_pct + ask.max_pct) / 2;
   if (ask.min_pct != null) return ask.min_pct;
@@ -875,9 +901,17 @@ function bandTargetFromAsk(ask: OverlayAsk): number | null {
   return null;
 }
 
-/** Compile signed overlay group_weight_band asks + theme sleeve_targets for the engine. */
-export function groupWeightBandsFromOverlay(overlay: ClientOverlay): GroupWeightBand[] {
+/**
+ * Compile overlay group_weight_band asks + theme sleeve_targets for the engine.
+ * By default only signed asks (or post-sign-off) are included; pass
+ * `{ includeUnsigned: true }` for live conversation drift hints.
+ */
+export function groupWeightBandsFromOverlay(
+  overlay: ClientOverlay,
+  opts?: { includeUnsigned?: boolean },
+): GroupWeightBand[] {
   const signedOff = Boolean(overlay.audit.rm_sign_off);
+  const includeUnsigned = opts?.includeUnsigned ?? false;
   const bands: GroupWeightBand[] = [];
   const seen = new Set<string>();
 
@@ -907,7 +941,7 @@ export function groupWeightBandsFromOverlay(overlay: ClientOverlay): GroupWeight
 
   for (const ask of overlay.asks ?? []) {
     if (ask.kind !== "group_weight_band") continue;
-    if (!signedOff && ask.status !== "signed") continue;
+    if (!includeUnsigned && !signedOff && ask.status !== "signed") continue;
     let tickers = ask.tickers ?? [];
     // When the ask specifies a group_id but no tickers, infer from the
     // supplement/proposed pool using theme classification so Gemini doesn't
@@ -1247,6 +1281,54 @@ export function signOffOverlay(
     },
     clarification_questions: [],
     clarifications: [],
+  };
+}
+
+/** Structural hints shape — avoids importing overlay-drift-sync (cycle). */
+export type DriftSyncHintsLike = {
+  minRequiredDrift: number;
+  suggestedDrift: number;
+  requiresSupervisor: boolean;
+  sources: Array<{
+    kind: "sleeve_targets" | "group_weight_band" | "must_include" | "narrative";
+    ref: string;
+    requiredDrift: number;
+  }>;
+};
+
+/** Write drift-sync audit trail after overlay confirm (overlay-drift-sync §5 F4). */
+export function attachDriftSyncAudit(
+  overlay: ClientOverlay,
+  hints: DriftSyncHintsLike,
+  appliedDrift: number,
+  previousDrift?: number,
+): ClientOverlay {
+  const now = new Date().toISOString();
+  const applied = Math.max(0, Math.min(1, appliedDrift));
+  const previous =
+    previousDrift != null && Number.isFinite(previousDrift)
+      ? Math.max(0, Math.min(1, previousDrift))
+      : applied;
+  const auto_raised = applied > previous + 1e-9;
+  const sources = hints.sources.slice(0, 12).map((s) => ({
+    kind: s.kind,
+    ref: s.ref.slice(0, 80),
+    required_drift: Math.max(0, Math.min(1, s.requiredDrift)),
+  }));
+  return {
+    ...overlay,
+    audit: {
+      ...overlay.audit,
+      updated_at: now,
+      drift_sync: {
+        min_required_drift: Math.max(0, Math.min(1, hints.minRequiredDrift)),
+        applied_drift: applied,
+        auto_raised,
+        requires_supervisor: hints.requiresSupervisor,
+        sources: sources.length ? sources : undefined,
+        synced_at: now,
+      },
+    },
   };
 }
 

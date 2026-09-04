@@ -76,10 +76,15 @@ import {
 } from "@/lib/model-portfolios-store";
 import { readInvestmentPool } from "@/lib/investment-pool";
 import {
+  attachDriftSyncAudit,
   overlayToBacktestRequest,
   type ClientOverlay,
   type OverlayConversationMessage,
 } from "@/lib/overlay-schema";
+import {
+  computeOverlayDriftHints,
+  driftSyncActionForConfirm,
+} from "@/lib/overlay-drift-sync";
 import {
   clearProposedTickers,
   overlayAlreadyShowsProposedTickers,
@@ -156,6 +161,11 @@ export default function HomePage() {
   const [overlaySession, setOverlaySession] = useState<ClientOverlay | null>(null);
   const [overlayMessages, setOverlayMessages] =
     useState<OverlayConversationMessage[]>(EMPTY_OVERLAY_MESSAGES);
+  const [driftSyncNotice, setDriftSyncNotice] = useState<{
+    from: number;
+    to: number;
+    requiresSupervisor: boolean;
+  } | null>(null);
 
   const [personalizationCompare, setPersonalizationCompare] =
     useState<PersonalizationCompare | null>(null);
@@ -926,7 +936,46 @@ export default function HomePage() {
         skipFilterProposals: true,
       });
 
-      const finalized = clearProposedTickers(overlay);
+      const anchorWeights = Object.fromEntries(
+        anchorPortfolio.holdings
+          .filter((h) => h.weight > 0)
+          .map((h) => [h.ticker.toUpperCase(), h.weight]),
+      );
+      let finalized = clearProposedTickers(overlay);
+      const beforeDrift = resolved.customization_drift ?? 0.5;
+      const hints = computeOverlayDriftHints(finalized, {
+        anchorWeights,
+        currentDrift: beforeDrift,
+      });
+      const action = driftSyncActionForConfirm(hints, beforeDrift);
+      if (action.kind === "raise") {
+        resolved.customization_drift = action.to;
+        const driftCtl = resolved.param_controls?.customization_drift_actual;
+        if (driftCtl?.mode === "fixed") {
+          resolved.param_controls = {
+            ...resolved.param_controls,
+            customization_drift_actual: { ...driftCtl, fixed: action.to },
+          };
+        }
+        resolved.overlay_drift_floor = hints.minRequiredDrift;
+        setDriftSyncNotice({
+          from: action.from,
+          to: action.to,
+          requiresSupervisor: action.requiresSupervisor,
+        });
+      } else {
+        if (hints.minRequiredDrift > 0) {
+          resolved.overlay_drift_floor = hints.minRequiredDrift;
+        }
+        setDriftSyncNotice(null);
+      }
+      finalized = attachDriftSyncAudit(
+        finalized,
+        hints,
+        resolved.customization_drift ?? 0.5,
+        beforeDrift,
+      );
+
       // Keep prompts fingerprint so returning to overlay (e.g. rerun) cannot
       // reopen a propose gate for the same rules.
       filterProposalsSurfacedKeyRef.current = overlayPromptsKey(finalized);
@@ -977,6 +1026,7 @@ export default function HomePage() {
     setSignedOverlay(null);
     setOverlaySession(null);
     setOverlayMessages(EMPTY_OVERLAY_MESSAGES);
+    setDriftSyncNotice(null);
     filterProposalsSurfacedKeyRef.current = null;
     const base = buildAnchorBacktestRequest(
       anchorPortfolio,
@@ -1074,8 +1124,10 @@ export default function HomePage() {
           phase={phase}
           hasOverlay={Boolean(signedOverlay) || phase === "overlay"}
           onStepSelect={(step) => {
-            if (step === "overlay") setPhase("overlay");
-            else if (step === "execute") setPhase("constraints");
+            if (step === "overlay") {
+              setDriftSyncNotice(null);
+              setPhase("overlay");
+            } else if (step === "execute") setPhase("constraints");
           }}
           contextSlot={
             !activeClient ? (
@@ -1214,6 +1266,8 @@ export default function HomePage() {
               onRun={onRun}
               apiOnline={apiOnline}
               emailNotificationsEnabled={emailNotificationsEnabled}
+              driftSyncNotice={driftSyncNotice}
+              onDismissDriftSyncNotice={() => setDriftSyncNotice(null)}
             />
           ) : (
             <ConstraintsPanel
@@ -1246,6 +1300,7 @@ export default function HomePage() {
               narrative={narrative}
               request={request}
               onRerun={() => {
+                setDriftSyncNotice(null);
                 setPhase("overlay");
               }}
               onExport={() => downloadCsv(result, "portfolio")}
