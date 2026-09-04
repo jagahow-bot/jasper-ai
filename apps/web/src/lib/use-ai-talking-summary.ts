@@ -10,6 +10,10 @@ import {
 import type { Lang, TFn } from "@/lib/i18n";
 import type { BacktestResult } from "@/lib/types";
 import type { ClientOverlay } from "@/lib/overlay-schema";
+import {
+  slimTalkingSummaryOverlay,
+  slimTalkingSummaryResult,
+} from "@/lib/talking-summary-payload";
 
 type AiTalkingSummary = {
   summary: string[];
@@ -93,8 +97,13 @@ export function useAiTalkingSummary(
             lang: input.lang,
             metrics: input.metrics,
             holdingsDiff: input.holdingsDiff,
-            overlay: input.overlay,
-            adjustedResult: input.adjustedResult,
+            overlay: slimTalkingSummaryOverlay(
+              input.overlay as unknown as Record<string, unknown> | null,
+            ),
+            adjustedResult: slimTalkingSummaryResult(
+              input.adjustedResult,
+              input.customizedModelCode,
+            ),
             anchorLabel: input.anchorLabel,
             objectiveKey: input.objectiveKey,
             customizedModelCode: input.customizedModelCode,
