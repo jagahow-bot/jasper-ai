@@ -21,16 +21,81 @@ describe("needs-fulfillment", () => {
     ]);
     expect(rows.find((r) => r.key === "mustInclude")?.detail).toBe("BOTZ");
     expect(rows.find((r) => r.key === "drift")?.detail).toBe("40.0% / 10.0%");
-    expect(needsAllPassed({
-      within_drawdown_tolerance: true,
-      within_must_include: false,
-      max_drawdown_tolerance: 0.2,
-      must_include_tickers: ["BOTZ"],
-    })).toBe(false);
+    expect(
+      needsAllPassed({
+        within_drawdown_tolerance: true,
+        within_must_include: false,
+        max_drawdown_tolerance: 0.2,
+        must_include_tickers: ["BOTZ"],
+      }),
+    ).toBe(false);
   });
 
   it("returns null overall when no commitments", () => {
     expect(needsAllPassed(null)).toBeNull();
     expect(needsFloorRows(null)).toEqual([]);
+  });
+
+  it("U21 class_quotas unmet produces classQuota row", () => {
+    const rows = needsFloorRows({
+      class_quotas: [
+        {
+          asset_class: "alternative",
+          target_pct: 0.15,
+          actual_pct: 0.0,
+          within_class_quota: false,
+        },
+      ],
+      within_class_quotas: false,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].key).toBe("classQuota");
+    expect(rows[0].pass).toBe(false);
+    expect(rows[0].detail).toContain("alternative");
+    expect(rows[0].detail).toContain("0.0%");
+    expect(rows[0].detail).toContain("15.0%");
+    expect(
+      needsAllPassed({
+        class_quotas: [
+          {
+            asset_class: "alternative",
+            target_pct: 0.15,
+            actual_pct: 0.0,
+            within_class_quota: false,
+          },
+        ],
+        within_class_quotas: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("U22 group_bands all met", () => {
+    const rows = needsFloorRows({
+      group_bands: [
+        {
+          group_id: "私募基金",
+          target_pct: 0.15,
+          actual_pct: 0.15,
+          within_band: true,
+        },
+      ],
+      within_group_bands: true,
+    });
+    expect(rows.find((r) => r.key === "groupBands")?.pass).toBe(true);
+  });
+
+  it("U23 legacy attainment without new fields unchanged", () => {
+    const rows = needsFloorRows({
+      max_drawdown_tolerance: 0.2,
+      max_drawdown_actual: 0.18,
+      within_drawdown_tolerance: true,
+    });
+    expect(rows.map((r) => r.key)).toEqual(["drawdown"]);
+    expect(
+      needsAllPassed({
+        max_drawdown_tolerance: 0.2,
+        within_drawdown_tolerance: true,
+      }),
+    ).toBe(true);
   });
 });

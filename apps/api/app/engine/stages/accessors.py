@@ -260,6 +260,7 @@ def needs_attainment(
     must_include_tickers: list[str] | None = None,
     anchor_weights: dict[str, float] | None = None,
     customization_drift: float | None = None,
+    class_budget: dict[str, float] | None = None,
 ) -> dict[str, Any] | None:
     if not stages_enabled():
         return _needs_attainment(
@@ -270,6 +271,7 @@ def needs_attainment(
             must_include_tickers=must_include_tickers,
             anchor_weights=anchor_weights,
             customization_drift=customization_drift,
+            class_budget=class_budget,
         )
     return _reporting_stage().needs_attainment(
         metrics,
@@ -279,6 +281,7 @@ def needs_attainment(
         must_include_tickers=must_include_tickers,
         anchor_weights=anchor_weights,
         customization_drift=customization_drift,
+        class_budget=class_budget,
     )
 
 

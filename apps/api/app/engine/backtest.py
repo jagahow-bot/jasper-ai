@@ -24,6 +24,8 @@ from app.engine.data import fetch_dividends, fetch_prices
 from app.engine.asset_class_policy import (
     class_budget_from_params,
     enforce_param_controls_for_asset_classes,
+    find_unfilled_class_quotas,
+    fixed_class_budget_from_param_controls,
     zero_disallowed_class_params,
 )
 from app.engine.param_bounds import (
@@ -1670,6 +1672,7 @@ def _build_candidate(
     client_context: dict[str, Any] | None = None,
     anchor_weights: dict[str, float] | None = None,
     customization_drift: float | None = None,
+    class_budget: dict[str, float] | None = None,
 ) -> PortfolioCandidate:
     primary = train_m if oos_enabled else full_m
     # Full-book terminal weights for drift / must-include checks. Chart weight_history
@@ -1853,6 +1856,7 @@ def _build_candidate(
                     else None
                 )
             ),
+            class_budget=class_budget,
         ),
     )
 
@@ -2229,6 +2233,14 @@ def _assemble_candidates_from_records(
                 ),
                 anchor_weights=req.anchor_weights,
                 customization_drift=req.customization_drift,
+                class_budget=(
+                    None
+                    if params.get("regime_class_quota_matrix")
+                    else class_budget_from_params(
+                        zero_disallowed_class_params(params, req.asset_classes),
+                        asset_classes=req.asset_classes,
+                    )
+                ),
             )
         )
         if dynamic_ctx:
@@ -2940,6 +2952,14 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         req.universe_categories,
         req.universe_tickers,
         supplement_tickers=guaranteed_supplements or None,
+        supplement_meta=(
+            {
+                str(k): (v.model_dump() if hasattr(v, "model_dump") else v)
+                for k, v in (req.universe_supplement_meta or {}).items()
+            }
+            if req.universe_supplement_meta
+            else None
+        ),
     )
     explicit_bench = _explicit_request_benchmark_ticker(req)
     universe_plan = refine_universe_with_ai(
@@ -2953,6 +2973,14 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         universe_plan["universe"],
         guaranteed_supplements or None,
         asset_classes=req.asset_classes,
+        supplement_meta=(
+            {
+                str(k): (v.model_dump() if hasattr(v, "model_dump") else v)
+                for k, v in (req.universe_supplement_meta or {}).items()
+            }
+            if req.universe_supplement_meta
+            else None
+        ),
     )
     # Defense: never let refine/cap leak tickers outside locked whitelist ∪ supplements.
     universe = clamp_universe_to_whitelist(
@@ -3113,6 +3141,29 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             raise ValueError(
                 "Regime-adaptive allocation needs enough benchmark history for the regime "
                 "walk-forward; extend the date range or change benchmark."
+            )
+
+    # Static precheck: fixed class quotas with zero members in the tradable pool.
+    # Regime-level quotas are deferred to P2 (§7).
+    class_quota_unfilled: list[dict[str, Any]] = []
+    if not (dynamic_ctx and dynamic_ctx.get("regime_class_quotas")):
+        static_budget = fixed_class_budget_from_param_controls(
+            {
+                k: v.model_dump() if hasattr(v, "model_dump") else v
+                for k, v in (req.param_controls or {}).items()
+            },
+            asset_classes=req.asset_classes,
+        )
+        class_quota_unfilled = find_unfilled_class_quotas(
+            static_budget, universe_by_ticker
+        )
+        if class_quota_unfilled:
+            logger.warning(
+                "Class quota(s) have no universe members and cannot be filled: %s "
+                "(job %s) — quotas will be silently redistributed by Top-N shortfall "
+                "unless supplements gain asset_class hints",
+                class_quota_unfilled,
+                job_id,
             )
 
     oos = req.enable_oos
@@ -4468,6 +4519,8 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
             "allocator presets per rebalance. "
             + ranking_note
         )
+
+    narrative_facts["class_quota_unfilled"] = class_quota_unfilled or None
 
     if pro_mode:
         pro_snap = refinement_meta.get("continuation_snapshot")

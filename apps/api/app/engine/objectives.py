@@ -4,8 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
+
+from app.engine.asset_class_policy import class_sleeve_totals, normalize_class_budget
+from app.engine.group_weights import parse_group_weight_bands
+
 # Pro/Optuna champion metric when run objective is ``dynamic`` (not per-rebalance blend).
 DYNAMIC_COMPREHENSIVE_SCORING = "dynamic_comprehensive"
+
+BAND_TOL = 0.02
+CLASS_QUOTA_TOL = 0.02
 
 
 def compute_dynamic_comprehensive_score(metrics: dict[str, Any]) -> float:
@@ -280,9 +288,15 @@ def needs_attainment(
     must_include_tickers: list[str] | None = None,
     anchor_weights: dict[str, float] | None = None,
     customization_drift: float | None = None,
+    class_budget: dict[str, float] | None = None,
 ) -> dict[str, Any] | None:
     """Per-portfolio client-floor checks for result reporting; None when no floors."""
-    if not client_context and not must_include_tickers and not anchor_weights:
+    if (
+        not client_context
+        and not must_include_tickers
+        and not anchor_weights
+        and not class_budget
+    ):
         return None
     h = _holdings_map(holdings)
     checks: dict[str, Any] = {}
@@ -395,6 +409,61 @@ def needs_attainment(
         checks["customization_drift_l1"] = round(float(l1), 4)
         checks["within_customization_drift"] = float(l1) <= drift_cap + 1e-4
 
+    bands = (
+        parse_group_weight_bands(_ctx_get(client_context, "group_weight_bands"))
+        if client_context
+        else []
+    )
+    if bands:
+        any_floor = True
+        band_rows: list[dict[str, Any]] = []
+        for b in bands:
+            members = set(b.tickers)
+            actual = sum(float(w) for t, w in h.items() if t in members)
+            lo, hi = b.min_pct, b.max_pct
+            if lo is None and hi is None and b.target_pct is not None:
+                lo = float(b.target_pct) - BAND_TOL
+                hi = float(b.target_pct) + BAND_TOL
+            within = (lo is None or actual >= float(lo) - 1e-9) and (
+                hi is None or actual <= float(hi) + 1e-9
+            )
+            band_rows.append(
+                {
+                    "group_id": b.group_id,
+                    "target_pct": (
+                        round(float(b.target_pct), 4) if b.target_pct is not None else None
+                    ),
+                    "min_pct": round(float(lo), 4) if lo is not None else None,
+                    "max_pct": round(float(hi), 4) if hi is not None else None,
+                    "actual_pct": round(actual, 4),
+                    "within_band": within,
+                }
+            )
+        checks["group_bands"] = band_rows
+        checks["within_group_bands"] = all(r["within_band"] for r in band_rows)
+
+    budget = normalize_class_budget(class_budget)
+    if budget and ticker_meta is not None:
+        any_floor = True
+        invested = {t: float(w) for t, w in h.items() if t != "CASH"}
+        tot = sum(invested.values()) or 1.0
+        tickers = list(invested.keys())
+        w_vec = np.asarray([invested[t] / tot for t in tickers], dtype=float)
+        totals = class_sleeve_totals(w_vec, tickers, ticker_meta)
+        rows: list[dict[str, Any]] = []
+        for ac, target in budget.items():
+            actual = float(totals.get(ac, 0.0))
+            rows.append(
+                {
+                    "asset_class": ac,
+                    "target_pct": round(float(target), 4),
+                    "actual_pct": round(actual, 4),
+                    "within_class_quota": abs(actual - float(target)) <= CLASS_QUOTA_TOL,
+                }
+            )
+        checks["class_quotas"] = rows
+        checks["within_class_quotas"] = all(r["within_class_quota"] for r in rows)
+
     if not any_floor:
         return None
 
@@ -406,6 +475,8 @@ def needs_attainment(
         checks.get("within_income_need"),
         checks.get("within_must_include"),
         checks.get("within_customization_drift"),
+        checks.get("within_group_bands"),
+        checks.get("within_class_quotas"),
     ]
     present = [x for x in floors if x is not None]
     checks["all_floors_met"] = bool(present) and all(present)
@@ -423,6 +494,8 @@ def _needs_score(attainment: dict[str, Any] | None) -> float:
         "within_income_need",
         "within_must_include",
         "within_customization_drift",
+        "within_group_bands",
+        "within_class_quotas",
     )
     vals = [1.0 if attainment.get(k) else 0.0 for k in keys if k in attainment]
     return float(sum(vals) / len(vals)) if vals else 0.0

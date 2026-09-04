@@ -24,6 +24,7 @@ import type {
   OptimizationMode,
   ParamControl,
 } from "@/lib/types";
+import { getUniverseItems } from "@/lib/universe";
 
 export const OVERLAY_VERSION = "1.0" as const;
 
@@ -172,6 +173,8 @@ export const overlayProposedTickerSchema = z
     ticker: z.string().min(1).max(8),
     name: z.string().max(120).optional(),
     category: z.string().max(60).optional(),
+    /** LLM hint for catalog-unknown tickers; engine catalog row wins on conflict. */
+    asset_class: z.enum(ASSET_CLASSES).optional(),
     rationale: z.string().max(200).optional(),
   })
   .strip();
@@ -918,6 +921,102 @@ function sleeveKeyTheme(key: string): "ai" | "hedge" | "other" {
   return "other";
 }
 
+/**
+ * Map a sleeve_targets key / ask group_id to a top-level asset class.
+ * Conservative: returns null when not confidently classifiable — callers
+ * fall back to theme classification or diagnostics, never to "bind everything".
+ */
+export function sleeveKeyToAssetClass(key: string): AssetClass | null {
+  const k = key.trim().toLowerCase();
+  if (k.startsWith("w_")) {
+    const ac = k.slice(2);
+    return (ASSET_CLASSES as readonly string[]).includes(ac)
+      ? (ac as AssetClass)
+      : null;
+  }
+  const HINTS: Array<[RegExp, AssetClass]> = [
+    [
+      /私募|private[\s_-]?(fund|equity|credit|debt)|對沖基金|对冲基金|hedge[\s_-]?fund|managed[\s_-]?futures|另類|另类|alternative/,
+      "alternative",
+    ],
+    [/債券|债券|bond|固定收益|fixed[\s_-]?income/, "bond"],
+    [/不動產|不动产|房地產|real[\s_-]?estate|reit/, "real_estate"],
+    [/商品|貴金屬|贵金属|commodity|precious/, "commodity"],
+    [/股票|equity|stock/, "equity"],
+  ];
+  for (const [re, ac] of HINTS) if (re.test(k)) return ac;
+  return null;
+}
+
+/** Pool tickers whose asset class matches — catalog lookup first, then LLM hints. */
+function poolTickersInClass(
+  pool: string[],
+  assetClass: AssetClass,
+  proposed: OverlayProposedTicker[],
+): string[] {
+  const catalog = new Map(
+    getUniverseItems().map((u) => [u.ticker.toUpperCase(), u.asset_class]),
+  );
+  const hint = new Map(
+    proposed
+      .filter((p) => p.asset_class)
+      .map((p) => [p.ticker.toUpperCase(), p.asset_class!]),
+  );
+  return pool.filter((t) => (catalog.get(t) ?? hint.get(t)) === assetClass);
+}
+
+export type SupplementMeta = { asset_class: AssetClass };
+
+/**
+ * Collect asset_class hints for supplement/proposed tickers.
+ * Priority: ① proposed_tickers[].asset_class (LLM hint)
+ *          ② band ask / named sleeve key mapped via sleeveKeyToAssetClass
+ * Catalog-known tickers are still included — engine ignores meta when a
+ * catalog row exists (profiles.py catalog-first rule).
+ */
+export function universeSupplementMetaFromOverlay(
+  overlay: ClientOverlay,
+): Record<string, SupplementMeta> {
+  const proposed = overlay.universe.proposed_tickers ?? [];
+  const out: Record<string, SupplementMeta> = {};
+
+  for (const p of proposed) {
+    const t = String(p.ticker || "")
+      .trim()
+      .toUpperCase();
+    if (!t || !p.asset_class) continue;
+    out[t] = { asset_class: p.asset_class };
+  }
+
+  const sleeves = overlay.allocation.sleeve_targets ?? {};
+  for (const [key] of Object.entries(sleeves)) {
+    const ac = sleeveKeyToAssetClass(key);
+    if (!ac) continue;
+    const pool = [
+      ...(overlay.universe.supplement_tickers ?? []),
+      ...proposed.map((p) => p.ticker),
+    ]
+      .map((t) => String(t).toUpperCase())
+      .filter(Boolean);
+    for (const t of poolTickersInClass(pool, ac, proposed)) {
+      if (!out[t]) out[t] = { asset_class: ac };
+    }
+  }
+
+  for (const ask of overlay.asks ?? []) {
+    if (ask.kind !== "group_weight_band") continue;
+    const ac = sleeveKeyToAssetClass(ask.group_id ?? ask.title ?? "");
+    if (!ac) continue;
+    for (const raw of ask.tickers ?? []) {
+      const t = String(raw).trim().toUpperCase();
+      if (!t) continue;
+      if (!out[t]) out[t] = { asset_class: ac };
+    }
+  }
+
+  return out;
+}
+
 export function bandTargetFromAsk(ask: OverlayAsk): number | null {
   if (ask.target_pct != null && Number.isFinite(ask.target_pct)) return ask.target_pct;
   if (ask.min_pct != null && ask.max_pct != null) return (ask.min_pct + ask.max_pct) / 2;
@@ -926,28 +1025,36 @@ export function bandTargetFromAsk(ask: OverlayAsk): number | null {
   return null;
 }
 
+export type BandCompileDiagnostic = {
+  kind: "unfilled_class_quota" | "unresolved_sleeve";
+  ref: string;
+  asset_class?: AssetClass;
+  target_pct: number;
+};
+
 /**
  * Compile overlay group_weight_band asks + theme sleeve_targets for the engine.
  * By default only signed asks (or post-sign-off) are included; pass
  * `{ includeUnsigned: true }` for live conversation drift hints.
  */
-export function groupWeightBandsFromOverlay(
+export function groupWeightBandsWithDiagnostics(
   overlay: ClientOverlay,
   opts?: { includeUnsigned?: boolean },
-): GroupWeightBand[] {
+): { bands: GroupWeightBand[]; diagnostics: BandCompileDiagnostic[] } {
   const signedOff = Boolean(overlay.audit.rm_sign_off);
   const includeUnsigned = opts?.includeUnsigned ?? false;
   const bands: GroupWeightBand[] = [];
+  const diagnostics: BandCompileDiagnostic[] = [];
   const seen = new Set<string>();
+  const claimed = new Set<string>();
 
-  // Pool tickers from supplements, proposed, AND group_weight_band asks so
-  // sleeve_targets and ticker-less asks can resolve tickers via theme classification.
+  const proposed = overlay.universe.proposed_tickers ?? [];
   const askTickers = (overlay.asks ?? [])
     .filter((a) => a.kind === "group_weight_band" && a.tickers?.length)
     .flatMap((a) => a.tickers!);
   const supplementTickers = [
     ...(overlay.universe.supplement_tickers ?? []),
-    ...(overlay.universe.proposed_tickers ?? []).map((p) => p.ticker),
+    ...proposed.map((p) => p.ticker),
     ...askTickers,
   ]
     .map((t) => String(t).toUpperCase())
@@ -964,26 +1071,68 @@ export function groupWeightBandsFromOverlay(
     bands.push({ ...band, tickers });
   };
 
+  const unclaimedPool = () =>
+    supplementTickers.filter((t) => !claimed.has(t));
+
+  // Pass 1: claim class-mappable members from asks + sleeves before "other" binds.
+  type PendingOther = {
+    group_id: string;
+    target_pct: number | null;
+    min_pct: number | null;
+    max_pct: number | null;
+    source: "ask" | "sleeve";
+  };
+  const pendingOther: PendingOther[] = [];
+
   for (const ask of overlay.asks ?? []) {
     if (ask.kind !== "group_weight_band") continue;
     if (!includeUnsigned && !signedOff && ask.status !== "signed") continue;
     let tickers = ask.tickers ?? [];
-    // When the ask specifies a group_id but no tickers, infer from the
-    // supplement/proposed pool using theme classification so Gemini doesn't
-    // need to duplicate ticker lists on every ask.
-    if (!tickers.length && ask.group_id) {
-      const theme = sleeveKeyTheme(ask.group_id);
-      tickers =
-        theme === "other"
-          ? supplementTickers
-          : supplementTickers.filter((t) => overlayThemeClass(t) === theme);
+    if (!tickers.length) {
+      const classKey = ask.group_id ?? ask.title ?? "";
+      const assetClass = sleeveKeyToAssetClass(classKey);
+      if (assetClass) {
+        tickers = poolTickersInClass(supplementTickers, assetClass, proposed);
+        if (tickers.length) {
+          for (const t of tickers) claimed.add(t);
+          pushBand({
+            group_id: ask.group_id ?? ask.id,
+            tickers,
+            target_pct: ask.target_pct ?? bandTargetFromAsk(ask),
+            min_pct: ask.min_pct ?? null,
+            max_pct: ask.max_pct ?? null,
+          });
+        } else {
+          const target = bandTargetFromAsk(ask);
+          if (target != null && target > 0) {
+            diagnostics.push({
+              kind: "unfilled_class_quota",
+              ref: ask.group_id ?? ask.id,
+              asset_class: assetClass,
+              target_pct: target,
+            });
+          }
+        }
+        continue;
+      }
+      const theme = sleeveKeyTheme(classKey);
+      if (theme === "other") {
+        pendingOther.push({
+          group_id: ask.group_id ?? ask.id,
+          target_pct: ask.target_pct ?? bandTargetFromAsk(ask),
+          min_pct: ask.min_pct ?? null,
+          max_pct: ask.max_pct ?? null,
+          source: "ask",
+        });
+        continue;
+      }
+      tickers = supplementTickers.filter((t) => overlayThemeClass(t) === theme);
     }
     if (!tickers.length) continue;
-    const target = bandTargetFromAsk(ask);
     pushBand({
       group_id: ask.group_id ?? ask.id,
       tickers,
-      target_pct: ask.target_pct ?? target,
+      target_pct: ask.target_pct ?? bandTargetFromAsk(ask),
       min_pct: ask.min_pct ?? null,
       max_pct: ask.max_pct ?? null,
     });
@@ -992,17 +1141,63 @@ export function groupWeightBandsFromOverlay(
   const sleeves = overlay.allocation.sleeve_targets;
   if (sleeves) {
     for (const [key, raw] of Object.entries(sleeves)) {
-      if (key.startsWith("w_")) continue;
       const target = Number(raw);
       if (!Number.isFinite(target) || target <= 0) continue;
+      const assetClass = sleeveKeyToAssetClass(key);
+      if (assetClass) {
+        const tickers = poolTickersInClass(supplementTickers, assetClass, proposed).filter(
+          (t) => !claimed.has(t),
+        );
+        if (tickers.length) {
+          for (const t of tickers) claimed.add(t);
+          pushBand({ group_id: key, tickers, target_pct: target });
+        } else {
+          diagnostics.push({
+            kind: "unfilled_class_quota",
+            ref: key,
+            asset_class: assetClass,
+            target_pct: target,
+          });
+        }
+        continue;
+      }
       const theme = sleeveKeyTheme(key);
-      const tickers =
-        theme === "other"
-          ? supplementTickers
-          : supplementTickers.filter((t) => overlayThemeClass(t) === theme);
+      if (theme === "other") {
+        pendingOther.push({
+          group_id: key,
+          target_pct: target,
+          min_pct: null,
+          max_pct: null,
+          source: "sleeve",
+        });
+        continue;
+      }
+      const tickers = supplementTickers.filter((t) => overlayThemeClass(t) === theme);
       if (tickers.length) {
         pushBand({ group_id: key, tickers, target_pct: target });
       }
+    }
+  }
+
+  // Pass 2: "other" sleeves bind only the unclaimed remainder.
+  for (const pending of pendingOther) {
+    const tickers = unclaimedPool();
+    const target = pending.target_pct;
+    if (tickers.length && target != null && target > 0) {
+      for (const t of tickers) claimed.add(t);
+      pushBand({
+        group_id: pending.group_id,
+        tickers,
+        target_pct: pending.target_pct,
+        min_pct: pending.min_pct,
+        max_pct: pending.max_pct,
+      });
+    } else if (target != null && target > 0) {
+      diagnostics.push({
+        kind: "unresolved_sleeve",
+        ref: pending.group_id,
+        target_pct: target,
+      });
     }
   }
 
@@ -1014,7 +1209,7 @@ export function groupWeightBandsFromOverlay(
       const parentTheme = sleeveKeyTheme(key);
       let parentTickers: string[] = [];
       for (const [sKey] of Object.entries(sleeves)) {
-        if (sKey.startsWith("w_")) continue;
+        if (sleeveKeyToAssetClass(sKey)) continue;
         if (sleeveKeyTheme(sKey) === parentTheme || sKey.toLowerCase() === key.toLowerCase()) {
           parentTickers = supplementTickers.filter((t) => overlayThemeClass(t) === parentTheme);
           break;
@@ -1030,7 +1225,14 @@ export function groupWeightBandsFromOverlay(
     }
   }
 
-  return bands;
+  return { bands, diagnostics };
+}
+
+export function groupWeightBandsFromOverlay(
+  overlay: ClientOverlay,
+  opts?: { includeUnsigned?: boolean },
+): GroupWeightBand[] {
+  return groupWeightBandsWithDiagnostics(overlay, opts).bands;
 }
 
 /**
@@ -1188,6 +1390,7 @@ export function overlayToBacktestRequest(
         }
       : enforcedControls;
   const clientContext = clientContextFromOverlay(overlay);
+  const supplementMeta = universeSupplementMetaFromOverlay(overlay);
   // Scope-selected cash sleeve (already on base via applyScopeToBacktestRequest)
   // is a floor: overlay cash settings can only raise it, never drop it to 0.
   const cashReserve = Math.max(
@@ -1231,6 +1434,9 @@ export function overlayToBacktestRequest(
       // supplement-pin agree (holdings stay eligible; unrelated pool never enters).
       universe_tickers: locked,
       universe_supplement_tickers: locked,
+      universe_supplement_meta: Object.keys(supplementMeta).length
+        ? supplementMeta
+        : null,
       enforce_class_weights:
         alloc.enforce_class_weights ?? base.enforce_class_weights ?? false,
       universe_filter_prompts: prompts.length
@@ -1275,6 +1481,9 @@ export function overlayToBacktestRequest(
     universe_supplement_tickers: overlay.universe.supplement_tickers?.length
       ? overlay.universe.supplement_tickers
       : base.universe_supplement_tickers,
+    universe_supplement_meta: Object.keys(supplementMeta).length
+      ? supplementMeta
+      : null,
     param_controls: anchoredDriftControls,
     experiment: inferExperiment(overlay) ?? base.experiment,
     report_language: opts?.reportLanguage ?? base.report_language,

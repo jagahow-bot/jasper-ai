@@ -328,6 +328,65 @@ def class_budget_from_params(
     return {k: v / s for k, v in raw.items()}
 
 
+def fixed_class_budget_from_param_controls(
+    param_controls: dict[str, Any] | None,
+    *,
+    asset_classes: list[str] | None = None,
+) -> dict[str, float]:
+    """Top-level class budget from *fixed* w_* param_controls only (overlay path pins these)."""
+    allowed = normalized_allowed_classes(asset_classes)
+    controls = param_controls or {}
+    raw: dict[str, float] = {}
+    for ac, keys in CLASS_BUDGET_KEYS.items():
+        if allowed is not None and ac not in allowed:
+            continue
+        total = 0.0
+        for key in keys:
+            ctrl = controls.get(key)
+            if not isinstance(ctrl, dict):
+                continue
+            if str(ctrl.get("mode", "")).strip().lower() != "fixed":
+                continue
+            try:
+                fixed = float(ctrl.get("fixed") if ctrl.get("fixed") is not None else 0.0)
+            except (TypeError, ValueError):
+                continue
+            total += max(fixed, 0.0)
+        if total > 0:
+            raw[ac] = total
+    return raw
+
+
+def find_unfilled_class_quotas(
+    class_budget: dict[str, float] | None,
+    universe_by_ticker: dict[str, dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """[{asset_class, target_pct, reason: "no_universe_members"}] for quotas with zero members."""
+    if not class_budget or not universe_by_ticker:
+        return []
+    members: dict[str, int] = {}
+    for row in universe_by_ticker.values():
+        ac = str((row or {}).get("asset_class") or "other")
+        members[ac] = members.get(ac, 0) + 1
+    out: list[dict[str, Any]] = []
+    for ac, target in class_budget.items():
+        try:
+            target_pct = float(target)
+        except (TypeError, ValueError):
+            continue
+        if target_pct <= 0:
+            continue
+        if members.get(str(ac), 0) <= 0:
+            out.append(
+                {
+                    "asset_class": str(ac),
+                    "target_pct": target_pct,
+                    "reason": "no_universe_members",
+                }
+            )
+    return out
+
+
 def regime_class_quota_param_key(regime: str, quota_key: str) -> str:
     """Optuna / trial flat key for per-regime class quotas (e.g. risk_off__w_equity)."""
     return f"{regime}__{quota_key}"

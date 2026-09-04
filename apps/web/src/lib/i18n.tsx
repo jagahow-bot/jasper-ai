@@ -577,6 +577,18 @@ const en: Dict = {
   "results.needsTable.income": "Income need",
   "results.needsTable.mustInclude": "Must-include tickers",
   "results.needsTable.drift": "Customization drift",
+  "results.needsTable.classQuota": "Asset-class quota",
+  "results.needsTable.groupBands": "Sleeve band targets",
+  "results.needsTable.classQuotaUnfilledTitle": "Inactive quota warning",
+  "results.needsClassQuotaUnfilled":
+    "These asset-class quotas had no matching instruments and were not applied: {items}",
+  "results.needsClassQuotaUnfilledHint":
+    "Confirm an ETF for this class in the overlay ticker review, or remove the quota.",
+  "results.assetClass.equity": "Equity",
+  "results.assetClass.bond": "Bond",
+  "results.assetClass.commodity": "Commodity",
+  "results.assetClass.real_estate": "Real estate",
+  "results.assetClass.alternative": "Alternative",
   "results.needsMustIncludeFail":
     "Adjustment-plan tickers missing from final portfolio: {tickers}",
   "results.needsDriftFail":
@@ -2503,6 +2515,18 @@ const zh: Dict = {
   "results.needsTable.income": "收益需求",
   "results.needsTable.mustInclude": "必納標的",
   "results.needsTable.drift": "客製化偏離",
+  "results.needsTable.classQuota": "資產類別配額",
+  "results.needsTable.groupBands": "配置區間目標",
+  "results.needsTable.classQuotaUnfilledTitle": "配額未生效警告",
+  "results.needsClassQuotaUnfilled":
+    "以下資產類別配額因標的池無對應成員而未生效: {items}",
+  "results.needsClassQuotaUnfilledHint":
+    "請在 Overlay 標的審核中確認該類別的 ETF，或移除該配額。",
+  "results.assetClass.equity": "股票",
+  "results.assetClass.bond": "債券",
+  "results.assetClass.commodity": "商品",
+  "results.assetClass.real_estate": "不動產",
+  "results.assetClass.alternative": "另類",
   "results.needsMustIncludeFail": "最終組合缺少調整方案標的：{tickers}",
   "results.needsDriftFail": "相對基準組合偏離 {actual}（上限 {cap}）",
   "results.needsTable.pass": "通過",
@@ -4358,6 +4382,18 @@ const ko: Dict = {
   "results.needsTable.income": "수익 수요",
   "results.needsTable.mustInclude": "필수 편입 종목",
   "results.needsTable.drift": "맞춤화 편차",
+  "results.needsTable.classQuota": "자산군 배분 한도",
+  "results.needsTable.groupBands": "슬리브 밴드 목표",
+  "results.needsTable.classQuotaUnfilledTitle": "적용 불가 한도 경고",
+  "results.needsClassQuotaUnfilled":
+    "해당 종목이 없어 적용되지 않은 자산군 한도: {items}",
+  "results.needsClassQuotaUnfilledHint":
+    "오버레이 종목 검토에서 해당 자산군 ETF를 확인하거나 한도를 제거하세요.",
+  "results.assetClass.equity": "주식",
+  "results.assetClass.bond": "채권",
+  "results.assetClass.commodity": "원자재",
+  "results.assetClass.real_estate": "부동산",
+  "results.assetClass.alternative": "대체",
   "results.needsMustIncludeFail": "최종 포트폴리오에 없는 조정안 종목: {tickers}",
   "results.needsDriftFail": "앵커 대비 편차 {actual} (한도 {cap})",
   "results.needsTable.pass": "충족",

@@ -668,7 +668,23 @@ export function RmReportView({
                 )}
                 client={client}
               />
-              <NeedsFulfillmentPanel needs={needs} />
+              <NeedsFulfillmentPanel
+                needs={needs}
+                classQuotaUnfilled={
+                  (Array.isArray(
+                    compare.adjustedResult.narrative_facts?.class_quota_unfilled,
+                  )
+                    ? compare.adjustedResult.narrative_facts
+                        ?.class_quota_unfilled
+                    : null) as
+                    | Array<{
+                        asset_class: string;
+                        target_pct: number;
+                        reason?: string;
+                      }>
+                    | null
+                }
+              />
 
               {overlay && overlayBullets.length > 0 ? (
                 <section className="pixel-panel border-emerald-100 bg-emerald-50/30">

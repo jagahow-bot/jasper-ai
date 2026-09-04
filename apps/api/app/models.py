@@ -38,6 +38,14 @@ class GroupWeightBand(BaseModel):
     max_pct: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
+class SupplementMeta(BaseModel):
+    """Hint for overlay supplement tickers absent from the static catalog."""
+
+    asset_class: (
+        Literal["equity", "bond", "commodity", "real_estate", "alternative"] | None
+    ) = None
+
+
 class ClientContext(BaseModel):
     """Structured client needs forwarded from the signed RM overlay.
 
@@ -193,6 +201,14 @@ class BacktestRequest(BaseModel):
             "Tickers unioned onto the base pool and pinned after refine_universe_with_ai. "
             "Without universe_tickers: union onto the asset-class base (open-pool mode). "
             "With universe_tickers: union onto that whitelist only (locked mode)."
+        ),
+    )
+    universe_supplement_meta: dict[str, "SupplementMeta"] | None = Field(
+        default=None,
+        description=(
+            "Per-ticker hints for overlay supplements absent from the static "
+            "catalog. Only used when synthesizing stub catalog rows; existing "
+            "catalog entries always win."
         ),
     )
     universe_filter_text: str | None = Field(
