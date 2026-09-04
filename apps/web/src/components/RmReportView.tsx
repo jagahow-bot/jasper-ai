@@ -24,11 +24,16 @@ import {
 } from "@/lib/performance-compare-chart";
 import { buildDisplayProposalSet, normalizeProposalLabel } from "@/lib/proposal-set";
 import { resolveRunObjective } from "@/lib/resolve-run-objective";
-import { formatWeightPct } from "@/lib/candidate-weights";
+import {
+  formatWeightPct,
+  largestRemainderPercents,
+  resolveCandidateWeights,
+} from "@/lib/candidate-weights";
 import {
   buildHoldingsDiff,
   buildMetricCompareRows,
 } from "@/lib/rm-report-utils";
+import { isSingleTrackPersonalizationCompare } from "@/lib/personalization-compare";
 import { useAiTalkingSummary } from "@/lib/use-ai-talking-summary";
 import { resolveTickerDisplayName } from "@/lib/ticker-display-name";
 import {
@@ -235,6 +240,8 @@ export function RmReportView({
   const selectedCandidate = selectedOption?.c ?? null;
   const selectedModelCode = selectedCandidate?.model_code ?? null;
 
+  const singleTrack = isSingleTrackPersonalizationCompare(compare);
+
   const candidatePick = useMemo(
     () => ({ customizedModelCode: selectedModelCode }),
     [selectedModelCode],
@@ -242,35 +249,59 @@ export function RmReportView({
 
   const metrics = useMemo(
     () =>
-      buildMetricCompareRows(
-        compare.baseResult,
-        compare.adjustedResult,
-        {
-          cagr: t("compare.metric.cagr"),
-          sharpe: t("compare.metric.sharpe"),
-          mdd: t("compare.metric.mdd"),
-          vol: t("compare.metric.vol"),
-        },
-        candidatePick,
-      ),
-    [compare.baseResult, compare.adjustedResult, candidatePick, t],
+      singleTrack
+        ? []
+        : buildMetricCompareRows(
+            compare.baseResult,
+            compare.adjustedResult,
+            {
+              cagr: t("compare.metric.cagr"),
+              sharpe: t("compare.metric.sharpe"),
+              mdd: t("compare.metric.mdd"),
+              vol: t("compare.metric.vol"),
+            },
+            candidatePick,
+          ),
+    [
+      singleTrack,
+      compare.baseResult,
+      compare.adjustedResult,
+      candidatePick,
+      t,
+    ],
   );
 
   const holdingsDiff = useMemo(
     () =>
-      buildHoldingsDiff(
-        compare.baseResult,
-        compare.adjustedResult,
-        anchorPortfolio.holdings,
-        candidatePick,
-      ),
+      singleTrack
+        ? []
+        : buildHoldingsDiff(
+            compare.baseResult,
+            compare.adjustedResult,
+            anchorPortfolio.holdings,
+            candidatePick,
+          ),
     [
+      singleTrack,
       compare.baseResult,
       compare.adjustedResult,
       anchorPortfolio.holdings,
       candidatePick,
     ],
   );
+
+  const absoluteHoldings = useMemo(() => {
+    if (!singleTrack || !selectedCandidate) return [];
+    const weights = resolveCandidateWeights(selectedCandidate);
+    const pcts = largestRemainderPercents(weights, 2);
+    return Object.entries(pcts)
+      .filter(([ticker, pct]) => {
+        if (ticker === "OTHER" || ticker === "__OTHER__") return false;
+        return pct >= 0.1;
+      })
+      .sort((a, b) => b[1] - a[1])
+      .map(([ticker, pct]) => ({ ticker, pct }));
+  }, [singleTrack, selectedCandidate]);
 
   const talkingSummary = useAiTalkingSummary({
     metrics,
@@ -338,8 +369,8 @@ export function RmReportView({
         variant="rm"
         anchorBenchmarkTicker={anchorPortfolio.benchmark}
         anchorPortfolio={anchorPortfolio}
-        anchorBaselineResult={compare.baseResult}
-        anchorBaselineLabel={compare.anchorLabel}
+        anchorBaselineResult={singleTrack ? null : compare.baseResult}
+        anchorBaselineLabel={singleTrack ? null : compare.anchorLabel}
         selectedRowKey={selectedRowKey}
         onSelectedRowKeyChange={setSelectedRowKey}
         onPromoteTickers={onPromoteTickers}
@@ -359,8 +390,8 @@ export function RmReportView({
         variant="rm"
         anchorBenchmarkTicker={anchorPortfolio.benchmark}
         anchorPortfolio={anchorPortfolio}
-        anchorBaselineResult={compare.baseResult}
-        anchorBaselineLabel={compare.anchorLabel}
+        anchorBaselineResult={singleTrack ? null : compare.baseResult}
+        anchorBaselineLabel={singleTrack ? null : compare.anchorLabel}
         selectedRowKey={selectedRowKey}
         onSelectedRowKeyChange={setSelectedRowKey}
         onPromoteTickers={onPromoteTickers}
@@ -455,7 +486,9 @@ export function RmReportView({
               </h3>
               {isPrimaryRecommendation ? (
                 <p className="ui-hint mt-1">
-                  {t("rm.report.heroHint", { anchor: compare.anchorLabel })}
+                  {singleTrack
+                    ? t("rm.report.heroHintSingleTrack")
+                    : t("rm.report.heroHint", { anchor: compare.anchorLabel })}
                 </p>
               ) : null}
             </div>
@@ -517,16 +550,60 @@ export function RmReportView({
           {/* Laptop / tablet: primary story left, supporting panels right */}
           <div className="grid gap-5 lg:grid-cols-12 lg:items-start">
             <div className="min-w-0 space-y-5 lg:col-span-7">
-              <BenchmarkComparePanel
-                anchorLabel={compare.anchorLabel}
-                customizedLabel={compare.customizedLabel}
-                baseResult={compare.baseResult}
-                adjustedResult={compare.adjustedResult}
-                request={request}
-                candidatePick={candidatePick}
-              />
+              {!singleTrack ? (
+                <BenchmarkComparePanel
+                  anchorLabel={compare.anchorLabel}
+                  customizedLabel={compare.customizedLabel}
+                  baseResult={compare.baseResult}
+                  adjustedResult={compare.adjustedResult}
+                  request={request}
+                  candidatePick={candidatePick}
+                />
+              ) : null}
 
-              {holdingsDiff.length > 0 && (
+              {singleTrack && absoluteHoldings.length > 0 ? (
+                <section className="pixel-panel">
+                  <h3 className="ui-panel-title">
+                    {t("rm.report.holdingsTitleSingle")}
+                  </h3>
+                  <p className="ui-hint mt-1">
+                    {t("rm.report.holdingsHintSingle")}
+                  </p>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full min-w-[320px] text-left ui-body">
+                      <thead className="text-dim">
+                        <tr>
+                          <th className="pb-2 pr-3">{t("common.ticker")}</th>
+                          <th className="pb-2 pr-3">{t("common.name")}</th>
+                          <th className="pb-2 text-right">
+                            {t("results.audit.weightPct")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {absoluteHoldings.slice(0, 16).map((row) => (
+                          <tr
+                            key={row.ticker}
+                            className="border-t border-[var(--border)]"
+                          >
+                            <td className="py-2 pr-3 font-medium">
+                              {row.ticker}
+                            </td>
+                            <td className="py-2 pr-3 text-dim">
+                              {resolveTickerDisplayName(row.ticker, lang)}
+                            </td>
+                            <td className="py-2 text-right text-[var(--primary)]">
+                              {formatWeightPct(row.pct)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ) : null}
+
+              {!singleTrack && holdingsDiff.length > 0 && (
                 <section className="pixel-panel">
                   <h3 className="ui-panel-title">{t("rm.report.holdingsTitle")}</h3>
                   <p className="ui-hint mt-1">{t("rm.report.holdingsHint")}</p>

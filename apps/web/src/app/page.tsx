@@ -74,6 +74,9 @@ import {
   type ModelPortfolio,
 } from "@/lib/model-portfolios";
 import {
+  buildSingleTrackPersonalizationCompare,
+} from "@/lib/personalization-compare";
+import {
   getManagedPortfolioById,
   getSelectableAnchorPortfolios,
   readManagedPortfolios,
@@ -476,6 +479,35 @@ export default function HomePage() {
           resolvedCompare = null;
         }
       }
+      // Cash skip-baseline jobs never produce an anchor_job_id — synthesize a
+      // single-track compare so RmReportView (客戶報告) still mounts.
+      // skip_anchor_compare is UI-only (stripped from API createJob); also
+      // detect via skip-baseline anchor id when reopening from the API.
+      if (
+        !resolvedCompare &&
+        (req.skip_anchor_compare ||
+          isSkipBaselineAnchorId(req.anchor_portfolio_id) ||
+          isSkipBaselineAnchorId(anchorId))
+      ) {
+        const portfolioId =
+          anchorId ||
+          (isSkipBaselineAnchorId(req.anchor_portfolio_id)
+            ? SKIP_BASELINE_ANCHOR_ID
+            : req.anchor_portfolio_id?.trim()) ||
+          SKIP_BASELINE_ANCHOR_ID;
+        const portfolio =
+          getAnchorPortfolioById(portfolioId) ??
+          (isSkipBaselineAnchorId(portfolioId)
+            ? SKIP_BASELINE_ANCHOR
+            : SPY_ANCHOR);
+        resolvedCompare = buildSingleTrackPersonalizationCompare({
+          result: res,
+          request: req,
+          anchorPortfolioId: portfolioId,
+          anchorLabel: getPortfolioLabel(portfolio, lang),
+          customizedLabel: getCustomizedVsAnchorLabel(portfolio, lang),
+        });
+      }
 
       const effectiveReq = resolvedCompare
         ? {
@@ -805,7 +837,8 @@ export default function HomePage() {
         requestHasCashCustomization(adjustedReq, signedOverlay);
 
       // Cash customization with "不對標基準投組": single customized job only —
-      // no anchor static-replay leg and no dual-track RmReportView compare.
+      // no anchor static-replay leg. Still build a single-track compare so
+      // RmReportView mounts (客戶報告 tab) instead of ResultsWithAuditTabs.
       // Market ticker (benchmark_ticker) remains for risk metrics / charts.
       if (skipAnchorCompare) {
         try {
@@ -847,12 +880,20 @@ export default function HomePage() {
             anchor_portfolio_id: anchor.id,
             skip_anchor_compare: true,
           };
+          const compare = buildSingleTrackPersonalizationCompare({
+            result: soloRes,
+            request: storedReq,
+            anchorPortfolioId: anchor.id,
+            anchorLabel: getPortfolioLabel(anchor, lang),
+            customizedLabel: getCustomizedVsAnchorLabel(anchor, lang),
+          });
           recordCompletedBacktest(soloJob.job_id, storedReq, soloRes, {
+            personalizationCompare: compare,
             signedOverlay,
             clientId:
               activeClient?.client_id ?? signedOverlay?.audit.client_ref,
           });
-          await presentResult(soloJob.job_id, soloRes, storedReq, null);
+          await presentResult(soloJob.job_id, soloRes, storedReq, compare);
         } catch {
           setPhase("constraints");
         }
