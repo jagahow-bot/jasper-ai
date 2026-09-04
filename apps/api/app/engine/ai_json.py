@@ -240,6 +240,32 @@ def truncate_json_numeric_literals(text: str, *, max_literal_len: int | None = N
     return "".join(out)
 
 
+# Sentence boundary for prompt-text truncation: CJK full-stop marks always count;
+# ASCII .!? only when not preceded by a digit (skips "1." list markers / decimals).
+_SENTENCE_BOUNDARY_RE = re.compile(r"(?<!\d)[.!?](?=\s|$)|[。！？!?]")
+
+
+def truncate_at_sentence(text: str, max_len: int) -> str:
+    """Clip prompt prose at the last sentence boundary within ``max_len``.
+
+    Never cuts mid-word: falls back to the last whitespace cut, then a hard
+    cut, when no usable sentence boundary exists in the window.
+    """
+    s = " ".join(str(text).split())
+    if len(s) <= max_len:
+        return s
+    window = s[:max_len]
+    cut = 0
+    for m in _SENTENCE_BOUNDARY_RE.finditer(window):
+        cut = m.end()
+    if cut >= max_len // 2:
+        return window[:cut].rstrip()
+    soft = window.rfind(" ")
+    if soft >= max_len // 2:
+        return window[:soft].rstrip() + " ..."
+    return window.rstrip() + "..."
+
+
 def sanitize_json_text_for_log(text: str, *, max_len: int = 240) -> str:
     """Compact Gemini raw JSON for retry/error logs (truncate float bloat first)."""
     cleaned = prepare_gemini_json_text(text)

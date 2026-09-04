@@ -782,11 +782,40 @@ export function explicitDrawdownToleranceFromOverlay(
   return null;
 }
 
+/** Prompt budget for the client view carried in needs_summary. */
+const NEEDS_SUMMARY_MAX_LEN = 2000;
+
+/**
+ * Clip prompt prose at the last sentence boundary within maxLen.
+ * Never cuts mid-word: falls back to a whitespace cut, then a hard cut,
+ * when no usable sentence boundary exists in the window.
+ */
+function truncateAtSentence(text: string, maxLen: number): string {
+  const s = text.replace(/\s+/g, " ").trim();
+  if (s.length <= maxLen) return s;
+  const win = s.slice(0, maxLen);
+  let cut = 0;
+  for (let i = 0; i < win.length; i++) {
+    const ch = win[i];
+    const isCjk = ch === "。" || ch === "！" || ch === "？";
+    const isBang = ch === "!" || ch === "?";
+    const isDot =
+      ch === "." &&
+      !(i > 0 && /\d/.test(win[i - 1])) &&
+      (i + 1 >= win.length || /\s/.test(win[i + 1]));
+    if (isCjk || isBang || isDot) cut = i + 1;
+  }
+  if (cut >= maxLen / 2) return win.slice(0, cut).trimEnd();
+  const soft = win.lastIndexOf(" ");
+  if (soft >= maxLen / 2) return win.slice(0, soft).trimEnd() + " ...";
+  return win.trimEnd() + "...";
+}
+
 function asksNeedsSummary(overlay: ClientOverlay): string | null {
   const asks = overlay.asks ?? [];
   if (!asks.length) return null;
   const bits = asks.map((a, i) => `${i + 1}. ${a.title}: ${a.summary}`);
-  return bits.join(" ").slice(0, 300);
+  return truncateAtSentence(bits.join(" "), NEEDS_SUMMARY_MAX_LEN);
 }
 
 const OVERLAY_HEDGE_TICKERS = new Set([
@@ -1010,7 +1039,9 @@ export function clientContextFromOverlay(
     max_single_name_pct: singleCap,
     theme_exposure_cap_pct: themeCap,
     cash_reserve_pct: cashReserve,
-    needs_summary: summary ? summary.slice(0, 300) : null,
+    needs_summary: summary
+      ? truncateAtSentence(summary, NEEDS_SUMMARY_MAX_LEN)
+      : null,
     market_stance: stance,
     market_themes: themes.length ? themes : null,
     group_weight_bands: groupBands.length ? groupBands : null,

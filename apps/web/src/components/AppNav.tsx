@@ -31,16 +31,6 @@ const TOOLS_NAV: NavItem[] = [
   { href: "/pool", labelKey: "nav.pool", match: (p) => p === "/pool" },
   { href: "/models", labelKey: "nav.models", match: (p) => p === "/models" },
   {
-    href: "/gaps",
-    labelKey: "nav.gaps",
-    match: (p) => p === "/gaps" || p.startsWith("/gaps/"),
-  },
-  {
-    href: "/docs/engine",
-    labelKey: "nav.engineDocs",
-    match: (p) => p.startsWith("/docs/engine"),
-  },
-  {
     href: "/settings",
     labelKey: "nav.settings",
     match: (p) => p === "/settings" || p.startsWith("/settings/"),
@@ -109,39 +99,37 @@ function navLinkClass(active: boolean) {
   }`;
 }
 
-export function AppNav({ subtitle, extraBadges }: Props) {
+/** Desktop dropdown menu for a secondary nav group (Tools). */
+function NavDropdown({
+  label,
+  items,
+  pathname,
+}: {
+  label: string;
+  items: NavItem[];
+  pathname: string;
+}) {
   const { t } = useI18n();
-  const pathname = usePathname() ?? "/";
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const toolsRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const menuId = useId();
-  const toolsId = useId();
-
-  const toolsActive = TOOLS_NAV.some((item) => isActive(item, pathname));
+  const anyActive = items.some((item) => isActive(item, pathname));
 
   useEffect(() => {
-    setMenuOpen(false);
-    setToolsOpen(false);
+    setOpen(false);
   }, [pathname]);
 
   useEffect(() => {
-    if (!menuOpen && !toolsOpen) return;
+    if (!open) return;
 
     const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (menuOpen && !menuRef.current?.contains(target)) {
-        setMenuOpen(false);
-      }
-      if (toolsOpen && !toolsRef.current?.contains(target)) {
-        setToolsOpen(false);
+      if (!ref.current?.contains(event.target as Node)) {
+        setOpen(false);
       }
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setMenuOpen(false);
-        setToolsOpen(false);
+        setOpen(false);
       }
     };
 
@@ -151,7 +139,111 @@ export function AppNav({ subtitle, extraBadges }: Props) {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [menuOpen, toolsOpen]);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        className={`${navLinkClass(anyActive)} inline-flex items-center gap-1`}
+        aria-expanded={open}
+        aria-controls={menuId}
+        aria-haspopup="menu"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {label}
+        <ChevronIcon open={open} />
+      </button>
+      {open ? (
+        <div
+          id={menuId}
+          role="menu"
+          aria-label={label}
+          className="absolute left-0 top-full z-50 mt-1 min-w-[11rem] overflow-hidden rounded-lg border border-[var(--border)] bg-white py-1 shadow-md"
+        >
+          {items.map((item) => {
+            const active = isActive(item, pathname);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                role="menuitem"
+                aria-current={active ? "page" : undefined}
+                className={`block px-3 py-2 text-sm font-medium transition ${
+                  active
+                    ? "bg-[var(--primary-muted)] text-[var(--primary)]"
+                    : "text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
+                }`}
+                onClick={() => setOpen(false)}
+              >
+                {t(item.labelKey)}
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function AppNav({ subtitle, extraBadges }: Props) {
+  const { t } = useI18n();
+  const pathname = usePathname() ?? "/";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!menuRef.current?.contains(target)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  const renderMobileItem = (item: NavItem) => {
+    const active = isActive(item, pathname);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={`block border-0 px-3 py-2 text-sm font-medium transition ${
+          active
+            ? "bg-[var(--primary-muted)] text-[var(--primary)]"
+            : "text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
+        }`}
+        onClick={() => setMenuOpen(false)}
+      >
+        {t(item.labelKey)}
+      </Link>
+    );
+  };
+
+  const mobileSectionHeader = (label: string) => (
+    <p className="border-t border-[var(--border)] px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+      {label}
+    </p>
+  );
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)] shadow-sm">
@@ -188,47 +280,11 @@ export function AppNav({ subtitle, extraBadges }: Props) {
             );
           })}
 
-          <div ref={toolsRef} className="relative">
-            <button
-              type="button"
-              className={`${navLinkClass(toolsActive)} inline-flex items-center gap-1`}
-              aria-expanded={toolsOpen}
-              aria-controls={toolsId}
-              aria-haspopup="menu"
-              onClick={() => setToolsOpen((v) => !v)}
-            >
-              {t("nav.tools")}
-              <ChevronIcon open={toolsOpen} />
-            </button>
-            {toolsOpen ? (
-              <div
-                id={toolsId}
-                role="menu"
-                aria-label={t("nav.tools")}
-                className="absolute left-0 top-full z-50 mt-1 min-w-[11rem] overflow-hidden rounded-lg border border-[var(--border)] bg-white py-1 shadow-md"
-              >
-                {TOOLS_NAV.map((item) => {
-                  const active = isActive(item, pathname);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      role="menuitem"
-                      aria-current={active ? "page" : undefined}
-                      className={`block px-3 py-2 text-sm font-medium transition ${
-                        active
-                          ? "bg-[var(--primary-muted)] text-[var(--primary)]"
-                          : "text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
-                      }`}
-                      onClick={() => setToolsOpen(false)}
-                    >
-                      {t(item.labelKey)}
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
+          <NavDropdown
+            label={t("nav.tools")}
+            items={TOOLS_NAV}
+            pathname={pathname}
+          />
         </nav>
 
         <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">
@@ -249,45 +305,9 @@ export function AppNav({ subtitle, extraBadges }: Props) {
                 aria-label={t("nav.aria")}
                 className="absolute right-0 top-full z-50 mt-1 min-w-[12rem] overflow-hidden rounded-lg border border-[var(--border)] bg-white py-1 shadow-md"
               >
-                {PRIMARY_NAV.map((item) => {
-                  const active = isActive(item, pathname);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`block border-0 px-3 py-2 text-sm font-medium transition ${
-                        active
-                          ? "bg-[var(--primary-muted)] text-[var(--primary)]"
-                          : "text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
-                      }`}
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      {t(item.labelKey)}
-                    </Link>
-                  );
-                })}
-                <p className="border-t border-[var(--border)] px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
-                  {t("nav.tools")}
-                </p>
-                {TOOLS_NAV.map((item) => {
-                  const active = isActive(item, pathname);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`block border-0 px-3 py-2 text-sm font-medium transition ${
-                        active
-                          ? "bg-[var(--primary-muted)] text-[var(--primary)]"
-                          : "text-[var(--ui-color-body)] hover:bg-[var(--surface-2)]"
-                      }`}
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      {t(item.labelKey)}
-                    </Link>
-                  );
-                })}
+                {PRIMARY_NAV.map(renderMobileItem)}
+                {mobileSectionHeader(t("nav.tools"))}
+                {TOOLS_NAV.map(renderMobileItem)}
               </nav>
             ) : null}
           </div>

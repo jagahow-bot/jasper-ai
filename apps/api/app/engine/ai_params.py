@@ -40,6 +40,7 @@ from app.engine.ai_json import (
     sanitize_ai_response,
     sanitize_for_ai,
     sanitize_json_text_for_log,
+    truncate_at_sentence,
 )
 from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
@@ -470,6 +471,11 @@ def _thinking_config_for_round_seed(*, model: str) -> dict[str, Any] | None:
 
 
 _PROMPT_STRING_MAX_LEN = 120
+
+# CLIENT_NEEDS view= carries the client's full plain-language rationale; the
+# generic 120-char prompt-string cap used to cut it mid-sentence. Give it a
+# real budget and truncate at sentence boundaries instead.
+_CLIENT_NEEDS_VIEW_MAX_LEN = 2000
 
 
 def _sanitize_prompt_string(value: Any, *, max_len: int = _PROMPT_STRING_MAX_LEN) -> Any:
@@ -2059,7 +2065,12 @@ def _client_needs_prompt_line(learning_context: dict[str, Any] | None) -> str | 
         ]
         if cleaned:
             parts.append(f'themes="{";".join(cleaned)}"')
-    summary = _sanitize_prompt_string(needs.get("needs_summary"))
+    summary_raw = needs.get("needs_summary")
+    summary = (
+        truncate_at_sentence(summary_raw, _CLIENT_NEEDS_VIEW_MAX_LEN)
+        if isinstance(summary_raw, str)
+        else None
+    )
     if not parts and not summary:
         return None
     line = "CLIENT_NEEDS " + " ".join(parts)
