@@ -3,11 +3,16 @@ import type { ClientOverlay, OverlayProposedTicker } from "@/lib/overlay-schema"
 import {
   clearProposedTickers,
   decideFilterProposalInterrupt,
+  ensureProposedTickersForReview,
+  instrumentNeedsKey,
+  isTickerReviewBlocking,
   mergeFilterProposedIntoOverlay,
   novelFilterProposedTickers,
   overlayAlreadyShowsProposedTickers,
+  overlayNeedsNewInstruments,
   overlayPromptsKey,
   proposedTickersAfterClarificationDedup,
+  synthesizeThemeProposedTickers,
   tickersNamedInClarifications,
 } from "./overlay-filter-proposals";
 import type { OverlayClarification } from "./overlay-schema";
@@ -233,5 +238,150 @@ describe("clarification / proposed_tickers dedupe", () => {
         (p) => p.ticker,
       ),
     ).toEqual(["BOTZ", "AIQ"]);
+  });
+});
+
+describe("thematic ticker review gate", () => {
+  const greenBondOverlay = (): ClientOverlay =>
+    baseOverlay({
+      prompts: ["50% green bond fixed income", "40% ESG equity", "10% utilities"],
+      proposed_tickers: undefined,
+      supplement_tickers: undefined,
+    });
+
+  function withThemes(overlay: ClientOverlay): ClientOverlay {
+    return {
+      ...overlay,
+      market_view: {
+        ...overlay.market_view,
+        themes: ["green_bond", "esg", "utilities"],
+        narrative_summary:
+          "Client wants 50% green bonds, 40% ESG equity (70% US / 30% Europe-Asia), 10% utilities/infra, max DD -8%.",
+      },
+      allocation: {
+        ...overlay.allocation,
+        sleeve_targets: {
+          green_bond: 0.5,
+          esg_equity: 0.4,
+          utilities_infra: 0.1,
+        },
+      },
+      asks: [
+        {
+          id: "ask-green",
+          title: "綠色債券固定收益 50%",
+          summary: "配置約五成綠債／固定收益。",
+          kind: "group_weight_band",
+          group_id: "green_bond",
+          target_pct: 0.5,
+          status: "proposed",
+        },
+      ],
+    };
+  }
+
+  it("overlayNeedsNewInstruments detects thematic sleeves", () => {
+    expect(
+      overlayNeedsNewInstruments(
+        baseOverlay({ prompts: ["Maintain existing core book"] }),
+      ),
+    ).toBe(false);
+    expect(overlayNeedsNewInstruments(withThemes(greenBondOverlay()))).toBe(
+      true,
+    );
+  });
+
+  it("synthesizes catalog proposals when LLM left proposed_tickers empty", () => {
+    const overlay = withThemes(greenBondOverlay());
+    const proposed = synthesizeThemeProposedTickers(overlay, "zh");
+    const tickers = proposed.map((p) => p.ticker);
+    expect(tickers.length).toBeGreaterThan(0);
+    expect(tickers.some((t) => ["AGG", "BND", "BNDX"].includes(t))).toBe(true);
+    expect(tickers.some((t) => ["ESGU", "ESGV", "SUSA"].includes(t))).toBe(
+      true,
+    );
+    expect(tickers.some((t) => ["XLU", "VPU", "IDU", "PAVE"].includes(t))).toBe(
+      true,
+    );
+  });
+
+  it("ensureProposedTickersForReview fills empty thematic overlays", () => {
+    const overlay = withThemes(greenBondOverlay());
+    const ensured = ensureProposedTickersForReview(overlay, "zh");
+    expect(ensured.universe.proposed_tickers?.length).toBeGreaterThan(0);
+  });
+
+  it("ensureProposedTickersForReview is a no-op when supplements already locked", () => {
+    const overlay = withThemes(
+      baseOverlay({
+        prompts: ["green bond"],
+        supplement_tickers: ["AGG", "ESGU"],
+      }),
+    );
+    const ensured = ensureProposedTickersForReview(overlay, "zh");
+    expect(ensured.universe.proposed_tickers).toBeUndefined();
+  });
+
+  it("blocks confirm when thematic needs have no adds and no ack", () => {
+    const overlay = withThemes(greenBondOverlay());
+    expect(
+      isTickerReviewBlocking(overlay, {
+        visibleProposed: [],
+        noAddsAckKey: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not block mid-clarify when proposals are chip-deduped", () => {
+    const overlay = withThemes(greenBondOverlay());
+    expect(
+      isTickerReviewBlocking(overlay, {
+        visibleProposed: [],
+        noAddsAckKey: null,
+        hasPendingClarifications: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("unblocks after 無新增標的 ack for the same needs key", () => {
+    const overlay = withThemes(greenBondOverlay());
+    const key = instrumentNeedsKey(overlay);
+    expect(
+      isTickerReviewBlocking(overlay, {
+        visibleProposed: [],
+        noAddsAckKey: key,
+      }),
+    ).toBe(false);
+  });
+
+  it("unblocks when supplements were confirmed", () => {
+    const overlay = withThemes(
+      baseOverlay({
+        prompts: ["green bond"],
+        supplement_tickers: ["AGG"],
+      }),
+    );
+    expect(
+      isTickerReviewBlocking(overlay, {
+        visibleProposed: [],
+        noAddsAckKey: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("still blocks while visible proposed tickers remain", () => {
+    const overlay = withThemes(
+      baseOverlay({
+        prompts: ["esg"],
+        supplement_tickers: ["AGG"],
+        proposed_tickers: [{ ticker: "ESGU", name: "ESG US" }],
+      }),
+    );
+    expect(
+      isTickerReviewBlocking(overlay, {
+        visibleProposed: [{ ticker: "ESGU" }],
+        noAddsAckKey: null,
+      }),
+    ).toBe(true);
   });
 });

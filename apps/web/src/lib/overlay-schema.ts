@@ -517,6 +517,31 @@ export function wrapExtractAsOverlay(
       ? extract.asks.map((a) => ({ ...a, status: a.status ?? ("proposed" as const) }))
       : prior?.asks;
 
+  // Preserve prior supplements / unconfirmed proposals when Gemini omits them
+  // after a clarification round (otherwise the ticker-review step vanishes).
+  const mergedProposed =
+    extract.universe.proposed_tickers?.length
+      ? extract.universe.proposed_tickers
+      : prior?.universe.proposed_tickers;
+  const mergedUniverse = {
+    ...prior?.universe,
+    ...extract.universe,
+    prompts: extract.universe.prompts?.length
+      ? extract.universe.prompts
+      : (prior?.universe.prompts ?? []),
+    supplement_tickers: mergeTickerLists(
+      prior?.universe.supplement_tickers,
+      extract.universe.supplement_tickers,
+    ),
+    exclude_tickers: mergeTickerLists(
+      prior?.universe.exclude_tickers,
+      extract.universe.exclude_tickers,
+    ),
+    proposed_tickers: mergedProposed?.length ? mergedProposed : undefined,
+    construction:
+      extract.universe.construction ?? prior?.universe.construction,
+  };
+
   const base: ClientOverlay = {
     version: OVERLAY_VERSION,
     audit: {
@@ -536,7 +561,7 @@ export function wrapExtractAsOverlay(
     client_profile: clientProfile,
     market_view: extract.market_view,
     allocation,
-    universe: extract.universe,
+    universe: mergedUniverse,
     optimization: extract.optimization,
     deployment_schedule:
       extract.deployment_schedule ?? prior?.deployment_schedule,

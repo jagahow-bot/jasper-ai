@@ -1222,6 +1222,13 @@ const en: Dict = {
     "Add selected ({count}) to candidate list",
   "overlay.proposedTickers.confirmMessage":
     "Added {tickers} to the candidate list.",
+  "overlay.proposedTickers.skipNoAdds": "No new tickers",
+  "overlay.proposedTickers.skipNoAddsMessage":
+    "Acknowledged: no new tickers will be added for this customization.",
+  "overlay.proposedTickers.reviewRequired":
+    "Review suggested tickers (or confirm no new tickers) before signing off.",
+  "overlay.proposedTickers.emptyNeedsHint":
+    "This overlay needs investable names for the stated themes. Confirm suggestions below, or acknowledge no new tickers.",
   "overlay.asks.title": "Client requirement highlights",
   "overlay.asks.softHint":
     "Soft targets — results show target vs actual; missing one is not a failure",
@@ -3087,6 +3094,13 @@ const zh: Dict = {
   "overlay.proposedTickers.none": "全不選",
   "overlay.proposedTickers.addSelected": "加入選取的 {count} 檔標的",
   "overlay.proposedTickers.confirmMessage": "已將 {tickers} 加入投資標的池。",
+  "overlay.proposedTickers.skipNoAdds": "無新增標的",
+  "overlay.proposedTickers.skipNoAddsMessage":
+    "已確認：本次客製化不新增標的。",
+  "overlay.proposedTickers.reviewRequired":
+    "請先確認建議標的（或明確選擇「無新增標的」）後再簽核 Overlay。",
+  "overlay.proposedTickers.emptyNeedsHint":
+    "此 Overlay 的主題／袖套需要可投資標的。請確認下方建議，或確認無新增標的。",
   "overlay.asks.title": "客戶需求重點",
   "overlay.asks.softHint": "軟目標：結果會並列目標與實際值，未達標不視為失敗",
   "overlay.asks.summaryLabel": "需求摘要",
@@ -4948,6 +4962,13 @@ const ko: Dict = {
   "overlay.proposedTickers.addSelected": "선택한 {count}개 종목 추가",
   "overlay.proposedTickers.confirmMessage":
     "{tickers} 종목을 유니버스에 추가했습니다.",
+  "overlay.proposedTickers.skipNoAdds": "추가 종목 없음",
+  "overlay.proposedTickers.skipNoAddsMessage":
+    "확인함: 이번 맞춤화에 신규 종목을 추가하지 않습니다.",
+  "overlay.proposedTickers.reviewRequired":
+    "서명 전에 제안 종목을 확인하거나「추가 종목 없음」을 선택하세요.",
+  "overlay.proposedTickers.emptyNeedsHint":
+    "이 오버레이의 테마/슬리브에는 투자 가능 종목이 필요합니다. 아래 제안을 확인하거나 추가 없음을 인정하세요.",
   "overlay.asks.title": "고객 요구사항 핵심",
   "overlay.asks.softHint":
     "소프트 목표 — 엔진이 시도하며, 결과에 목표 대비 실적 표시",
