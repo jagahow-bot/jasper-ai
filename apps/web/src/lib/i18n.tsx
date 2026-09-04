@@ -1339,6 +1339,8 @@ const en: Dict = {
   "rm.report.heroEyebrow": "Recommended portfolio",
   "rm.report.heroTitle": "{code}{star}",
   "rm.report.heroHint": "Top pick of this run vs \"{anchor}\"",
+  "rm.report.heroHintSingleTrack":
+    "Top pick of this run (no baseline portfolio compare)",
   "rm.report.heroEyebrowViewing": "Viewing · {label}",
   "rm.report.needsTitle": "Needs fulfillment",
   "rm.report.needsHint":
@@ -1379,6 +1381,8 @@ const en: Dict = {
   "rm.report.metricsHint": "Green = better than anchor for this metric",
   "rm.report.holdingsTitle": "Holdings changes",
   "rm.report.holdingsHint": "What shifted from the baseline portfolio",
+  "rm.report.holdingsTitleSingle": "Recommended holdings",
+  "rm.report.holdingsHintSingle": "Weights in the selected portfolio",
   "rm.report.holdingsPrecisionHint":
     "Weights are end-of-period values (2 d.p.). Near-equal splits usually mean the single-name cap conflicts with max holdings or asset-class budgets — raise the cap, allow more holdings, or loosen class budgets.",
   "rm.report.talkingTitle": "Strategy summary",
@@ -3205,6 +3209,7 @@ const zh: Dict = {
   "rm.report.heroEyebrow": "建議投組",
   "rm.report.heroTitle": "{code}{star}",
   "rm.report.heroHint": "本次試算的首選投組，相對「{anchor}」",
+  "rm.report.heroHintSingleTrack": "本次試算的首選投組（未對標基準投組）",
   "rm.report.heroEyebrowViewing": "檢視中 · {label}",
   "rm.report.needsTitle": "需求達成檢核",
   "rm.report.needsHint": "這次試算有沒有守住調整方案簽核的承諾？",
@@ -3242,6 +3247,8 @@ const zh: Dict = {
   "rm.report.metricsHint": "綠燈代表該指標優於基準",
   "rm.report.holdingsTitle": "持股變化",
   "rm.report.holdingsHint": "相對基準組合的主要調整",
+  "rm.report.holdingsTitleSingle": "建議持股",
+  "rm.report.holdingsHintSingle": "所選投組的權重配置",
   "rm.report.holdingsPrecisionHint":
     "權重為期末配置（顯示至小數點後兩位）。接近等權通常代表單檔上限與持股數或類別配置不相容——請提高單檔上限、增加持股數，或放寬類別預算。",
   "rm.report.talkingTitle": "方案摘要",
@@ -5076,6 +5083,8 @@ const ko: Dict = {
   "rm.report.heroEyebrow": "권장 포트폴리오",
   "rm.report.heroTitle": "{code}{star}",
   "rm.report.heroHint": "이번 시뮬레이션의 최우선 제안, 「{anchor}」 대비",
+  "rm.report.heroHintSingleTrack":
+    "이번 시뮬레이션의 최우선 제안 (기준 포트폴리오 대비 생략)",
   "rm.report.heroEyebrowViewing": "보는 중 · {label}",
   "rm.report.needsTitle": "니즈 이행 점검",
   "rm.report.needsHint": "이번 실행이 조정안에서 서명한 약속을 지켰는지 확인합니다.",
@@ -5114,6 +5123,8 @@ const ko: Dict = {
   "rm.report.metricsHint": "녹색 = 해당 지표에서 기준보다 우수",
   "rm.report.holdingsTitle": "보유 종목 변화",
   "rm.report.holdingsHint": "기준 대비 주요 조정",
+  "rm.report.holdingsTitleSingle": "권장 보유 종목",
+  "rm.report.holdingsHintSingle": "선택한 포트폴리오의 비중",
   "rm.report.holdingsPrecisionHint":
     "비중은 기말 배분(소수 둘째 자리). 거의 등비이면 종목당 상한이 보유 수·자산군 슬리브와 충돌한 경우가 많습니다(예: 상한 8%인데 8종목만 보유 → 최소 13종목 필요). 상한 완화, 보유 수 확대, 또는 자산군 예산을 조정하세요.",
   "rm.report.talkingTitle": "방안 요약",
