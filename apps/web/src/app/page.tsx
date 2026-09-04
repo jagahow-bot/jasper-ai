@@ -41,6 +41,7 @@ import {
   holdingsGroupLabel,
   holdingsGroupWeight,
   localizedText,
+  requestHasCashCustomization,
   resolveAnchorIdFromScope,
   type DemoClient,
 } from "@/lib/clients";
@@ -735,6 +736,65 @@ export default function HomePage() {
       setNarrative("");
       setPersonalizationCompare(null);
       setAnchorProgress(null);
+
+      const skipAnchorCompare =
+        Boolean((reqOverride ?? request)?.skip_anchor_compare) &&
+        requestHasCashCustomization(adjustedReq, signedOverlay);
+
+      // Cash customization with "不對標基準投組": single customized job only —
+      // no anchor static-replay leg and no dual-track RmReportView compare.
+      // Market ticker (benchmark_ticker) remains for risk metrics / charts.
+      if (skipAnchorCompare) {
+        try {
+          const soloJob = await createJob({
+            ...adjustedReq,
+            anchor_job_id: null,
+            experiment: undefined,
+            report_language: lang,
+          });
+          void flushLlmAuditLogs(soloJob.job_id);
+          const initialProg = await getJobProgress(soloJob.job_id);
+          setProgress(initialProg);
+          setJobId(soloJob.job_id);
+
+          let done = false;
+          let failed = false;
+          while (!done) {
+            const prog = await getJobProgress(soloJob.job_id);
+            setProgress(prog);
+            if (prog.status === "completed") done = true;
+            if (prog.status === "failed") {
+              failed = true;
+              done = true;
+            }
+            if (!done) await new Promise((r) => setTimeout(r, 400));
+          }
+          if (failed) {
+            setPhase("constraints");
+            return;
+          }
+
+          const [soloRes, soloReqStored] = await Promise.all([
+            getJobResult(soloJob.job_id),
+            getJobRequest(soloJob.job_id).catch(() => adjustedReq),
+          ]);
+          const storedReq = {
+            ...soloReqStored,
+            client_ref: adjustedReq.client_ref,
+            anchor_portfolio_id: anchor.id,
+            skip_anchor_compare: true,
+          };
+          recordCompletedBacktest(soloJob.job_id, storedReq, soloRes, {
+            signedOverlay,
+            clientId:
+              activeClient?.client_id ?? signedOverlay?.audit.client_ref,
+          });
+          await presentResult(soloJob.job_id, soloRes, storedReq, null);
+        } catch {
+          setPhase("constraints");
+        }
+        return;
+      }
 
       const anchorLabelForRun = getPortfolioLabel(anchor, lang);
 

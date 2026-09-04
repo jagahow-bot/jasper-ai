@@ -589,6 +589,25 @@ export function holdingsToStaticReplay(
 export const MAX_CASH_RESERVE_PCT = 0.4;
 
 /**
+ * True when the run is customizing a cash sleeve (scope reserve, overlay ask,
+ * or deployment liquidity buffer). Gates the "skip anchor compare" UX.
+ */
+export function requestHasCashCustomization(
+  request: Pick<BacktestRequest, "cash_reserve_pct">,
+  overlay?: {
+    asks?: ReadonlyArray<{ kind?: string }>;
+    deployment_schedule?: { liquidity_buffer_pct?: number | null } | null;
+  } | null,
+): boolean {
+  if ((request.cash_reserve_pct ?? 0) > 1e-9) return true;
+  if (overlay?.asks?.some((a) => a.kind === "cash_reserve")) return true;
+  if ((overlay?.deployment_schedule?.liquidity_buffer_pct ?? 0) > 1e-9) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Cash share of the selected scope (weights already normalized to 1).
  * Becomes the request's permanent cash sleeve; cash is a pseudo-ticker the
  * price engine cannot fetch, so it must never enter the tradable universe.

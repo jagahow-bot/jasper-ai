@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ConstraintsPanel } from "@/components/ConstraintsPanel";
+import { requestHasCashCustomization } from "@/lib/clients";
 import {
   computeOverlayDriftHints,
   type OverlayDriftHints,
@@ -89,6 +90,10 @@ export function RmRunPanel({
     ]),
   ];
   const isPro = request.optimization_mode === "pro_auto";
+  const cashInPlay = requestHasCashCustomization(request, overlay);
+  const skipAnchorCompare = Boolean(
+    cashInPlay && request.skip_anchor_compare,
+  );
 
   const anchorWeights = useMemo(
     () =>
@@ -200,7 +205,11 @@ export function RmRunPanel({
                   end: request.end_date,
                 })}
               </li>
-              <li>{t("rm.run.dualTrack")}</li>
+              <li>
+                {skipAnchorCompare
+                  ? t("rm.run.singleTrackNoAnchor")
+                  : t("rm.run.dualTrack")}
+              </li>
               <li>
                 {lockedTickers.length
                   ? t("rm.universe.lockedCount", { n: universeCount })
@@ -219,6 +228,38 @@ export function RmRunPanel({
             </ul>
           </div>
         </div>
+
+        {cashInPlay ? (
+          <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="ui-section-title">
+                  {t("rm.run.skipAnchorCompare")}
+                </h3>
+                <p className="mt-1 text-sm text-dim">
+                  {t("rm.run.skipAnchorCompareHint")}
+                </p>
+              </div>
+              <label className="flex shrink-0 cursor-pointer items-center gap-2">
+                <span className="text-xs text-dim">
+                  {skipAnchorCompare ? t("common.on") : t("common.off")}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={skipAnchorCompare}
+                  onChange={(e) =>
+                    onChange({
+                      ...request,
+                      skip_anchor_compare: e.target.checked,
+                    })
+                  }
+                  className="h-4 w-4 accent-[var(--amber)]"
+                  aria-label={t("rm.run.skipAnchorCompare")}
+                />
+              </label>
+            </div>
+          </div>
+        ) : null}
 
         <div
           className={`mt-4 rounded-lg border p-4 ${

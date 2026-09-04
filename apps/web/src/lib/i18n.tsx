@@ -1292,6 +1292,11 @@ const en: Dict = {
   "rm.run.whatWillRun": "What will run",
   "rm.run.period": "Period: {start} → {end}",
   "rm.run.dualTrack": "Dual track: anchor replay + customized optimization",
+  "rm.run.singleTrackNoAnchor":
+    "Single track: customized run only (no compare vs baseline portfolio)",
+  "rm.run.skipAnchorCompare": "Do not compare vs baseline portfolio",
+  "rm.run.skipAnchorCompareHint":
+    "Available when a cash sleeve is in play. Skips the anchor replay and dual-track report; keeps the investable book and market ticker for risk metrics.",
   "rm.run.proSearchTitle": "Pro optimization",
   "rm.run.proSearchHint":
     "Turning on Pro optimization runs AI multi-round parameter search (top-pick vs challenger proposals). It usually takes longer.",
@@ -3148,6 +3153,10 @@ const zh: Dict = {
   "rm.run.whatWillRun": "即將執行",
   "rm.run.period": "試算區間：{start} → {end}",
   "rm.run.dualTrack": "雙軌：基準重播 ＋ 客製化最佳化",
+  "rm.run.singleTrackNoAnchor": "單軌：僅客製化（不對標基準投組）",
+  "rm.run.skipAnchorCompare": "不對標基準投組",
+  "rm.run.skipAnchorCompareHint":
+    "現金部位客製化時可用。略過基準投組重播與雙軌對照報告；仍保留可投資標的與市場基準（如 SPY）供風險指標使用。",
   "rm.run.proSearchTitle": "Pro 最佳化",
   "rm.run.proSearchHint":
     "開啟 Pro 最佳化會進行 AI 多輪參數搜尋（建議方案–對照方案），通常需要更長時間。",
@@ -5007,6 +5016,11 @@ const ko: Dict = {
   "rm.run.whatWillRun": "실행 내용",
   "rm.run.period": "기간: {start} → {end}",
   "rm.run.dualTrack": "이중: 기준 재현 + 맞춤 최적화",
+  "rm.run.singleTrackNoAnchor":
+    "단일: 맞춤 실행만 (기준 포트폴리오 대비 생략)",
+  "rm.run.skipAnchorCompare": "기준 포트폴리오 대비하지 않음",
+  "rm.run.skipAnchorCompareHint":
+    "현금 슬리브 맞춤화 시 사용. 기준 재현과 이중 비교 보고서를 건너뛰며, 투자 가능 종목과 시장 벤치마크(예: SPY)는 위험 지표용으로 유지합니다.",
   "rm.run.proSearchTitle": "Pro 최적화",
   "rm.run.proSearchHint":
     "Pro 최적화를 켜면 AI 다중 라운드 파라미터 탐색(추천 방안–챌린저)이 실행되며, 보통 더 오래 걸립니다.",

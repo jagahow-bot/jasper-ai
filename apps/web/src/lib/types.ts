@@ -161,6 +161,12 @@ export interface BacktestRequest {
    * Not sent to the engine — createJob strips it (same as top_n).
    */
   overlay_drift_floor?: number | null;
+  /**
+   * UI-only: when cash customization is active, skip dual-track compare vs the
+   * anchor/model portfolio (基準投組). Market ticker (e.g. SPY) may still be used
+   * for risk metrics. createJob strips this field.
+   */
+  skip_anchor_compare?: boolean;
   /** Anchor model portfolio weights used by the drift constraint. */
   anchor_weights?: Record<string, number> | null;
   /** Structured client needs from the signed overlay (soft constraints + AI context). */
