@@ -3,6 +3,7 @@ import {
   applyScopeToBacktestRequest,
   buildScopeHoldings,
   MAX_CASH_RESERVE_PCT,
+  requestHasCashCustomization,
   scopeCashWeight,
   type ClientHoldingsGroup,
 } from "./clients";
@@ -171,5 +172,34 @@ describe("scope cash sleeve", () => {
     const mapped = overlayToBacktestRequest(baseAnchorRequest(), overlay);
     expect(mapped.cash_reserve_pct ?? 0).toBe(0);
     expect(mapped.client_context?.cash_reserve_pct ?? null).toBeNull();
+  });
+});
+
+describe("requestHasCashCustomization", () => {
+  it("detects cash_reserve_pct on the request", () => {
+    expect(
+      requestHasCashCustomization({ cash_reserve_pct: 0.1 }, null),
+    ).toBe(true);
+    expect(requestHasCashCustomization({ cash_reserve_pct: 0 }, null)).toBe(
+      false,
+    );
+  });
+
+  it("detects overlay cash_reserve ask or liquidity buffer", () => {
+    expect(
+      requestHasCashCustomization(
+        {},
+        {
+          asks: [{ kind: "cash_reserve" }],
+        },
+      ),
+    ).toBe(true);
+    expect(
+      requestHasCashCustomization(
+        {},
+        { deployment_schedule: { liquidity_buffer_pct: 0.05 } },
+      ),
+    ).toBe(true);
+    expect(requestHasCashCustomization({}, minimalOverlay())).toBe(false);
   });
 });

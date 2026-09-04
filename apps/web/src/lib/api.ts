@@ -135,6 +135,7 @@ export async function createJob(req: BacktestRequest): Promise<{ job_id: string 
   delete payload.top_n;
   delete payload.refinement_patience;
   delete payload.overlay_drift_floor;
+  delete payload.skip_anchor_compare;
   return fetchJson<{ job_id: string }>("/jobs", {
     method: "POST",
     body: JSON.stringify(payload),
