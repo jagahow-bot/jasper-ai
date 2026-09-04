@@ -27,4 +27,12 @@ describe("providerOptionsFor", () => {
     expect(options.google).toBeUndefined();
     expect(options.moonshotai?.reasoningEffort).toBeDefined();
   });
+
+  it("allows overriding Moonshot reasoningEffort for short routes", () => {
+    const options = providerOptionsFor(KIMI_K3_MODEL_ID, {
+      jsonMode: true,
+      reasoningEffort: "low",
+    });
+    expect(options.moonshotai?.reasoningEffort).toBe("low");
+  });
 });

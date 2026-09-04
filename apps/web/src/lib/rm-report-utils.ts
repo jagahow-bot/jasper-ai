@@ -58,16 +58,18 @@ export type RmCandidatePick = {
 };
 
 function pickChampion(result: BacktestResult) {
+  const candidates = result.candidates ?? [];
   const idx = resolveChampionCandidateIndex(
-    result.candidates,
+    candidates,
     result.narrative_facts,
   );
-  return idx >= 0 ? result.candidates[idx] : result.candidates[0];
+  return idx >= 0 ? candidates[idx] : candidates[0];
 }
 
 function pickCandidate(result: BacktestResult, modelCode?: string | null) {
+  const candidates = result.candidates ?? [];
   if (modelCode) {
-    const match = result.candidates.find(
+    const match = candidates.find(
       (c) => (c.model_code ?? "").toUpperCase() === modelCode.toUpperCase(),
     );
     if (match) return match;
@@ -634,8 +636,9 @@ function buildClientGoalPoint(input: TalkingPointsInput): string | null {
   const { overlay, t } = input;
   if (!overlay) return null;
 
-  const { client_profile: profile, market_view: marketView } = overlay;
-  const liquidity = profile.liquidity_need;
+  const profile = overlay.client_profile;
+  const marketView = overlay.market_view;
+  const liquidity = profile?.liquidity_need;
 
   if (liquidity?.within_months) {
     const amount =
@@ -650,7 +653,7 @@ function buildClientGoalPoint(input: TalkingPointsInput): string | null {
     });
   }
 
-  if (profile.risk_tolerance) {
+  if (profile?.risk_tolerance) {
     const mix = resolveExposureMix(
       input.adjustedResult,
       input.customizedModelCode,
@@ -664,18 +667,17 @@ function buildClientGoalPoint(input: TalkingPointsInput): string | null {
     });
   }
 
-  if (marketView.narrative_summary) {
+  if (marketView?.narrative_summary) {
     return t("rm.talking.clientMarketView", {
       stance: localizedMarketStance(t, marketView.stance),
       summary: marketView.narrative_summary,
     });
   }
 
-  if (overlay.universe.prompts.length > 0) {
+  const prompts = overlay.universe?.prompts;
+  if (Array.isArray(prompts) && prompts.length > 0) {
     return t("rm.talking.clientUniverse", {
-      rules: overlay.universe.prompts.join(
-        input.lang === "en" ? "; " : "；",
-      ),
+      rules: prompts.join(input.lang === "en" ? "; " : "；"),
     });
   }
 

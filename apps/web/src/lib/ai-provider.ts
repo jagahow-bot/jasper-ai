@@ -102,11 +102,22 @@ export function thinkingConfigForGoogleModel(
 
 export function providerOptionsFor(
   modelId: string,
-  { jsonMode = false }: { jsonMode?: boolean } = {},
+  {
+    jsonMode = false,
+    reasoningEffort,
+  }: {
+    jsonMode?: boolean;
+    /** Override Moonshot reasoning effort (talking-summary uses "low"). */
+    reasoningEffort?: "low" | "high" | "max";
+  } = {},
 ): AiProviderOptions {
   const provider = resolveProvider(modelId);
   if (provider === "moonshotai") {
-    return { moonshotai: { reasoningEffort: KIMI_K3_REASONING_EFFORT } };
+    return {
+      moonshotai: {
+        reasoningEffort: reasoningEffort ?? KIMI_K3_REASONING_EFFORT,
+      },
+    };
   }
   const googleOptions: NonNullable<AiProviderOptions["google"]> = {};
   const thinkingConfig = thinkingConfigForGoogleModel(modelId);
