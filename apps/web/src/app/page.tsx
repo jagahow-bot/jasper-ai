@@ -43,6 +43,7 @@ import {
   localizedText,
   requestHasCashCustomization,
   resolveAnchorIdFromScope,
+  scopeCashWeight,
   type DemoClient,
 } from "@/lib/clients";
 import { DEFAULT_ASSET_CLASSES } from "@/lib/constants";
@@ -65,6 +66,9 @@ import {
   getAnchorPortfolioById,
   getCustomizedVsAnchorLabel,
   getPortfolioLabel,
+  isSkipBaselineAnchorId,
+  SKIP_BASELINE_ANCHOR,
+  SKIP_BASELINE_ANCHOR_ID,
   SPY_ANCHOR,
   SPY_ANCHOR_ID,
   type ModelPortfolio,
@@ -224,15 +228,24 @@ export default function HomePage() {
   );
 
   const anchorPortfolio = useMemo(() => {
+    if (isSkipBaselineAnchorId(anchorPortfolioId)) {
+      return SKIP_BASELINE_ANCHOR;
+    }
     if (anchorPortfolioId === CURRENT_HOLDINGS_ANCHOR_ID) {
-      return currentHoldingsAnchor ?? SPY_ANCHOR;
+      // Pure cash → current-holdings cannot be built; do not silently show SPY.
+      return (
+        currentHoldingsAnchor ??
+        (scopeCashWeight(scopeHoldings) > 0
+          ? SKIP_BASELINE_ANCHOR
+          : SPY_ANCHOR)
+      );
     }
     const managed = getManagedPortfolioById(anchorPortfolioId);
     if (managed) {
       return asModelPortfolio(managed);
     }
     return getAnchorPortfolioById(anchorPortfolioId) ?? SPY_ANCHOR;
-  }, [anchorPortfolioId, currentHoldingsAnchor]);
+  }, [anchorPortfolioId, currentHoldingsAnchor, scopeHoldings]);
 
   const customizedLabel = useMemo(() => {
     const trimmed = portfolioName.trim();
@@ -287,36 +300,47 @@ export default function HomePage() {
       id: p.id,
       label: getPortfolioLabel(p, lang),
     }));
+    const cashInScope = scopeCashWeight(scopeHoldings) > 0;
+    const skipOption = cashInScope
+      ? [
+          {
+            id: SKIP_BASELINE_ANCHOR_ID,
+            label: getPortfolioLabel(SKIP_BASELINE_ANCHOR, lang),
+          },
+        ]
+      : [];
     if (currentHoldingsAnchor) {
       return [
         {
           id: CURRENT_HOLDINGS_ANCHOR_ID,
           label: getPortfolioLabel(currentHoldingsAnchor, lang),
         },
+        ...skipOption,
         ...catalog,
       ];
     }
-    return catalog;
-  }, [managedAnchors, currentHoldingsAnchor, lang]);
+    // Pure cash: skip-baseline is the primary non-model choice (not SPY).
+    return [...skipOption, ...catalog];
+  }, [managedAnchors, currentHoldingsAnchor, lang, scopeHoldings]);
 
   const anchorLabel = useMemo(
     () => getPortfolioLabel(anchorPortfolio, lang),
     [anchorPortfolio, lang],
   );
 
-  const anchorPositions = useMemo(
-    () =>
-      anchorPortfolio.holdings
-        .filter((holding) => holding.weight > 0)
-        .sort((a, b) => b.weight - a.weight)
-        .map((holding) => ({
-          id: `${holding.ticker}-${holding.name}`,
-          ticker: holding.ticker.toUpperCase(),
-          label: etfDisplayName(holding.ticker, lang),
-          weightLabel: `${(holding.weight * 100).toFixed(1)}%`,
-        })),
-    [anchorPortfolio, lang],
-  );
+  const anchorPositions = useMemo(() => {
+    // Skip-baseline keeps an engine-only SPY seed — never show it as holdings chips.
+    if (isSkipBaselineAnchorId(anchorPortfolio.id)) return [];
+    return anchorPortfolio.holdings
+      .filter((holding) => holding.weight > 0)
+      .sort((a, b) => b.weight - a.weight)
+      .map((holding) => ({
+        id: `${holding.ticker}-${holding.name}`,
+        ticker: holding.ticker.toUpperCase(),
+        label: etfDisplayName(holding.ticker, lang),
+        weightLabel: `${(holding.weight * 100).toFixed(1)}%`,
+      }));
+  }, [anchorPortfolio, lang]);
 
   const syncRequestFromAnchor = useCallback(
     (portfolio: ModelPortfolio = anchorPortfolio) => {
@@ -327,18 +351,46 @@ export default function HomePage() {
 
   // Keep the synthetic baseline in sync when the RM changes which sleeves are in scope.
   useEffect(() => {
-    if (
-      phase !== "overlay" ||
-      anchorPortfolioId !== CURRENT_HOLDINGS_ANCHOR_ID ||
-      !currentHoldingsAnchor
-    ) {
+    if (phase !== "overlay") return;
+
+    const cashInScope = scopeCashWeight(scopeHoldings) > 0;
+
+    if (isSkipBaselineAnchorId(anchorPortfolioId)) {
+      if (cashInScope) {
+        syncRequestFromAnchor(SKIP_BASELINE_ANCHOR);
+        return;
+      }
+      // Cash no longer in play — skip option is unavailable; pick a real baseline.
+      if (currentHoldingsAnchor) {
+        setAnchorPortfolioId(CURRENT_HOLDINGS_ANCHOR_ID);
+        syncRequestFromAnchor(currentHoldingsAnchor);
+      } else {
+        const portfolio =
+          getSelectableAnchorPortfolios()[0] ??
+          getAnchorPortfolioById(SPY_ANCHOR_ID) ??
+          SPY_ANCHOR;
+        setAnchorPortfolioId(portfolio.id);
+        syncRequestFromAnchor(asModelPortfolio(portfolio));
+      }
       return;
     }
-    syncRequestFromAnchor(currentHoldingsAnchor);
+
+    if (anchorPortfolioId !== CURRENT_HOLDINGS_ANCHOR_ID) return;
+    if (currentHoldingsAnchor) {
+      syncRequestFromAnchor(currentHoldingsAnchor);
+      return;
+    }
+    // Scope became cash-only: migrate off CURRENT_HOLDINGS so the UI does not
+    // silently show SPY as the selected baseline.
+    if (cashInScope) {
+      setAnchorPortfolioId(SKIP_BASELINE_ANCHOR_ID);
+      syncRequestFromAnchor(SKIP_BASELINE_ANCHOR);
+    }
   }, [
     phase,
     anchorPortfolioId,
     currentHoldingsAnchor,
+    scopeHoldings,
     syncRequestFromAnchor,
   ]);
 
@@ -599,14 +651,22 @@ export default function HomePage() {
       const liveCurrent = buildCurrentHoldingsAnchor(scopeH);
       const fallbackAnchor = liveCurrent
         ? CURRENT_HOLDINGS_ANCHOR_ID
-        : (getSelectableAnchorPortfolios()[0]?.id ?? SPY_ANCHOR_ID);
+        : scopeCashWeight(scopeH) > 0
+          ? SKIP_BASELINE_ANCHOR_ID
+          : (getSelectableAnchorPortfolios()[0]?.id ?? SPY_ANCHOR_ID);
       const anchorId =
         anchorParam ||
         resolveAnchorIdFromScope(groups, initialScopeIds, fallbackAnchor);
-      if (anchorId === CURRENT_HOLDINGS_ANCHOR_ID) {
+      if (isSkipBaselineAnchorId(anchorId)) {
+        setAnchorPortfolioId(SKIP_BASELINE_ANCHOR_ID);
+        syncRequestFromAnchor(SKIP_BASELINE_ANCHOR);
+      } else if (anchorId === CURRENT_HOLDINGS_ANCHOR_ID) {
         if (liveCurrent) {
           setAnchorPortfolioId(CURRENT_HOLDINGS_ANCHOR_ID);
           syncRequestFromAnchor(liveCurrent);
+        } else if (scopeCashWeight(scopeH) > 0) {
+          setAnchorPortfolioId(SKIP_BASELINE_ANCHOR_ID);
+          syncRequestFromAnchor(SKIP_BASELINE_ANCHOR);
         } else {
           const portfolio =
             getSelectableAnchorPortfolios()[0] ??
@@ -624,7 +684,10 @@ export default function HomePage() {
         syncRequestFromAnchor(asModelPortfolio(portfolio));
       }
     } else if (anchorParam) {
-      if (anchorParam === CURRENT_HOLDINGS_ANCHOR_ID) {
+      if (isSkipBaselineAnchorId(anchorParam)) {
+        setAnchorPortfolioId(SKIP_BASELINE_ANCHOR_ID);
+        syncRequestFromAnchor(SKIP_BASELINE_ANCHOR);
+      } else if (anchorParam === CURRENT_HOLDINGS_ANCHOR_ID) {
         setAnchorPortfolioId(CURRENT_HOLDINGS_ANCHOR_ID);
       } else {
         const portfolio =
@@ -958,9 +1021,15 @@ export default function HomePage() {
 
   const onOverlayAnchorChange = useCallback(
     (id: string) => {
+      if (isSkipBaselineAnchorId(id)) {
+        onAnchorSelect(SKIP_BASELINE_ANCHOR);
+        return;
+      }
       if (id === CURRENT_HOLDINGS_ANCHOR_ID) {
         if (currentHoldingsAnchor) {
           onAnchorSelect(currentHoldingsAnchor);
+        } else if (scopeCashWeight(scopeHoldings) > 0) {
+          onAnchorSelect(SKIP_BASELINE_ANCHOR);
         }
         return;
       }
@@ -968,9 +1037,17 @@ export default function HomePage() {
         getManagedPortfolioById(id) ??
         getAnchorPortfolioById(id) ??
         SPY_ANCHOR;
-      onAnchorSelect(asModelPortfolio(portfolio));
+      // Choosing a real model clears the skip flag (RmRunPanel can re-enable).
+      const asModel = asModelPortfolio(portfolio);
+      setAnchorPortfolioId(asModel.id);
+      setRequest(
+        buildAnchorBacktestRequest(
+          asModel,
+          { ...buildDefaultRequest(), skip_anchor_compare: false },
+        ),
+      );
     },
-    [currentHoldingsAnchor, onAnchorSelect],
+    [currentHoldingsAnchor, onAnchorSelect, scopeHoldings],
   );
 
   const onScopeConfirm = useCallback(() => {
@@ -1042,6 +1119,13 @@ export default function HomePage() {
       // Sync working session so remounting overlay does not revive proposed_tickers.
       setOverlaySession(finalized);
       setSignedOverlay(finalized);
+      // Step-1 skip-baseline (or an earlier RmRunPanel toggle) stays checked.
+      if (
+        isSkipBaselineAnchorId(anchorPortfolio.id) ||
+        Boolean(request?.skip_anchor_compare)
+      ) {
+        resolved.skip_anchor_compare = true;
+      }
       setRequest(resolved);
       setPhase("constraints");
       return true;

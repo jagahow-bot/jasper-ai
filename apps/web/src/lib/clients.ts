@@ -7,7 +7,7 @@ import {
   type Lang,
   type TFn,
 } from "@/lib/i18n";
-import { getPortfolioLabel } from "@/lib/model-portfolios";
+import { getPortfolioLabel, SKIP_BASELINE_ANCHOR_ID } from "@/lib/model-portfolios";
 import { getManagedPortfolioById } from "@/lib/model-portfolios-store";
 import type { BacktestRequest } from "@/lib/types";
 import { getUniverseItems } from "@/lib/universe";
@@ -539,18 +539,34 @@ export function buildScopeHoldings(
   return Array.from(byTicker.values());
 }
 
-/** Default anchor from selected scope: one model → that id; none → current-holdings fallback. */
+/**
+ * Default anchor from selected scope:
+ * - one selected model sleeve → that model id
+ * - cash-only (no investable names) → skip-baseline (do not silently force SPY
+ *   as the UI "基準組合" when buildCurrentHoldingsAnchor would return null)
+ * - otherwise → caller fallback (usually current-holdings)
+ */
 export function resolveAnchorIdFromScope(
   groups: ClientHoldingsGroup[],
   selectedIds: readonly string[],
   fallbackAnchorId: string,
 ): string {
-  const selected = new Set(selectedIds);
+  const effectiveIds =
+    selectedIds.length > 0 ? selectedIds : groups.map((g) => g.id);
+  const selected = new Set(effectiveIds);
   const modelGroups = groups.filter(
     (g) => g.type === "model" && g.model_id && selected.has(g.id),
   );
   if (modelGroups.length >= 1) {
     return modelGroups[0].model_id!;
+  }
+  const scope = buildScopeHoldings(groups, effectiveIds);
+  const hasInvestable = scope.some((h) => !isCashHolding(h) && h.weight > 0);
+  const hasCash = scopeCashWeight(scope) > 0;
+  // Pure cash: CURRENT_HOLDINGS cannot be built (cash filtered out) — prefer
+  // skip-baseline over SPY-labeled fallback in the step-1 dropdown.
+  if (!hasInvestable && hasCash) {
+    return SKIP_BASELINE_ANCHOR_ID;
   }
   return fallbackAnchorId;
 }

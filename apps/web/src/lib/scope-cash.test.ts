@@ -4,9 +4,16 @@ import {
   buildScopeHoldings,
   MAX_CASH_RESERVE_PCT,
   requestHasCashCustomization,
+  resolveAnchorIdFromScope,
   scopeCashWeight,
   type ClientHoldingsGroup,
 } from "./clients";
+import {
+  buildCurrentHoldingsAnchor,
+  CURRENT_HOLDINGS_ANCHOR_ID,
+  SKIP_BASELINE_ANCHOR_ID,
+  SPY_ANCHOR_ID,
+} from "./model-portfolios";
 import { overlayToBacktestRequest, type ClientOverlay } from "./overlay-schema";
 import type { BacktestRequest } from "./types";
 
@@ -33,6 +40,23 @@ function thematicAndCashGroups(): ClientHoldingsGroup[] {
       type: "individual",
       holdings: [
         { ticker: "AGG", name: "Bonds", asset_class: "bond", weight: 0.0 },
+      ],
+    },
+  ];
+}
+
+function cashOnlyGroups(): ClientHoldingsGroup[] {
+  return [
+    {
+      id: "wang-cash",
+      type: "cash",
+      holdings: [
+        {
+          ticker: "CASH",
+          name: "Cash pending deployment",
+          asset_class: "cash",
+          weight: 1,
+        },
       ],
     },
   ];
@@ -201,5 +225,59 @@ describe("requestHasCashCustomization", () => {
       ),
     ).toBe(true);
     expect(requestHasCashCustomization({}, minimalOverlay())).toBe(false);
+  });
+});
+
+describe("pure-cash → skip-baseline (not SPY)", () => {
+  it("buildCurrentHoldingsAnchor returns null for cash-only scope", () => {
+    const scope = buildScopeHoldings(cashOnlyGroups(), ["wang-cash"]);
+    expect(scopeCashWeight(scope)).toBeCloseTo(1, 9);
+    expect(buildCurrentHoldingsAnchor(scope)).toBeNull();
+  });
+
+  it("resolveAnchorIdFromScope picks skip-baseline for cash-only", () => {
+    const groups = cashOnlyGroups();
+    expect(
+      resolveAnchorIdFromScope(groups, ["wang-cash"], CURRENT_HOLDINGS_ANCHOR_ID),
+    ).toBe(SKIP_BASELINE_ANCHOR_ID);
+    // Must not fall through to a SPY-labeled house model.
+    expect(
+      resolveAnchorIdFromScope(groups, ["wang-cash"], SPY_ANCHOR_ID),
+    ).toBe(SKIP_BASELINE_ANCHOR_ID);
+  });
+
+  it("resolveAnchorIdFromScope still prefers a selected model sleeve", () => {
+    expect(
+      resolveAnchorIdFromScope(
+        thematicAndCashGroups(),
+        ["grp-thematic", "grp-cash"],
+        CURRENT_HOLDINGS_ANCHOR_ID,
+      ),
+    ).toBe("thematic-ai");
+  });
+
+  it("resolveAnchorIdFromScope keeps current-holdings when investable names exist", () => {
+    const groups: ClientHoldingsGroup[] = [
+      {
+        id: "stocks",
+        type: "individual",
+        holdings: [
+          { ticker: "AAPL", name: "Apple", asset_class: "equity", weight: 0.6 },
+        ],
+      },
+      {
+        id: "cash",
+        type: "cash",
+        holdings: [
+          { ticker: "CASH", name: "Cash", asset_class: "cash", weight: 0.4 },
+        ],
+      },
+    ];
+    expect(
+      resolveAnchorIdFromScope(groups, ["stocks", "cash"], CURRENT_HOLDINGS_ANCHOR_ID),
+    ).toBe(CURRENT_HOLDINGS_ANCHOR_ID);
+    expect(
+      buildCurrentHoldingsAnchor(buildScopeHoldings(groups, ["stocks", "cash"])),
+    ).not.toBeNull();
   });
 });
