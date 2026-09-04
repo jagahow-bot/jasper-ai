@@ -7,7 +7,9 @@ export type NeedsFloorRowKey =
   | "cash"
   | "income"
   | "mustInclude"
-  | "drift";
+  | "drift"
+  | "classQuota"
+  | "groupBands";
 
 export const NEEDS_TABLE_I18N: Record<NeedsFloorRowKey, string> = {
   drawdown: "results.needsTable.drawdown",
@@ -17,6 +19,8 @@ export const NEEDS_TABLE_I18N: Record<NeedsFloorRowKey, string> = {
   income: "results.needsTable.income",
   mustInclude: "results.needsTable.mustInclude",
   drift: "results.needsTable.drift",
+  classQuota: "results.needsTable.classQuota",
+  groupBands: "results.needsTable.groupBands",
 };
 
 export type NeedsFloorRow = {
@@ -28,6 +32,42 @@ export type NeedsFloorRow = {
 function pct(v: number | undefined | null, digits = 1): string | null {
   if (v == null || !Number.isFinite(Number(v))) return null;
   return `${(Number(v) * 100).toFixed(digits)}%`;
+}
+
+function classQuotaDetail(
+  rows: NonNullable<PortfolioCandidate["needs_attainment"]>["class_quotas"],
+): string | undefined {
+  if (!rows?.length) return undefined;
+  const unmet = rows.filter((r) => !r.within_class_quota);
+  if (!unmet.length) {
+    return rows.length === 1
+      ? `${rows[0].asset_class} ${pct(rows[0].actual_pct)} / ${pct(rows[0].target_pct)}`
+      : `${rows.length} quotas met`;
+  }
+  return unmet
+    .map(
+      (r) =>
+        `${r.asset_class} ${pct(r.actual_pct) ?? "—"} / ${pct(r.target_pct) ?? "—"}`,
+    )
+    .join("; ");
+}
+
+function groupBandsDetail(
+  rows: NonNullable<PortfolioCandidate["needs_attainment"]>["group_bands"],
+): string | undefined {
+  if (!rows?.length) return undefined;
+  const unmet = rows.filter((r) => !r.within_band);
+  if (!unmet.length) {
+    return rows.length === 1
+      ? `${rows[0].group_id ?? "band"} ${pct(rows[0].actual_pct)} / ${pct(rows[0].target_pct ?? rows[0].min_pct)}`
+      : `${rows.length} bands met`;
+  }
+  return unmet
+    .map((r) => {
+      const target = r.target_pct ?? r.min_pct ?? r.max_pct;
+      return `${r.group_id ?? "band"} ${pct(r.actual_pct) ?? "—"} / ${pct(target) ?? "—"}`;
+    })
+    .join("; ");
 }
 
 /** Build RM-facing needs ledger rows from champion/candidate attainment. */
@@ -110,6 +150,20 @@ export function needsFloorRows(
       key: "drift",
       pass: na.within_customization_drift,
       detail: actual && cap ? `${actual} / ${cap}` : actual ?? cap ?? undefined,
+    });
+  }
+  if (na.class_quotas != null || na.within_class_quotas != null) {
+    rows.push({
+      key: "classQuota",
+      pass: na.within_class_quotas,
+      detail: classQuotaDetail(na.class_quotas),
+    });
+  }
+  if (na.group_bands != null || na.within_group_bands != null) {
+    rows.push({
+      key: "groupBands",
+      pass: na.within_group_bands,
+      detail: groupBandsDetail(na.group_bands),
     });
   }
   return rows;

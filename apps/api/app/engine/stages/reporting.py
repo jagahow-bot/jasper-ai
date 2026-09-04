@@ -73,6 +73,7 @@ class NeedsAttainmentReportingV1:
             ticker_meta=ctx.universe_meta,
             anchor_weights=ctx.anchor_weights,
             customization_drift=float(drift) if drift is not None else None,
+            class_budget=getattr(ctx, "class_budget", None),
         )
 
     def needs_attainment(
@@ -85,6 +86,7 @@ class NeedsAttainmentReportingV1:
         must_include_tickers: list[str] | None = None,
         anchor_weights: dict[str, float] | None = None,
         customization_drift: float | None = None,
+        class_budget: dict[str, float] | None = None,
     ) -> dict[str, Any] | None:
         """Legacy-compatible entry matching engine.objectives.needs_attainment."""
         return needs_attainment(
@@ -95,6 +97,7 @@ class NeedsAttainmentReportingV1:
             must_include_tickers=must_include_tickers,
             anchor_weights=anchor_weights,
             customization_drift=customization_drift,
+            class_budget=class_budget,
         )
 
     def proposal_cards(

@@ -111,6 +111,8 @@ export interface BacktestRequest {
   universe_tickers?: string[] | null;
   /** AI supplement tickers unioned onto base pool; pinned/guaranteed in backtest after refine */
   universe_supplement_tickers?: string[] | null;
+  /** asset_class hints for supplement tickers absent from the engine catalog. */
+  universe_supplement_meta?: Record<string, { asset_class?: AssetClass }> | null;
   universe_filter_text?: string | null;
   /** Stacked AI universe rules (AND); legacy jobs may only have universe_filter_text */
   universe_filter_prompts?: string[] | null;
@@ -287,6 +289,22 @@ export interface PortfolioCandidate {
     customization_drift_cap?: number;
     customization_drift_l1?: number;
     within_customization_drift?: boolean;
+    class_quotas?: Array<{
+      asset_class: string;
+      target_pct: number;
+      actual_pct: number;
+      within_class_quota: boolean;
+    }>;
+    within_class_quotas?: boolean;
+    group_bands?: Array<{
+      group_id: string | null;
+      target_pct?: number | null;
+      min_pct?: number | null;
+      max_pct?: number | null;
+      actual_pct: number;
+      within_band: boolean;
+    }>;
+    within_group_bands?: boolean;
     all_floors_met?: boolean;
   } | null;
 }

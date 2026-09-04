@@ -9,8 +9,15 @@ import {
 import { useI18n } from "@/lib/i18n";
 import type { PortfolioCandidate } from "@/lib/types";
 
+export type ClassQuotaUnfilledItem = {
+  asset_class: string;
+  target_pct: number;
+  reason?: string;
+};
+
 type Props = {
   needs: PortfolioCandidate["needs_attainment"];
+  classQuotaUnfilled?: ClassQuotaUnfilledItem[] | null;
   className?: string;
 };
 
@@ -20,18 +27,40 @@ function statusClass(pass: boolean | undefined): string {
   return "text-dim";
 }
 
-export function NeedsFulfillmentPanel({ needs, className = "" }: Props) {
+function assetClassLabel(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  assetClass: string,
+): string {
+  const key = `results.assetClass.${assetClass}`;
+  const labeled = t(key);
+  return labeled === key ? assetClass : labeled;
+}
+
+export function NeedsFulfillmentPanel({
+  needs,
+  classQuotaUnfilled,
+  className = "",
+}: Props) {
   const { t } = useI18n();
   const rows: NeedsFloorRow[] = needsFloorRows(needs);
-  if (!rows.length) return null;
+  const unfilled = classQuotaUnfilled?.filter(Boolean) ?? [];
+  if (!rows.length && !unfilled.length) return null;
 
   const overall = needsAllPassed(needs);
   const border =
-    overall === false
+    overall === false || unfilled.length > 0
       ? "border-amber-200 bg-amber-50/50"
       : overall === true
         ? "border-emerald-100 bg-emerald-50/40"
         : "border-[var(--border)]";
+
+  const unfilledItems = unfilled
+    .map((item) => {
+      const label = assetClassLabel(t, item.asset_class);
+      const pct = `${(Number(item.target_pct) * 100).toFixed(0)}%`;
+      return `${label} (${pct})`;
+    })
+    .join(", ");
 
   return (
     <section className={`pixel-panel ${border} ${className}`.trim()}>
@@ -43,45 +72,60 @@ export function NeedsFulfillmentPanel({ needs, className = "" }: Props) {
         {overall != null ? (
           <span
             className={`pixel-badge text-xs ${
-              overall ? "pixel-badge-cyan" : "pixel-badge-warn"
+              overall && !unfilled.length ? "pixel-badge-cyan" : "pixel-badge-warn"
             }`}
           >
-            {overall
+            {overall && !unfilled.length
               ? t("rm.report.needsOverallPass")
               : t("rm.report.needsOverallFail")}
           </span>
         ) : null}
       </div>
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[360px] text-left ui-body">
-          <thead className="text-dim">
-            <tr>
-              <th className="pb-2 pr-3">{t("rm.report.needsColConstraint")}</th>
-              <th className="pb-2 pr-3">{t("rm.report.needsColDetail")}</th>
-              <th className="pb-2 text-right">{t("rm.report.needsColStatus")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.key} className="border-t border-[var(--border)]">
-                <td className="py-2 pr-3 font-medium">
-                  {t(NEEDS_TABLE_I18N[row.key])}
-                </td>
-                <td className="py-2 pr-3 text-dim">{row.detail ?? "—"}</td>
-                <td
-                  className={`py-2 text-right font-medium ${statusClass(row.pass)}`}
-                >
-                  {row.pass == null
-                    ? "—"
-                    : row.pass
-                      ? t("results.needsTable.pass")
-                      : t("results.needsTable.fail")}
-                </td>
+      {unfilled.length > 0 ? (
+        <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="font-medium">
+            {t("results.needsTable.classQuotaUnfilledTitle")}
+          </p>
+          <p className="mt-1">
+            {t("results.needsClassQuotaUnfilled", { items: unfilledItems })}
+          </p>
+          <p className="mt-1 text-xs opacity-90">
+            {t("results.needsClassQuotaUnfilledHint")}
+          </p>
+        </div>
+      ) : null}
+      {rows.length > 0 ? (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[360px] text-left ui-body">
+            <thead className="text-dim">
+              <tr>
+                <th className="pb-2 pr-3">{t("rm.report.needsColConstraint")}</th>
+                <th className="pb-2 pr-3">{t("rm.report.needsColDetail")}</th>
+                <th className="pb-2 text-right">{t("rm.report.needsColStatus")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.key} className="border-t border-[var(--border)]">
+                  <td className="py-2 pr-3 font-medium">
+                    {t(NEEDS_TABLE_I18N[row.key])}
+                  </td>
+                  <td className="py-2 pr-3 text-dim">{row.detail ?? "—"}</td>
+                  <td
+                    className={`py-2 text-right font-medium ${statusClass(row.pass)}`}
+                  >
+                    {row.pass == null
+                      ? "—"
+                      : row.pass
+                        ? t("results.needsTable.pass")
+                        : t("results.needsTable.fail")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
       <p className="ui-hint mt-3 text-xs opacity-80">
         {t("rm.report.needsDetailHint")}
       </p>

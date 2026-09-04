@@ -1,8 +1,15 @@
 import json
+import logging
 from functools import lru_cache
 from typing import Any
 
 from app.config import PROFILES_PATH, UNIVERSE_PATH
+
+logger = logging.getLogger(__name__)
+
+_VALID_ASSET_CLASSES = frozenset(
+    {"equity", "bond", "commodity", "real_estate", "alternative"}
+)
 
 
 @lru_cache
@@ -29,6 +36,7 @@ def get_universe(
     categories: list[str] | None = None,
     tickers: list[str] | None = None,
     supplement_tickers: list[str] | None = None,
+    supplement_meta: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     all_items = load_universe_file()["universe"]
 
@@ -48,6 +56,7 @@ def get_universe(
                 supplement_tickers,
                 allowed_asset_classes=None,
                 bypass_asset_class_filter=True,
+                supplement_meta=supplement_meta,
             )
         return locked_base
 
@@ -59,7 +68,11 @@ def get_universe(
     if supplement_tickers:
         allowed = set(asset_classes) if asset_classes else None
         return _union_supplement_items(
-            base, all_items, supplement_tickers, allowed_asset_classes=allowed
+            base,
+            all_items,
+            supplement_tickers,
+            allowed_asset_classes=allowed,
+            supplement_meta=supplement_meta,
         )
 
     items = base
@@ -72,7 +85,37 @@ def get_universe(
 _PSEUDO_TICKERS = frozenset({"CASH"})
 
 
-def _synthetic_supplement_item(ticker: str) -> dict[str, Any]:
+def _meta_asset_class_hint(
+    supplement_meta: dict[str, Any] | None,
+    ticker: str,
+) -> str | None:
+    if not supplement_meta:
+        return None
+    t = str(ticker).strip().upper()
+    entry = supplement_meta.get(t)
+    if entry is None:
+        entry = supplement_meta.get(ticker)
+    if entry is None:
+        for key, value in supplement_meta.items():
+            if str(key).strip().upper() == t:
+                entry = value
+                break
+    if entry is None:
+        return None
+    if isinstance(entry, dict):
+        raw = entry.get("asset_class")
+    else:
+        raw = getattr(entry, "asset_class", None)
+    if raw is None:
+        return None
+    return str(raw)
+
+
+def _synthetic_supplement_item(
+    ticker: str,
+    *,
+    asset_class_hint: str | None = None,
+) -> dict[str, Any]:
     """Stub catalog row so overlay-confirmed adds can leave the UI → backtest pool.
 
     Overlay AI may propose tickers absent from ``universe.json``; without a row,
@@ -80,13 +123,25 @@ def _synthetic_supplement_item(ticker: str) -> dict[str, Any]:
     never reach price download or must-include pinning.
     """
     t = str(ticker).strip().upper()
+    hint = str(asset_class_hint or "").strip().lower()
+    if hint not in _VALID_ASSET_CLASSES:
+        # Explicit surfacing (was: silently "equity" — job fa51bebe root cause).
+        logger.warning(
+            "Synthetic supplement %s has no valid asset_class hint (%r); "
+            "defaulting to 'equity' — class quotas for its intended class will "
+            "have no members",
+            t,
+            asset_class_hint,
+        )
+        hint = "equity"
     return {
         "ticker": t,
         "name": t,
-        "asset_class": "equity",
+        "asset_class": hint,
         "category": "overlay_supplement",
         "region": "unknown",
         "overlay_synthetic": True,
+        "asset_class_source": "overlay_hint" if asset_class_hint else "default_equity",
     }
 
 
@@ -97,6 +152,7 @@ def _union_supplement_items(
     *,
     allowed_asset_classes: set[str] | None = None,
     bypass_asset_class_filter: bool = False,
+    supplement_meta: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Union AI-filter supplement tickers onto the asset-class base pool."""
     sup_list = [
@@ -104,7 +160,6 @@ def _union_supplement_items(
         for t in supplement_tickers
         if str(t).strip() and str(t).strip().upper() not in _PSEUDO_TICKERS
     ]
-    sup_set = set(sup_list)
     seen = {str(u.get("ticker", "")).upper() for u in base}
     out = list(base)
     catalog_by_ticker = {
@@ -123,12 +178,29 @@ def _union_supplement_items(
                 and str(u.get("asset_class", "")) not in allowed_asset_classes
             ):
                 continue
+            # Catalog row always wins over overlay meta hints (E7).
+            if supplement_meta and _meta_asset_class_hint(supplement_meta, t):
+                hint = _meta_asset_class_hint(supplement_meta, t)
+                catalog_ac = str(u.get("asset_class", ""))
+                if hint and hint != catalog_ac:
+                    logger.debug(
+                        "Ignoring overlay asset_class hint %r for catalog ticker %s "
+                        "(catalog has %r)",
+                        hint,
+                        t,
+                        catalog_ac,
+                    )
             out.append(u)
             seen.add(t)
             continue
         # Confirmed overlay add not in the static catalog — still pin it.
         if bypass_asset_class_filter or not allowed_asset_classes:
-            out.append(_synthetic_supplement_item(t))
+            out.append(
+                _synthetic_supplement_item(
+                    t,
+                    asset_class_hint=_meta_asset_class_hint(supplement_meta, t),
+                )
+            )
             seen.add(t)
     return out
 
@@ -138,6 +210,7 @@ def pin_guaranteed_supplements(
     supplement_tickers: list[str] | None,
     *,
     asset_classes: list[str] | None = None,
+    supplement_meta: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Re-attach AI filter supplement tickers after refine_universe_with_ai.
 
@@ -155,6 +228,7 @@ def pin_guaranteed_supplements(
         supplement_tickers,
         allowed_asset_classes=allowed,
         bypass_asset_class_filter=True,
+        supplement_meta=supplement_meta,
     )
 
 
