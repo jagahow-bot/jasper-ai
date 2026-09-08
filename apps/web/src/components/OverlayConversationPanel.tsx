@@ -38,6 +38,10 @@ import {
   isTickerReviewBlocking,
   proposedTickersAfterClarificationDedup,
 } from "@/lib/overlay-filter-proposals";
+import {
+  resolveNonSellableSet,
+  splitBySellable,
+} from "@/lib/sellable-overrides";
 import { computeOverlayDriftHints } from "@/lib/overlay-drift-sync";
 import {
   shouldPushUpToParent,
@@ -260,6 +264,7 @@ export function OverlayConversationPanel({
             ...(clarificationAnswers?.length
               ? { clarification_answers: clarificationAnswers }
               : {}),
+            non_sellable_tickers: [...resolveNonSellableSet()],
           }),
         });
         if (
@@ -283,6 +288,10 @@ export function OverlayConversationPanel({
         const llmLog =
           data && typeof data === "object" && "llm_log" in data
             ? (data as { llm_log?: LlmAuditEntry }).llm_log
+            : undefined;
+        const sellableBlocked =
+          data && typeof data === "object" && "sellable_blocked" in data
+            ? (data as { sellable_blocked?: string[] }).sellable_blocked
             : undefined;
         pushLlmAuditLog(llmLog);
 
@@ -324,13 +333,24 @@ export function OverlayConversationPanel({
         );
         setOverlayLang(detectedLang);
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: formatOverlayAssistantReply(interpretedOverlay),
-          },
-        ]);
+        setMessages((prev) => {
+          const next: ChatMessage[] = [
+            ...prev,
+            {
+              role: "assistant",
+              content: formatOverlayAssistantReply(interpretedOverlay),
+            },
+          ];
+          if (sellableBlocked?.length) {
+            next.push({
+              role: "assistant",
+              content: t("overlay.proposedTickers.sellableBlocked", {
+                count: sellableBlocked.length,
+              }),
+            });
+          }
+          return next;
+        });
       } catch {
         if (
           generation !== interpretGenerationRef.current ||
@@ -627,10 +647,18 @@ export function OverlayConversationPanel({
     const assistantMsg = t("overlay.proposedTickers.confirmMessage", {
       tickers: list,
     });
+    const blocked = splitBySellable(normalized).blocked;
+    const warnMsg =
+      blocked.length > 0
+        ? t("overlay.proposedTickers.nonSellableWarn", {
+            tickers: blocked.join(overlayLang === "zh" ? "、" : ", "),
+          })
+        : null;
     setMessages((prev) => [
       ...prev,
       { role: "user", content: userMsg },
       { role: "assistant", content: assistantMsg },
+      ...(warnMsg ? [{ role: "assistant" as const, content: warnMsg }] : []),
     ]);
   };
 

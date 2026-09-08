@@ -21,6 +21,11 @@ import { pushLlmAuditLog, type LlmAuditEntry } from "@/lib/llm-audit";
 import type { AssetClass } from "@/lib/constants";
 import type { BacktestRequest } from "@/lib/types";
 import { getUniverseItems } from "@/lib/universe";
+import {
+  filterSellableProposed,
+  resolveNonSellableSet,
+  splitBySellable,
+} from "@/lib/sellable-overrides";
 
 type UniverseFilterResponse = {
   supplement_tickers?: string[];
@@ -47,6 +52,7 @@ async function fetchUniverseSupplements(
       asset_classes: assetClasses,
       search_full_universe: true,
       report_language: reportLanguage,
+      non_sellable_tickers: [...resolveNonSellableSet()],
     }),
   });
   const data = (await res.json()) as UniverseFilterResponse;
@@ -64,7 +70,7 @@ function mapTickersToProposed(
   const metaByTicker = new Map(
     getUniverseItems().map((u) => [u.ticker.toUpperCase(), u]),
   );
-  return uniqueTickers(tickers).map((ticker) => {
+  const candidates = uniqueTickers(tickers).map((ticker) => {
     const meta = metaByTicker.get(ticker);
     return {
       ticker,
@@ -73,6 +79,12 @@ function mapTickersToProposed(
       rationale,
     };
   });
+  try {
+    return filterSellableProposed(candidates).kept;
+  } catch (err) {
+    console.warn("[sellable] resolve mapTickersToProposed fail-open", err);
+    return candidates;
+  }
 }
 
 /**
@@ -198,6 +210,19 @@ export async function resolveOverlayUniverse(
         ...filterTickersForDirectIndex(filterSupplements),
         ...pickDirectIndexStocks(diHaystack),
       ]);
+    }
+
+    try {
+      const split = splitBySellable(extras);
+      if (split.blocked.length) {
+        console.info(
+          "[sellable] open-pool extras blocked:",
+          split.blocked.join(","),
+        );
+      }
+      extras = split.kept;
+    } catch (err) {
+      console.warn("[sellable] open-pool extras fail-open", err);
     }
 
     req = {

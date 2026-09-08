@@ -12,6 +12,10 @@ import {
   type PoolItem,
 } from "@/lib/investment-pool";
 import {
+  isSellableTicker,
+  setSellableBulk,
+} from "@/lib/sellable-overrides";
+import {
   importModelsFromCsv,
   modelsToCsv,
   readManagedPortfolios,
@@ -76,13 +80,27 @@ export default function SettingsPage() {
       return;
     }
     const { items: next, report } = importPoolFromCsv(text, items);
+    if (report.sellableOverrides) {
+      const byFlag = new Map<boolean, string[]>();
+      for (const [ticker, sellable] of Object.entries(report.sellableOverrides)) {
+        const list = byFlag.get(sellable) ?? [];
+        list.push(ticker);
+        byFlag.set(sellable, list);
+      }
+      for (const [sellable, tickers] of byFlag) {
+        setSellableBulk(tickers, sellable);
+      }
+    }
     setItems(next);
     setPoolReport(report);
     setPortfolios(readManagedPortfolios(next));
   };
 
   const onExportPool = () => {
-    downloadCsvFile("investment-pool.csv", poolToCsv(items));
+    downloadCsvFile(
+      "investment-pool.csv",
+      poolToCsv(items, (ticker) => isSellableTicker(ticker)),
+    );
   };
 
   const onImportModels = async (file: File) => {

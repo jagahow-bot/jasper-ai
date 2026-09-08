@@ -263,3 +263,49 @@ describe("createJob payload contract (I5)", () => {
     expect(src).not.toMatch(/delete payload\.universe_supplement_meta/);
   });
 });
+
+describe("overlay compile §11 / §12 wiring", () => {
+  it("forces enforce_class_weights when any w_* sleeve_targets exist", () => {
+    const overlay = baseOverlay({
+      allocation: {
+        asset_classes: ["equity", "bond"],
+        sleeve_targets: { w_equity: 0.6, w_bond: 0.4 },
+        enforce_class_weights: false,
+      },
+    });
+    const req = overlayToBacktestRequest(baseRequest(), overlay);
+    expect(req.enforce_class_weights).toBe(true);
+  });
+
+  it("leaves enforce_class_weights false when no w_* sleeves", () => {
+    const overlay = baseOverlay({
+      allocation: {
+        asset_classes: ["equity", "bond"],
+        sleeve_targets: { ai: 0.1 },
+        enforce_class_weights: false,
+      },
+    });
+    const req = overlayToBacktestRequest(baseRequest(), overlay);
+    expect(req.enforce_class_weights).toBe(false);
+  });
+
+  it("dual-writes rebalance_freq and objective_mode into param_controls", () => {
+    const overlay = baseOverlay({
+      optimization: {
+        objective: "min_max_drawdown",
+        rebalance_freq: "ME",
+      },
+    });
+    const req = overlayToBacktestRequest(baseRequest(), overlay);
+    expect(req.rebalance_freq).toBe("ME");
+    expect(req.objective).toBe("min_max_drawdown");
+    expect(req.param_controls?.rebalance_freq).toMatchObject({
+      mode: "fixed",
+      fixed: "ME",
+    });
+    expect(req.param_controls?.objective_mode).toMatchObject({
+      mode: "fixed",
+      fixed: "min_max_drawdown",
+    });
+  });
+});

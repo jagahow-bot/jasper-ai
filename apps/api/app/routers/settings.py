@@ -127,6 +127,7 @@ def validate_pool_csv(payload: CsvPayload) -> PoolImportReport:
     region_idx = header.index("region") if "region" in header else -1
     product_idx = header.index("product_type") if "product_type" in header else -1
     enabled_idx = header.index("enabled") if "enabled" in header else -1
+    sellable_idx = header.index("sellable") if "sellable" in header else -1
 
     by_ticker: dict[str, PoolItem] = {}
     for i, cols in enumerate(rows, start=2):
@@ -157,6 +158,11 @@ def validate_pool_csv(payload: CsvPayload) -> PoolImportReport:
             else "true"
         )
         enabled = enabled_raw not in {"false", "0", "no"}
+
+        # Optional sellable column is recognised for audit pass-through; the web
+        # client applies sellable overrides after a successful import.
+        if sellable_idx >= 0 and sellable_idx < len(cols):
+            _ = (cols[sellable_idx] or "").strip()
 
         try:
             item = PoolItem(

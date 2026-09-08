@@ -114,6 +114,11 @@ export interface BacktestRequest {
   /** asset_class hints for supplement tickers absent from the engine catalog. */
   universe_supplement_meta?: Record<string, { asset_class?: AssetClass }> | null;
   universe_filter_text?: string | null;
+  /**
+   * Phase 2 (sellable-universe.md): client-computed non-sellable tickers for
+   * engine tradable-set gating. Not consumed in Phase 1.
+   */
+  // non_sellable_tickers?: string[] | null;
   /** Stacked AI universe rules (AND); legacy jobs may only have universe_filter_text */
   universe_filter_prompts?: string[] | null;
   enable_oos: boolean;

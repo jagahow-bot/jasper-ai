@@ -94,7 +94,9 @@ DEFAULT_FACTOR_BOUNDS: dict[str, tuple[float | int, float | int, int]] = {
 
 # Human-readable capability catalog for overlay / RM AI prompts.
 # overlay_eligible=True → may appear in ClientOverlay.param_adjustments.
-# Class-budget / allocator / regime keys stay False (use allocation fields or Pro mode).
+# Factor weights + drift + allocator constraint knobs (max_weight / top_n /
+# max_holdings / max_turnover) are eligible; class-budget (w_* quotas), solver
+# mode, and regime keys stay False (use allocation fields or Pro mode).
 _PARAM_CATALOG_META: dict[str, dict[str, Any]] = {
     "mode": {
         "kind": "setup_categorical",
@@ -127,23 +129,44 @@ _PARAM_CATALOG_META: dict[str, dict[str, Any]] = {
     "max_weight_actual": {
         "kind": "setup_numeric",
         "bounds": [0.05, 1.0],
-        "overlay_eligible": False,
-        "description": "Per-name weight cap used inside the allocator.",
-        "client_hint": "Prefer allocation.max_single_position_pct when the client states a single-name max.",
+        "overlay_eligible": True,
+        "description": (
+            "Per-name weight cap enforced inside the allocator (fraction; 0.10 = 10%). "
+            "配置器層級的單一標的權重硬上限。"
+        ),
+        "client_hint": (
+            "客戶要求「單一持股/單一標的不超過 X%」時：優先填 allocation.max_single_position_pct；"
+            "此鍵作為 allocator 層 backstop（例如集中持股但單檔仍不得逾 12% 時一併設定）。"
+            "Backstop for single-name caps (單一標的上限 X%); prefer the allocation field first."
+        ),
     },
     "top_n_actual": {
         "kind": "setup_numeric",
         "bounds": [2, 150],
-        "overlay_eligible": False,
-        "description": "How many top-ranked names enter the allocator each rebalance.",
-        "client_hint": "Pro-only; omit from overlay.",
+        "overlay_eligible": True,
+        "description": (
+            "How many top-ranked names enter the allocator each rebalance (integer). "
+            "每次再平衡進入配置器的候選檔數。"
+        ),
+        "client_hint": (
+            "客戶要求集中持股（「只買前 N 檔」「持股集中一點」）→ 調低；"
+            "要求分散、放寬檔數（「多持有一點」）→ 調高。整數。"
+            "Trigger on 集中持股 / 只持有前 N 檔 / 放寬檔數; lower = more concentrated."
+        ),
     },
     "max_holdings_actual": {
         "kind": "setup_numeric",
         "bounds": [1, 150],
-        "overlay_eligible": False,
-        "description": "Hard cap on names held after allocation.",
-        "client_hint": "Pro-only; omit from overlay.",
+        "overlay_eligible": True,
+        "description": (
+            "Hard cap on the number of names actually held after allocation (integer). "
+            "配置完成後實際持有檔數的硬上限。"
+        ),
+        "client_hint": (
+            "客戶要求「最多持有 N 檔」或放寬持股檔數時使用；"
+            "與 top_n_actual 搭配（top_n 是候選池，max_holdings 是最終持有上限）。"
+            "Trigger on 持股檔數上限 / 最多持有 N 檔 / 放寬檔數."
+        ),
     },
     "no_trade_tol": {
         "kind": "setup_numeric",
@@ -162,9 +185,15 @@ _PARAM_CATALOG_META: dict[str, dict[str, Any]] = {
     "max_turnover_actual": {
         "kind": "setup_numeric",
         "bounds": [0.05, 1.0],
-        "overlay_eligible": False,
-        "description": "Hard turnover ceiling per rebalance.",
-        "client_hint": "Pro-only; omit from overlay.",
+        "overlay_eligible": True,
+        "description": (
+            "Hard turnover ceiling per rebalance (fraction of portfolio value; 0.20 = 20%). "
+            "每次再平衡的換手率硬上限。"
+        ),
+        "client_hint": (
+            "客戶要求換手/週轉上限（「每次換手不要超過 X%」「減少交易」）→ 調低；"
+            "要更積極換倉 → 調高。Trigger on 換手上限 / 週轉率 / turnover cap."
+        ),
     },
     "customization_drift_actual": {
         "kind": "setup_numeric",
@@ -269,7 +298,7 @@ for _cat_key in FACTOR_CATEGORICAL_KEYS:
         },
     )
 
-PARAM_CATALOG_VERSION = 1
+PARAM_CATALOG_VERSION = 2
 
 
 def build_param_catalog() -> dict[str, Any]:

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "params": [
     {
       "key": "mode",
@@ -50,9 +50,9 @@
     {
       "key": "max_weight_actual",
       "kind": "setup_numeric",
-      "overlay_eligible": false,
-      "description": "Per-name weight cap used inside the allocator.",
-      "client_hint": "Prefer allocation.max_single_position_pct when the client states a single-name max.",
+      "overlay_eligible": true,
+      "description": "Per-name weight cap enforced inside the allocator (fraction; 0.10 = 10%). 配置器層級的單一標的權重硬上限。",
+      "client_hint": "客戶要求「單一持股/單一標的不超過 X%」時：優先填 allocation.max_single_position_pct；此鍵作為 allocator 層 backstop（例如集中持股但單檔仍不得逾 12% 時一併設定）。Backstop for single-name caps (單一標的上限 X%); prefer the allocation field first.",
       "bounds": [
         0.05,
         1.0
@@ -61,9 +61,9 @@
     {
       "key": "top_n_actual",
       "kind": "setup_numeric",
-      "overlay_eligible": false,
-      "description": "How many top-ranked names enter the allocator each rebalance.",
-      "client_hint": "Pro-only; omit from overlay.",
+      "overlay_eligible": true,
+      "description": "How many top-ranked names enter the allocator each rebalance (integer). 每次再平衡進入配置器的候選檔數。",
+      "client_hint": "客戶要求集中持股（「只買前 N 檔」「持股集中一點」）→ 調低；要求分散、放寬檔數（「多持有一點」）→ 調高。整數。Trigger on 集中持股 / 只持有前 N 檔 / 放寬檔數; lower = more concentrated.",
       "bounds": [
         2,
         150
@@ -72,9 +72,9 @@
     {
       "key": "max_holdings_actual",
       "kind": "setup_numeric",
-      "overlay_eligible": false,
-      "description": "Hard cap on names held after allocation.",
-      "client_hint": "Pro-only; omit from overlay.",
+      "overlay_eligible": true,
+      "description": "Hard cap on the number of names actually held after allocation (integer). 配置完成後實際持有檔數的硬上限。",
+      "client_hint": "客戶要求「最多持有 N 檔」或放寬持股檔數時使用；與 top_n_actual 搭配（top_n 是候選池，max_holdings 是最終持有上限）。Trigger on 持股檔數上限 / 最多持有 N 檔 / 放寬檔數.",
       "bounds": [
         1,
         150
@@ -105,9 +105,9 @@
     {
       "key": "max_turnover_actual",
       "kind": "setup_numeric",
-      "overlay_eligible": false,
-      "description": "Hard turnover ceiling per rebalance.",
-      "client_hint": "Pro-only; omit from overlay.",
+      "overlay_eligible": true,
+      "description": "Hard turnover ceiling per rebalance (fraction of portfolio value; 0.20 = 20%). 每次再平衡的換手率硬上限。",
+      "client_hint": "客戶要求換手/週轉上限（「每次換手不要超過 X%」「減少交易」）→ 調低；要更積極換倉 → 調高。Trigger on 換手上限 / 週轉率 / turnover cap.",
       "bounds": [
         0.05,
         1.0
@@ -450,6 +450,10 @@
     }
   ],
   "overlay_eligible_keys": [
+    "max_weight_actual",
+    "top_n_actual",
+    "max_holdings_actual",
+    "max_turnover_actual",
     "customization_drift_actual",
     "factor_lookback_days",
     "reversal_lookback_days",

@@ -9,6 +9,10 @@ import {
   detectDirectIndexing,
   pickDirectIndexStocks,
 } from "./direct-indexing";
+import {
+  splitBySellable,
+  type SellableCtx,
+} from "./sellable-overrides";
 
 const SHORT_MARKET_TICKERS = [
   "BTAL",
@@ -112,6 +116,7 @@ function categoriesForText(text: string): string[] | undefined {
 export function analyzeUniverseFilterFallback(
   text: string,
   lang: Lang = "en",
+  opts?: { ctx?: SellableCtx },
 ): UniverseFilterOutput {
   const lower = text.toLowerCase();
   const universe = new Set(getUniverseItems().map((u) => u.ticker));
@@ -121,7 +126,7 @@ export function analyzeUniverseFilterFallback(
   let categories = categoriesForText(text);
 
   if (detectDirectIndexing(text)) {
-    tickers = pickDirectIndexStocks(text);
+    tickers = pickDirectIndexStocks(text, undefined, opts?.ctx);
     categories = ["us_stock_mega", "us_stock_tech", "us_stock_semi"];
   } else if (/short.*(stock|equity|market)|bear.*(market|equity)|inverse.*(market|equity)|hedge.*equity/.test(lower)) {
     tickers = pick(SHORT_MARKET_TICKERS);
@@ -131,6 +136,14 @@ export function analyzeUniverseFilterFallback(
     categories = ["us_thematic", "us_industry"];
   } else {
     tickers = tickersForKeywords(text);
+  }
+
+  if (tickers?.length) {
+    try {
+      tickers = splitBySellable(tickers, opts?.ctx).kept;
+    } catch (err) {
+      console.warn("[sellable] analyzeUniverseFilterFallback fail-open", err);
+    }
   }
 
   const localizedCategories = categories?.map((c) => categoryLabel(lang, c));

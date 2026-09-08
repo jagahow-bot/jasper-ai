@@ -35,6 +35,15 @@ import {
   rationaleLanguageDirective,
   type Lang,
 } from "@/lib/universe-filter-locale";
+import universeFile from "@/data/etf-universe.json";
+import { extractExplicitTickersFromTexts } from "@/lib/locked-universe";
+import {
+  filterSellableProposed,
+  sellableCtxFromTickers,
+  splitBySellable,
+  type SellableCtx,
+} from "@/lib/sellable-overrides";
+import type { UniverseItem } from "@/lib/universe";
 
 type ContextPosition = {
   ticker: string;
@@ -72,6 +81,8 @@ type InterpretBody = {
   customization_drift?: number;
   /** Optional structured Q→A pairs for the latest clarification round. */
   clarification_answers?: ClarificationAnswerPair[];
+  /** Client-computed non-sellable tickers (UPPER). Server has no localStorage. */
+  non_sellable_tickers?: string[];
 };
 
 function formatPositions(positions?: ContextPosition[]): string {
@@ -179,7 +190,102 @@ param_adjustments POLICY:
 - Shape: { "w_lowvol": { "mode": "fixed"|"search"|"off", "fixed"?: number, "min"?: number, "max"?: number } }.
 - mode=fixed → pin the value; mode=search → give Optuna [min,max] within the listed bounds; mode=off → disable that signal.
 - Prefer allocation.sleeve_targets / sub_sleeve_targets / max_single_position_pct for asset-class and single-name caps — do NOT put w_equity / w_bond / class budgets in param_adjustments.
-- Only emit param_adjustments when the conversation implies an explicit factor tilt or customization-drift preference; otherwise OMIT the key entirely.`;
+- ROUTING (use the dedicated field first; param_adjustments is the backstop, not the first choice):
+  • "單一持股 / 單一標的 ≤ X%" (single-name cap) → allocation.max_single_position_pct FIRST; add param_adjustments.max_weight_actual (same fraction) only as an allocator-level backstop when the client wants it strictly enforced.
+  • "股債配比 / 類別配額" (asset-class quotas) → allocation.sleeve_targets with w_* keys (compile forces enforce_class_weights=true). NEVER express quotas via param_adjustments.
+  • "集中持股 / 只買前 N 檔 / 放寬持股檔數" (concentrate or widen holdings) → param_adjustments.top_n_actual and/or max_holdings_actual (integers; lower top_n = more concentrated).
+  • "換手上限 / 週轉率不要超過 X% / 減少交易" (turnover cap) → param_adjustments.max_turnover_actual (fraction).
+  • "每月／每季／每半年／每年再平衡" (rebalance cadence) → optimization.rebalance_freq: "ME"|"QE"|"YE"|"W-FRI".
+- Only emit param_adjustments when the conversation implies an explicit factor tilt, customization-drift preference, or one of the constraint knobs above; otherwise OMIT the key entirely.`;
+}
+
+const PRODUCT_TYPE_ORDER: Record<string, number> = {
+  etf: 0,
+  fund: 1,
+  stock: 2,
+};
+
+function buildSellableCatalogBlock(nonSellable: ReadonlySet<string>): string {
+  const items = (universeFile.universe as UniverseItem[])
+    .filter((u) => !nonSellable.has(u.ticker.toUpperCase()))
+    .slice()
+    .sort((a, b) => {
+      const pa = PRODUCT_TYPE_ORDER[(a.product_type ?? "etf").toLowerCase()] ?? 9;
+      const pb = PRODUCT_TYPE_ORDER[(b.product_type ?? "etf").toLowerCase()] ?? 9;
+      if (pa !== pb) return pa - pb;
+      return a.ticker.localeCompare(b.ticker);
+    });
+  const lines = items.map(
+    (u) =>
+      `${u.ticker.toUpperCase()}|${u.name}|${(u.product_type ?? "etf").toLowerCase()}`,
+  );
+  const stockCount = items.filter(
+    (u) => (u.product_type ?? "").toLowerCase() === "stock",
+  ).length;
+  return `SELLABLE CATALOG (firm restriction — the ONLY instruments you may propose), format TICKER|name|product_type:
+${lines.join("\n")}
+
+Rules for the sellable catalog above:
+- universe.proposed_tickers and universe.supplement_tickers MUST be chosen from
+  this list. Never invent tickers outside it. (Exception: the RM explicitly
+  names a ticker in the conversation — keep it, but never volunteer it.)
+- Theme/sector needs (AI, 半導體, ESG, 配息, …): recommend suitable FUNDS/ETFs
+  from the list directly in proposed_tickers. Do NOT ask whether to add
+  individual stocks, and do NOT propose individual stocks unless the list
+  actually contains sellable stocks (product_type=stock rows).
+- Direct indexing: allowed ONLY when the list contains sellable stocks;
+  otherwise explain that individual stocks are currently non-sellable and
+  propose the closest sellable index ETFs from the list instead.
+- clarification_questions / clarifications MUST NOT open "add individual
+  stocks" paths when the list contains no (or almost no) sellable stocks
+  (current sellable stock count=${stockCount}).
+  Route theme-related clarifications toward choosing among sellable
+  funds/ETFs (options = 2–4 concrete fund/ETF directions from the list),
+  not toward stock picking.`;
+}
+
+function applySellableOutputFilter(
+  overlay: ClientOverlay,
+  ctx: SellableCtx | undefined,
+  transcript: string,
+): { overlay: ClientOverlay; sellable_blocked: string[] } {
+  try {
+    const explicit = new Set(extractExplicitTickersFromTexts([transcript]));
+    const proposed = overlay.universe.proposed_tickers ?? [];
+    const { kept: keptProposed, blocked: blockedProposed } =
+      filterSellableProposed(proposed, ctx);
+    const supplements = overlay.universe.supplement_tickers ?? [];
+    const blockedSupplements: string[] = [];
+    const keptSupplements = supplements.filter((t) => {
+      const key = t.toUpperCase();
+      if (explicit.has(key)) return true;
+      const { blocked } = splitBySellable([t], ctx);
+      if (blocked.length) {
+        blockedSupplements.push(t);
+        return false;
+      }
+      return true;
+    });
+    const sellable_blocked = [
+      ...blockedProposed.map((p) => p.ticker),
+      ...blockedSupplements,
+    ];
+    if (!sellable_blocked.length) return { overlay, sellable_blocked: [] };
+    return {
+      overlay: {
+        ...overlay,
+        universe: {
+          ...overlay.universe,
+          proposed_tickers: keptProposed.length ? keptProposed : undefined,
+          supplement_tickers: keptSupplements.length ? keptSupplements : undefined,
+        },
+      },
+      sellable_blocked: [...new Set(sellable_blocked.map((t) => t.toUpperCase()))],
+    };
+  } catch (err) {
+    console.warn("[sellable] interpret L2 fail-open", err);
+    return { overlay, sellable_blocked: [] };
+  }
 }
 
 function overlaySystemPrompt(lang: Lang): string {
@@ -232,7 +338,8 @@ Field rules:
 - allocation.sub_sleeve_targets: optional regional weights (0–1). Omit if unknown; never emit {}.
 - allocation.max_single_position_pct: OMIT unless the brief/asks explicitly set a single-name or ticker max. When stated, use 0–1 FRACTION in [0.05, 0.40]. Do NOT invent a default (e.g. 0.25) just because the book is locked, aggressive, or thematic.
 - Needs caps/floors: do NOT invent theme exposure caps, drawdown floors/tolerances, or cash-reserve floors. Theme exposure caps apply ONLY when the client explicitly asks to cap/limit *theme* / *tech sleeve* / *growth sleeve* exposure — NOT when trimming a single ticker (e.g. NVDA), consolidating core overlap, or merely mentioning AI/tech themes. Do NOT tag themes with "concentration_reduction" for a single-name trim. Soft asks stay soft evidence — do not silently encode hard Needs floors.
-- allocation.enforce_class_weights: boolean when RM wants hard sleeve enforcement.
+- allocation.enforce_class_weights: optional; ignored when any w_* sleeve_targets are set (compile forces true).
+- optimization.rebalance_freq: optional "W-FRI"|"ME"|"QE"|"YE" when RM states rebalance cadence (monthly/quarterly/…).
 - universe.prompts: optional short notes for RM display only. Do NOT use prompts to invent broad ETF baskets — locked model runs ignore thematic/category matching.
 - universe.construction: set "direct_index" when the RM asks for direct indexing / 直接指數化 / 直接索引 / 직접 인덱싱. This means replicate or tilt around a benchmark ETF (e.g. SPY) using INDIVIDUAL STOCKS, not by swapping in other ETFs.
 - universe.supplement_tickers: explicit symbols the client (or RM) wants to ADD beyond the target model portfolio (e.g. "GLD", "BTAL"). Only add tickers here when the RM has explicitly confirmed them — EXCEPT for direct_index, where you SHOULD list the stock-sleeve candidates here so the optimizer can use them.
@@ -432,6 +539,15 @@ export async function POST(req: Request) {
     .filter(Boolean)
     .join("\n");
 
+  const nonSellableList = (body.non_sellable_tickers ?? []).map((t) =>
+    t.trim().toUpperCase(),
+  );
+  const sellableCtx = sellableCtxFromTickers(nonSellableList);
+  const sellableCatalogBlock = buildSellableCatalogBlock(
+    new Set(nonSellableList),
+  );
+  const systemPrompt = `${overlaySystemPrompt(lang)}\n\n${sellableCatalogBlock}`;
+
   const useRulesFallback = allowOverlayRulesFallback(req);
 
   const runFallback = () => {
@@ -443,8 +559,9 @@ export async function POST(req: Request) {
       anchorPositions: body.anchor_positions,
       transcript: userTranscript,
     });
-    logInterpretResult("rules", overlay, turns);
-    return overlay;
+    const filtered = applySellableOutputFilter(overlay, sellableCtx, userTranscript);
+    logInterpretResult("rules", filtered.overlay, turns);
+    return filtered;
   };
 
   if (!isProviderConfigured(DEFAULT_FLASH_MODEL_ID)) {
@@ -452,8 +569,12 @@ export async function POST(req: Request) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("[overlay/interpret] AI provider not configured; using rules fallback");
       }
-      const overlay = runFallback();
-      return NextResponse.json({ overlay, source: "rules" });
+      const { overlay, sellable_blocked } = runFallback();
+      return NextResponse.json({
+        overlay,
+        source: "rules",
+        ...(sellable_blocked.length ? { sellable_blocked } : {}),
+      });
     }
     return buildOverlayInterpretError(
       OVERLAY_INTERPRET_ERROR_CODES.API_KEY_MISSING,
@@ -468,7 +589,7 @@ export async function POST(req: Request) {
     const { result, log } = await generateTextWithAudit({
       model: defaultFlashModel(),
       maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
-      system: overlaySystemPrompt(lang),
+      system: systemPrompt,
       prompt: buildConversationPrompt(
         messages,
         body.prior_overlay,
@@ -491,8 +612,13 @@ export async function POST(req: Request) {
         if (process.env.NODE_ENV !== "production") {
           console.warn("[overlay/interpret] AI response unusable; using rules fallback", parseError);
         }
-        const overlay = runFallback();
-        return NextResponse.json({ overlay, source: "rules", llm_log: llmLog });
+        const { overlay, sellable_blocked } = runFallback();
+        return NextResponse.json({
+          overlay,
+          source: "rules",
+          llm_log: llmLog,
+          ...(sellable_blocked.length ? { sellable_blocked } : {}),
+        });
       }
       const classified = classifyOverlayAiFailure(parseError);
       logInterpretFailure(classified);
@@ -534,9 +660,17 @@ export async function POST(req: Request) {
       transcript: userTranscript,
     });
 
-    logInterpretResult("gemini", overlay, turns);
+    const filtered = applySellableOutputFilter(overlay, sellableCtx, userTranscript);
+    logInterpretResult("gemini", filtered.overlay, turns);
 
-    return NextResponse.json({ overlay, source: "gemini", llm_log: llmLog });
+    return NextResponse.json({
+      overlay: filtered.overlay,
+      source: "gemini",
+      llm_log: llmLog,
+      ...(filtered.sellable_blocked.length
+        ? { sellable_blocked: filtered.sellable_blocked }
+        : {}),
+    });
   } catch (error) {
     if (error && typeof error === "object" && "log" in error) {
       llmLog = (error as { log: import("@/lib/llm-audit").LlmAuditEntry }).log;
@@ -545,8 +679,13 @@ export async function POST(req: Request) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("[overlay/interpret] AI failed; using rules fallback", error);
       }
-      const overlay = runFallback();
-      return NextResponse.json({ overlay, source: "rules", llm_log: llmLog });
+      const { overlay, sellable_blocked } = runFallback();
+      return NextResponse.json({
+        overlay,
+        source: "rules",
+        llm_log: llmLog,
+        ...(sellable_blocked.length ? { sellable_blocked } : {}),
+      });
     }
     const classified = classifyOverlayAiFailure(error);
     logInterpretFailure(classified);

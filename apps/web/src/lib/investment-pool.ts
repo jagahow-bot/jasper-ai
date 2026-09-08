@@ -19,6 +19,8 @@ export type PoolImportReport = {
   upserted: number;
   skipped: number;
   errors: string[];
+  /** Optional sellable column values from CSV (ticker → sellable). */
+  sellableOverrides?: Record<string, boolean>;
 };
 
 function universeLookup(): Map<
@@ -150,6 +152,8 @@ export function importPoolFromCsv(
   const base = [...(existing ?? readInvestmentPool())];
   const byTicker = new Map(base.map((i) => [i.ticker.toUpperCase(), { ...i }]));
   const report: PoolImportReport = { upserted: 0, skipped: 0, errors: [] };
+  const sellableOverrides: Record<string, boolean> = {};
+  let sawSellableCol = false;
 
   const lines = csvText
     .replace(/^\uFEFF/, "")
@@ -190,6 +194,18 @@ export function importPoolFromCsv(
       enabledRaw === "0" ||
       enabledRaw === "no"
     );
+    const sellableIdx = idx("sellable");
+    if (sellableIdx >= 0) {
+      sawSellableCol = true;
+      const sellableRaw = (cols[sellableIdx] ?? "").trim().toLowerCase();
+      if (sellableRaw) {
+        sellableOverrides[ticker] = !(
+          sellableRaw === "false" ||
+          sellableRaw === "0" ||
+          sellableRaw === "no"
+        );
+      }
+    }
     byTicker.set(ticker, {
       ticker,
       name,
@@ -205,6 +221,9 @@ export function importPoolFromCsv(
     a.ticker.localeCompare(b.ticker),
   );
   writeInvestmentPool(items);
+  if (sawSellableCol) {
+    report.sellableOverrides = sellableOverrides;
+  }
   return { items, report };
 }
 
@@ -236,11 +255,18 @@ function splitCsvLine(line: string): string[] {
   return out;
 }
 
-export function poolToCsv(items: PoolItem[]): string {
-  const header = "ticker,name,asset_class,region,product_type,enabled";
-  const rows = items.map(
-    (i) =>
-      `${i.ticker},"${i.name.replace(/"/g, '""')}",${i.asset_class},${i.region},${i.product_type},${i.enabled}`,
-  );
+export function poolToCsv(
+  items: PoolItem[],
+  resolveSellable?: (ticker: string) => boolean,
+): string {
+  const withSellable = typeof resolveSellable === "function";
+  const header = withSellable
+    ? "ticker,name,asset_class,region,product_type,enabled,sellable"
+    : "ticker,name,asset_class,region,product_type,enabled";
+  const rows = items.map((i) => {
+    const base = `${i.ticker},"${i.name.replace(/"/g, '""')}",${i.asset_class},${i.region},${i.product_type},${i.enabled}`;
+    if (!withSellable) return base;
+    return `${base},${resolveSellable!(i.ticker)}`;
+  });
   return [header, ...rows].join("\n");
 }

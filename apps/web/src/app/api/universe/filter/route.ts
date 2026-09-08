@@ -21,6 +21,11 @@ import {
   rationaleLanguageDirective,
   type Lang,
 } from "@/lib/universe-filter-locale";
+import {
+  sellableCtxFromTickers,
+  splitBySellable,
+  type SellableCtx,
+} from "@/lib/sellable-overrides";
 
 type FilterBody = {
   text?: string;
@@ -30,6 +35,8 @@ type FilterBody = {
   /** When true, only return tickers literally named in the prompt text. */
   strict_explicit_only?: boolean;
   report_language?: string;
+  /** Client-computed non-sellable tickers (UPPER). Server has no localStorage. */
+  non_sellable_tickers?: string[];
 };
 
 function parsePrompts(body: FilterBody): string[] {
@@ -54,6 +61,7 @@ const supplementSystem = (
   meta: ReturnType<typeof getUniverseMeta>,
   userClasses: AssetClass[],
   lang: Lang,
+  nonSellable?: readonly string[],
 ) =>
   `Quant universe supplement assistant. For each rule, find instruments in the FULL universe that match the user's description. The catalog mixes ETFs, stocks, and funds.
 
@@ -72,6 +80,9 @@ Rules:
 - For bear/short equity themes, prefer inverse, hedged, managed-futures, or low-beta alts (e.g. BTAL, PUTW, CTA, DBMF) — not the entire equity sleeve.
 - For sector/thematic rules, list specific sector ETFs (XLK, SMH, etc.), not every equity fund.
 - Direct indexing / 直接指數化 / 直接索引 / 직접 인덱싱: return INDIVIDUAL STOCKS (product_type stock) that replicate or tilt around the named benchmark ETF. Do NOT return thematic ETFs such as AIQ, BOTZ, IRBO, ROBO as substitutes. AI overweight → NVDA, MSFT, AAPL, GOOGL, AMZN, META, AVGO, AMD, etc.
+- Non-sellable tickers (firm restriction — do NOT propose these unless the rule literally names them): ${(nonSellable ?? []).slice(0, 80).join(", ") || "(none)"}${
+    (nonSellable?.length ?? 0) > 80 ? ", …" : ""
+  }
 - rationale: 1-2 sentences explaining which tickers you picked and why they match the rule intent (${rationaleLanguageDirective(lang)}); mention trade-offs if the rule is ambiguous.`;
 
 type FilterOutput = z.infer<typeof universeFilterSchema>;
@@ -81,15 +92,28 @@ async function analyzeRuleWithAi(
   userClasses: AssetClass[],
   meta: ReturnType<typeof getUniverseMeta>,
   lang: Lang,
+  nonSellable: readonly string[],
 ): Promise<{ object: FilterOutput; log: LlmAuditEntry }> {
   const { result, log } = await generateObjectWithAudit({
     model: defaultFlashModel(),
     maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
     schema: universeFilterSchema,
-    system: supplementSystem(meta, userClasses, lang),
+    system: supplementSystem(meta, userClasses, lang, nonSellable),
     prompt: buildSingleRulePrompt(ruleText, userClasses),
   });
   return { object: result.object as FilterOutput, log };
+}
+
+function applySellableGate(
+  tickers: string[],
+  ctx: SellableCtx | undefined,
+): { kept: string[]; blocked: string[] } {
+  try {
+    return splitBySellable(tickers, ctx);
+  } catch (err) {
+    console.warn("[sellable] universe/filter fail-open", err);
+    return { kept: tickers, blocked: [] };
+  }
 }
 
 export async function POST(req: Request) {
@@ -104,17 +128,25 @@ export async function POST(req: Request) {
   const meta = getUniverseMeta();
   const lang = parseReportLanguage(body.report_language);
   const strictExplicitOnly = Boolean(body.strict_explicit_only);
+  const nonSellableList = (body.non_sellable_tickers ?? []).map((t) =>
+    t.trim().toUpperCase(),
+  );
+  const ctx = sellableCtxFromTickers(nonSellableList);
 
   const runFallback = () => {
-    const outputs = prompts.map((p) => analyzeUniverseFilterFallback(p, lang));
+    const outputs = prompts.map((p) =>
+      analyzeUniverseFilterFallback(p, lang, { ctx }),
+    );
     const { supplement_tickers, rationale } = mergeSupplementTickers(outputs, lang, {
       strictExplicitOnly,
       prompts,
     });
+    const gated = applySellableGate(supplement_tickers, ctx);
     const per_rule = buildPerRuleSupplementResults(prompts, outputs, userClasses);
     return {
       asset_classes: userClasses,
-      supplement_tickers,
+      supplement_tickers: gated.kept,
+      sellable_blocked: gated.blocked.length ? gated.blocked : undefined,
       rationale,
       per_rule,
     };
@@ -127,7 +159,9 @@ export async function POST(req: Request) {
 
   try {
     const results = await Promise.all(
-      prompts.map((p) => analyzeRuleWithAi(p, userClasses, meta, lang)),
+      prompts.map((p) =>
+        analyzeRuleWithAi(p, userClasses, meta, lang, nonSellableList),
+      ),
     );
     const outputs = results.map((r) => r.object);
     const llmLogs = results.map((r) => r.log);
@@ -135,10 +169,12 @@ export async function POST(req: Request) {
       strictExplicitOnly,
       prompts,
     });
+    const gated = applySellableGate(supplement_tickers, ctx);
     const per_rule = buildPerRuleSupplementResults(prompts, outputs, userClasses);
     return NextResponse.json({
       asset_classes: userClasses,
-      supplement_tickers,
+      supplement_tickers: gated.kept,
+      sellable_blocked: gated.blocked.length ? gated.blocked : undefined,
       rationale,
       per_rule,
       per_rule_llm_logs: llmLogs,
