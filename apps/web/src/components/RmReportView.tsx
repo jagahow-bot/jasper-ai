@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AskEvidencePanel } from "@/components/AskEvidencePanel";
 import { AiParamsDisclosureBlock } from "@/components/AiParamsDisclosure";
@@ -59,6 +60,7 @@ type Props = {
   result: BacktestResult;
   narrative: string;
   request: BacktestRequest;
+  reminderNotice?: { count: number; clientId: string } | null;
   onRerun: () => void;
   onExport: () => void;
   onQuickTweak: (next: BacktestRequest, label: string) => void;
@@ -118,6 +120,7 @@ export function RmReportView({
   result,
   narrative,
   request,
+  reminderNotice = null,
   onRerun,
   onExport,
   onQuickTweak,
@@ -405,6 +408,16 @@ export function RmReportView({
           <h2 className="ui-panel-title">{t("rm.report.title")}</h2>
         </div>
         <div className="flex flex-wrap gap-2">
+          {reminderNotice &&
+          reminderNotice.count > 0 &&
+          client?.client_id === reminderNotice.clientId ? (
+            <Link
+              href={`/clients/${encodeURIComponent(reminderNotice.clientId)}#reminders`}
+              className="pixel-chip !border-amber-500 !text-amber-800"
+            >
+              {t("reminders.banner.created", { count: reminderNotice.count })}
+            </Link>
+          ) : null}
           <button
             type="button"
             onClick={() => setTab("rm")}

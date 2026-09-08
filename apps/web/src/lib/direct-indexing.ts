@@ -1,5 +1,6 @@
 import { getUniverseItems, type UniverseItem } from "./universe";
 import type { Lang } from "./universe-filter-locale";
+import { splitBySellable, type SellableCtx } from "./sellable-overrides";
 
 /** Thematic / satellite ETFs that must not stand in for a stock sleeve. */
 export const THEMATIC_SUBSTITUTE_ETFS = new Set([
@@ -289,6 +290,7 @@ function pickFromPrefer(
   prefer: readonly string[],
   limit: number,
   fillCats: ReadonlySet<string> | "us_stock",
+  ctx?: SellableCtx,
 ): string[] {
   const stocks = stockTickerSet();
   const out: string[] = [];
@@ -297,20 +299,42 @@ function pickFromPrefer(
     if (!stocks.has(t) || seen.has(t)) continue;
     seen.add(t);
     out.push(t);
-    if (out.length >= limit) return out;
-  }
-  for (const item of getUniverseItems()) {
     if (out.length >= limit) break;
-    if ((item.product_type ?? "etf") !== "stock") continue;
-    const t = item.ticker.toUpperCase();
-    if (seen.has(t)) continue;
-    const cat = String(item.category ?? "");
-    const ok = fillCats === "us_stock" ? isUsStockCategory(cat) : fillCats.has(cat);
-    if (!ok) continue;
-    seen.add(t);
-    out.push(t);
   }
-  return out;
+  if (out.length < limit) {
+    for (const item of getUniverseItems()) {
+      if (out.length >= limit) break;
+      if ((item.product_type ?? "etf") !== "stock") continue;
+      const t = item.ticker.toUpperCase();
+      if (seen.has(t)) continue;
+      const cat = String(item.category ?? "");
+      const ok = fillCats === "us_stock" ? isUsStockCategory(cat) : fillCats.has(cat);
+      if (!ok) continue;
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  // Prefer more than limit so sellable filtering can still fill the sleeve.
+  const poolLimit = Math.max(limit * 4, limit + 40);
+  if (out.length < poolLimit) {
+    for (const item of getUniverseItems()) {
+      if (out.length >= poolLimit) break;
+      if ((item.product_type ?? "etf") !== "stock") continue;
+      const t = item.ticker.toUpperCase();
+      if (seen.has(t)) continue;
+      const cat = String(item.category ?? "");
+      const ok = fillCats === "us_stock" ? isUsStockCategory(cat) : fillCats.has(cat);
+      if (!ok) continue;
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  try {
+    return splitBySellable(out, ctx).kept.slice(0, limit);
+  } catch (err) {
+    console.warn("[sellable] pickFromPrefer fail-open", err);
+    return out.slice(0, limit);
+  }
 }
 
 function overweightAiWithin(sleeve: string[]): string[] {
@@ -318,13 +342,17 @@ function overweightAiWithin(sleeve: string[]): string[] {
   return [...sleeve.filter((t) => ai.has(t)), ...sleeve.filter((t) => !ai.has(t))];
 }
 
-export function pickDirectIndexStocks(text: string, limit?: number): string[] {
+export function pickDirectIndexStocks(
+  text: string,
+  limit?: number,
+  ctx?: SellableCtx,
+): string[] {
   const parsed = parseDirectIndexSleeveCount(text);
   const n = resolveDirectIndexSleeveCount(text, limit);
   const honorSpx = parsed != null || (limit != null && limit > DEFAULT_DIRECT_INDEX_SLEEVE);
 
   if (honorSpx) {
-    const sleeve = pickFromPrefer(SPX_LARGE_CAP_PRIORITY, n, "us_stock");
+    const sleeve = pickFromPrefer(SPX_LARGE_CAP_PRIORITY, n, "us_stock", ctx);
     return detectAiTilt(text) ? overweightAiWithin(sleeve).slice(0, n) : sleeve;
   }
 
@@ -332,7 +360,7 @@ export function pickDirectIndexStocks(text: string, limit?: number): string[] {
   const fillCats = detectAiTilt(text)
     ? new Set(["us_stock_semi", "us_stock_tech", "us_stock_mega"])
     : new Set(["us_stock_mega"]);
-  return pickFromPrefer(prefer, n, fillCats);
+  return pickFromPrefer(prefer, n, fillCats, ctx);
 }
 
 export type DirectIndexProposedTicker = {
@@ -346,8 +374,9 @@ export function proposedTickersForDirectIndex(
   text: string,
   lang: Lang,
   limit?: number,
+  ctx?: SellableCtx,
 ): DirectIndexProposedTicker[] {
-  const stocks = pickDirectIndexStocks(text, limit);
+  const stocks = pickDirectIndexStocks(text, limit, ctx);
   const rationale =
     lang === "zh"
       ? "直接指數化個股袖套（非主題 ETF）"

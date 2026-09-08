@@ -11,7 +11,29 @@ export type UniverseItem = {
   sector?: string;
   /** Instrument type: etf (default), stock, fund, … */
   product_type?: string;
+  /**
+   * Optional firm sellability flag. When omitted, defaults by product_type
+   * (etf/fund → true; stock/other → false). See sellable-overrides.ts.
+   */
+  sellable?: boolean;
 };
+
+/** product_type → factory-default sellable (funds/ETFs on; stocks off). */
+const SELLABLE_DEFAULT_BY_PRODUCT_TYPE: Record<string, boolean> = {
+  etf: true,
+  fund: true,
+  stock: false,
+  structured: false,
+  bond: false,
+  other: false,
+};
+
+export function defaultSellableForProductType(productType?: string): boolean {
+  return (
+    SELLABLE_DEFAULT_BY_PRODUCT_TYPE[(productType ?? "").trim().toLowerCase()] ??
+    false
+  );
+}
 
 export function getUniverseMap(): Map<string, UniverseItem> {
   const map = new Map<string, UniverseItem>();
@@ -97,6 +119,19 @@ export function getUniverseMeta() {
       items.map((u) => ({ ...u, product_type: u.product_type ?? "etf" })),
       "product_type",
     ),
+    sellable_breakdown: (() => {
+      let sellable = 0;
+      let non_sellable = 0;
+      for (const u of items) {
+        const flag =
+          typeof u.sellable === "boolean"
+            ? u.sellable
+            : defaultSellableForProductType(u.product_type);
+        if (flag) sellable += 1;
+        else non_sellable += 1;
+      }
+      return { sellable, non_sellable };
+    })(),
   };
 }
 

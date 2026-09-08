@@ -31,3 +31,32 @@ def test_overlay_eligible_includes_factor_weights_not_class_budgets():
         if entry["key"] in eligible:
             assert entry["overlay_eligible"] is True
             assert "bounds" in entry or "choices" in entry
+
+
+def test_overlay_eligible_includes_allocator_constraint_knobs():
+    """Whitelist expansion: constraint knobs with clear client semantics are eligible."""
+    catalog = build_param_catalog()
+    eligible = set(catalog["overlay_eligible_keys"])
+    for key in (
+        "max_weight_actual",
+        "top_n_actual",
+        "max_holdings_actual",
+        "max_turnover_actual",
+    ):
+        assert key in eligible, key
+    # Still closed: Pro-only technical knobs and class-budget quotas.
+    for key in ("no_trade_tol", "turnover_penalty_mult", "shrinkage", "risk_aversion"):
+        assert key not in eligible, key
+    for key in ("w_equity", "w_bond"):
+        assert key not in eligible, key
+
+    by_key = {p["key"]: p for p in catalog["params"]}
+    assert by_key["top_n_actual"]["bounds"] == [2, 150]
+    assert by_key["max_holdings_actual"]["bounds"] == [1, 150]
+    assert by_key["max_weight_actual"]["bounds"] == [0.05, 1.0]
+    assert by_key["max_turnover_actual"]["bounds"] == [0.05, 1.0]
+    # Hints carry the zh-TW trigger language for the interpret prompt.
+    assert "集中持股" in by_key["top_n_actual"]["client_hint"]
+    assert "換手" in by_key["max_turnover_actual"]["client_hint"]
+    assert "max_single_position_pct" in by_key["max_weight_actual"]["client_hint"]
+    assert "持有" in by_key["max_holdings_actual"]["client_hint"]

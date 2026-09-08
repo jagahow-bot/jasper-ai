@@ -30,6 +30,11 @@ import {
   findLocalHistoryEntry,
   recordCompletedBacktest,
 } from "@/lib/backtest-history";
+import { mergeClientReminders } from "@/lib/demo-clients-store";
+import {
+  deriveReminders,
+  mergeOptsFromDeriveInput,
+} from "@/lib/reminders";
 import {
   applyScopeToBacktestRequest,
   buildScopeHoldings,
@@ -173,6 +178,10 @@ export default function HomePage() {
     from: number;
     to: number;
     requiresSupervisor: boolean;
+  } | null>(null);
+  const [reminderNotice, setReminderNotice] = useState<{
+    count: number;
+    clientId: string;
   } | null>(null);
 
   const [personalizationCompare, setPersonalizationCompare] =
@@ -421,6 +430,7 @@ export default function HomePage() {
       res: BacktestResult,
       req: BacktestRequest,
       compare?: PersonalizationCompare | null,
+      opts?: { fresh?: boolean },
     ) => {
       const local = findLocalHistoryEntry(id);
       const clientId =
@@ -523,6 +533,26 @@ export default function HomePage() {
         signedOverlay: local?.signedOverlay ?? (compare ? signedOverlay : null),
         clientId,
       });
+      if (opts?.fresh && clientId) {
+        const deriveInput = {
+          jobId: id,
+          clientId,
+          request: effectiveReq,
+          result: res,
+          client: getDemoClientById(clientId) ?? null,
+        };
+        const derived = deriveReminders(deriveInput);
+        const outcome = mergeClientReminders(
+          clientId,
+          derived,
+          mergeOptsFromDeriveInput(deriveInput),
+        );
+        setReminderNotice(
+          outcome.added.length + outcome.updated.length > 0
+            ? { count: outcome.added.length, clientId }
+            : null,
+        );
+      }
       setJobId(id);
       setRequest(effectiveReq);
       setResult(res);
@@ -583,7 +613,7 @@ export default function HomePage() {
         const res = await getJobResult(id);
         const req = (await getJobRequest(id).catch(() => null)) ?? request;
         if (req) {
-          await presentResult(id, res, req);
+          await presentResult(id, res, req, undefined, { fresh: true });
         } else {
           setResult(res);
           setPhase("results");
@@ -893,7 +923,9 @@ export default function HomePage() {
             clientId:
               activeClient?.client_id ?? signedOverlay?.audit.client_ref,
           });
-          await presentResult(soloJob.job_id, soloRes, storedReq, compare);
+          await presentResult(soloJob.job_id, soloRes, storedReq, compare, {
+            fresh: true,
+          });
         } catch {
           setPhase("constraints");
         }
@@ -985,6 +1017,7 @@ export default function HomePage() {
               anchor_portfolio_id: anchor.id,
             },
             null,
+            { fresh: true },
           );
           return;
         }
@@ -1030,6 +1063,7 @@ export default function HomePage() {
           adjustedRes,
           compare.adjustedRequest,
           compare,
+          { fresh: true },
         );
       } catch {
         setPhase("constraints");
@@ -1048,6 +1082,7 @@ export default function HomePage() {
   );
 
   const onRun = useCallback(() => {
+    setReminderNotice(null);
     if (signedOverlay) {
       void runPersonalizationBacktest();
     } else {
@@ -1484,8 +1519,10 @@ export default function HomePage() {
               result={result}
               narrative={narrative}
               request={request}
+              reminderNotice={reminderNotice}
               onRerun={() => {
                 setDriftSyncNotice(null);
+                setReminderNotice(null);
                 setPhase("overlay");
               }}
               onExport={() => downloadCsv(result, "portfolio")}

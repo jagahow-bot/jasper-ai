@@ -16,6 +16,7 @@ import type {
 import { formatOverlaySummary } from "@/lib/overlay-schema";
 import type { OverlayDriftHints } from "@/lib/overlay-drift-sync";
 import { useI18n, type Lang } from "@/lib/i18n";
+import { isSellableTicker } from "@/lib/sellable-overrides";
 
 export type SummarySnapshot = {
   id: string;
@@ -139,12 +140,14 @@ function ProposedTickersInline({
   candidates,
   disabled,
   reviewRequired,
+  showDiHint,
   onConfirm,
   onSkipNoAdds,
 }: {
   candidates: OverlayProposedTicker[];
   disabled?: boolean;
   reviewRequired?: boolean;
+  showDiHint?: boolean;
   onConfirm: (tickers: string[]) => void;
   onSkipNoAdds?: () => void;
 }) {
@@ -194,11 +197,17 @@ function ProposedTickersInline({
         ) : null}
       </div>
       {!candidates.length && reviewRequired ? (
-        <p className="text-xs text-dim">{t("overlay.proposedTickers.emptyNeedsHint")}</p>
+        <p className="text-xs text-dim">
+          {showDiHint
+            ? t("pool.sellable.diHint")
+            : t("overlay.proposedTickers.emptyNeedsHint")}
+        </p>
       ) : null}
       {candidates.length > 0 ? (
         <div className="space-y-2">
-          {candidates.map((c) => (
+          {candidates.map((c) => {
+            const nonSellable = !isSellableTicker(c.ticker);
+            return (
             <label key={c.ticker} className="flex cursor-pointer items-start gap-2">
               <input
                 type="checkbox"
@@ -216,11 +225,17 @@ function ProposedTickersInline({
               />
               <div className="text-sm leading-snug">
                 <span className="font-semibold">{c.ticker}</span>
+                {nonSellable ? (
+                  <span className="ml-1 text-amber-600" title="non-sellable">
+                    ⚠
+                  </span>
+                ) : null}
                 {c.name && <span className="text-dim"> — {c.name}</span>}
                 {c.rationale && <p className="text-xs text-dim">{c.rationale}</p>}
               </div>
             </label>
-          ))}
+            );
+          })}
         </div>
       ) : null}
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -421,6 +436,7 @@ export function OverlayChatTimeline({
               candidates={proposedTickers}
               disabled={cardsDisabled}
               reviewRequired={tickerReviewRequired}
+              showDiHint={overlay?.universe.construction === "direct_index"}
               onConfirm={onConfirmProposed}
               onSkipNoAdds={
                 tickerReviewRequired ? onSkipProposedNoAdds : undefined

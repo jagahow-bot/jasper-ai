@@ -7,6 +7,9 @@ import type {
   OverlayClarification,
   OverlayProposedTicker,
 } from "@/lib/overlay-schema";
+import {
+  filterSellableProposed,
+} from "@/lib/sellable-overrides";
 import { getUniverseItems } from "@/lib/universe";
 import { analyzeUniverseFilterFallback } from "@/lib/universe-filter-fallback";
 
@@ -324,7 +327,7 @@ function mapTickersToProposed(
     getUniverseItems().map((u) => [u.ticker.toUpperCase(), u]),
   );
   const universe = new Set(metaByTicker.keys());
-  return uniqueTickers(tickers)
+  const candidates = uniqueTickers(tickers)
     .filter((t) => universe.has(t.toUpperCase()))
     .map((ticker) => {
       const meta = metaByTicker.get(ticker.toUpperCase());
@@ -335,6 +338,12 @@ function mapTickersToProposed(
         rationale,
       };
     });
+  try {
+    return filterSellableProposed(candidates).kept;
+  } catch (err) {
+    console.warn("[sellable] mapTickersToProposed fail-open", err);
+    return candidates;
+  }
 }
 
 function localizedRationale(

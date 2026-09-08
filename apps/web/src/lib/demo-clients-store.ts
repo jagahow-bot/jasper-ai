@@ -1,4 +1,11 @@
 import type { ClientUpcomingEvent, LocalizedText } from "@/lib/clients";
+import {
+  mergeReminders,
+  type ClientReminder,
+  type MergeOutcome,
+  type MergeRemindersOpts,
+  type ReminderStatus,
+} from "@/lib/reminders";
 
 export const DEMO_CLIENTS_OVERRIDES_STORAGE_KEY =
   "jasper_demo_clients_overrides_v1";
@@ -12,6 +19,7 @@ export type ClientExtraNote = {
 export type ClientProfileOverrides = {
   extra_notes?: ClientExtraNote[];
   extra_events?: ClientUpcomingEvent[];
+  reminders?: ClientReminder[];
 };
 
 type OverridesMap = Record<string, ClientProfileOverrides>;
@@ -103,4 +111,62 @@ export function addClientEvent(
   };
   writeAll(all);
   return event;
+}
+
+export function getClientReminders(clientId: string): ClientReminder[] {
+  return getClientProfileOverrides(clientId).reminders ?? [];
+}
+
+/** Merge derived reminders and write back; returns outcome for UI chip counts. */
+export function mergeClientReminders(
+  clientId: string,
+  derived: ClientReminder[],
+  opts: MergeRemindersOpts = {},
+): MergeOutcome {
+  const existing = getClientReminders(clientId);
+  const outcome = mergeReminders(existing, derived, {
+    ...opts,
+    jobId: opts.jobId ?? derived[0]?.job_id,
+  });
+  const all = readAll();
+  const current = all[clientId] ?? {};
+  all[clientId] = {
+    ...current,
+    reminders: outcome.reminders,
+  };
+  writeAll(all);
+  return outcome;
+}
+
+export function setClientReminderStatus(
+  clientId: string,
+  reminderId: string,
+  status: ReminderStatus,
+): ClientReminder | null {
+  const all = readAll();
+  const current = all[clientId] ?? {};
+  const reminders = [...(current.reminders ?? [])];
+  const idx = reminders.findIndex((r) => r.id === reminderId);
+  if (idx < 0) return null;
+
+  const nowIso = new Date().toISOString();
+  const prev = reminders[idx];
+  const next: ClientReminder = {
+    ...prev,
+    status,
+    updated_at: nowIso,
+  };
+
+  if (status === "done" || status === "dismissed") {
+    next.closed_at = nowIso;
+  } else if (status === "open") {
+    // suggested → open (accept): clear close metadata
+    delete next.closed_at;
+    delete next.resolved_by_job_id;
+  }
+
+  reminders[idx] = next;
+  all[clientId] = { ...current, reminders };
+  writeAll(all);
+  return next;
 }

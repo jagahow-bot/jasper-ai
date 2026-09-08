@@ -198,6 +198,8 @@ export const optimizationOverlaySchema = z
     regime_adaptive: z.boolean().optional(),
     optimization_mode: optimizationModeSchema.optional(),
     trials: z.number().int().min(10).max(500).optional(),
+    /** Rebalance cadence (pandas offset alias). */
+    rebalance_freq: z.enum(["W-FRI", "ME", "QE", "YE"]).optional(),
   })
   .strip();
 
@@ -636,6 +638,14 @@ function sleeveTargetsToParamControls(
     out[key] = { mode: "fixed", fixed: val, min: 0, max: 1 };
   }
   return out;
+}
+
+/** True when sleeve_targets contain any class-budget w_* key. */
+export function hasClassWeightSleeveTargets(
+  sleeves?: Record<string, number> | null,
+): boolean {
+  if (!sleeves) return false;
+  return Object.keys(sleeves).some((k) => k.startsWith("w_"));
 }
 
 function mergeParamControls(
@@ -1367,7 +1377,24 @@ export function overlayToBacktestRequest(
     alloc.sleeve_targets,
     alloc.sub_sleeve_targets,
   );
+  // §12.1 / §12.3: dual-write rebalance_freq + objective_mode like ConstraintsPanel.
+  if (opt.rebalance_freq) {
+    mergedControls.rebalance_freq = {
+      mode: "fixed",
+      fixed: opt.rebalance_freq,
+    };
+  }
+  if (opt.objective) {
+    mergedControls.objective_mode = {
+      mode: "fixed",
+      fixed: opt.objective,
+    };
+  }
   const enforcedControls = enforceAllocControlsForClasses(mergedControls, assetClasses);
+  // §11.2: any w_* sleeve_targets forces hard class-weight enforcement.
+  const enforceClassWeights = hasClassWeightSleeveTargets(alloc.sleeve_targets)
+    ? true
+    : (alloc.enforce_class_weights ?? base.enforce_class_weights ?? false);
 
   const prompts = overlay.universe.prompts.filter(Boolean);
   const filterText = prompts.length ? prompts.join("; ") : base.universe_filter_text;
@@ -1423,6 +1450,7 @@ export function overlayToBacktestRequest(
       regime_adaptive: opt.regime_adaptive ?? base.regime_adaptive,
       optimization_mode: (opt.optimization_mode ??
         base.optimization_mode) as OptimizationMode,
+      rebalance_freq: opt.rebalance_freq ?? base.rebalance_freq,
       trials: opt.trials ?? 25,
       top_models: 5,
       max_holdings: (() => {
@@ -1437,8 +1465,7 @@ export function overlayToBacktestRequest(
       universe_supplement_meta: Object.keys(supplementMeta).length
         ? supplementMeta
         : null,
-      enforce_class_weights:
-        alloc.enforce_class_weights ?? base.enforce_class_weights ?? false,
+      enforce_class_weights: enforceClassWeights,
       universe_filter_prompts: prompts.length
         ? prompts
         : base.universe_filter_prompts,
@@ -1463,6 +1490,7 @@ export function overlayToBacktestRequest(
     objective: (opt.objective ?? base.objective) as Objective,
     regime_adaptive: opt.regime_adaptive ?? base.regime_adaptive,
     optimization_mode: (opt.optimization_mode ?? base.optimization_mode) as OptimizationMode,
+    rebalance_freq: opt.rebalance_freq ?? base.rebalance_freq,
     trials: opt.trials ?? base.trials,
     top_models: base.top_models,
     max_holdings: (() => {
@@ -1474,8 +1502,7 @@ export function overlayToBacktestRequest(
       );
     })(),
     universe_tickers: base.universe_tickers,
-    enforce_class_weights:
-      alloc.enforce_class_weights ?? base.enforce_class_weights ?? false,
+    enforce_class_weights: enforceClassWeights,
     universe_filter_prompts: prompts.length ? prompts : base.universe_filter_prompts,
     universe_filter_text: filterText,
     universe_supplement_tickers: overlay.universe.supplement_tickers?.length

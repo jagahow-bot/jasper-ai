@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import {
   DEFAULT_DIRECT_INDEX_SLEEVE,
   isUniverseStock,
@@ -8,6 +8,34 @@ import {
 import { applyDirectIndexingToExtract } from "./overlay-direct-index";
 import type { OverlayExtractOutput } from "./overlay-schema";
 import { interpretOverlayFallback } from "./overlay-fallback";
+import { getUniverseItems } from "./universe";
+import {
+  clearAllSellableOverrides,
+  setSellableBulk,
+} from "./sellable-overrides";
+
+function stubLocalStorage() {
+  const store = new Map<string, string>();
+  const localStorage = {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => {
+      store.set(k, String(v));
+    },
+    removeItem: (k: string) => {
+      store.delete(k);
+    },
+    clear: () => store.clear(),
+  };
+  vi.stubGlobal("window", { localStorage });
+  vi.stubGlobal("localStorage", localStorage);
+}
+
+function enableAllStocksSellable() {
+  const stocks = getUniverseItems()
+    .filter((u) => u.product_type === "stock")
+    .map((u) => u.ticker);
+  setSellableBulk(stocks, true);
+}
 
 function stockTickers(list: string[] | undefined): string[] {
   return (list ?? []).map((t) => t.toUpperCase()).filter((t) => isUniverseStock(t));
@@ -49,6 +77,16 @@ describe("parseDirectIndexSleeveCount", () => {
 });
 
 describe("pickDirectIndexStocks sleeve size", () => {
+  beforeEach(() => {
+    stubLocalStorage();
+    enableAllStocksSellable();
+  });
+
+  afterEach(() => {
+    clearAllSellableOverrides();
+    vi.unstubAllGlobals();
+  });
+
   it("defaults to the compact mega sleeve when no N is stated", () => {
     const stocks = pickDirectIndexStocks("Implement direct indexing on SPY");
     expect(stocks.length).toBeGreaterThanOrEqual(DEFAULT_DIRECT_INDEX_SLEEVE);
@@ -77,6 +115,15 @@ describe("pickDirectIndexStocks sleeve size", () => {
 });
 
 describe("applyDirectIndexingToExtract does not keep the 8-name default when N=30", () => {
+  beforeEach(() => {
+    stubLocalStorage();
+    enableAllStocksSellable();
+  });
+  afterEach(() => {
+    clearAllSellableOverrides();
+    vi.unstubAllGlobals();
+  });
+
   it("expands Gemini's 8 mega-caps when the brief says top 30", () => {
     const extract = emptyExtract({
       universe: {
@@ -111,6 +158,15 @@ describe("applyDirectIndexingToExtract does not keep the 8-name default when N=3
 });
 
 describe("overlay fallback summary sleeve", () => {
+  beforeEach(() => {
+    stubLocalStorage();
+    enableAllStocksSellable();
+  });
+  afterEach(() => {
+    clearAllSellableOverrides();
+    vi.unstubAllGlobals();
+  });
+
   it("lists ~8 names by default and ~30 when top 30 / 前 30 is stated", () => {
     const compact = interpretOverlayFallback(
       "Implement direct indexing on SPY with a moderate AI industry overweight",
@@ -140,5 +196,27 @@ describe("overlay fallback summary sleeve", () => {
       1,
     );
     expect(stockTickers(zh.universe.supplement_tickers).length).toBeGreaterThanOrEqual(30);
+  });
+});
+
+describe("sellable gate on direct indexing (D8)", () => {
+  beforeEach(() => {
+    stubLocalStorage();
+    clearAllSellableOverrides();
+  });
+  afterEach(() => {
+    clearAllSellableOverrides();
+    vi.unstubAllGlobals();
+  });
+
+  it("returns empty when stocks are non-sellable by default", () => {
+    expect(pickDirectIndexStocks("Implement direct indexing on SPY")).toEqual([]);
+  });
+
+  it("returns only overridden sellable stocks", () => {
+    setSellableBulk(["AAPL", "MSFT"], true);
+    const stocks = pickDirectIndexStocks("Implement direct indexing on SPY");
+    expect(stocks.length).toBeGreaterThan(0);
+    expect(stocks.every((t) => ["AAPL", "MSFT"].includes(t))).toBe(true);
   });
 });

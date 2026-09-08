@@ -19,6 +19,7 @@ import {
 import { AppNav } from "@/components/AppNav";
 import { ChartTooltip } from "@/components/ChartTooltip";
 import { ClientCustomizedHistoryPanel } from "@/components/ClientCustomizedHistoryPanel";
+import { ClientRemindersPanel } from "@/components/ClientRemindersPanel";
 import { ExpandCollapse } from "@/components/ExpandCollapse";
 import { FinancialGoalSimulator } from "@/components/FinancialGoalSimulator";
 import { useEffectiveClientAsOf } from "@/components/ClientPerformanceRefresh";
@@ -1107,6 +1108,7 @@ export default function ClientDashboardPage() {
           </section>
           </div>
 
+          <ClientRemindersPanel clientId={client.client_id} />
           <ClientCustomizedHistoryPanel clientId={client.client_id} />
         </div>
       </main>

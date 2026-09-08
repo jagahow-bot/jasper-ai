@@ -145,6 +145,55 @@ describe("overlay-gemini-parse", () => {
     });
   });
 
+  it("accepts allocator constraint knobs and clamps them to catalog bounds", () => {
+    const normalized = parseOverlayExtractFromGemini({
+      client_profile: { risk_tolerance: "moderate" },
+      market_view: {
+        stance: "neutral",
+        themes: ["balanced"],
+        narrative_summary: "Moderate client asking for concentrated holdings and low turnover.",
+      },
+      allocation: { asset_classes: ["equity", "bond"] },
+      universe: { prompts: [] },
+      optimization: { objective: "max_sharpe" },
+      clarification_questions: [],
+      confidence: 0.6,
+      rationale: "Structured overlay for constraint-knob whitelist verification.",
+      param_adjustments: {
+        max_weight_actual: { mode: "fixed", fixed: 0.12 },
+        top_n_actual: { mode: "fixed", fixed: 500 },
+        max_holdings_actual: { mode: "search", min: 0, max: 999 },
+        max_turnover_actual: { mode: "fixed", fixed: 0.2 },
+        no_trade_tol: { mode: "fixed", fixed: 0.01 },
+      },
+    }) as {
+      param_adjustments?: Record<
+        string,
+        { mode: string; fixed?: number; min?: number; max?: number }
+      >;
+    };
+
+    expect(normalized.param_adjustments?.max_weight_actual).toEqual({
+      mode: "fixed",
+      fixed: 0.12,
+    });
+    expect(normalized.param_adjustments?.top_n_actual).toEqual({
+      mode: "fixed",
+      fixed: 150,
+    });
+    expect(normalized.param_adjustments?.max_holdings_actual).toEqual({
+      mode: "search",
+      min: 1,
+      max: 150,
+    });
+    expect(normalized.param_adjustments?.max_turnover_actual).toEqual({
+      mode: "fixed",
+      fixed: 0.2,
+    });
+    // Pro-only technical knob stays outside the whitelist.
+    expect(normalized.param_adjustments?.no_trade_tol).toBeUndefined();
+  });
+
   it("validates 王先生-style Gemini response (fixture 50) through Zod", () => {
     const gemini50Extract = JSON.parse(
       readFileSync(join(fixtureDir, "gemini-overlay-50-extract.json"), "utf8"),
