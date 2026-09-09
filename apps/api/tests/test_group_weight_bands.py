@@ -5,11 +5,45 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from app.engine.group_weights import GroupWeightBand, apply_group_weight_bands
+from app.engine.group_weights import (
+    GroupWeightBand,
+    apply_group_weight_bands,
+    group_weight_bands_from_client_context,
+    parse_group_weight_bands,
+)
 from app.engine.portfolio import simulate_dynamic_portfolio
 from app.engine.allocator import AllocatorParams
 from app.engine.spec import BacktestSpec
 from app.models import ClientContext, GroupWeightBand as GroupWeightBandModel
+
+
+def test_parse_accepts_pydantic_group_weight_bands():
+    """Champion re-sim passes ClientContext models, not model_dump() dicts."""
+    ctx = ClientContext(
+        group_weight_bands=[
+            GroupWeightBandModel(
+                group_id="ask-1",
+                tickers=["BOTZ", "SMH"],
+                target_pct=0.2,
+            ),
+            GroupWeightBandModel(
+                group_id="ask-2",
+                tickers=["BTAL"],
+                target_pct=0.1,
+            ),
+        ]
+    )
+    from_ctx = group_weight_bands_from_client_context(ctx)
+    assert len(from_ctx) == 2
+    assert from_ctx[0].group_id == "ask-1"
+    assert from_ctx[0].tickers == ("BOTZ", "SMH")
+    assert from_ctx[0].target_pct == 0.2
+    assert from_ctx[1].tickers == ("BTAL",)
+    assert from_ctx[1].target_pct == 0.1
+    # Direct list of Pydantic models (same objects as ctx.group_weight_bands).
+    parsed = parse_group_weight_bands(ctx.group_weight_bands)
+    assert len(parsed) == 2
+    assert parsed[1].target_pct == 0.1
 
 
 def test_apply_group_weight_bands_ai_hedge_split():
@@ -64,7 +98,8 @@ def test_simulate_respects_client_context_group_bands():
         top_n=6,
         anchor_weights={"SPY": 1.0},
         customization_drift=0.95,
-        group_weight_bands=ctx.group_weight_bands,
+        # Same helper champion / Optuna report paths use (must accept Pydantic).
+        group_weight_bands=group_weight_bands_from_client_context(ctx),
     )
     last_w = np.asarray(m.get("last_weights"), dtype=float).ravel()
     last = dict(zip(tickers, last_w))

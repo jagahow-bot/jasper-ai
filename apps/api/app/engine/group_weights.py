@@ -33,6 +33,35 @@ def _band_target(band: GroupWeightBand) -> float | None:
     return None
 
 
+def _band_item_as_dict(item: Any) -> dict[str, Any] | None:
+    """Normalize engine dataclass, Pydantic model, or plain dict → dict."""
+    if isinstance(item, GroupWeightBand):
+        return {
+            "group_id": item.group_id,
+            "tickers": list(item.tickers),
+            "target_pct": item.target_pct,
+            "min_pct": item.min_pct,
+            "max_pct": item.max_pct,
+        }
+    if isinstance(item, dict):
+        return item
+    # Pydantic ClientContext.group_weight_bands (app.models.GroupWeightBand) and
+    # similar objects: attribute duck-typing. Without this, champion re-sim paths
+    # that pass req.client_context drop every band (isinstance dict/engine fails).
+    if hasattr(item, "model_dump") and callable(item.model_dump):
+        dumped = item.model_dump()
+        return dumped if isinstance(dumped, dict) else None
+    if hasattr(item, "tickers"):
+        return {
+            "group_id": getattr(item, "group_id", None),
+            "tickers": list(getattr(item, "tickers", None) or []),
+            "target_pct": getattr(item, "target_pct", None),
+            "min_pct": getattr(item, "min_pct", None),
+            "max_pct": getattr(item, "max_pct", None),
+        }
+    return None
+
+
 def parse_group_weight_bands(raw: Any) -> list[GroupWeightBand]:
     """Parse ClientContext.group_weight_bands into typed bands."""
     if not raw:
@@ -40,21 +69,19 @@ def parse_group_weight_bands(raw: Any) -> list[GroupWeightBand]:
     items = raw if isinstance(raw, list) else []
     out: list[GroupWeightBand] = []
     for item in items:
-        if isinstance(item, GroupWeightBand):
-            out.append(item)
+        as_dict = _band_item_as_dict(item)
+        if not as_dict:
             continue
-        if not isinstance(item, dict):
-            continue
-        tickers = item.get("tickers") or []
+        tickers = as_dict.get("tickers") or []
         if not tickers:
             continue
         out.append(
             GroupWeightBand(
-                group_id=str(item.get("group_id") or "").strip() or None,
+                group_id=str(as_dict.get("group_id") or "").strip() or None,
                 tickers=tuple(str(t).upper() for t in tickers if str(t).strip()),
-                target_pct=_maybe_float(item.get("target_pct")),
-                min_pct=_maybe_float(item.get("min_pct")),
-                max_pct=_maybe_float(item.get("max_pct")),
+                target_pct=_maybe_float(as_dict.get("target_pct")),
+                min_pct=_maybe_float(as_dict.get("min_pct")),
+                max_pct=_maybe_float(as_dict.get("max_pct")),
             )
         )
     return out
