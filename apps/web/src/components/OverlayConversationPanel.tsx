@@ -334,7 +334,7 @@ export function OverlayConversationPanel({
         setOverlayLang(detectedLang);
 
         setMessages((prev) => {
-          const next: ChatMessage[] = [
+          const next: OverlayConversationMessage[] = [
             ...prev,
             {
               role: "assistant",
