@@ -51,13 +51,137 @@ export function stripGeminiMetadata(value: unknown): unknown {
   return out;
 }
 
-function extractJsonFromMarkdown(text: string): string {
+function stripMarkdownFences(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced?.[1]) return fenced[1].trim();
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start >= 0 && end > start) return text.slice(start, end + 1);
   return text.trim();
+}
+
+/** Find the first top-level `{…}` slice, respecting JSON string escapes. */
+function extractBalancedJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  // Truncated object — return from first brace so repair can still attempt.
+  return text.slice(start);
+}
+
+function extractJsonFromMarkdown(text: string): string {
+  const cleaned = stripMarkdownFences(text);
+  return extractBalancedJsonObject(cleaned) ?? cleaned;
+}
+
+/** Normalize curly/smart quotes that Gemini often emits in ZH/EN prose. */
+function normalizeSmartQuotes(text: string): string {
+  return text
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'");
+}
+
+/** Drop trailing commas before `}` / `]` (common LLM JSON mistake). */
+function stripTrailingCommas(text: string): string {
+  return text.replace(/,\s*(?=[}\]])/g, "");
+}
+
+/**
+ * Escape bare `"` inside JSON string values.
+ * Heuristic: a quote ends a string only when the next non-ws char is
+ * `,` `}` `]` `:` or EOF; otherwise treat it as content and escape.
+ */
+function escapeInteriorDoubleQuotes(text: string): string {
+  let out = "";
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (!inString) {
+      out += ch;
+      if (ch === '"') inString = true;
+      continue;
+    }
+    if (escape) {
+      out += ch;
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      out += ch;
+      escape = true;
+      continue;
+    }
+    if (ch !== '"') {
+      out += ch;
+      continue;
+    }
+    let j = i + 1;
+    while (j < text.length && /\s/.test(text[j]!)) j += 1;
+    const next = j < text.length ? text[j]! : "";
+    if (next === "" || next === "," || next === "}" || next === "]" || next === ":") {
+      out += '"';
+      inString = false;
+    } else {
+      out += '\\"';
+    }
+  }
+  return out;
+}
+
+function stripBomAndZeroWidth(text: string): string {
+  return text.replace(/^\uFEFF/, "").replace(/[\u200B-\u200D\uFEFF]/g, "");
+}
+
+/**
+ * Parse Gemini overlay JSON text with common LLM repairs.
+ * Throws SyntaxError (same as JSON.parse) when still unrecoverable.
+ */
+export function parseOverlayJsonText(text: string): unknown {
+  const extracted = extractJsonFromMarkdown(stripBomAndZeroWidth(text));
+  const attempts: string[] = [];
+  const base = normalizeSmartQuotes(extracted);
+  attempts.push(base);
+  attempts.push(stripTrailingCommas(base));
+  attempts.push(escapeInteriorDoubleQuotes(stripTrailingCommas(base)));
+  // Also try escape-then-strip in case commas sit after broken quotes.
+  attempts.push(stripTrailingCommas(escapeInteriorDoubleQuotes(base)));
+
+  let lastError: SyntaxError | undefined;
+  const seen = new Set<string>();
+  for (const candidate of attempts) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    try {
+      return JSON.parse(candidate) as unknown;
+    } catch (err) {
+      if (err instanceof SyntaxError) lastError = err;
+    }
+  }
+  throw lastError ?? new SyntaxError("AI overlay response was not valid JSON");
 }
 
 /** Pull overlay JSON text from a Gemini generateContent response or plain string. */
@@ -861,7 +985,7 @@ export function normalizeOverlayExtractRaw(raw: unknown): unknown {
   const text = extractOverlayJsonText(raw);
   let parsed: unknown = raw;
   if (text != null) {
-    parsed = JSON.parse(extractJsonFromMarkdown(text));
+    parsed = parseOverlayJsonText(text);
   }
   parsed = stripGeminiMetadata(parsed);
   const root = asRecord(parsed);

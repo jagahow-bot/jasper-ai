@@ -3,7 +3,7 @@ import { generateTextWithAudit } from "@/lib/llm-audit";
 import {
   DEFAULT_FLASH_MODEL_ID,
   defaultFlashModel,
-  FLASH_MAX_OUTPUT_TOKENS,
+  REASONING_MAX_OUTPUT_TOKENS,
   isProviderConfigured,
   providerOptionsFor,
 } from "@/lib/ai-provider";
@@ -589,7 +589,9 @@ export async function POST(req: Request) {
   try {
     const { result, log } = await generateTextWithAudit({
       model: defaultFlashModel(),
-      maxOutputTokens: FLASH_MAX_OUTPUT_TOKENS,
+      // Sellable catalog (~650 tickers) + ZH clarifications/rationales need
+      // more headroom than default Flash structured calls (6144).
+      maxOutputTokens: REASONING_MAX_OUTPUT_TOKENS,
       system: systemPrompt,
       prompt: buildConversationPrompt(
         messages,
