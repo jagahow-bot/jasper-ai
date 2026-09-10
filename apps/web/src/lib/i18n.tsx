@@ -1215,6 +1215,7 @@ const en: Dict = {
   "overlay.chat.phaseLabel": "Phase",
   "overlay.chat.aiSummaryTitle": "AI adjustment summary",
   "overlay.chat.confirm": "Confirm adjustments & sign off",
+  "overlay.chat.confirmBlockedClarify": "Finish clarifications first",
   "overlay.chat.confirming": "Signing off…",
   "overlay.chat.confirmed": "Confirmed & signed off",
   "overlay.chat.openCta": "Describe client needs with AI",
@@ -1239,6 +1240,10 @@ const en: Dict = {
     "Acknowledged: no new tickers will be added for this customization.",
   "overlay.proposedTickers.reviewRequired":
     "Review suggested tickers (or confirm no new tickers) before signing off.",
+  "overlay.proposedTickers.clarifyFirst":
+    "Answer the clarification questions first; ticker review unlocks afterward.",
+  "overlay.proposedTickers.deferredHint":
+    "Suggested tickers will be confirmed once after clarifications are done.",
   "overlay.proposedTickers.emptyNeedsHint":
     "This overlay needs investable names for the stated themes. Confirm suggestions below, or acknowledge no new tickers.",
   "overlay.proposedTickers.nonSellableWarn":
@@ -3169,6 +3174,7 @@ const zh: Dict = {
   "overlay.chat.phaseLabel": "階段",
   "overlay.chat.aiSummaryTitle": "AI 解析的調整方案",
   "overlay.chat.confirm": "確認調整方案並簽核",
+  "overlay.chat.confirmBlockedClarify": "請先完成澄清問題",
   "overlay.chat.confirming": "簽核中…",
   "overlay.chat.confirmed": "已確認並簽核",
   "overlay.chat.openCta": "使用 AI 描述客戶需求",
@@ -3190,6 +3196,10 @@ const zh: Dict = {
     "已確認：本次客製化不新增標的。",
   "overlay.proposedTickers.reviewRequired":
     "請先確認建議標的（或明確選擇「無新增標的」）後再簽核 Overlay。",
+  "overlay.proposedTickers.clarifyFirst":
+    "請先回答上方澄清問題，完成後再確認建議標的。",
+  "overlay.proposedTickers.deferredHint":
+    "建議標的將於澄清完成後一次確認。",
   "overlay.proposedTickers.emptyNeedsHint":
     "此 Overlay 的主題／袖套需要可投資標的。請確認下方建議，或確認無新增標的。",
   "overlay.proposedTickers.nonSellableWarn":
@@ -5110,6 +5120,7 @@ const ko: Dict = {
   "overlay.chat.phaseLabel": "단계",
   "overlay.chat.aiSummaryTitle": "AI 조정안 요약",
   "overlay.chat.confirm": "조정안 확인 및 서명",
+  "overlay.chat.confirmBlockedClarify": "확인 질문을 먼저 완료하세요",
   "overlay.chat.confirming": "서명 중…",
   "overlay.chat.confirmed": "확인 및 서명 완료",
   "overlay.chat.openCta": "AI로 고객 니즈 입력",
@@ -5133,6 +5144,10 @@ const ko: Dict = {
     "확인함: 이번 맞춤화에 신규 종목을 추가하지 않습니다.",
   "overlay.proposedTickers.reviewRequired":
     "서명 전에 제안 종목을 확인하거나「추가 종목 없음」을 선택하세요.",
+  "overlay.proposedTickers.clarifyFirst":
+    "먼저 위의 확인 질문에 답한 뒤 제안 종목을 검토하세요.",
+  "overlay.proposedTickers.deferredHint":
+    "제안 종목은 확인 질문이 끝난 뒤 한 번에 검토합니다.",
   "overlay.proposedTickers.emptyNeedsHint":
     "이 오버레이의 테마/슬리브에는 투자 가능 종목이 필요합니다. 아래 제안을 확인하거나 추가 없음을 인정하세요.",
   "overlay.proposedTickers.nonSellableWarn":
