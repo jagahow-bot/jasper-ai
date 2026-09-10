@@ -1391,6 +1391,9 @@ const en: Dict = {
   "reminders.action.dismiss": "Dismiss",
   "reminders.action.accept": "Accept",
   "reminders.action.openReport": "Open report",
+  "reminders.action.clearAll": "Clear reminders for this client",
+  "reminders.clear.confirm":
+    "Clear all reminders for this client ({count}, including open, done, dismissed, and suggested)? This cannot be undone. Notes and upcoming events are kept. A fresh backtest can recreate open reminders.",
   "reminders.due": "Due {date}",
   "reminders.dueToday": "Due today",
   "reminders.overdue": "Overdue {date}",
@@ -3338,6 +3341,9 @@ const zh: Dict = {
   "reminders.action.dismiss": "忽略",
   "reminders.action.accept": "接受",
   "reminders.action.openReport": "開啟報告",
+  "reminders.action.clearAll": "清空此客戶提醒",
+  "reminders.clear.confirm":
+    "確定清空此客戶的全部提醒事項（共 {count} 筆，含待處理／已完成／已忽略／建議）？此操作無法復原。備註與近期事件不會受影響；之後重新跑試算仍可自動建立新提醒。",
   "reminders.due": "到期 {date}",
   "reminders.dueToday": "今天到期",
   "reminders.overdue": "逾期 {date}",
@@ -5292,6 +5298,9 @@ const ko: Dict = {
   "reminders.action.dismiss": "무시",
   "reminders.action.accept": "수락",
   "reminders.action.openReport": "보고서 열기",
+  "reminders.action.clearAll": "이 고객 알림 비우기",
+  "reminders.clear.confirm":
+    "이 고객의 모든 알림({count}건, 대기·완료·무시·제안 포함)을 삭제할까요? 되돌릴 수 없습니다. 메모·예정 이벤트는 유지되며, 이후 새 백테스트로 대기 알림을 다시 만들 수 있습니다.",
   "reminders.due": "만기 {date}",
   "reminders.dueToday": "오늘 만기",
   "reminders.overdue": "기한 경과 {date}",

@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEMO_CLIENTS_OVERRIDES_STORAGE_KEY,
+  clearClientReminders,
   getClientReminders,
+  getExtraEvents,
+  getExtraNotes,
   mergeClientReminders,
   setClientReminderStatus,
 } from "./demo-clients-store";
@@ -612,5 +615,232 @@ describe("setClientReminderStatus + store", () => {
       }),
     );
     expect(getClientReminders(CLIENT)).toEqual([]);
+  });
+});
+
+describe("clearClientReminders", () => {
+  beforeEach(() => {
+    const store = new Map<string, string>();
+    const localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+      removeItem: (k: string) => {
+        store.delete(k);
+      },
+    };
+    vi.stubGlobal("window", { localStorage });
+    vi.stubGlobal("localStorage", localStorage);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("C1: clears all statuses; preserves notes and events", () => {
+    const notes = [{ id: "n1", text: "keep me" }];
+    const events = [
+      {
+        id: "e1",
+        date: "2026-10-01",
+        title: { en: "Review", zh: "Review", ko: "Review" },
+      },
+    ];
+    localStorage.setItem(
+      DEMO_CLIENTS_OVERRIDES_STORAGE_KEY,
+      JSON.stringify({
+        [CLIENT]: {
+          extra_notes: notes,
+          extra_events: events,
+          reminders: [
+            reminder({
+              id: "rem-open",
+              rule_id: "R1",
+              subject: "drawdown",
+              job_id: "job-a",
+              status: "open",
+            }),
+            reminder({
+              id: "rem-done",
+              rule_id: "R4",
+              subject: "supervisor-drift",
+              job_id: "job-a",
+              status: "done",
+              closed_at: "2026-09-02T00:00:00.000Z",
+            }),
+            reminder({
+              id: "rem-dismissed",
+              rule_id: "R2",
+              subject: "rebalance",
+              job_id: "job-a",
+              status: "dismissed",
+              closed_at: "2026-09-02T00:00:00.000Z",
+            }),
+          ],
+        },
+      }),
+    );
+
+    expect(clearClientReminders(CLIENT)).toBe(3);
+    expect(getClientReminders(CLIENT)).toEqual([]);
+    expect(getExtraNotes(CLIENT)).toEqual(notes);
+    expect(getExtraEvents(CLIENT)).toEqual(events);
+  });
+
+  it("C2: notes only / no reminders field → 0, no rewrite", () => {
+    const payload = JSON.stringify({
+      [CLIENT]: { extra_notes: [{ id: "n1", text: "hi" }] },
+    });
+    localStorage.setItem(DEMO_CLIENTS_OVERRIDES_STORAGE_KEY, payload);
+
+    expect(clearClientReminders(CLIENT)).toBe(0);
+    expect(getExtraNotes(CLIENT)).toEqual([{ id: "n1", text: "hi" }]);
+    expect(localStorage.getItem(DEMO_CLIENTS_OVERRIDES_STORAGE_KEY)).toBe(
+      payload,
+    );
+  });
+
+  it("C3: missing clientId entry → 0", () => {
+    expect(clearClientReminders("no-such-client")).toBe(0);
+  });
+
+  it("C4: suggested status is cleared with the rest", () => {
+    mergeClientReminders(CLIENT, [
+      reminder({
+        id: "rem-sug",
+        rule_id: "R6",
+        subject: "annual-review",
+        job_id: "job-a",
+        status: "suggested",
+      }),
+      reminder({
+        id: "rem-open",
+        rule_id: "R1",
+        subject: "drawdown",
+        job_id: "job-a",
+        status: "open",
+      }),
+    ]);
+
+    expect(clearClientReminders(CLIENT)).toBe(2);
+    expect(getClientReminders(CLIENT)).toEqual([]);
+  });
+
+  it("C5: after clear, mergeClientReminders adds from empty existing", () => {
+    mergeClientReminders(CLIENT, [
+      reminder({
+        id: "rem-old",
+        rule_id: "R1",
+        subject: "drawdown",
+        job_id: "job-a",
+        status: "open",
+      }),
+    ]);
+    clearClientReminders(CLIENT);
+
+    const derived = [
+      reminder({
+        id: "rem-new",
+        rule_id: "R1",
+        subject: "drawdown",
+        job_id: "job-b",
+        status: "open",
+        params: { detail: "fail" },
+      }),
+    ];
+    const outcome = mergeClientReminders(CLIENT, derived, {
+      now: NOW,
+      jobId: "job-b",
+    });
+    expect(outcome.added).toHaveLength(1);
+    expect(outcome.added[0].id).toBe("rem-new");
+    expect(getClientReminders(CLIENT)).toHaveLength(1);
+  });
+
+  it("C6: clear resets schedule dismiss memory so R2 can be added again", () => {
+    localStorage.setItem(
+      DEMO_CLIENTS_OVERRIDES_STORAGE_KEY,
+      JSON.stringify({
+        [CLIENT]: {
+          reminders: [
+            reminder({
+              id: "rem-r2",
+              rule_id: "R2",
+              subject: "rebalance",
+              job_id: "job-a",
+              status: "dismissed",
+              closed_at: "2026-09-02T00:00:00.000Z",
+            }),
+          ],
+        },
+      }),
+    );
+
+    const derived = [
+      reminder({
+        id: "rem-r2-new",
+        rule_id: "R2",
+        subject: "rebalance",
+        job_id: "job-b",
+        status: "open",
+        due_date: "2026-10-31",
+      }),
+    ];
+
+    // Sanity: with dismiss memory present, schedule is not rebuilt.
+    const blocked = mergeReminders(getClientReminders(CLIENT), derived, {
+      now: NOW,
+      jobId: "job-b",
+    });
+    expect(
+      blocked.reminders.filter((r) => r.rule_id === "R2" && r.status === "open"),
+    ).toHaveLength(0);
+
+    clearClientReminders(CLIENT);
+    const outcome = mergeClientReminders(CLIENT, derived, {
+      now: NOW,
+      jobId: "job-b",
+    });
+    expect(outcome.added).toHaveLength(1);
+    expect(outcome.added[0].rule_id).toBe("R2");
+    expect(outcome.added[0].status).toBe("open");
+  });
+
+  it("C7: other clients' reminders are untouched", () => {
+    const other = "client-other";
+    localStorage.setItem(
+      DEMO_CLIENTS_OVERRIDES_STORAGE_KEY,
+      JSON.stringify({
+        [CLIENT]: {
+          reminders: [
+            reminder({
+              id: "rem-a",
+              rule_id: "R1",
+              subject: "drawdown",
+              job_id: "job-a",
+              status: "open",
+            }),
+          ],
+        },
+        [other]: {
+          reminders: [
+            reminder({
+              id: "rem-b",
+              rule_id: "R1",
+              subject: "drawdown",
+              job_id: "job-a",
+              status: "open",
+              client_id: other,
+            }),
+          ],
+        },
+      }),
+    );
+
+    expect(clearClientReminders(CLIENT)).toBe(1);
+    expect(getClientReminders(CLIENT)).toEqual([]);
+    expect(getClientReminders(other)).toHaveLength(1);
+    expect(getClientReminders(other)[0].id).toBe("rem-b");
   });
 });

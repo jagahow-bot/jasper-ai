@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DEMO_CLIENTS_OVERRIDES_STORAGE_KEY,
+  clearClientReminders,
   getClientReminders,
   setClientReminderStatus,
 } from "@/lib/demo-clients-store";
@@ -211,6 +212,17 @@ export function ClientRemindersPanel({ clientId }: Props) {
     refresh();
   };
 
+  const onClearAll = () => {
+    if (rows.length === 0) return;
+    const ok = window.confirm(
+      t("reminders.clear.confirm", { count: rows.length }),
+    );
+    if (!ok) return;
+    clearClientReminders(clientId);
+    setFilter("all");
+    refresh();
+  };
+
   const openCount = counts.open;
   const titleCount =
     openCount > 0
@@ -232,15 +244,27 @@ export function ClientRemindersPanel({ clientId }: Props) {
     <section id="reminders" className="pixel-panel scroll-mt-20">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h2 className="ui-section-title">{titleCount}</h2>
-        <button
-          type="button"
-          className="ui-body text-[var(--primary)] hover:underline"
-          onClick={refresh}
-          title={t("history.refresh")}
-          aria-label={t("history.refresh")}
-        >
-          ↻
-        </button>
+        <div className="flex items-center gap-2">
+          {rows.length > 0 ? (
+            <button
+              type="button"
+              className="ui-body text-[var(--text-dim)] hover:text-rose-600 hover:underline"
+              onClick={onClearAll}
+              aria-label={t("reminders.action.clearAll")}
+            >
+              {t("reminders.action.clearAll")}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="ui-body text-[var(--primary)] hover:underline"
+            onClick={refresh}
+            title={t("history.refresh")}
+            aria-label={t("history.refresh")}
+          >
+            ↻
+          </button>
+        </div>
       </div>
       <p className="mb-3 ui-hint">{t("reminders.panel.hint")}</p>
 
