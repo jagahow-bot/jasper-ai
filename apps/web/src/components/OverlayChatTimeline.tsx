@@ -383,7 +383,9 @@ export function OverlayChatTimeline({
               {t("overlay.chat.summaryCard")}
             </p>
             <pre className="mt-1 whitespace-pre-wrap text-xs leading-snug text-[var(--ui-color-body)]">
-              {formatOverlaySummary(overlay, overlayLang)}
+              {formatOverlaySummary(overlay, overlayLang, {
+                hideProposedTickers: clarifications.length > 0,
+              })}
             </pre>
             {driftHint && driftHint.minRequiredDrift > 0 ? (
               <div
@@ -431,7 +433,7 @@ export function OverlayChatTimeline({
             />
           ) : null}
 
-          {!confirmed ? (
+          {!confirmed && clarifications.length === 0 ? (
             <ProposedTickersInline
               candidates={proposedTickers}
               disabled={cardsDisabled}

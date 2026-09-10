@@ -1649,9 +1649,15 @@ function sleeveLabel(v: string, lang: "zh" | "en" | "ko"): string {
   return map[v]?.[lang] ?? v;
 }
 
-export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" | "ko"): string {
+export function formatOverlaySummary(
+  overlay: ClientOverlay,
+  lang: "zh" | "en" | "ko",
+  opts?: { hideProposedTickers?: boolean },
+): string {
   const lines: string[] = [];
   const { allocation, optimization, market_view, client_profile } = overlay;
+  const showProposedTickers =
+    !!overlay.universe.proposed_tickers?.length && !opts?.hideProposedTickers;
 
   const liquidityLine = (() => {
     const liq = client_profile.liquidity_need;
@@ -1698,8 +1704,8 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
     if (overlay.universe.exclude_tickers?.length) {
       lines.push(`排除標的：${overlay.universe.exclude_tickers.join("、")}`);
     }
-    if (overlay.universe.proposed_tickers?.length) {
-      const list = overlay.universe.proposed_tickers
+    if (showProposedTickers) {
+      const list = overlay.universe.proposed_tickers!
         .map((p) => (p.name ? `${p.ticker}（${p.name}）` : p.ticker))
         .join("、");
       lines.push(`建議參考標的：${list}`);
@@ -1731,8 +1737,8 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
     if (overlay.universe.exclude_tickers?.length) {
       lines.push(`제외 종목: ${overlay.universe.exclude_tickers.join(", ")}`);
     }
-    if (overlay.universe.proposed_tickers?.length) {
-      const list = overlay.universe.proposed_tickers
+    if (showProposedTickers) {
+      const list = overlay.universe.proposed_tickers!
         .map((p) => (p.name ? `${p.ticker} (${p.name})` : p.ticker))
         .join(", ");
       lines.push(`제안 종목: ${list}`);
@@ -1757,8 +1763,8 @@ export function formatOverlaySummary(overlay: ClientOverlay, lang: "zh" | "en" |
   if (overlay.universe.exclude_tickers?.length) {
     lines.push(`Exclude tickers: ${overlay.universe.exclude_tickers.join(", ")}`);
   }
-  if (overlay.universe.proposed_tickers?.length) {
-    const list = overlay.universe.proposed_tickers
+  if (showProposedTickers) {
+    const list = overlay.universe.proposed_tickers!
       .map((p) => (p.name ? `${p.ticker} (${p.name})` : p.ticker))
       .join(", ");
     lines.push(`Suggested tickers: ${list}`);

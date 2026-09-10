@@ -36,7 +36,7 @@ import {
   ensureProposedTickersForReview,
   instrumentNeedsKey,
   isTickerReviewBlocking,
-  proposedTickersAfterClarificationDedup,
+  visibleProposedForUi,
 } from "@/lib/overlay-filter-proposals";
 import {
   resolveNonSellableSet,
@@ -328,6 +328,8 @@ export function OverlayConversationPanel({
           });
         }
 
+        // Store may synthesize/retain proposed_tickers during clarify; UI hides
+        // them via visibleProposedForUi until clarifications clear.
         setOverlay(
           ensureProposedTickersForReview(interpretedOverlay, detectedLang),
         );
@@ -404,7 +406,9 @@ export function OverlayConversationPanel({
         ...prev,
         {
           id: `sum-${Date.now()}`,
-          text: formatOverlaySummary(overlay, overlayLang),
+          text: formatOverlaySummary(overlay, overlayLang, {
+            hideProposedTickers: hasPendingClarifications,
+          }),
         },
       ]);
     }
@@ -434,11 +438,12 @@ export function OverlayConversationPanel({
       loading ||
       confirming ||
       confirmLockedRef.current ||
-      hasPendingConflicts
+      hasPendingConflicts ||
+      hasPendingClarifications
     ) {
       return;
     }
-    const visibleForGate = proposedTickersAfterClarificationDedup(
+    const visibleForGate = visibleProposedForUi(
       overlay.universe.proposed_tickers,
       clarifications,
     );
@@ -619,7 +624,7 @@ export function OverlayConversationPanel({
   );
 
   const confirmProposedTickers = (tickers: string[]) => {
-    if (!overlay || tickers.length === 0) return;
+    if (!overlay || tickers.length === 0 || hasPendingClarifications) return;
     const normalized = uniqueTickers(tickers);
     const updatedSupplements = uniqueTickers([
       ...(overlay.universe.supplement_tickers ?? []),
@@ -663,7 +668,7 @@ export function OverlayConversationPanel({
   };
 
   const skipProposedNoAdds = () => {
-    if (!overlay) return;
+    if (!overlay || hasPendingClarifications) return;
     const key = instrumentNeedsKey(overlay);
     setNoAddsAckKey(key);
     setOverlay(clearProposedTickers(overlay));
@@ -693,7 +698,7 @@ export function OverlayConversationPanel({
 
   const proposedTickers = useMemo(() => {
     if (confirmed || !overlay) return EMPTY_PROPOSED;
-    return proposedTickersAfterClarificationDedup(
+    return visibleProposedForUi(
       overlay.universe.proposed_tickers,
       clarifications,
     );
@@ -822,13 +827,16 @@ export function OverlayConversationPanel({
               loading ||
               confirming ||
               hasPendingConflicts ||
+              hasPendingClarifications ||
               tickerReviewRequired
             }
             className="pixel-btn shrink-0 self-end border border-[var(--primary)] bg-white text-[var(--primary)] hover:bg-[var(--primary-muted)] disabled:opacity-40"
             title={
-              tickerReviewRequired
-                ? t("overlay.proposedTickers.reviewRequired")
-                : undefined
+              hasPendingClarifications
+                ? t("overlay.proposedTickers.clarifyFirst")
+                : tickerReviewRequired
+                  ? t("overlay.proposedTickers.reviewRequired")
+                  : undefined
             }
           >
             {confirmed

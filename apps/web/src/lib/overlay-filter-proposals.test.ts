@@ -14,8 +14,10 @@ import {
   proposedTickersAfterClarificationDedup,
   synthesizeThemeProposedTickers,
   tickersNamedInClarifications,
+  visibleProposedForUi,
 } from "./overlay-filter-proposals";
 import type { OverlayClarification } from "./overlay-schema";
+import { formatOverlaySummary } from "./overlay-schema";
 
 function baseOverlay(
   partial: Partial<ClientOverlay["universe"]> = {},
@@ -241,6 +243,66 @@ describe("clarification / proposed_tickers dedupe", () => {
   });
 });
 
+describe("visibleProposedForUi (clarifications-first)", () => {
+  const RISK_CLARIFICATIONS: OverlayClarification[] = [
+    {
+      id: "q-risk",
+      question: "這筆投資的風險屬性偏好？",
+      options: [
+        { id: "conservative", label: "保守" },
+        { id: "moderate", label: "穩健" },
+      ],
+    },
+  ];
+
+  const CASH_BOND_PROPOSED = [
+    { ticker: "SGOV", name: "Short Treasury" },
+    { ticker: "BIL", name: "1-3 Month T-Bill" },
+    { ticker: "BND", name: "Total Bond" },
+    { ticker: "VOO", name: "S&P 500" },
+  ];
+
+  it("hides all proposed tickers while clarifications are pending (even without chip names)", () => {
+    expect(
+      visibleProposedForUi(CASH_BOND_PROPOSED, RISK_CLARIFICATIONS),
+    ).toEqual([]);
+  });
+
+  it("shows full proposed list when clarifications are empty", () => {
+    expect(
+      visibleProposedForUi(CASH_BOND_PROPOSED, []).map((p) => p.ticker),
+    ).toEqual(["SGOV", "BIL", "BND", "VOO"]);
+  });
+
+  it("hides entire panel when clarifications name chip tickers", () => {
+    expect(
+      visibleProposedForUi(
+        [
+          { ticker: "BOTZ" },
+          { ticker: "AIQ" },
+          { ticker: "SMH" },
+          { ticker: "IRBO" },
+        ],
+        AI_THEME_CLARIFICATIONS,
+      ),
+    ).toEqual([]);
+  });
+
+  it("applies chip dedupe only after clarifications clear", () => {
+    expect(
+      visibleProposedForUi(
+        [
+          { ticker: "BOTZ" },
+          { ticker: "AIQ" },
+          { ticker: "SMH" },
+          { ticker: "IRBO" },
+        ],
+        [],
+      ).map((p) => p.ticker),
+    ).toEqual(["BOTZ", "AIQ", "SMH", "IRBO"]);
+  });
+});
+
 describe("thematic ticker review gate", () => {
   const greenBondOverlay = (): ClientOverlay =>
     baseOverlay({
@@ -332,13 +394,40 @@ describe("thematic ticker review gate", () => {
     ).toBe(true);
   });
 
-  it("does not block mid-clarify when proposals are chip-deduped", () => {
+  it("blocks sign-off while clarifications are pending (even if visible proposed is empty)", () => {
     const overlay = withThemes(greenBondOverlay());
     expect(
       isTickerReviewBlocking(overlay, {
         visibleProposed: [],
         noAddsAckKey: null,
         hasPendingClarifications: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("still blocks after clarifications clear when visible proposed remain", () => {
+    const overlay = withThemes(greenBondOverlay());
+    expect(
+      isTickerReviewBlocking(overlay, {
+        visibleProposed: [{ ticker: "SGOV" }, { ticker: "BIL" }],
+        noAddsAckKey: null,
+        hasPendingClarifications: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not block when clarifications clear and thematic needs are absent", () => {
+    const overlay = baseOverlay({
+      prompts: ["Maintain existing core book"],
+      proposed_tickers: undefined,
+      supplement_tickers: undefined,
+    });
+    expect(overlayNeedsNewInstruments(overlay)).toBe(false);
+    expect(
+      isTickerReviewBlocking(overlay, {
+        visibleProposed: [],
+        noAddsAckKey: null,
+        hasPendingClarifications: false,
       }),
     ).toBe(false);
   });
@@ -383,5 +472,61 @@ describe("thematic ticker review gate", () => {
         noAddsAckKey: null,
       }),
     ).toBe(true);
+  });
+
+  it("ensureProposedTickersForReview may synthesize during clarifications (store keep, UI hide)", () => {
+    const clarifications: OverlayClarification[] = [
+      {
+        id: "q-risk",
+        question: "風險偏好？",
+        options: [
+          { id: "conservative", label: "保守" },
+          { id: "moderate", label: "穩健" },
+        ],
+      },
+    ];
+    const overlay = {
+      ...withThemes(greenBondOverlay()),
+      clarifications,
+    };
+    const ensured = ensureProposedTickersForReview(overlay, "zh");
+    expect(ensured.universe.proposed_tickers?.length).toBeGreaterThan(0);
+    expect(visibleProposedForUi(ensured.universe.proposed_tickers, clarifications)).toEqual(
+      [],
+    );
+  });
+});
+
+describe("formatOverlaySummary hideProposedTickers", () => {
+  const overlayWithProposed = (): ClientOverlay =>
+    baseOverlay({
+      proposed_tickers: [
+        { ticker: "SGOV", name: "Short Treasury" },
+        { ticker: "BIL", name: "T-Bill" },
+      ],
+    });
+
+  it("omits suggested tickers line when hideProposedTickers is true (zh)", () => {
+    const text = formatOverlaySummary(overlayWithProposed(), "zh", {
+      hideProposedTickers: true,
+    });
+    expect(text).not.toContain("建議參考標的");
+    expect(text).not.toContain("SGOV");
+  });
+
+  it("includes suggested tickers line when hideProposedTickers is omitted (zh)", () => {
+    const text = formatOverlaySummary(overlayWithProposed(), "zh");
+    expect(text).toContain("建議參考標的");
+    expect(text).toContain("SGOV");
+  });
+
+  it("omits suggested tickers lines in en and ko when hidden", () => {
+    const overlay = overlayWithProposed();
+    expect(
+      formatOverlaySummary(overlay, "en", { hideProposedTickers: true }),
+    ).not.toContain("Suggested tickers");
+    expect(
+      formatOverlaySummary(overlay, "ko", { hideProposedTickers: true }),
+    ).not.toContain("제안 종목");
   });
 });

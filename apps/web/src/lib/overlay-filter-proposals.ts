@@ -39,6 +39,8 @@ export function tickersNamedInClarifications(
 /**
  * During clarify stage, hide proposed_tickers already offered as clarification
  * choices (e.g. AIQ/BOTZ/SMH chips) so RM is not asked twice.
+ * Prefer {@link visibleProposedForUi} for UI / sign-off gates — that helper
+ * hides the entire list while clarifications remain pending.
  */
 export function proposedTickersAfterClarificationDedup(
   proposed: readonly OverlayProposedTicker[] | undefined,
@@ -49,6 +51,19 @@ export function proposedTickersAfterClarificationDedup(
   const covered = tickersNamedInClarifications(clarifications, proposed);
   if (!covered.size) return [...proposed];
   return proposed.filter((p) => !covered.has(p.ticker.toUpperCase()));
+}
+
+/**
+ * UI / sign-off gate visible proposal list.
+ * While clarifications are pending, always return [] (store may still keep
+ * proposed_tickers). After clarifications clear, apply chip dedupe.
+ */
+export function visibleProposedForUi(
+  proposed: readonly OverlayProposedTicker[] | undefined,
+  clarifications: readonly OverlayClarification[],
+): OverlayProposedTicker[] {
+  if (clarifications.length > 0) return [];
+  return proposedTickersAfterClarificationDedup(proposed, clarifications);
 }
 
 /** Fingerprint of universe prompts used to gate one-shot filter interrupts. */
@@ -442,12 +457,11 @@ export function ensureProposedTickersForReview(
 }
 
 /**
- * Block「確認 Overlay」until proposed tickers are added or RM explicitly
- * acknowledges「無新增標的」for the current thematic needs fingerprint.
+ * Block「確認 Overlay」until clarifications are done, then until proposed
+ * tickers are added or RM explicitly acknowledges「無新增標的」for the
+ * current thematic needs fingerprint.
  *
- * While clarification cards are still open, chip-named proposals are hidden by
- * dedupe — do not treat that as a completed/empty review (avoid a false
- * 「無新增標的」prompt mid-clarify).
+ * Clarifications-first: never allow Overlay sign-off while Qs remain.
  */
 export function isTickerReviewBlocking(
   overlay: ClientOverlay,
@@ -458,8 +472,9 @@ export function isTickerReviewBlocking(
     hasPendingClarifications?: boolean;
   },
 ): boolean {
+  if (opts.hasPendingClarifications) return true;
+
   if (opts.visibleProposed.length > 0) return true;
-  if (opts.hasPendingClarifications) return false;
 
   const needs = overlayNeedsNewInstruments(overlay);
   if (!needs) return false;
