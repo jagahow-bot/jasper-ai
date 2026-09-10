@@ -170,3 +170,19 @@ export function setClientReminderStatus(
   writeAll(all);
   return next;
 }
+
+/**
+ * Clear all reminder rows for one client.
+ * Preserves extra_notes / extra_events and other clients' overrides.
+ * Returns the number of reminders removed (0 if already empty / missing).
+ */
+export function clearClientReminders(clientId: string): number {
+  const all = readAll();
+  const current = all[clientId];
+  if (!current) return 0;
+  const prevLen = (current.reminders ?? []).length;
+  if (prevLen === 0) return 0;
+  all[clientId] = { ...current, reminders: [] };
+  writeAll(all);
+  return prevLen;
+}
