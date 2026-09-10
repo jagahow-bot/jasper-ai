@@ -8,6 +8,7 @@ import {
   normalizePositionPct,
   parseLiquidityUsdAmount,
   parseOverlayExtractFromGemini,
+  parseOverlayJsonText,
   stripGeminiMetadata,
   stripOverlayExtractKeys,
 } from "./overlay-gemini-parse";
@@ -19,6 +20,79 @@ const gemini47Response = JSON.parse(
 ) as unknown;
 
 describe("overlay-gemini-parse", () => {
+  it("repairs trailing commas, smart quotes, and interior unescaped quotes", () => {
+    const messy = `{
+  "client_profile": {
+    "risk_tolerance": "moderate",
+    "esg_preference": "light",
+  },
+  "rationale": "客戶偏好「ESG」與 "water infra" 主題，並保留流動性緩衝。",
+}`;
+    const parsed = parseOverlayJsonText(messy) as {
+      client_profile: { risk_tolerance: string; esg_preference: string };
+      rationale: string;
+    };
+    expect(parsed.client_profile.risk_tolerance).toBe("moderate");
+    expect(parsed.client_profile.esg_preference).toBe("light");
+    expect(parsed.rationale).toContain("water infra");
+    expect(parsed.rationale).toContain("ESG");
+  });
+
+  it("extracts fenced JSON and ignores prose around the object", () => {
+    const wrapped = `Here is the overlay:\n\`\`\`json\n{"confidence": 0.7, "rationale": "足夠長度的說明文字供 overlay 使用。"}\n\`\`\`\nThanks.`;
+    const parsed = parseOverlayJsonText(wrapped) as {
+      confidence: number;
+      rationale: string;
+    };
+    expect(parsed.confidence).toBe(0.7);
+    expect(parsed.rationale).toContain("足夠長度");
+  });
+
+  it("parses Traditional Chinese ESG / absolute-return style payload through normalize", () => {
+    const messy = `\`\`\`json
+{
+  "client_profile": {
+    "risk_tolerance": "moderate",
+    "investment_horizon_years": 8,
+    "esg_preference": "light",
+    "liquidity_need": {
+      "description": "保留 "liquidity buffer" 現金緩衝",
+      "within_months": 12
+    },
+  },
+  "market_view": {
+    "stance": "neutral",
+    "themes": ["esg", "water_infra", "absolute_return"],
+    "narrative_summary": "偏好 ESG 與水資源基建，目標接近 "absolute return"。"
+  },
+  "allocation": { "asset_classes": ["equity", "bond"] },
+  "universe": { "prompts": ["ESG water infrastructure funds"] },
+  "optimization": { "objective": "min_max_drawdown" },
+  "clarification_questions": [],
+  "confidence": 0.68,
+  "rationale": "客戶要 ESG、水資源基建、接近絕對報酬，並保留流動性緩衝配置。"
+}
+\`\`\``;
+    const extract = parseOverlayExtractFromGemini(messy) as {
+      client_profile: {
+        esg_preference?: string;
+        liquidity_need?: { description?: string; within_months?: number };
+      };
+      market_view: { themes: string[]; narrative_summary: string };
+      confidence: number;
+    };
+    expect(extract.client_profile.esg_preference).toBe("light");
+    expect(extract.client_profile.liquidity_need?.within_months).toBe(12);
+    expect(extract.client_profile.liquidity_need?.description).toContain(
+      "liquidity buffer",
+    );
+    expect(extract.market_view.themes).toEqual(
+      expect.arrayContaining(["esg", "water_infra", "absolute_return"]),
+    );
+    expect(extract.market_view.narrative_summary).toContain("absolute return");
+    expect(extract.confidence).toBe(0.68);
+  });
+
   it("extracts JSON text from Gemini API response with thoughtSignature", () => {
     const text = extractOverlayJsonText(gemini47Response);
     expect(text).toBeTruthy();
