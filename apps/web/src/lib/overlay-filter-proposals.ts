@@ -115,12 +115,18 @@ export function mergeFilterProposedIntoOverlay(
 
 /** Drop unconfirmed suggestions once the RM proceeds past the gate. */
 export function clearProposedTickers(overlay: ClientOverlay): ClientOverlay {
-  if (!overlay.universe.proposed_tickers?.length) return overlay;
+  if (
+    !overlay.universe.proposed_tickers?.length &&
+    !overlay.universe.bulk_include?.length
+  ) {
+    return overlay;
+  }
   return {
     ...overlay,
     universe: {
       ...overlay.universe,
       proposed_tickers: undefined,
+      bulk_include: undefined,
     },
   };
 }
@@ -282,6 +288,8 @@ export function overlayNeedsNewInstruments(overlay: ClientOverlay): boolean {
 
   if (overlay.universe.construction === "direct_index") return true;
 
+  if ((overlay.universe.bulk_include?.length ?? 0) > 0) return true;
+
   for (const ask of overlay.asks ?? []) {
     if (ask.kind === "group_weight_band") {
       const hasTarget =
@@ -324,6 +332,14 @@ export function instrumentNeedsKey(overlay: ClientOverlay): string {
     )
     .map((a) => a.id)
     .sort();
+  const bulkSig = (overlay.universe.bulk_include ?? [])
+    .map((b) =>
+      [b.id, b.asset_class, b.category, b.product_type, b.theme]
+        .filter(Boolean)
+        .join(":"),
+    )
+    .sort()
+    .join("|");
   return [
     sleeves.join("|"),
     themes.join("|"),
@@ -331,6 +347,7 @@ export function instrumentNeedsKey(overlay: ClientOverlay): string {
     askIds.join("|"),
     overlay.client_profile.esg_preference ?? "",
     overlay.universe.construction ?? "",
+    bulkSig,
   ].join("\0");
 }
 
@@ -488,4 +505,156 @@ export function isTickerReviewBlocking(
     return false;
   }
   return true;
+}
+
+export type ProposedBulkGroup = {
+  bulkId: string | null;
+  label: string;
+  items: OverlayProposedTicker[];
+  emptyHint?: boolean;
+};
+
+/** Group proposed tickers for bulk UI: curated first, then bulk_include order. */
+export function groupProposedByBulk(
+  proposed: readonly OverlayProposedTicker[],
+  bulkInclude: readonly { id: string; label: string }[] | undefined,
+): ProposedBulkGroup[] {
+  const byId = new Map<string, OverlayProposedTicker[]>();
+  const curated: OverlayProposedTicker[] = [];
+  for (const p of proposed) {
+    if (p.bulk_id) {
+      const list = byId.get(p.bulk_id) ?? [];
+      list.push(p);
+      byId.set(p.bulk_id, list);
+    } else {
+      curated.push(p);
+    }
+  }
+
+  const groups: ProposedBulkGroup[] = [];
+  if (curated.length) {
+    groups.push({ bulkId: null, label: "", items: curated });
+  }
+
+  const seen = new Set<string>();
+  for (const b of bulkInclude ?? []) {
+    seen.add(b.id);
+    const items = byId.get(b.id) ?? [];
+    groups.push({
+      bulkId: b.id,
+      label: b.label,
+      items,
+      emptyHint: items.length === 0,
+    });
+  }
+  // Orphan bulk_id rows (no matching bulk_include) → curated-like group
+  for (const [id, items] of byId) {
+    if (seen.has(id) || !items.length) continue;
+    groups.push({
+      bulkId: id,
+      label: id,
+      items,
+    });
+  }
+  return groups;
+}
+
+/**
+ * After confirming selected tickers: prune finished bulk groups from pending
+ * and append to confirmed_bulk_batches ledger.
+ * `priorProposed` = proposed list *before* removing confirmed tickers.
+ */
+export function applyBulkConfirmLedger(
+  overlay: ClientOverlay,
+  confirmedTickers: readonly string[],
+  priorProposed: readonly OverlayProposedTicker[] | undefined,
+): ClientOverlay {
+  const selected = new Set(confirmedTickers.map((t) => t.toUpperCase()));
+  const pendingBulk = overlay.universe.bulk_include ?? [];
+  if (!pendingBulk.length && !overlay.confirmed_bulk_batches?.length) {
+    return overlay;
+  }
+
+  const remainingProposed = overlay.universe.proposed_tickers ?? [];
+  const remainingByBulk = new Map<string, number>();
+  for (const p of remainingProposed) {
+    if (!p.bulk_id) continue;
+    remainingByBulk.set(
+      p.bulk_id,
+      (remainingByBulk.get(p.bulk_id) ?? 0) + 1,
+    );
+  }
+
+  const newBatches = [...(overlay.confirmed_bulk_batches ?? [])];
+  const keptPending: typeof pendingBulk = [];
+
+  for (const b of pendingBulk) {
+    const fromThisBatch = (priorProposed ?? [])
+      .filter(
+        (p) =>
+          p.bulk_id === b.id && selected.has(p.ticker.toUpperCase()),
+      )
+      .map((p) => p.ticker.toUpperCase());
+    const stillPending = remainingByBulk.get(b.id) ?? 0;
+    if (fromThisBatch.length) {
+      const existing = newBatches.findIndex((x) => x.bulk_id === b.id);
+      const entry = {
+        bulk_id: b.id,
+        label: b.label,
+        tickers: fromThisBatch,
+        confirmed_at: new Date().toISOString(),
+      };
+      if (existing >= 0) {
+        const merged = uniqueTickers([
+          ...newBatches[existing].tickers,
+          ...fromThisBatch,
+        ]);
+        newBatches[existing] = { ...entry, tickers: merged };
+      } else {
+        newBatches.push(entry);
+      }
+    }
+    if (stillPending > 0) {
+      keptPending.push(b);
+    }
+  }
+
+  return {
+    ...overlay,
+    universe: {
+      ...overlay.universe,
+      bulk_include: keptPending.length ? keptPending : undefined,
+    },
+    confirmed_bulk_batches: newBatches.length ? newBatches : undefined,
+  };
+}
+
+/** Revoke a confirmed batch by bulk_id — remove intersection from supplements. */
+export function revokeConfirmedBulk(
+  overlay: ClientOverlay,
+  bulkId: string,
+): { overlay: ClientOverlay; removed: string[]; label: string } | null {
+  const batch = overlay.confirmed_bulk_batches?.find((b) => b.bulk_id === bulkId);
+  if (!batch) return null;
+  const removeSet = new Set(batch.tickers.map((t) => t.toUpperCase()));
+  const remainingSup = (overlay.universe.supplement_tickers ?? []).filter(
+    (t) => !removeSet.has(t.toUpperCase()),
+  );
+  const remainingLedger = (overlay.confirmed_bulk_batches ?? []).filter(
+    (b) => b.bulk_id !== bulkId,
+  );
+  return {
+    overlay: {
+      ...overlay,
+      universe: {
+        ...overlay.universe,
+        supplement_tickers: remainingSup.length ? remainingSup : undefined,
+      },
+      confirmed_bulk_batches: remainingLedger.length
+        ? remainingLedger
+        : undefined,
+    },
+    removed: batch.tickers,
+    label: batch.label,
+  };
 }

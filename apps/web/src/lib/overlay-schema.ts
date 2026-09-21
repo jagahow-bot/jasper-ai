@@ -178,17 +178,64 @@ export const overlayProposedTickerSchema = z
     /** LLM hint for catalog-unknown tickers; engine catalog row wins on conflict. */
     asset_class: z.enum(ASSET_CLASSES).optional(),
     rationale: z.string().max(200).optional(),
+    /** Links to `universe.bulk_include[].id` when batch-expanded; curated picks omit. */
+    bulk_id: z.string().max(40).optional(),
   })
   .strip();
 
 export type OverlayProposedTicker = z.infer<typeof overlayProposedTickerSchema>;
 
+/** Batch-include scope from「全部／整類」intent (design: overlay-batch-add-by-class). */
+export const overlayBulkIncludeSchema = z
+  .object({
+    id: z.string().min(1).max(40),
+    /** RM-facing short label (report language), e.g. "債券類 ETF 全部". */
+    label: z.string().min(1).max(80),
+    asset_class: z.enum(ASSET_CLASSES).optional(),
+    product_type: z.enum(["etf", "fund", "stock"]).optional(),
+    /** Catalog category key (CATEGORY_LABELS). */
+    category: z.string().min(1).max(40).optional(),
+    /** Free-text theme phrase; server-side keyword matcher expands it. */
+    theme: z.string().min(1).max(60).optional(),
+  })
+  .strip();
+
+export type OverlayBulkInclude = z.infer<typeof overlayBulkIncludeSchema>;
+
+/** Confirmed batch ledger for revoke-by-bulk_id (§13 Q7). Client-only. */
+export const overlayConfirmedBulkBatchSchema = z
+  .object({
+    bulk_id: z.string().min(1).max(40),
+    label: z.string().min(1).max(80),
+    tickers: z.array(z.string().min(1)).min(1),
+    confirmed_at: z.string().min(1).optional(),
+  })
+  .strip();
+
+export type OverlayConfirmedBulkBatch = z.infer<
+  typeof overlayConfirmedBulkBatchSchema
+>;
+
+/**
+ * Soft capacity for proposed / supplement lists after batch-include
+ * (sellable universe ~400). DI sleeve logic still uses MAX_DIRECT_INDEX_SLEEVE.
+ */
+export const MAX_OVERLAY_TICKER_LIST = 400;
+
 export const universeRuleOverlaySchema = z
   .object({
     prompts: z.array(z.string().min(4).max(200)).max(6),
-    supplement_tickers: z.array(z.string().min(1).max(8)).max(MAX_DIRECT_INDEX_SLEEVE).optional(),
+    supplement_tickers: z
+      .array(z.string().min(1).max(8))
+      .max(MAX_OVERLAY_TICKER_LIST)
+      .optional(),
     exclude_tickers: z.array(z.string().min(1).max(8)).max(30).optional(),
-    proposed_tickers: z.array(overlayProposedTickerSchema).max(MAX_DIRECT_INDEX_SLEEVE).optional(),
+    proposed_tickers: z
+      .array(overlayProposedTickerSchema)
+      .max(MAX_OVERLAY_TICKER_LIST)
+      .optional(),
+    /** 「全部／整類」batch scopes; server expands into proposed_tickers. */
+    bulk_include: z.array(overlayBulkIncludeSchema).max(4).optional(),
     /** Stock-sleeve construction around a benchmark ETF (not thematic ETF swaps). */
     construction: z.enum(["direct_index"]).optional(),
   })
@@ -349,6 +396,11 @@ export const clientOverlaySchema = z.object({
   clarification_questions: z.array(z.string()).optional(),
   confidence: z.number().min(0).max(1),
   rationale: z.string().min(8),
+  /** Confirmed batch ledger for revoke-by-bulk_id (client-only, not from Gemini). */
+  confirmed_bulk_batches: z
+    .array(overlayConfirmedBulkBatchSchema)
+    .max(20)
+    .optional(),
 });
 
 export type OverlayExtractOutput = z.infer<typeof overlayExtractSchema>;
@@ -547,6 +599,7 @@ export function wrapExtractAsOverlay(
     proposed_tickers: mergedProposed?.length ? mergedProposed : undefined,
     construction:
       extract.universe.construction ?? prior?.universe.construction,
+    // bulk_include: omit from extract keeps prior (spread); [] clears; DI expand may clear.
   };
 
   const base: ClientOverlay = {
@@ -581,6 +634,9 @@ export function wrapExtractAsOverlay(
     clarification_questions: extract.clarification_questions,
     confidence: extract.confidence,
     rationale: extract.rationale,
+    ...(prior?.confirmed_bulk_batches?.length
+      ? { confirmed_bulk_batches: prior.confirmed_bulk_batches }
+      : {}),
   };
 
   return applyAsksToOverlayLevers(base);
@@ -1661,6 +1717,51 @@ export function formatOverlaySummary(
   const showProposedTickers =
     !!overlay.universe.proposed_tickers?.length && !opts?.hideProposedTickers;
 
+  const bulkPending = overlay.universe.bulk_include ?? [];
+  const bulkPendingCount = (overlay.universe.proposed_tickers ?? []).filter(
+    (p) => p.bulk_id,
+  ).length;
+  const bulkSummaryLine = (() => {
+    if (!bulkPending.length) return null;
+    const labels = bulkPending
+      .map((b) => {
+        const n = (overlay.universe.proposed_tickers ?? []).filter(
+          (p) => p.bulk_id === b.id,
+        ).length;
+        return n > 0 ? `${b.label}（${n}）` : b.label;
+      })
+      .join(lang === "zh" ? "、" : ", ");
+    if (lang === "zh") {
+      return `批次納入（待確認）：${labels}${
+        bulkPendingCount > 0 ? ` · 批次 ${bulkPendingCount} 檔` : ""
+      }`;
+    }
+    if (lang === "ko") {
+      const koLabels = bulkPending
+        .map((b) => {
+          const n = (overlay.universe.proposed_tickers ?? []).filter(
+            (p) => p.bulk_id === b.id,
+          ).length;
+          return n > 0 ? `${b.label}(${n})` : b.label;
+        })
+        .join(", ");
+      return `일괄 포함(확인 대기): ${koLabels}${
+        bulkPendingCount > 0 ? ` · 배치 ${bulkPendingCount}개` : ""
+      }`;
+    }
+    const enLabels = bulkPending
+      .map((b) => {
+        const n = (overlay.universe.proposed_tickers ?? []).filter(
+          (p) => p.bulk_id === b.id,
+        ).length;
+        return n > 0 ? `${b.label} (${n})` : b.label;
+      })
+      .join(", ");
+    return `Batch include (pending confirm): ${enLabels}${
+      bulkPendingCount > 0 ? ` · Batch: ${bulkPendingCount} tickers` : ""
+    }`;
+  })();
+
   const liquidityLine = (() => {
     const liq = client_profile.liquidity_need;
     if (!liq?.amount_usd && !liq?.within_months) return null;
@@ -1706,6 +1807,7 @@ export function formatOverlaySummary(
     if (overlay.universe.exclude_tickers?.length) {
       lines.push(`排除標的：${overlay.universe.exclude_tickers.join("、")}`);
     }
+    if (bulkSummaryLine) lines.push(bulkSummaryLine);
     if (showProposedTickers) {
       const list = overlay.universe.proposed_tickers!
         .map((p) => (p.name ? `${p.ticker}（${p.name}）` : p.ticker))
@@ -1739,6 +1841,7 @@ export function formatOverlaySummary(
     if (overlay.universe.exclude_tickers?.length) {
       lines.push(`제외 종목: ${overlay.universe.exclude_tickers.join(", ")}`);
     }
+    if (bulkSummaryLine) lines.push(bulkSummaryLine);
     if (showProposedTickers) {
       const list = overlay.universe.proposed_tickers!
         .map((p) => (p.name ? `${p.ticker} (${p.name})` : p.ticker))
@@ -1765,6 +1868,7 @@ export function formatOverlaySummary(
   if (overlay.universe.exclude_tickers?.length) {
     lines.push(`Exclude tickers: ${overlay.universe.exclude_tickers.join(", ")}`);
   }
+  if (bulkSummaryLine) lines.push(bulkSummaryLine);
   if (showProposedTickers) {
     const list = overlay.universe.proposed_tickers!
       .map((p) => (p.name ? `${p.ticker} (${p.name})` : p.ticker))

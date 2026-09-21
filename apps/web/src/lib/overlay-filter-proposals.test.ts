@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ClientOverlay, OverlayProposedTicker } from "@/lib/overlay-schema";
 import {
+  applyBulkConfirmLedger,
   clearProposedTickers,
   decideFilterProposalInterrupt,
   ensureProposedTickersForReview,
+  groupProposedByBulk,
   instrumentNeedsKey,
   isTickerReviewBlocking,
   mergeFilterProposedIntoOverlay,
@@ -12,6 +14,7 @@ import {
   overlayNeedsNewInstruments,
   overlayPromptsKey,
   proposedTickersAfterClarificationDedup,
+  revokeConfirmedBulk,
   synthesizeThemeProposedTickers,
   tickersNamedInClarifications,
   visibleProposedForUi,
@@ -51,6 +54,8 @@ function baseOverlay(
       supplement_tickers: partial.supplement_tickers,
       exclude_tickers: partial.exclude_tickers,
       proposed_tickers: partial.proposed_tickers,
+      bulk_include: partial.bulk_include,
+      construction: partial.construction,
     },
     optimization: {
       objective: "max_sharpe",
@@ -528,5 +533,99 @@ describe("formatOverlaySummary hideProposedTickers", () => {
     expect(
       formatOverlaySummary(overlay, "ko", { hideProposedTickers: true }),
     ).not.toContain("제안 종목");
+  });
+});
+
+describe("bulk include helpers", () => {
+  it("instrumentNeedsKey changes when bulk_include changes", () => {
+    const a = baseOverlay({
+      bulk_include: [{ id: "bulk-1", label: "債券 ETF", asset_class: "bond" }],
+    });
+    const b = baseOverlay({
+      bulk_include: [
+        { id: "bulk-1", label: "債券 ETF", asset_class: "bond", product_type: "etf" },
+      ],
+    });
+    expect(instrumentNeedsKey(a)).not.toBe(instrumentNeedsKey(b));
+  });
+
+  it("overlayNeedsNewInstruments true for bulk_include only", () => {
+    const o = baseOverlay({
+      prompts: ["cash only"],
+      bulk_include: [{ id: "bulk-1", label: "另類", asset_class: "alternative" }],
+    });
+    // Clear theme-ish prompts that would otherwise trip theme buckets
+    o.universe.prompts = ["soft sleeve target core"];
+    o.market_view.themes = [];
+    expect(overlayNeedsNewInstruments(o)).toBe(true);
+  });
+
+  it("clearProposedTickers also clears bulk_include", () => {
+    const o = baseOverlay({
+      proposed_tickers: [{ ticker: "AGG", bulk_id: "bulk-1" }],
+      bulk_include: [{ id: "bulk-1", label: "債券", asset_class: "bond" }],
+    });
+    const cleared = clearProposedTickers(o);
+    expect(cleared.universe.proposed_tickers).toBeUndefined();
+    expect(cleared.universe.bulk_include).toBeUndefined();
+  });
+
+  it("groupProposedByBulk puts curated first", () => {
+    const groups = groupProposedByBulk(
+      [
+        { ticker: "AIQ", bulk_id: "bulk-1" },
+        { ticker: "SPY" },
+        { ticker: "AGG", bulk_id: "bulk-1" },
+      ],
+      [{ id: "bulk-1", label: "債券類 ETF" }],
+    );
+    expect(groups[0]?.bulkId).toBeNull();
+    expect(groups[0]?.items.map((i) => i.ticker)).toEqual(["SPY"]);
+    expect(groups[1]?.bulkId).toBe("bulk-1");
+    expect(groups[1]?.items).toHaveLength(2);
+  });
+
+  it("applyBulkConfirmLedger + revokeConfirmedBulk round-trip", () => {
+    const prior = [
+      { ticker: "AGG", bulk_id: "bulk-1" },
+      { ticker: "BND", bulk_id: "bulk-1" },
+      { ticker: "SPY" },
+    ];
+    let o = baseOverlay({
+      proposed_tickers: prior,
+      bulk_include: [{ id: "bulk-1", label: "債券 ETF", asset_class: "bond" }],
+    });
+    o = {
+      ...o,
+      universe: {
+        ...o.universe,
+        supplement_tickers: ["AGG", "BND"],
+        proposed_tickers: [{ ticker: "SPY" }],
+      },
+    };
+    o = applyBulkConfirmLedger(o, ["AGG", "BND"], prior);
+    expect(o.universe.bulk_include).toBeUndefined();
+    expect(o.confirmed_bulk_batches?.[0]?.tickers).toEqual(
+      expect.arrayContaining(["AGG", "BND"]),
+    );
+
+    const revoked = revokeConfirmedBulk(o, "bulk-1");
+    expect(revoked).not.toBeNull();
+    expect(revoked!.overlay.universe.supplement_tickers).toBeUndefined();
+    expect(revoked!.overlay.confirmed_bulk_batches).toBeUndefined();
+  });
+
+  it("formatOverlaySummary shows bulk line even when hideProposedTickers", () => {
+    const o = baseOverlay({
+      proposed_tickers: [
+        { ticker: "AGG", name: "Agg", bulk_id: "bulk-1" },
+        { ticker: "BND", name: "Total", bulk_id: "bulk-1" },
+      ],
+      bulk_include: [{ id: "bulk-1", label: "債券類 ETF 全部", asset_class: "bond" }],
+    });
+    const text = formatOverlaySummary(o, "zh", { hideProposedTickers: true });
+    expect(text).toContain("批次納入");
+    expect(text).toContain("債券類 ETF 全部");
+    expect(text).not.toContain("建議參考標的");
   });
 });

@@ -11,12 +11,18 @@ import type {
   ClientOverlay,
   OverlayAsk,
   OverlayClarification,
+  OverlayConfirmedBulkBatch,
   OverlayProposedTicker,
 } from "@/lib/overlay-schema";
 import { formatOverlaySummary } from "@/lib/overlay-schema";
 import type { OverlayDriftHints } from "@/lib/overlay-drift-sync";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { isSellableTicker } from "@/lib/sellable-overrides";
+import {
+  groupProposedByBulk,
+  type ProposedBulkGroup,
+} from "@/lib/overlay-filter-proposals";
+import { BULK_UI_PAGE_SIZE } from "@/lib/overlay-bulk-include";
 
 export type SummarySnapshot = {
   id: string;
@@ -35,6 +41,7 @@ type Props = {
   proposedTickers: OverlayProposedTicker[];
   /** Thematic needs exist but proposals are empty — show ack / hint panel. */
   tickerReviewRequired?: boolean;
+  confirmedBulkBatches?: OverlayConfirmedBulkBatch[];
   loading?: boolean;
   confirmed?: boolean;
   confirming?: boolean;
@@ -44,6 +51,7 @@ type Props = {
   onClarifyDraftChange: (index: number, draft: ClarificationDraft) => void;
   onConfirmProposed: (tickers: string[]) => void;
   onSkipProposedNoAdds?: () => void;
+  onRevokeBulk?: (bulkId: string) => void;
 };
 
 function MessageBubble({ message }: { message: ChatMessage }) {
@@ -138,6 +146,7 @@ function AskCardsInline({
 
 function ProposedTickersInline({
   candidates,
+  bulkInclude,
   disabled,
   reviewRequired,
   showDiHint,
@@ -145,6 +154,7 @@ function ProposedTickersInline({
   onSkipNoAdds,
 }: {
   candidates: OverlayProposedTicker[];
+  bulkInclude?: { id: string; label: string }[];
   disabled?: boolean;
   reviewRequired?: boolean;
   showDiHint?: boolean;
@@ -152,10 +162,17 @@ function ProposedTickersInline({
   onSkipNoAdds?: () => void;
 }) {
   const { t } = useI18n();
+  const hasBulk = candidates.some((c) => c.bulk_id) || (bulkInclude?.length ?? 0) > 0;
+  const groups = useMemo(
+    () => groupProposedByBulk(candidates, bulkInclude),
+    [candidates, bulkInclude],
+  );
   const candidateKey = candidates.map((c) => c.ticker).join("\0");
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(candidates.map((c) => c.ticker)),
   );
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [pageByGroup, setPageByGroup] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setSelected((prev) => {
@@ -168,11 +185,157 @@ function ProposedTickersInline({
       }
       return new Set(nextTickers);
     });
-  }, [candidateKey]);
+    // Default: collapse bulk groups with >8 items
+    const nextCollapsed: Record<string, boolean> = {};
+    for (const g of groups) {
+      if (g.bulkId && g.items.length > 8) nextCollapsed[g.bulkId] = true;
+    }
+    setCollapsed(nextCollapsed);
+    setPageByGroup({});
+  }, [candidateKey]); // eslint-disable-line react-hooks/exhaustive-deps -- reset on candidate set change
 
-  if (!candidates.length && !reviewRequired) return null;
+  if (!candidates.length && !reviewRequired && !groups.some((g) => g.emptyHint)) {
+    return null;
+  }
 
   const allSelected = selected.size === candidates.length && candidates.length > 0;
+
+  const toggleTicker = (ticker: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(ticker)) next.delete(ticker);
+      else next.add(ticker);
+      return next;
+    });
+  };
+
+  const renderTickerRow = (c: OverlayProposedTicker) => {
+    const nonSellable = !isSellableTicker(c.ticker);
+    return (
+      <label key={c.ticker} className="flex cursor-pointer items-start gap-2">
+        <input
+          type="checkbox"
+          checked={selected.has(c.ticker)}
+          onChange={() => toggleTicker(c.ticker)}
+          className="mt-0.5"
+          disabled={disabled}
+        />
+        <div className="text-sm leading-snug">
+          <span className="font-semibold">{c.ticker}</span>
+          {nonSellable ? (
+            <span className="ml-1 text-amber-600" title="non-sellable">
+              ⚠
+            </span>
+          ) : null}
+          {c.name && <span className="text-dim"> — {c.name}</span>}
+          {c.rationale && <p className="text-xs text-dim">{c.rationale}</p>}
+        </div>
+      </label>
+    );
+  };
+
+  const renderGroup = (g: ProposedBulkGroup) => {
+    const key = g.bulkId ?? "__curated__";
+    const isBulk = Boolean(g.bulkId);
+    const label = isBulk
+      ? g.label
+      : t("overlay.proposedTickers.bulkCuratedLabel");
+    const isCollapsed = isBulk && collapsed[key];
+    const page = pageByGroup[key] ?? 0;
+    const totalPages = Math.max(1, Math.ceil(g.items.length / BULK_UI_PAGE_SIZE));
+    const pageItems =
+      g.items.length > BULK_UI_PAGE_SIZE
+        ? g.items.slice(page * BULK_UI_PAGE_SIZE, (page + 1) * BULK_UI_PAGE_SIZE)
+        : g.items;
+    const groupAllSelected =
+      g.items.length > 0 && g.items.every((c) => selected.has(c.ticker));
+
+    if (g.emptyHint && !g.items.length) {
+      return (
+        <div key={key} className="rounded border border-dashed border-[var(--border)] p-2 text-xs text-dim">
+          {t("overlay.proposedTickers.bulkEmpty", { label: g.label })}
+        </div>
+      );
+    }
+
+    return (
+      <div key={key} className="space-y-1.5 rounded border border-[var(--border)] p-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button
+            type="button"
+            className="text-left text-xs font-semibold text-[var(--foreground)]"
+            onClick={() =>
+              isBulk
+                ? setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))
+                : undefined
+            }
+            disabled={!isBulk}
+          >
+            {isBulk ? (isCollapsed ? "▶ " : "▼ ") : null}
+            {label}
+            {isBulk ? `（${g.items.length}）` : null}
+          </button>
+          {g.items.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSelected((prev) => {
+                  const next = new Set(prev);
+                  if (groupAllSelected) {
+                    for (const c of g.items) next.delete(c.ticker);
+                  } else {
+                    for (const c of g.items) next.add(c.ticker);
+                  }
+                  return next;
+                });
+              }}
+              className="text-xs text-[var(--primary)] hover:underline"
+              disabled={disabled}
+            >
+              {groupAllSelected
+                ? t("overlay.proposedTickers.bulkGroupNone")
+                : t("overlay.proposedTickers.bulkGroupAll")}
+            </button>
+          ) : null}
+        </div>
+        {!isCollapsed && g.items.length > 0 ? (
+          <>
+            <div className="space-y-2">{pageItems.map(renderTickerRow)}</div>
+            {totalPages > 1 ? (
+              <div className="flex items-center justify-between gap-2 text-xs text-dim">
+                <button
+                  type="button"
+                  className="text-[var(--primary)] hover:underline disabled:opacity-40"
+                  disabled={page <= 0 || disabled}
+                  onClick={() =>
+                    setPageByGroup((prev) => ({ ...prev, [key]: page - 1 }))
+                  }
+                >
+                  {t("overlay.proposedTickers.bulkPrevPage")}
+                </button>
+                <span>
+                  {t("overlay.proposedTickers.bulkPage", {
+                    page: page + 1,
+                    total: totalPages,
+                  })}
+                </span>
+                <button
+                  type="button"
+                  className="text-[var(--primary)] hover:underline disabled:opacity-40"
+                  disabled={page >= totalPages - 1 || disabled}
+                  onClick={() =>
+                    setPageByGroup((prev) => ({ ...prev, [key]: page + 1 }))
+                  }
+                >
+                  {t("overlay.proposedTickers.bulkNextPage")}
+                </button>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
@@ -192,7 +355,9 @@ function ProposedTickersInline({
           >
             {allSelected
               ? t("overlay.proposedTickers.none")
-              : t("overlay.proposedTickers.all")}
+              : t("overlay.proposedTickers.allWithCount", {
+                  count: candidates.length,
+                })}
           </button>
         ) : null}
       </div>
@@ -203,40 +368,10 @@ function ProposedTickersInline({
             : t("overlay.proposedTickers.emptyNeedsHint")}
         </p>
       ) : null}
-      {candidates.length > 0 ? (
-        <div className="space-y-2">
-          {candidates.map((c) => {
-            const nonSellable = !isSellableTicker(c.ticker);
-            return (
-            <label key={c.ticker} className="flex cursor-pointer items-start gap-2">
-              <input
-                type="checkbox"
-                checked={selected.has(c.ticker)}
-                onChange={() => {
-                  setSelected((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(c.ticker)) next.delete(c.ticker);
-                    else next.add(c.ticker);
-                    return next;
-                  });
-                }}
-                className="mt-0.5"
-                disabled={disabled}
-              />
-              <div className="text-sm leading-snug">
-                <span className="font-semibold">{c.ticker}</span>
-                {nonSellable ? (
-                  <span className="ml-1 text-amber-600" title="non-sellable">
-                    ⚠
-                  </span>
-                ) : null}
-                {c.name && <span className="text-dim"> — {c.name}</span>}
-                {c.rationale && <p className="text-xs text-dim">{c.rationale}</p>}
-              </div>
-            </label>
-            );
-          })}
-        </div>
+      {hasBulk ? (
+        <div className="space-y-2">{groups.map(renderGroup)}</div>
+      ) : candidates.length > 0 ? (
+        <div className="space-y-2">{candidates.map(renderTickerRow)}</div>
       ) : null}
       <div className="flex flex-col gap-2 sm:flex-row">
         {candidates.length > 0 ? (
@@ -305,6 +440,7 @@ export function OverlayChatTimeline({
   asks,
   proposedTickers,
   tickerReviewRequired = false,
+  confirmedBulkBatches,
   loading,
   confirmed,
   confirming,
@@ -314,6 +450,7 @@ export function OverlayChatTimeline({
   onClarifyDraftChange,
   onConfirmProposed,
   onSkipProposedNoAdds,
+  onRevokeBulk,
 }: Props) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -346,6 +483,7 @@ export function OverlayChatTimeline({
   }, [scrollKey]);
 
   const cardsDisabled = disabled || confirmed || confirming || loading;
+  const batches = confirmedBulkBatches ?? overlay?.confirmed_bulk_batches ?? [];
 
   return (
     <div
@@ -415,6 +553,28 @@ export function OverlayChatTimeline({
                 ) : null}
               </div>
             ) : null}
+            {batches.length > 0 && onRevokeBulk ? (
+              <div className="mt-2 space-y-1 border-t border-[var(--border)]/60 pt-2">
+                {batches.map((b) => (
+                  <div
+                    key={b.bulk_id}
+                    className="flex items-center justify-between gap-2 text-xs"
+                  >
+                    <span className="text-dim">
+                      {b.label}（{b.tickers.length}）
+                    </span>
+                    <button
+                      type="button"
+                      className="text-amber-800 hover:underline disabled:opacity-40"
+                      disabled={cardsDisabled}
+                      onClick={() => onRevokeBulk(b.bulk_id)}
+                    >
+                      {t("overlay.proposedTickers.revokeBulk")}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <AskCardsInline
@@ -436,6 +596,7 @@ export function OverlayChatTimeline({
           {!confirmed && clarifications.length === 0 ? (
             <ProposedTickersInline
               candidates={proposedTickers}
+              bulkInclude={overlay.universe.bulk_include}
               disabled={cardsDisabled}
               reviewRequired={tickerReviewRequired}
               showDiHint={overlay?.universe.construction === "direct_index"}
