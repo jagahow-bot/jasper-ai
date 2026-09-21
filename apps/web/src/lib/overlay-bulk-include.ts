@@ -237,7 +237,7 @@ export function expandBulkInclude(
       }),
     );
 
-    let { kept: sellableKept } = filterSellableProposed(asProposed, opts.ctx);
+    const { kept: sellableKept } = filterSellableProposed(asProposed, opts.ctx);
 
     const keptRows: OverlayProposedTicker[] = [];
     for (const row of sellableKept) {
