@@ -17,6 +17,8 @@ import {
   OVERLAY_INTERPRET_ERROR_CODES,
 } from "@/lib/overlay-interpret-errors";
 import { parseOverlayExtractFromGemini } from "@/lib/overlay-gemini-parse";
+import { CATEGORY_LABELS } from "@/lib/constants";
+import { expandBulkIncludeInExtract } from "@/lib/overlay-bulk-include";
 import paramCatalog from "@/data/param-catalog.json";
 import {
   createSessionId,
@@ -241,7 +243,8 @@ Rules for the sellable catalog above:
   (current sellable stock count=${stockCount}).
   Route theme-related clarifications toward choosing among sellable
   funds/ETFs (options = 2–4 concrete fund/ETF directions from the list),
-  not toward stock picking.`;
+  not toward stock picking.
+CATEGORY KEYS (for bulk_include.category): ${Object.keys(CATEGORY_LABELS).join(", ")}`;
 }
 
 function applySellableOutputFilter(
@@ -348,6 +351,34 @@ Field rules:
 - If you emit any clarifications / clarification_questions this turn, PREFER leaving universe.proposed_tickers empty (or omit it). Concrete ticker candidates should wait until clarification answers are incorporated in a later turn. Client UI will hide proposals while clarifications are pending. direct_index may still list sleeve stocks on proposed_tickers after clarifications are resolved; avoid locking large sleeves mid-clarify.
 - universe.proposed_tickers asset_class: each proposed ticker SHOULD include "asset_class": one of equity|bond|commodity|real_estate|alternative. Private funds, hedge funds, managed futures, private credit/equity, and crypto proxies → "alternative". Well-known catalog ETFs may omit it. Never invent asset classes outside the five allowed values.
 - Never add large thematic ETF lists to supplement_tickers automatically; use proposed_tickers for suggestions and wait for RM confirmation. Direct indexing is the exception: propose stocks, not thematic ETFs.
+BATCH INCLUDE (「全部 / 整類 / 都納入 / 全加 / all … / entire class」):
+1. When the RM asks to include an ENTIRE class / product type / category /
+   theme from the sellable catalog — e.g. "把基金池裡的 AI 相關基金全部加入",
+   "債券類 ETF 都納入", "另類資產全部加進來" — emit universe.bulk_include
+   entries instead of enumerating tickers:
+     { "id": "bulk-1", "label": "<RM-facing short label, report language>",
+       "asset_class"?: "equity"|"bond"|"commodity"|"real_estate"|"alternative",
+       "product_type"?: "etf"|"fund"|"stock",
+       "category"?: "<one of the catalog CATEGORY KEYS>",
+       "theme"?: "<the RM's theme phrase as-is, e.g. \"AI 人工智慧\">" }
+   - Prefer a catalog CATEGORY KEY when the ask maps cleanly; otherwise
+     pass theme and let the server expand via its static matcher.
+   - At least one scope field per entry; multiple fields are ANDed
+     ("債券類 ETF" → {"asset_class":"bond","product_type":"etf"}).
+   - Max 4 entries per turn. Re-emit the FULL still-wanted list every turn
+     (omitted key keeps prior entries; emit [] to clear them).
+2. The SERVER expands each entry into the FULL matching sellable list
+   (no hard ticker cap). NEVER enumerate the batch tickers yourself in
+   proposed_tickers or supplement_tickers — you may still emit a few
+   curated proposed_tickers for a DIFFERENT, curated need in the same turn.
+3. Curated asks (「推薦幾檔」「精選」「挑 N 檔」"suggest a few") keep the
+   existing 3–6 proposed_tickers behavior — do NOT use bulk_include for them.
+4. If the scope is ambiguous (e.g. "股票全部" could mean all sellable equity
+   funds or also individual stocks), OR the theme/category cannot be mapped
+   confidently, ask ONE clarification with concrete scoped options instead
+   of guessing a huge batch.
+5. bulk_include respects direct_index: never emit it for the stock sleeve of
+   a direct-indexing brief (the N-stock sleeve rule already applies).
 - optimization.objective: max_sharpe for risk-on/growth; min_max_drawdown for defensive/liquidity.
 - optimization.regime_adaptive: true when RM mentions regime/market switching.
 - clarification_questions: array of STRINGS only (not objects), each 4–200 chars, max 5. MUST mirror clarifications[].question when clarifications is present.
@@ -606,10 +637,17 @@ export async function POST(req: Request) {
     llmLog = log;
 
     let extract;
+    let bulkReport: import("@/lib/overlay-bulk-include").BulkGroupReport[] = [];
     try {
       extract = validateOverlayExtract(parseOverlayExtractFromGemini(result.text));
       extract = syncExtractClarifications(extract, lang);
       extract = applyDirectIndexingToExtract(extract, diSourceText, lang);
+      const expanded = expandBulkIncludeInExtract(extract, {
+        ctx: sellableCtx,
+        lang,
+      });
+      extract = expanded.extract;
+      bulkReport = expanded.reports;
     } catch (parseError) {
       if (useRulesFallback) {
         if (process.env.NODE_ENV !== "production") {
@@ -673,6 +711,7 @@ export async function POST(req: Request) {
       ...(filtered.sellable_blocked.length
         ? { sellable_blocked: filtered.sellable_blocked }
         : {}),
+      ...(bulkReport.length ? { bulk_report: bulkReport } : {}),
     });
   } catch (error) {
     if (error && typeof error === "object" && "log" in error) {

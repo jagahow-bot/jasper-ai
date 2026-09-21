@@ -1236,11 +1236,14 @@ const en: Dict = {
   "overlay.thinking.step4": "Drafting recommendations…",
   "overlay.proposedTickers.title": "Suggested tickers (select to add)",
   "overlay.proposedTickers.all": "Select all",
+  "overlay.proposedTickers.allWithCount": "Select all ({count})",
   "overlay.proposedTickers.none": "Select none",
   "overlay.proposedTickers.addSelected":
     "Add selected ({count}) to candidate list",
   "overlay.proposedTickers.confirmMessage":
     "Added {tickers} to the candidate list.",
+  "overlay.proposedTickers.confirmMessageBulk":
+    "Added {count} tickers to the investment pool.",
   "overlay.proposedTickers.skipNoAdds": "No new tickers",
   "overlay.proposedTickers.skipNoAddsMessage":
     "Acknowledged: no new tickers will be added for this customization.",
@@ -1256,6 +1259,19 @@ const en: Dict = {
     "⚠ These tickers are marked non-sellable: {tickers}. They remain backtestable, but confirm suitability before presenting to clients.",
   "overlay.proposedTickers.sellableBlocked":
     "{count} suggested tickers excluded by sellable settings",
+  "overlay.proposedTickers.bulkCuratedLabel": "Curated picks",
+  "overlay.proposedTickers.bulkGroupAll": "Select group",
+  "overlay.proposedTickers.bulkGroupNone": "Clear group",
+  "overlay.proposedTickers.bulkExpandMore": "Show {count} more",
+  "overlay.proposedTickers.bulkCollapse": "Collapse",
+  "overlay.proposedTickers.bulkPage": "Page {page} of {total}",
+  "overlay.proposedTickers.bulkPrevPage": "Previous",
+  "overlay.proposedTickers.bulkNextPage": "Next",
+  "overlay.proposedTickers.bulkEmpty":
+    "No sellable catalog instruments matched \"{label}\" (all non-sellable or out of universe)",
+  "overlay.proposedTickers.revokeBulk": "Revoke this batch",
+  "overlay.proposedTickers.revokeBulkMessage":
+    "Revoked batch \"{label}\" ({count} tickers).",
   "overlay.asks.title": "Client requirement highlights",
   "overlay.asks.softHint":
     "Soft targets — results show target vs actual; missing one is not a failure",
@@ -3284,9 +3300,12 @@ const zh: Dict = {
   "overlay.thinking.step4": "生成參考建議…",
   "overlay.proposedTickers.title": "建議參考標的（請選擇後加入）",
   "overlay.proposedTickers.all": "全選",
+  "overlay.proposedTickers.allWithCount": "全選（{count} 檔）",
   "overlay.proposedTickers.none": "全不選",
   "overlay.proposedTickers.addSelected": "加入選取的 {count} 檔標的",
   "overlay.proposedTickers.confirmMessage": "已將 {tickers} 加入投資標的池。",
+  "overlay.proposedTickers.confirmMessageBulk":
+    "已將 {count} 檔標的加入投資標的池。",
   "overlay.proposedTickers.skipNoAdds": "無新增標的",
   "overlay.proposedTickers.skipNoAddsMessage":
     "已確認：本次客製化不新增標的。",
@@ -3302,6 +3321,19 @@ const zh: Dict = {
     "⚠ 以下標的目前標記為不可銷售：{tickers}。仍可回測，但請確認適售性後再向客戶揭露。",
   "overlay.proposedTickers.sellableBlocked":
     "已依可銷售設定排除 {count} 檔建議標的",
+  "overlay.proposedTickers.bulkCuratedLabel": "精選建議",
+  "overlay.proposedTickers.bulkGroupAll": "全選本組",
+  "overlay.proposedTickers.bulkGroupNone": "全不選本組",
+  "overlay.proposedTickers.bulkExpandMore": "展開其餘 {count} 檔",
+  "overlay.proposedTickers.bulkCollapse": "收合",
+  "overlay.proposedTickers.bulkPage": "第 {page}／{total} 頁",
+  "overlay.proposedTickers.bulkPrevPage": "上一頁",
+  "overlay.proposedTickers.bulkNextPage": "下一頁",
+  "overlay.proposedTickers.bulkEmpty":
+    "「{label}」在可銷售目錄中無符合標的（可能全數不可銷售或不在標的池）",
+  "overlay.proposedTickers.revokeBulk": "撤銷此批次",
+  "overlay.proposedTickers.revokeBulkMessage":
+    "已撤銷批次「{label}」（{count} 檔）。",
   "overlay.asks.title": "客戶需求重點",
   "overlay.asks.softHint": "軟目標：結果會並列目標與實際值，未達標不視為失敗",
   "overlay.asks.summaryLabel": "需求摘要",
@@ -5319,10 +5351,13 @@ const ko: Dict = {
   "overlay.thinking.step4": "참고 제안 생성 중…",
   "overlay.proposedTickers.title": "제안 종목 (선택 후 추가)",
   "overlay.proposedTickers.all": "모두 선택",
+  "overlay.proposedTickers.allWithCount": "모두 선택 ({count}개)",
   "overlay.proposedTickers.none": "선택 해제",
   "overlay.proposedTickers.addSelected": "선택한 {count}개 종목 추가",
   "overlay.proposedTickers.confirmMessage":
     "{tickers} 종목을 유니버스에 추가했습니다.",
+  "overlay.proposedTickers.confirmMessageBulk":
+    "{count}개 종목을 유니버스에 추가했습니다.",
   "overlay.proposedTickers.skipNoAdds": "추가 종목 없음",
   "overlay.proposedTickers.skipNoAddsMessage":
     "확인함: 이번 맞춤화에 신규 종목을 추가하지 않습니다.",
@@ -5338,6 +5373,19 @@ const ko: Dict = {
     "⚠ 다음 종목은 판매 불가로 표시되어 있습니다: {tickers}. 백테스트는 가능하지만 고객 제시 전 적합성을 확인하세요.",
   "overlay.proposedTickers.sellableBlocked":
     "판매 가능 설정으로 제안 종목 {count}개 제외됨",
+  "overlay.proposedTickers.bulkCuratedLabel": "엄선된 제안",
+  "overlay.proposedTickers.bulkGroupAll": "그룹 전체 선택",
+  "overlay.proposedTickers.bulkGroupNone": "그룹 선택 해제",
+  "overlay.proposedTickers.bulkExpandMore": "나머지 {count}개 펼치기",
+  "overlay.proposedTickers.bulkCollapse": "접기",
+  "overlay.proposedTickers.bulkPage": "{page}/{total} 페이지",
+  "overlay.proposedTickers.bulkPrevPage": "이전",
+  "overlay.proposedTickers.bulkNextPage": "다음",
+  "overlay.proposedTickers.bulkEmpty":
+    "\"{label}\"에 해당하는 판매 가능 종목이 없습니다",
+  "overlay.proposedTickers.revokeBulk": "이 배치 취소",
+  "overlay.proposedTickers.revokeBulkMessage":
+    "\"{label}\" 배치({count}개)를 취소했습니다.",
   "overlay.asks.title": "고객 요구사항 핵심",
   "overlay.asks.softHint":
     "소프트 목표 — 엔진이 시도하며, 결과에 목표 대비 실적 표시",

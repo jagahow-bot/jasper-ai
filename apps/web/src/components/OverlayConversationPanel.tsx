@@ -32,10 +32,12 @@ import {
   type OverlayProposedTicker,
 } from "@/lib/overlay-schema";
 import {
+  applyBulkConfirmLedger,
   clearProposedTickers,
   ensureProposedTickersForReview,
   instrumentNeedsKey,
   isTickerReviewBlocking,
+  revokeConfirmedBulk,
   visibleProposedForUi,
 } from "@/lib/overlay-filter-proposals";
 import {
@@ -631,10 +633,11 @@ export function OverlayConversationPanel({
       ...normalized,
     ]);
     const selectedSet = new Set(normalized.map((ticker) => ticker.toUpperCase()));
-    const remainingProposed = overlay.universe.proposed_tickers?.filter(
+    const priorProposed = overlay.universe.proposed_tickers;
+    const remainingProposed = priorProposed?.filter(
       (p) => !selectedSet.has(p.ticker.toUpperCase()),
     );
-    const updatedOverlay: ClientOverlay = {
+    let updatedOverlay: ClientOverlay = {
       ...overlay,
       universe: {
         ...overlay.universe,
@@ -642,6 +645,11 @@ export function OverlayConversationPanel({
         proposed_tickers: remainingProposed?.length ? remainingProposed : undefined,
       },
     };
+    updatedOverlay = applyBulkConfirmLedger(
+      updatedOverlay,
+      normalized,
+      priorProposed,
+    );
     setOverlay(updatedOverlay);
     setConfirmed(false);
     // Adding names satisfies the review gate for this needs fingerprint.
@@ -649,9 +657,14 @@ export function OverlayConversationPanel({
 
     const list = normalized.join(overlayLang === "zh" ? "、" : ", ");
     const userMsg = t("overlay.chat.confirmAdd", { list });
-    const assistantMsg = t("overlay.proposedTickers.confirmMessage", {
-      tickers: list,
-    });
+    const assistantMsg =
+      normalized.length > 10
+        ? t("overlay.proposedTickers.confirmMessageBulk", {
+            count: normalized.length,
+          })
+        : t("overlay.proposedTickers.confirmMessage", {
+            tickers: list,
+          });
     const blocked = splitBySellable(normalized).blocked;
     const warnMsg =
       blocked.length > 0
@@ -664,6 +677,24 @@ export function OverlayConversationPanel({
       { role: "user", content: userMsg },
       { role: "assistant", content: assistantMsg },
       ...(warnMsg ? [{ role: "assistant" as const, content: warnMsg }] : []),
+    ]);
+  };
+
+  const revokeBulkBatch = (bulkId: string) => {
+    if (!overlay) return;
+    const result = revokeConfirmedBulk(overlay, bulkId);
+    if (!result) return;
+    setOverlay(result.overlay);
+    setConfirmed(false);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: t("overlay.proposedTickers.revokeBulkMessage", {
+          label: result.label,
+          count: result.removed.length,
+        }),
+      },
     ]);
   };
 
@@ -772,6 +803,7 @@ export function OverlayConversationPanel({
         }}
         onConfirmProposed={confirmProposedTickers}
         onSkipProposedNoAdds={skipProposedNoAdds}
+        onRevokeBulk={revokeBulkBatch}
       />
 
       {hasPendingConflicts
