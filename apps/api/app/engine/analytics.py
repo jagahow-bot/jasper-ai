@@ -163,6 +163,110 @@ def drawdown_table(equity: pd.Series, top_n: int = 10) -> list[dict[str, Any]]:
     return episodes[:top_n]
 
 
+# Fixed historical stress windows for investment-proposal slide S6 (Q3).
+# Depth = start-value to trough within the window (negative = decline).
+STRESS_SCENARIO_WINDOWS: tuple[dict[str, str], ...] = (
+    {
+        "id": "2008",
+        "label": "2008 GFC",
+        "start": "2007-10-09",
+        "end": "2009-03-09",
+    },
+    {
+        "id": "2020",
+        "label": "2020 COVID",
+        "start": "2020-02-19",
+        "end": "2020-03-23",
+    },
+    {
+        "id": "2022",
+        "label": "2022 Hikes",
+        "start": "2022-01-03",
+        "end": "2022-10-12",
+    },
+)
+
+
+def stress_scenarios(equity: pd.Series) -> list[dict[str, Any]]:
+    """Precompute fixed-window stress declines for proposal slides.
+
+    For each window, if the equity series covers the start date, compute
+    start-to-trough return within ``[start, end]``. When the series does not
+    cover a window, ``depth`` is ``None`` (frontend shows "—").
+    """
+    eq = equity.dropna()
+    if len(eq) < 2:
+        return [
+            {
+                "id": w["id"],
+                "label": w["label"],
+                "start": w["start"],
+                "end": w["end"],
+                "depth": None,
+            }
+            for w in STRESS_SCENARIO_WINDOWS
+        ]
+
+    # Normalize index to timestamps for range slicing.
+    if not isinstance(eq.index, pd.DatetimeIndex):
+        eq = eq.copy()
+        eq.index = pd.to_datetime(eq.index)
+
+    out: list[dict[str, Any]] = []
+    for win in STRESS_SCENARIO_WINDOWS:
+        start_ts = pd.Timestamp(win["start"])
+        end_ts = pd.Timestamp(win["end"])
+        # Need at least one observation on or before start (entry), and coverage into window.
+        prior = eq.loc[:start_ts]
+        if prior.empty:
+            out.append(
+                {
+                    "id": win["id"],
+                    "label": win["label"],
+                    "start": win["start"],
+                    "end": win["end"],
+                    "depth": None,
+                }
+            )
+            continue
+        entry = float(prior.iloc[-1])
+        if entry <= 0:
+            out.append(
+                {
+                    "id": win["id"],
+                    "label": win["label"],
+                    "start": win["start"],
+                    "end": win["end"],
+                    "depth": None,
+                }
+            )
+            continue
+        window = eq.loc[start_ts:end_ts]
+        if window.empty:
+            out.append(
+                {
+                    "id": win["id"],
+                    "label": win["label"],
+                    "start": win["start"],
+                    "end": win["end"],
+                    "depth": None,
+                }
+            )
+            continue
+        trough = float(window.min())
+        depth = trough / entry - 1.0
+        out.append(
+            {
+                "id": win["id"],
+                "label": win["label"],
+                "start": win["start"],
+                "end": win["end"],
+                "depth": _round(depth, 4),
+            }
+        )
+    return out
+
+
 def exposure_breakdown(
     weights: dict[str, float],
     universe_by_ticker: dict[str, dict[str, Any]],
@@ -336,6 +440,7 @@ def build_full_analytics(
     periodic_scope = "in_sample" if periodic_equity is not None else "full_sample"
     rolling = rolling_series(port_ret)
     dd_eps = drawdown_table(equity)
+    stress = stress_scenarios(equity)
     exposure = exposure_breakdown(weights, universe_by_ticker)
     rc = risk_contribution(w_vec, tickers, cov)
 
@@ -351,6 +456,7 @@ def build_full_analytics(
         "periodic_returns_scope": periodic_scope,
         "rolling": rolling,
         "drawdown_episodes": dd_eps,
+        "stress_scenarios": stress,
         "drawdown_series": dd_series,
         "exposure": exposure,
         "risk_contribution": rc,

@@ -94,7 +94,49 @@ export type DemoClient = {
   holdings_groups?: ClientHoldingsGroup[];
   notes: LocalizedText;
   upcoming_events?: ClientUpcomingEvent[];
+  /**
+   * Demo custody / mandate account number (per-client, generated for proposal slides).
+   * Not a live bank feed — illustrative only.
+   */
+  account_number?: string;
 };
+
+/** Single global DEMO relationship-manager profile for proposal slides (Q2). */
+export const DEMO_RM_PROFILE = {
+  name: "王美玲",
+  name_en: "Mei-Ling Wang",
+  employee_id: "E1024",
+  branch: "台北信義分行",
+  branch_en: "Taipei Xinyi Branch",
+  institution: "JASPER Private Bank",
+  institution_zh: "JASPER 私人銀行",
+} as const;
+
+/** Localized RM display line: "王美玲 (E1024)" / English equivalent. */
+export function demoRmDisplayName(lang: Lang): string {
+  const name = lang === "en" ? DEMO_RM_PROFILE.name_en : DEMO_RM_PROFILE.name;
+  return `${name} (${DEMO_RM_PROFILE.employee_id})`;
+}
+
+export function demoRmBranchLabel(lang: Lang): string {
+  const branch =
+    lang === "en" ? DEMO_RM_PROFILE.branch_en : DEMO_RM_PROFILE.branch;
+  const institution =
+    lang === "zh" || lang === "ko"
+      ? DEMO_RM_PROFILE.institution_zh
+      : DEMO_RM_PROFILE.institution;
+  return `${institution} / ${branch}`;
+}
+
+/** Deterministic demo account number from client_id (e.g. JB-HNWI-001 → 88001234001). */
+export function demoAccountNumberForClient(clientId: string): string {
+  let hash = 0;
+  for (let i = 0; i < clientId.length; i += 1) {
+    hash = (hash * 31 + clientId.charCodeAt(i)) >>> 0;
+  }
+  const suffix = String(hash % 1000000).padStart(6, "0");
+  return `88${suffix}`;
+}
 
 type DemoClientsFile = {
   version: string;
@@ -188,6 +230,8 @@ function syncCashUsd(
 }
 
 function normalizeDemoClient(raw: RawDemoClient): DemoClient {
+  const account_number =
+    raw.account_number ?? demoAccountNumberForClient(raw.client_id);
   if (raw.holdings_groups?.length) {
     const flat = flattenHoldingsGroups(raw.holdings_groups);
     const drifted = applyDriftedHoldingsWeights(flat);
@@ -197,6 +241,7 @@ function normalizeDemoClient(raw: RawDemoClient): DemoClient {
     );
     return {
       ...raw,
+      account_number,
       cash_usd: syncCashUsd(raw, drifted),
       holdings_groups,
       holdings: drifted,
@@ -205,6 +250,7 @@ function normalizeDemoClient(raw: RawDemoClient): DemoClient {
   const holdings = applyDriftedHoldingsWeights(raw.holdings);
   return {
     ...raw,
+    account_number,
     cash_usd: syncCashUsd(raw, holdings),
     holdings,
   } as DemoClient;

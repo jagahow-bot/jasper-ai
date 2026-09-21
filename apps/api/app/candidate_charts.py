@@ -56,6 +56,7 @@ _INSTITUTIONAL_KEYS = (
     "periodic_returns_holdout",
     "rolling",
     "drawdown_episodes",
+    "stress_scenarios",
     "drawdown_series",
     "risk_contribution",
     "execution",
