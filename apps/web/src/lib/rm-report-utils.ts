@@ -359,6 +359,8 @@ export function buildMetricCompareRows(
     sharpe: string;
     mdd: string;
     vol: string;
+    /** When set, append Calmar from packaged candidate metrics (not chart-window). */
+    calmar?: string;
   },
   pick?: RmCandidatePick,
 ): MetricCompareRow[] {
@@ -408,7 +410,7 @@ export function buildMetricCompareRows(
     },
   ];
 
-  return specs.map((s) => {
+  const rows = specs.map((s) => {
     // Severity metrics (MDD): Δ = |customized| − |anchor| so a shallower
     // drawdown shows negative (improved), not signed arithmetic (+0.8%).
     const delta = s.lowerIsBetter
@@ -431,6 +433,57 @@ export function buildMetricCompareRows(
       lowerIsBetter: s.lowerIsBetter,
     };
   });
+
+  if (labels.calmar) {
+    const baseChamp = pickChampion(baseResult);
+    const adjChamp = pickCandidate(adjustedResult, pick?.customizedModelCode);
+    const anchorCalmar =
+      typeof baseChamp?.calmar === "number" && Number.isFinite(baseChamp.calmar)
+        ? baseChamp.calmar
+        : null;
+    const customizedCalmar =
+      typeof adjChamp?.calmar === "number" && Number.isFinite(adjChamp.calmar)
+        ? adjChamp.calmar
+        : null;
+    const dash = "—";
+    if (anchorCalmar == null && customizedCalmar == null) {
+      rows.push({
+        key: "calmar",
+        label: labels.calmar,
+        anchorValue: 0,
+        customizedValue: 0,
+        anchorDisplay: dash,
+        customizedDisplay: dash,
+        deltaDisplay: dash,
+        trafficLight: "neutral",
+        lowerIsBetter: false,
+      });
+    } else {
+      const a = anchorCalmar ?? 0;
+      const c = customizedCalmar ?? 0;
+      const delta = c - a;
+      const deltaPrefix = delta > 0 ? "+" : "";
+      rows.push({
+        key: "calmar",
+        label: labels.calmar,
+        anchorValue: a,
+        customizedValue: c,
+        anchorDisplay: anchorCalmar == null ? dash : a.toFixed(2),
+        customizedDisplay: customizedCalmar == null ? dash : c.toFixed(2),
+        deltaDisplay:
+          anchorCalmar == null || customizedCalmar == null
+            ? dash
+            : `${deltaPrefix}${delta.toFixed(2)}`,
+        trafficLight:
+          anchorCalmar == null || customizedCalmar == null
+            ? "neutral"
+            : trafficForDelta(delta, false),
+        lowerIsBetter: false,
+      });
+    }
+  }
+
+  return rows;
 }
 
 export function buildHoldingsDiff(
@@ -504,7 +557,9 @@ function pickCustomizedWeights(
   return resolveCandidateWeights(pickCandidate(result, modelCode));
 }
 
-function computeAssetMixFromWeights(weights: Record<string, number>): Record<string, number> {
+export function computeAssetMixFromWeights(
+  weights: Record<string, number>,
+): Record<string, number> {
   const classByTicker = new Map(
     getUniverseItems().map((u) => [u.ticker.toUpperCase(), u.asset_class]),
   );
@@ -517,7 +572,7 @@ function computeAssetMixFromWeights(weights: Record<string, number>): Record<str
   return mix;
 }
 
-function resolveExposureMix(
+export function resolveExposureMix(
   result: BacktestResult,
   modelCode?: string | null,
 ): Record<string, number> {

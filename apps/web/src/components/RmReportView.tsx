@@ -26,8 +26,8 @@ import {
 import { buildDisplayProposalSet, normalizeProposalLabel } from "@/lib/proposal-set";
 import { resolveRunObjective } from "@/lib/resolve-run-objective";
 import {
+  buildAllocationRows,
   formatWeightPct,
-  largestRemainderPercents,
   resolveCandidateWeights,
 } from "@/lib/candidate-weights";
 import {
@@ -262,6 +262,7 @@ export function RmReportView({
               sharpe: t("compare.metric.sharpe"),
               mdd: t("compare.metric.mdd"),
               vol: t("compare.metric.vol"),
+              calmar: t("common.calmar"),
             },
             candidatePick,
           ),
@@ -293,18 +294,18 @@ export function RmReportView({
     ],
   );
 
+  const resolvedWeights = useMemo(
+    () =>
+      selectedCandidate ? resolveCandidateWeights(selectedCandidate) : null,
+    [selectedCandidate],
+  );
+
   const absoluteHoldings = useMemo(() => {
-    if (!singleTrack || !selectedCandidate) return [];
-    const weights = resolveCandidateWeights(selectedCandidate);
-    const pcts = largestRemainderPercents(weights, 2);
-    return Object.entries(pcts)
-      .filter(([ticker, pct]) => {
-        if (ticker === "OTHER" || ticker === "__OTHER__") return false;
-        return pct >= 0.1;
-      })
-      .sort((a, b) => b[1] - a[1])
-      .map(([ticker, pct]) => ({ ticker, pct }));
-  }, [singleTrack, selectedCandidate]);
+    if (!singleTrack || !resolvedWeights) return [];
+    return buildAllocationRows(resolvedWeights)
+      .filter((row) => row.pct >= 0.1)
+      .map(({ ticker, pct }) => ({ ticker, pct }));
+  }, [singleTrack, resolvedWeights]);
 
   const talkingSummary = useAiTalkingSummary({
     metrics,
@@ -603,7 +604,9 @@ export function RmReportView({
                               {row.ticker}
                             </td>
                             <td className="py-2 pr-3 text-dim">
-                              {resolveTickerDisplayName(row.ticker, lang)}
+                              {row.ticker === "CASH"
+                                ? t("results.cashSleeveLabel")
+                                : resolveTickerDisplayName(row.ticker, lang)}
                             </td>
                             <td className="py-2 text-right text-[var(--primary)]">
                               {formatWeightPct(row.pct)}
@@ -673,7 +676,7 @@ export function RmReportView({
             <div className="min-w-0 space-y-5 lg:col-span-5">
               <AskEvidencePanel
                 overlay={overlay}
-                weights={selectedCandidate?.weights}
+                weights={resolvedWeights}
                 needs={needs}
                 objective={resolveRunObjective(
                   compare.adjustedRequest,

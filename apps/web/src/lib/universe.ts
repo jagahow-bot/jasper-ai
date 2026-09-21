@@ -12,6 +12,11 @@ export type UniverseItem = {
   /** Instrument type: etf (default), stock, fund, … */
   product_type?: string;
   /**
+   * ISIN for ETF/FUND (fetched from web and stored in universe).
+   * Stocks intentionally omit this — UI shows "-".
+   */
+  isin?: string;
+  /**
    * Optional firm sellability flag. When omitted, defaults by product_type
    * (etf/fund → true; stock/other → false). See sellable-overrides.ts.
    */

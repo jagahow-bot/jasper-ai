@@ -430,6 +430,43 @@ describe("rm-report-utils benchmark compare", () => {
     expect(cagr.anchorValue).toBeGreaterThan(cagr.customizedValue);
   });
 
+  it("buildMetricCompareRows appends Calmar when label provided", () => {
+    const anchor = mockResult({
+      cagr: 0.1,
+      fullCagr: 0.1,
+      equity: [
+        { date: "2020-01-02", value: 100 },
+        { date: "2020-01-03", value: 101 },
+        { date: "2020-01-06", value: 102 },
+        { date: "2020-01-07", value: 103 },
+      ],
+    });
+    const customized = mockResult({
+      cagr: 0.12,
+      fullCagr: 0.12,
+      equity: [
+        { date: "2020-01-02", value: 100 },
+        { date: "2020-01-03", value: 102 },
+        { date: "2020-01-06", value: 104 },
+        { date: "2020-01-07", value: 106 },
+      ],
+    });
+    anchor.candidates![0].calmar = 0.4;
+    customized.candidates![0].calmar = 0.9;
+
+    const rows = buildMetricCompareRows(anchor, customized, {
+      cagr: "CAGR",
+      sharpe: "Sharpe",
+      mdd: "MDD",
+      vol: "Vol",
+      calmar: "Calmar",
+    });
+    const calmar = rows.find((r) => r.key === "calmar")!;
+    expect(calmar.anchorDisplay).toBe("0.40");
+    expect(calmar.customizedDisplay).toBe("0.90");
+    expect(calmar.trafficLight).toBe("better");
+  });
+
   it("does not fall back to champion equity when selected slim trial has no curve", () => {
     const anchor = mockResult({
       cagr: 0.1,

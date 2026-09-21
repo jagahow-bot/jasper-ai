@@ -359,6 +359,18 @@ export interface CandidateAnalytics {
     depth: number;
     days: number;
   }[];
+  /**
+   * Fixed historical stress windows (2008/2020/2022) precomputed at backtest time.
+   * `depth` is start-to-trough return within the window (negative = decline).
+   * Omitted when the equity series does not cover that window.
+   */
+  stress_scenarios?: {
+    id: string;
+    label: string;
+    start: string;
+    end: string;
+    depth: number | null;
+  }[];
   drawdown_series?: { date: string; value: number }[];
   exposure?: {
     by_asset_class?: Record<string, number>;

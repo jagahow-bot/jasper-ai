@@ -372,7 +372,7 @@ input[type="range"] {
   display: none;
 }
 
-/* Investment Proposal print: isolate the draft document */
+/* Investment Proposal print: isolate the draft document / slide deck */
 @media print {
   body * {
     visibility: hidden !important;
@@ -387,5 +387,25 @@ input[type="range"] {
     top: 0 !important;
     width: 100% !important;
     background: white !important;
+  }
+  .proposal-slide {
+    break-after: page;
+    page-break-after: always;
+    height: auto !important;
+    aspect-ratio: auto !important;
+    overflow: visible !important;
+  }
+  .proposal-slide:last-child,
+  .proposal-slide-print-wrap:last-child .proposal-slide {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .proposal-slide-print-wrap {
+    break-after: page;
+    page-break-after: always;
+  }
+  .proposal-slide-print-wrap:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
 }

@@ -138,6 +138,8 @@ export const clientProfileOverlaySchema = z
       .optional(),
     esg_preference: esgPreferenceSchema.optional(),
     income_need_pct: z.number().min(0).max(1).optional(),
+    /** Target annual return as a decimal (e.g. 0.08 = 8%). Optional overlay field for proposal slides. */
+    target_annual_return: z.number().min(-0.5).max(1).optional(),
   })
   .strip();
 
