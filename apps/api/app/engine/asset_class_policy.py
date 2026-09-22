@@ -387,6 +387,50 @@ def find_unfilled_class_quotas(
     return out
 
 
+def find_infeasible_class_quotas(
+    class_budget: dict[str, float] | None,
+    universe_by_ticker: dict[str, dict[str, Any]] | None,
+    max_weight: float | None,
+) -> list[dict[str, Any]]:
+    """Quotas that cannot be reached under the per-name cap: a sleeve target of
+    `target` needs at least ceil(target / max_weight) members of that class in the
+    universe. Returns [{asset_class, target_pct, max_weight, required_names,
+    available_names, feasible_max_pct}] for classes short on members."""
+    if not class_budget or not universe_by_ticker:
+        return []
+    if max_weight is None or float(max_weight) >= 1.0 - 1e-12 or float(max_weight) <= 0:
+        return []
+    import math
+
+    cap = float(max_weight)
+    members: dict[str, int] = {}
+    for row in universe_by_ticker.values():
+        ac = str((row or {}).get("asset_class") or "other")
+        members[ac] = members.get(ac, 0) + 1
+    out: list[dict[str, Any]] = []
+    for ac, target in class_budget.items():
+        try:
+            target_pct = float(target)
+        except (TypeError, ValueError):
+            continue
+        if target_pct <= 0:
+            continue
+        available = int(members.get(str(ac), 0))
+        required = int(math.ceil(target_pct / cap - 1e-9))
+        if 0 < available < required:
+            out.append(
+                {
+                    "asset_class": str(ac),
+                    "target_pct": target_pct,
+                    "max_weight": cap,
+                    "required_names": required,
+                    "available_names": available,
+                    "feasible_max_pct": round(available * cap, 6),
+                }
+            )
+    return out
+
+
 def regime_class_quota_param_key(regime: str, quota_key: str) -> str:
     """Optuna / trial flat key for per-regime class quotas (e.g. risk_off__w_equity)."""
     return f"{regime}__{quota_key}"

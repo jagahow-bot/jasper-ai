@@ -23,7 +23,7 @@ from app.engine.factors import (
     VALUE_INDICATOR_CHOICES,
 )
 from app.engine.mutable_params import PARAM_DEDUP_KEYS, RUN_LEVEL_FIXED_KEYS
-from app.engine.asset_class_policy import TOP_LEVEL_QUOTA_KEYS
+from app.engine.asset_class_policy import ALL_ALLOC_WEIGHT_KEYS, TOP_LEVEL_QUOTA_KEYS
 from app.engine.dynamic_objective import (
     REGIME_ALLOCATOR_KEYS,
     REGIME_KEYS,
@@ -1389,6 +1389,13 @@ def _round_seed_response_schema(
             "required": ["regime_factor_ranges"],
         }
     setup_props = dict(_ROUND_SETUP_SCHEMA_CORE)
+    if not compact and not include_regime_matrix:
+        # Optional asset-class / regional sleeve quotas (prompt advertises them as
+        # "include ONLY if you materially change them from defaults"). Without these
+        # in the schema, structured output physically cannot emit them. Dynamic
+        # objectives use regime_class_quotas instead, so skip them there.
+        for _k in ALL_ALLOC_WEIGHT_KEYS:
+            setup_props.setdefault(_k, ai_number_schema())
     range_props: dict[str, Any] = (
         {}
         if compact or include_regime_matrix

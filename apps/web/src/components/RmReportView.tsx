@@ -700,6 +700,23 @@ export function RmReportView({
                       }>
                     | null
                 }
+                classQuotaInfeasible={
+                  (Array.isArray(
+                    compare.adjustedResult.narrative_facts?.class_quota_infeasible,
+                  )
+                    ? compare.adjustedResult.narrative_facts
+                        ?.class_quota_infeasible
+                    : null) as
+                    | Array<{
+                        asset_class: string;
+                        target_pct: number;
+                        max_weight?: number;
+                        required_names?: number;
+                        available_names?: number;
+                        feasible_max_pct?: number;
+                      }>
+                    | null
+                }
               />
 
               {overlay && overlayBullets.length > 0 ? (

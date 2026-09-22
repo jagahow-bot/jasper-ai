@@ -1023,6 +1023,13 @@ def _rebalance_schedule_dynamic(
                     floor=floor,
                     max_weight=max_weight,
                 )
+            # Anchor drift projection runs BEFORE explicit class budgets (but after
+            # the must-include floor, whose per-name floors are sized from the drift
+            # budget): when sleeve targets (w_*) are pinned with
+            # enforce_class_weights, the class budget is the final word — a
+            # conflicting anchor mix must not reopen it.
+            if drift is not None and anchor_weights:
+                w = project_anchor_l1_drift(w, anchor_w, float(drift), max_weight)
             if (
                 enforce_class_weights
                 and budget_step
@@ -1043,9 +1050,6 @@ def _rebalance_schedule_dynamic(
                     group_weight_bands,
                     max_weight=max_weight,
                 )
-            # Hard customization_drift last ??nothing after this may expand L1 vs anchor.
-            if drift is not None and anchor_weights:
-                w = project_anchor_l1_drift(w, anchor_w, float(drift), max_weight)
             row_audit = audit_weight_cap(
                 w,
                 max_weight,

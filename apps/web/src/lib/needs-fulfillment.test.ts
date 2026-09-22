@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { needsAllPassed, needsFloorRows } from "./needs-fulfillment";
+import {
+  needsAllPassed,
+  needsFloorRows,
+  shouldEmphasizeClassQuota,
+} from "./needs-fulfillment";
 
 describe("needs-fulfillment", () => {
   it("builds ledger rows with actual/limit detail", () => {
@@ -95,6 +99,51 @@ describe("needs-fulfillment", () => {
       needsAllPassed({
         max_drawdown_tolerance: 0.2,
         within_drawdown_tolerance: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("C4 still emits both classQuota and groupBands rows", () => {
+    const rows = needsFloorRows({
+      class_quotas: [
+        {
+          asset_class: "equity",
+          target_pct: 0.6,
+          actual_pct: 0.6,
+          within_class_quota: true,
+        },
+      ],
+      within_class_quotas: true,
+      group_bands: [
+        {
+          group_id: "ai-sat",
+          target_pct: 0.42,
+          actual_pct: 0.42,
+          within_band: true,
+        },
+      ],
+      within_group_bands: true,
+    });
+    expect(rows.map((r) => r.key)).toEqual(["classQuota", "groupBands"]);
+  });
+
+  it("C1–C3 emphasize class quota only on unfilled or severe gap", () => {
+    expect(
+      shouldEmphasizeClassQuota({
+        classQuotaPass: true,
+        classQuotaUnfilledCount: 0,
+      }),
+    ).toBe(false);
+    expect(
+      shouldEmphasizeClassQuota({
+        classQuotaPass: false,
+        classQuotaUnfilledCount: 0,
+      }),
+    ).toBe(true);
+    expect(
+      shouldEmphasizeClassQuota({
+        classQuotaPass: true,
+        classQuotaUnfilledCount: 1,
       }),
     ).toBe(true);
   });
