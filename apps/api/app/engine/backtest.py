@@ -24,6 +24,7 @@ from app.engine.data import fetch_dividends, fetch_prices
 from app.engine.asset_class_policy import (
     class_budget_from_params,
     enforce_param_controls_for_asset_classes,
+    find_infeasible_class_quotas,
     find_unfilled_class_quotas,
     fixed_class_budget_from_param_controls,
     zero_disallowed_class_params,
@@ -3147,6 +3148,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
     # Static precheck: fixed class quotas with zero members in the tradable pool.
     # Regime-level quotas are deferred to P2 (§7).
     class_quota_unfilled: list[dict[str, Any]] = []
+    class_quota_infeasible: list[dict[str, Any]] = []
     if not (dynamic_ctx and dynamic_ctx.get("regime_class_quotas")):
         static_budget = fixed_class_budget_from_param_controls(
             {
@@ -3164,6 +3166,17 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
                 "(job %s) — quotas will be silently redistributed by Top-N shortfall "
                 "unless supplements gain asset_class hints",
                 class_quota_unfilled,
+                job_id,
+            )
+        class_quota_infeasible = find_infeasible_class_quotas(
+            static_budget, universe_by_ticker, req.max_weight
+        )
+        if class_quota_infeasible:
+            logger.warning(
+                "Class quota(s) exceed what the per-name cap allows with the universe "
+                "members available: %s (job %s) — sleeves will be clamped to "
+                "n_names * max_weight and the remainder redistributed",
+                class_quota_infeasible,
                 job_id,
             )
 
@@ -4523,6 +4536,7 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         )
 
     narrative_facts["class_quota_unfilled"] = class_quota_unfilled or None
+    narrative_facts["class_quota_infeasible"] = class_quota_infeasible or None
 
     if pro_mode:
         pro_snap = refinement_meta.get("continuation_snapshot")

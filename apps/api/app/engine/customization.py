@@ -137,8 +137,11 @@ def project_anchor_l1_drift(
     renormalize a sparse anchor slice to sum 1 (silently allowing large
     full-book drift), this measures against the true anchor vector.
 
-    Must run as the **last** weight transform on each rebalance so later steps
-    (class budgets, max-holdings, etc.) cannot reopen the drift budget.
+    Runs after the allocation solve, turnover finalization, and the must-include
+    floor (whose per-name floors are sized from this drift budget), but BEFORE
+    explicit class-budget enforcement: when the user pins sleeve targets
+    (w_* with enforce_class_weights), the class budget is the final word and
+    a conflicting anchor mix must not reopen it.
     """
     w = np.asarray(w, dtype=float).copy()
     a = np.asarray(anchor, dtype=float).ravel()

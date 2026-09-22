@@ -564,6 +564,15 @@ def build_pro_round_param_controls(
 ) -> dict[str, dict]:
     """Force setup fixed; factor numerics search within AI ranges; categoricals fixed."""
     controls = normalize_param_controls(base_controls, blueprint)
+    # User-pinned (mode=fixed) controls are explicit constraints: the AI round seed
+    # may fill unset keys but must never override them (e.g. a fixed
+    # customization_drift_actual=1.0 that disables the anchor projection, or fixed
+    # w_* sleeve targets from overlay sleeve_targets).
+    user_fixed_keys = {
+        str(k)
+        for k, c in (base_controls or {}).items()
+        if isinstance(c, dict) and str(c.get("mode", "")).strip().lower() == "fixed"
+    }
     setup = dict(round_setup or {})
     if ALLOCATOR_MODE_KEY not in setup and setup.get("allocator_mode"):
         setup[ALLOCATOR_MODE_KEY] = setup["allocator_mode"]
@@ -587,6 +596,8 @@ def build_pro_round_param_controls(
             continue
         if skip_class_quota_keys and key in TOP_LEVEL_QUOTA_KEYS:
             continue
+        if key in user_fixed_keys:
+            continue  # user-fixed constraint wins over the AI round seed
         if key in setup and setup[key] is not None:
             fixed = setup[key]
             if key in {"top_n_actual", "max_holdings_actual"}:
@@ -602,6 +613,8 @@ def build_pro_round_param_controls(
     # In matrix rounds, keep them fixed so regime-specific allocator slices remain coherent.
     if not matrix_active:
         for key in ("top_n_actual", "max_holdings_actual"):
+            if key in user_fixed_keys:
+                continue
             if key not in setup or setup[key] is None:
                 continue
             center = int(setup[key])
@@ -620,6 +633,8 @@ def build_pro_round_param_controls(
         not skip_allocator_keys
         and ALLOCATOR_MODE_KEY in setup
         and setup[ALLOCATOR_MODE_KEY] is not None
+        and ALLOCATOR_MODE_KEY not in user_fixed_keys
+        and "allocator_mode" not in user_fixed_keys
     ):
         controls["allocator_mode"] = {
             "mode": "fixed",
@@ -654,6 +669,16 @@ def build_pro_round_param_controls(
                 if not keys:
                     continue
                 optuna_key = regime_class_quota_param_key(regime, keys[0])
+                if keys[0] in user_fixed_keys:
+                    # User fixed the top-level sleeve (e.g. w_bond=0.75): apply that
+                    # target to every regime instead of the AI's per-regime quota.
+                    user_val = (controls.get(keys[0]) or {}).get("fixed")
+                    if user_val is not None:
+                        controls[optuna_key] = {
+                            "mode": "fixed",
+                            "fixed": float(user_val),
+                        }
+                        continue
                 controls[optuna_key] = {"mode": "fixed", "fixed": float(weight)}
 
     if regime_factor_active:

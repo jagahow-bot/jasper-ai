@@ -178,3 +178,16 @@ export function needsAllPassed(
   if (rows.every((r) => r.pass === true)) return true;
   return null;
 }
+
+/**
+ * Whether class-quota UI should be emphasized (unfilled or severe gap).
+ * Reminder derivation still uses full needsFloorRows — this is display-only.
+ */
+export function shouldEmphasizeClassQuota(opts: {
+  classQuotaPass?: boolean | null;
+  classQuotaUnfilledCount?: number;
+}): boolean {
+  const hasUnfilled = (opts.classQuotaUnfilledCount ?? 0) > 0;
+  const quotaSevere = opts.classQuotaPass === false;
+  return hasUnfilled || quotaSevere;
+}

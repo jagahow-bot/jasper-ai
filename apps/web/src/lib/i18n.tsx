@@ -590,6 +590,11 @@ const en: Dict = {
     "These asset-class quotas had no matching instruments and were not applied: {items}",
   "results.needsClassQuotaUnfilledHint":
     "Confirm an ETF for this class in the overlay ticker review, or remove the quota.",
+  "results.needsTable.classQuotaInfeasibleTitle": "Infeasible quota warning",
+  "results.needsClassQuotaInfeasible":
+    "These class quotas exceed what the single-name cap allows with the instruments available (target → max reachable): {items}",
+  "results.needsClassQuotaInfeasibleHint":
+    "Add more instruments of this class in the overlay ticker review, raise the single-name cap, or lower the quota.",
   "results.assetClass.equity": "Equity",
   "results.assetClass.bond": "Bond",
   "results.assetClass.commodity": "Commodity",
@@ -2708,6 +2713,11 @@ const zh: Dict = {
     "以下資產類別配額因標的池無對應成員而未生效: {items}",
   "results.needsClassQuotaUnfilledHint":
     "請在 Overlay 標的審核中確認該類別的 ETF，或移除該配額。",
+  "results.needsTable.classQuotaInfeasibleTitle": "配額不可行警告",
+  "results.needsClassQuotaInfeasible":
+    "以下資產類別配額在單檔上限與現有標的數量下無法達成（目標 → 可達上限）: {items}",
+  "results.needsClassQuotaInfeasibleHint":
+    "請在 Overlay 標的審核中增加該類別的標的、提高單檔上限，或調降該配額。",
   "results.assetClass.equity": "股票",
   "results.assetClass.bond": "債券",
   "results.assetClass.commodity": "商品",
@@ -4750,6 +4760,11 @@ const ko: Dict = {
     "해당 종목이 없어 적용되지 않은 자산군 한도: {items}",
   "results.needsClassQuotaUnfilledHint":
     "오버레이 종목 검토에서 해당 자산군 ETF를 확인하거나 한도를 제거하세요.",
+  "results.needsTable.classQuotaInfeasibleTitle": "한도 불가 경고",
+  "results.needsClassQuotaInfeasible":
+    "단일 종목 상한과 보유 종목 수로는 달성할 수 없는 자산군 한도 (목표 → 도달 가능 상한): {items}",
+  "results.needsClassQuotaInfeasibleHint":
+    "오버레이 종목 검토에서 해당 자산군 종목을 추가하거나, 단일 종목 상한을 높이거나, 한도를 낮추세요.",
   "results.assetClass.equity": "주식",
   "results.assetClass.bond": "채권",
   "results.assetClass.commodity": "원자재",

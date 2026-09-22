@@ -31,7 +31,10 @@ def test_round_seed_response_schema_shape():
     assert "factor_choices" in props
     assert "rationale" in props
     setup_props = props["round_setup"]["properties"]
-    assert "w_equity" not in setup_props
+    # Optional sleeve quotas are emittable (prompt advertises them); they must
+    # stay optional so the core required set is unchanged.
+    assert "w_equity" in setup_props
+    assert "w_equity" not in props["round_setup"]["required"]
     assert "mode" in setup_props
     assert set(schema["required"]) == {"round_setup", "rationale"}
     range_props = props["factor_ranges"]["properties"]
