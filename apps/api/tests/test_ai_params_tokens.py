@@ -656,3 +656,84 @@ def test_generate_ai_round_seed_dynamic_split_regime_factors(monkeypatch):
     assert out["regime_setups"]["risk_on"]["lookback_days"] == 63
     assert out["regime_factor_ranges"]["risk_off"]["w_mom"] == [0.0, 1.0]
     assert "follow-up" in posts[0]["contents"][0]["parts"][0]["text"]
+
+
+_ROUND_SEED_SETUP_PAYLOAD = {
+    "mode": "mean_variance",
+    "lookback_days": 252,
+    "shrinkage": 0.1,
+    "risk_aversion": 2.0,
+    "top_n_actual": 10,
+    "max_weight_actual": 0.15,
+    "max_turnover_actual": 0.3,
+    "no_trade_tol": 0.01,
+    "turnover_penalty_mult": 1.0,
+}
+
+
+def _round_seed_payload(performance_assessment: str) -> str:
+    return json_module.dumps(
+        {
+            "rationale": "test rationale",
+            "optimization_strategy": "test strategy",
+            "performance_assessment": performance_assessment,
+            "round_setup": dict(_ROUND_SEED_SETUP_PAYLOAD),
+            "factor_ranges": {"w_mom": [0.0, 1.0]},
+            "factor_choices": {},
+        }
+    )
+
+
+def test_generate_ai_round_seed_retries_on_repetition_loop(monkeypatch):
+    """Repetition loop in a text field must trigger a retry, not a silent accept."""
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+    calls: list[dict] = []
+    loop_text = "開頭正常論述。" + "因子配置仍缺乏基準優勢，回撤控制未見改善，" * 40
+
+    def fake_post(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            return "MAX_TOKENS", _round_seed_payload(loop_text)
+        return "STOP", _round_seed_payload("本輪樣本內表現未達基準。")
+
+    monkeypatch.setattr("app.engine.ai_params._gemini_round_seed_post", fake_post)
+    out = generate_ai_round_seed(
+        objective="max_sharpe",
+        rebalance_freq="monthly",
+        max_weight_cap=0.2,
+        max_turnover_cap=0.5,
+        max_holdings_cap=30,
+        top_n_cap=20,
+        tradable_count=50,
+    )
+    assert len(calls) == 2
+    assert out["enabled"] is True
+    assert out["performance_assessment"] == "本輪樣本內表現未達基準。"
+
+
+def test_generate_ai_round_seed_repetition_loop_exhausts_retries(monkeypatch):
+    """If every attempt loops, fail the round seed with a repetition error."""
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_param_seed_max_retries", 2)
+    calls: list[dict] = []
+    loop_text = "開頭正常論述。" + "因子配置仍缺乏基準優勢，回撤控制未見改善，" * 40
+
+    def fake_post(**kwargs):
+        calls.append(kwargs)
+        return "MAX_TOKENS", _round_seed_payload(loop_text)
+
+    monkeypatch.setattr("app.engine.ai_params._gemini_round_seed_post", fake_post)
+    out = generate_ai_round_seed(
+        objective="max_sharpe",
+        rebalance_freq="monthly",
+        max_weight_cap=0.2,
+        max_turnover_cap=0.5,
+        max_holdings_cap=30,
+        top_n_cap=20,
+        tradable_count=50,
+    )
+    assert len(calls) == 2
+    assert out["enabled"] is False
+    assert out["error"].startswith("repetition_loop")

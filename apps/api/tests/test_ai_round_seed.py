@@ -40,6 +40,19 @@ def test_round_seed_response_schema_shape():
     assert "performance_assessment" in props
 
 
+def test_round_seed_response_schema_reasoning_before_structured():
+    """CoT ordering: reasoning fields generate before factor_ranges so the
+    structured bounds reflect the stated plan; performance_assessment stays
+    last to contain repetition-loop truncation damage."""
+    schema = _round_seed_response_schema(require_rationale=True)
+    keys = list(schema["properties"].keys())
+    assert keys.index("rationale") < keys.index("factor_ranges")
+    assert keys.index("optimization_strategy") < keys.index("factor_ranges")
+    assert keys.index("optimization_strategy") < keys.index("round_setup")
+    assert keys.index("performance_assessment") > keys.index("factor_ranges")
+    assert keys.index("performance_assessment") == len(keys) - 1
+
+
 def test_round_seed_response_schema_compact():
     schema = _round_seed_response_schema(require_rationale=False, compact=True)
     assert schema["required"] == ["round_setup"]

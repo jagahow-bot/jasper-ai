@@ -33,6 +33,7 @@ from app.engine.ai_json import (
     AI_NUMBER_DESCRIPTION,
     ai_number_schema,
     coerce_factor_range_pair,
+    detect_text_repetition,
     dumps_for_ai,
     factor_range_array_schema,
     prepare_gemini_json_text,
@@ -1398,33 +1399,39 @@ def _round_seed_response_schema(
         if compact
         else {k: {"type": "STRING"} for k in FACTOR_CATEGORICAL_KEYS}
     )
-    properties: dict[str, Any] = {
-        "round_setup": {
-            "type": "OBJECT",
-            "properties": setup_props,
-            "required": list(_ROUND_SETUP_SCHEMA_CORE.keys()),
-        },
-        "factor_ranges": {
-            "type": "OBJECT",
-            "properties": range_props,
-        },
-        "factor_choices": {
-            "type": "OBJECT",
-            "properties": choice_props,
-        },
+    # Property order matters: Gemini structured output generates fields in schema
+    # order. Reasoning fields come FIRST so the model commits to a plan before
+    # emitting the structured numbers that must reflect it (prevents the narrative
+    # saying "narrow w_mom" while factor_ranges stays at wide defaults).
+    # performance_assessment stays LAST: it is the loop-prone long-text field, so a
+    # MAX_TOKENS truncation there only sacrifices itself (salvage keeps the rest).
+    properties: dict[str, Any] = {}
+    if require_rationale:
+        properties["rationale"] = {"type": "STRING"}
+    properties["optimization_strategy"] = {"type": "STRING"}
+    properties["round_setup"] = {
+        "type": "OBJECT",
+        "properties": setup_props,
+        "required": list(_ROUND_SETUP_SCHEMA_CORE.keys()),
+    }
+    properties["factor_ranges"] = {
+        "type": "OBJECT",
+        "properties": range_props,
+    }
+    properties["factor_choices"] = {
+        "type": "OBJECT",
+        "properties": choice_props,
     }
     if include_regime_matrix:
         properties["regime_setups"] = dict(_REGIME_SETUPS_SCHEMA)
         properties["regime_class_quotas"] = dict(_REGIME_CLASS_QUOTAS_SCHEMA)
         if include_regime_factor_ranges:
             properties["regime_factor_ranges"] = dict(_REGIME_FACTOR_RANGES_SCHEMA)
-    properties["optimization_strategy"] = {"type": "STRING"}
     properties["performance_assessment"] = {"type": "STRING"}
     required = ["round_setup"]
     if include_regime_matrix:
         required.append("regime_setups")
     if require_rationale:
-        properties["rationale"] = {"type": "STRING"}
         required.append("rationale")
     return {
         "type": "OBJECT",
@@ -1436,7 +1443,9 @@ def _round_seed_response_schema(
 _ROUND_SEED_OUTPUT_TOKEN_CEILING = 16384
 
 _ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES = """
-performance_assessment (required): 2–4 sentences, objective outcome quality only (not search plan).
+performance_assessment (required): 2–4 sentences, up to ~300 characters; objective outcome
+  quality only (not search plan). Write each point ONCE — never repeat or paraphrase the same
+  sentence, phrase, or clause; when you have nothing new to add, stop writing.
 Use CHAMPION / VS_BENCHMARK / PRIOR_ROUND_* / FAILED_TRIALS / TARGET / REFINEMENT_BUDGET from learning.
 Cross-reference at least one prior-round or failed-trial signal when present (e.g. which gap persists).
 - If in-sample objective or primary metric is below benchmark (VS_BENCHMARK alpha < 0 or clearly worse
@@ -2461,6 +2470,9 @@ why you chose wide vs narrow factor_ranges given REFINEMENT_BUDGET, EXPLORATION_
 benchmark (if any), and TARGET. When PRIOR_ROUND_* or FAILED_TRIALS exist, cite what you are changing
 from the prior round and which trial patterns you are avoiding. For dynamic objectives, justify
 regime_setups and regime_class_quotas per regime (risk_off / neutral / risk_on).
+The factor_ranges / regime_factor_ranges you output next MUST implement this strategy —
+same keys, same narrowing/widening direction; never leave them at wide defaults while
+describing a narrowing plan here.
 {_ROUND_SEED_PERFORMANCE_ASSESSMENT_RULES}
 
 Do NOT output objective_mode or rebalance_freq (run-level fixed).
@@ -2486,13 +2498,17 @@ Direction blueprint:
 
 Constraints: {constraints_compact}
 
-Return STRICT JSON only (omit empty factor_choices if none):
-{{"rationale":"...", "optimization_strategy":"...", "performance_assessment":"...",
+Return STRICT JSON only (omit empty factor_choices if none).
+Field order is enforced by the response schema: rationale → optimization_strategy →
+round_setup → factor_ranges / regime fields → performance_assessment. Commit to your plan in
+optimization_strategy FIRST, then make factor_ranges (or regime_factor_ranges) match it exactly —
+any narrowing/widening you describe MUST appear there with the same keys and directions.
+{{"rationale":"...", "optimization_strategy":"...",
 "round_setup":{{...}},
 {('"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
 {('"regime_class_quotas":{"risk_off":{"w_equity":0.3,"w_bond":0.5,...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix else "")}
 {('"regime_factor_ranges":{"risk_off":{"<every numeric key>":[lo,hi],...},"neutral":{...},"risk_on":{...}},' if dynamic_matrix and not split_regime_factors else ("" if dynamic_matrix else f'"factor_ranges":{{"<every numeric key>":[low,high], ...}},'))}
-"factor_choices":{{"mom_indicator":"risk_adjusted_return"}}}}
+"factor_choices":{{"mom_indicator":"risk_adjusted_return"}}, "performance_assessment":"..."}}
 """
     max_retries = max(1, int(settings.gemini_param_seed_max_retries))
 
@@ -2503,7 +2519,7 @@ Return STRICT JSON only (omit empty factor_choices if none):
     for attempt in range(max_retries):
         compact = attempt > 0
         compact_tail = (
-            '{"rationale":"...","optimization_strategy":"...","performance_assessment":"...",'
+            '{"rationale":"...","optimization_strategy":"...",'
             '"round_setup":{...},'
             + (
                 '"regime_setups":{"risk_off":{...},"neutral":{...},"risk_on":{...}},'
@@ -2516,7 +2532,7 @@ Return STRICT JSON only (omit empty factor_choices if none):
                 if dynamic_matrix
                 else '"factor_ranges":{...},'
             )
-            + '"factor_choices":{...}}'
+            + '"factor_choices":{...},"performance_assessment":"..."}'
         )
         req_prompt = prompt if not compact else (
             prompt[:1000]
@@ -2562,6 +2578,21 @@ Return STRICT JSON only (omit empty factor_choices if none):
                 parsed = _extract_json(text) or _salvage_truncated_json(text)
             if not parsed:
                 last_error = "parse_failed"
+                continue
+            repetition_field = next(
+                (
+                    field
+                    for field in (
+                        "rationale",
+                        "optimization_strategy",
+                        "performance_assessment",
+                    )
+                    if detect_text_repetition(parsed.get(field))
+                ),
+                None,
+            )
+            if repetition_field:
+                last_error = f"repetition_loop:{repetition_field}"
                 continue
             if split_regime_factors:
                 round_setup_raw = parsed.get("round_setup")
