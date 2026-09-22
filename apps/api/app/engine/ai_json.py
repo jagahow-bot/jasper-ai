@@ -267,24 +267,57 @@ def truncate_at_sentence(text: str, max_len: int) -> str:
 
 
 # Gemini repetition-loop detection for long-form text fields (e.g. performance_assessment
-# looping one short unit until MAX_TOKENS). Suffix-period scan on the tail only.
+# looping one short unit until MAX_TOKENS, or Chinese paraphrase / closing-formula cascades).
 _REPEAT_MIN_TEXT_LEN = 400
 _REPEAT_MIN_UNIT_LEN = 8
 _REPEAT_MIN_REPEATS = 4
 _REPEAT_MIN_COVERAGE = 0.35
 _REPEAT_SCAN_TAIL = 16000
+# Soft budget: prompt asks ~300 chars; beyond this + loop markers = paraphrase cascade.
+_REPEAT_SOFT_MAX_CHARS = 500
+# Multi-char closing formulas Gemini tends to cascade when it cannot stop.
+_REPEAT_LOOP_MARKERS: tuple[str, ...] = (
+    "確認完畢",
+    "結案完畢",
+    "無贅言",
+    "完竣無誤",
+    "確認完竣",
+    "終止輸出",
+    "即可結案",
+    "無誤確證",
+    "說明完畢",
+    "結束完畢",
+    "確證有效",
+    "終止動作",
+    "作業完竣",
+    "達標狀態",
+    "結案無誤",
+    "無它補充",
+    "停止寫作",
+    "結尾完成",
+    "確證如上",
+    "完竣流程",
+    "確認終止",
+    "無誤結尾",
+    "即可結案完畢",
+    "終止無誤",
+)
+_REPEAT_LOOP_STEMS: tuple[str, ...] = (
+    "完畢",
+    "無誤",
+    "結案",
+    "終止",
+    "完竣",
+    "確證",
+    "無贅言",
+)
+_REPEAT_MARKER_MIN_HITS = 4
+_REPEAT_STEM_MIN_HITS = 8
+_REPEAT_STEM_MIN_DISTINCT = 3
 
 
-def detect_text_repetition(text: Any) -> bool:
-    """True when the tail of ``text`` is one short unit looping (Gemini repetition loop).
-
-    Length alone never triggers this — only a periodic suffix (same unit repeated
-    >= _REPEAT_MIN_REPEATS times covering >= _REPEAT_MIN_COVERAGE of the tail).
-    """
-    s = " ".join(str(text or "").split())
-    if len(s) < _REPEAT_MIN_TEXT_LEN:
-        return False
-    tail = s[-_REPEAT_SCAN_TAIL:]
+def _detect_exact_unit_loop(tail: str) -> bool:
+    """Periodic suffix: the same character unit repeats to the end."""
     n = len(tail)
     max_unit = n // (_REPEAT_MIN_REPEATS - 1)
     for unit_len in range(_REPEAT_MIN_UNIT_LEN, max_unit + 1):
@@ -298,6 +331,48 @@ def detect_text_repetition(text: Any) -> bool:
             coverage = (matched + unit_len) / n
             if coverage >= _REPEAT_MIN_COVERAGE:
                 return True
+    return False
+
+
+def _detect_paraphrase_closing_loop(tail: str) -> bool:
+    """Chinese paraphrase / bureaucratic closing-formula cascade (not exact units).
+
+    Gemini sometimes rewrites the same '確認完畢／結案／無贅言' ending in slightly
+    different words until MAX_TOKENS — character-period scan misses that.
+    """
+    marker_hits = sum(tail.count(m) for m in _REPEAT_LOOP_MARKERS)
+    if marker_hits >= _REPEAT_MARKER_MIN_HITS:
+        return True
+    stem_hits = sum(tail.count(st) for st in _REPEAT_LOOP_STEMS)
+    distinct = sum(1 for st in _REPEAT_LOOP_STEMS if tail.count(st) >= 2)
+    if stem_hits >= _REPEAT_STEM_MIN_HITS and distinct >= _REPEAT_STEM_MIN_DISTINCT:
+        return True
+    # Over-budget text that still piles on closing stems (weaker signal alone).
+    if (
+        len(tail) >= _REPEAT_SOFT_MAX_CHARS
+        and marker_hits >= 2
+        and stem_hits >= 5
+    ):
+        return True
+    return False
+
+
+def detect_text_repetition(text: Any) -> bool:
+    """True when ``text`` shows a Gemini repetition / paraphrase loop.
+
+    Triggers on either:
+    - exact periodic suffix (same unit repeated), or
+    - Chinese closing-formula / paraphrase cascade (near-duplicate endings).
+    Length alone never triggers this.
+    """
+    s = " ".join(str(text or "").split())
+    if len(s) < _REPEAT_MIN_TEXT_LEN:
+        return False
+    tail = s[-_REPEAT_SCAN_TAIL:]
+    if _detect_exact_unit_loop(tail):
+        return True
+    if _detect_paraphrase_closing_loop(tail):
+        return True
     return False
 
 

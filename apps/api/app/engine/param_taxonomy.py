@@ -506,17 +506,56 @@ def _normalize_regime_class_quotas_seed(
     )
 
 
+def factor_ranges_are_default_wide(
+    factor_ranges: dict[str, Any] | None,
+    *,
+    min_fraction: float = 0.8,
+    tol: float = 1e-9,
+) -> bool:
+    """True when most factor ranges match global DEFAULT_FACTOR_BOUNDS (full-width).
+
+    Used to reject balance/narrow round seeds that claim to tighten search while
+    leaving Optuna at explore-wide defaults (salvage / incomplete AI output).
+    """
+    ranges = factor_ranges or {}
+    if not DEFAULT_FACTOR_BOUNDS:
+        return False
+    matched = 0
+    total = len(DEFAULT_FACTOR_BOUNDS)
+    for key, (dlo, dhi, _step) in DEFAULT_FACTOR_BOUNDS.items():
+        raw = ranges.get(key)
+        if not isinstance(raw, (list, tuple)) or len(raw) < 2:
+            matched += 1
+            continue
+        try:
+            lo, hi = float(raw[0]), float(raw[1])
+        except (TypeError, ValueError):
+            matched += 1
+            continue
+        if abs(lo - float(dlo)) <= tol and abs(hi - float(dhi)) <= tol:
+            matched += 1
+    return matched >= max(1, int(round(total * float(min_fraction))))
+
+
 def complete_factor_ranges(
     factor_ranges: dict[str, Any] | None,
     *,
     blueprint: RunBlueprint,
     param_controls: dict[str, dict] | None,
+    fallback_ranges: dict[str, Any] | None = None,
 ) -> dict[str, list[float | int]]:
-    """Ensure every factor numeric has an Optuna range (fallback when AI omits keys)."""
+    """Ensure every factor numeric has an Optuna range (fallback when AI omits keys).
+
+    Missing keys prefer ``fallback_ranges`` (typically prior-round narrow bands)
+    before ``DEFAULT_FACTOR_BOUNDS``, so MAX_TOKENS salvage does not silently
+    re-widen the search in balance/narrow phases.
+    """
     controls = normalize_param_controls(param_controls, blueprint)
     out: dict[str, list[float | int]] = {}
     for key in FACTOR_NUMERIC_KEYS:
         raw = (factor_ranges or {}).get(key)
+        if raw is None and fallback_ranges:
+            raw = fallback_ranges.get(key)
         if raw is not None:
             intersected = intersect_factor_range(
                 key, raw, blueprint=blueprint, param_controls=controls
@@ -821,8 +860,15 @@ def normalize_round_seed(
     *,
     blueprint: RunBlueprint,
     param_controls: dict[str, dict] | None,
+    prior_factor_ranges: dict[str, Any] | None = None,
+    prior_factor_choices: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Validate and clip round_setup / factor_ranges from AI."""
+    """Validate and clip round_setup / factor_ranges from AI.
+
+    When the AI omits factor keys (common under MAX_TOKENS salvage), missing
+    ranges/choices prefer the prior round's bands before global defaults so
+    balance/narrow phases do not silently re-widen.
+    """
     controls = normalize_param_controls(param_controls, blueprint)
     out: dict[str, Any] = {
         "rationale": str(seed.get("rationale") or "").strip(),
@@ -847,6 +893,13 @@ def normalize_round_seed(
                 else:
                     out["round_setup"][key] = _round_seed_numeric(val, key=key)
 
+    prior_ranges = (
+        prior_factor_ranges if isinstance(prior_factor_ranges, dict) else None
+    )
+    prior_choices = (
+        prior_factor_choices if isinstance(prior_factor_choices, dict) else None
+    )
+
     raw_regime_factor = seed.get("regime_factor_ranges")
     matrix_seed = isinstance(seed.get("regime_setups"), dict) and seed.get("regime_setups")
     if matrix_seed and isinstance(raw_regime_factor, dict) and raw_regime_factor:
@@ -864,6 +917,7 @@ def normalize_round_seed(
                 raw_ranges,
                 blueprint=blueprint,
                 param_controls=controls,
+                fallback_ranges=prior_ranges,
             )
 
     raw_choices = seed.get("factor_choices") or {}
@@ -871,6 +925,10 @@ def normalize_round_seed(
         for key in FACTOR_CATEGORICAL_KEYS:
             if key in raw_choices and raw_choices[key] is not None:
                 out["factor_choices"][key] = str(raw_choices[key])
+    if not out["factor_choices"] and prior_choices:
+        for key in FACTOR_CATEGORICAL_KEYS:
+            if key in prior_choices and prior_choices[key] is not None:
+                out["factor_choices"][key] = str(prior_choices[key])
 
     regime_raw = seed.get("regime_setups")
     if isinstance(regime_raw, dict) and regime_raw:
@@ -886,6 +944,7 @@ def normalize_round_seed(
                         raw_shared,
                         blueprint=blueprint,
                         param_controls=controls,
+                        fallback_ranges=prior_ranges,
                     )
 
     quota_raw = seed.get("regime_class_quotas")

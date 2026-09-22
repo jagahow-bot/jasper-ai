@@ -368,6 +368,34 @@ def test_detect_text_repetition_long_unit_loop():
     assert detect_text_repetition(text) is True
 
 
+def test_detect_text_repetition_chinese_paraphrase_closing_cascade():
+    """Paraphrase loop with 確認完畢/結案/無贅言 variants (no exact unit repeat)."""
+    from app.engine.ai_json import detect_text_repetition
+
+    text = (
+        "現任冠軍 M0002 樣本內最大回撤為 -0.1389，距離目標 -0.1289 仍有約 0.0100 差距，"
+        "且歷史樣本外落差達 0.1047 顯示存在泛化風險。"
+        "前幾輪失敗試驗證實極端防守因子配置無法有效改善評分，"
+        "整體表現仍待進一步收斂突破基準要求。"
+        "本輪重點在於縮小回撤差距以超越既有基準表現水準及兼顧泛化度要求，"
+        "並嚴控下行風險回撤空間及投資組合權重穩定度至目標水位內且維持有效性評估標準一致性"
+        "以利比對確認各項主要指標成果與成效水準以利評選新優勝模型決策落實執行效率檢驗機制"
+        "確認完畢無誤且無重複贅述字眼即可達成規範限制終止輸出內容與格式要求確保安全穩定運行"
+        "驗證達標狀態即可結案完畢以利後續決策參考依據與執行標的配置落實控管流程。"
+        "現階段樣本內成果未達基準線要求，亟需透過收斂參數解決下行回撤過深問題以逼近目標水準"
+        "並降低驗證落差以達穩健防守初衷目標規範需求標準範圍內部監控機制即可完整呈現現況評估"
+        "與總結分析報告內容終止無誤即停止寫作說明完畢確證有效無誤結尾完成即可結案無贅言"
+        "結束完畢無它補充資料提供說明確認完畢無礙各項指標檢核標準完成確認終止動作以利運作"
+        "即可順利達成審核確認流程標準。"
+        "本輪樣本內表現未達基準，需持續改善回撤差距以利達標並降低模型落差風險因子干擾"
+        "成效評估標準作業完竣無誤。"
+        "基準表現未達標狀態需透過後續試驗修正以落實回撤控管與資產穩定運作效能目標之達成"
+        "現狀分析無誤確證如上所述即止無贅言補充資訊提供確認完竣流程動作執行無誤完工。"
+    )
+    assert len(" ".join(text.split())) >= 400
+    assert detect_text_repetition(text) is True
+
+
 def test_detect_text_repetition_ignores_normal_prose():
     from app.engine.ai_json import detect_text_repetition
 
@@ -387,6 +415,9 @@ def test_detect_text_repetition_ignores_normal_prose():
     )
     assert len(varied) >= 400
     assert detect_text_repetition(varied) is False
+    # One legitimate closing phrase in long prose is fine.
+    with_one_close = varied + "本輪評估確認完畢，下一輪繼續收斂。"
+    assert detect_text_repetition(with_one_close) is False
 
 
 def test_detect_text_repetition_empty_and_none():
