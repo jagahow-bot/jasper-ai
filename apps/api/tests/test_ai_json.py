@@ -347,3 +347,50 @@ def test_prepare_gemini_json_text_truncates_arrays_and_floats():
     parsed = json.loads(prepare_gemini_json_text(noisy))
     assert len(parsed["w_mom"]) == 2
     assert parsed["shrinkage"] == 0.4
+
+
+def test_detect_text_repetition_short_unit_loop():
+    from app.engine.ai_json import detect_text_repetition
+
+    head = "本輪樣本內表現未達基準，差距主要來自回撤控制與因子配置。"
+    loop = "因子配置仍缺乏基準優勢，回撤控制未見改善，" * 30
+    assert detect_text_repetition(head + loop) is True
+
+
+def test_detect_text_repetition_long_unit_loop():
+    from app.engine.ai_json import detect_text_repetition
+
+    unit = (
+        "綜合來看，本輪在因子配置與風險控制上仍未見明顯改善，"
+        "回撤控制與基準優勢的缺口持續存在，需在後續輪次中重點關注。"
+    ) * 8  # ~400-char unit
+    text = "第一輪探索完成，尚未有冠軍。" * 10 + unit * 5
+    assert detect_text_repetition(text) is True
+
+
+def test_detect_text_repetition_ignores_normal_prose():
+    from app.engine.ai_json import detect_text_repetition
+
+    prose = (
+        "本輪樣本內表現未達基準，差距主要來自回撤控制。"
+        "冠軍模型在持有 14 檔時表現穩定，但因子權重偏向低波動。"
+        "失敗試驗顯示高動量權重與回撤惡化相關。"
+        "下一輪應縮窄動量區間並提高低波動權重上限。"
+    )
+    assert len(prose) < 400  # below min length — never flagged
+    assert detect_text_repetition(prose) is False
+    # Genuinely varied long prose (each sentence differs) must not flag.
+    varied = "".join(
+        f"第{i}輪調整因子權重 {0.1 * i:.2f} 後，回撤由 {-0.05 * i:.3f} 改善至 {-0.04 * i:.3f}，"
+        f"Sharpe 變化 {0.02 * i:+.3f}，仍低於基準 {0.5 + 0.01 * i:.2f}。"
+        for i in range(1, 16)
+    )
+    assert len(varied) >= 400
+    assert detect_text_repetition(varied) is False
+
+
+def test_detect_text_repetition_empty_and_none():
+    from app.engine.ai_json import detect_text_repetition
+
+    assert detect_text_repetition("") is False
+    assert detect_text_repetition(None) is False

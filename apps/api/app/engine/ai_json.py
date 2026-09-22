@@ -266,6 +266,41 @@ def truncate_at_sentence(text: str, max_len: int) -> str:
     return window.rstrip() + "..."
 
 
+# Gemini repetition-loop detection for long-form text fields (e.g. performance_assessment
+# looping one short unit until MAX_TOKENS). Suffix-period scan on the tail only.
+_REPEAT_MIN_TEXT_LEN = 400
+_REPEAT_MIN_UNIT_LEN = 8
+_REPEAT_MIN_REPEATS = 4
+_REPEAT_MIN_COVERAGE = 0.35
+_REPEAT_SCAN_TAIL = 16000
+
+
+def detect_text_repetition(text: Any) -> bool:
+    """True when the tail of ``text`` is one short unit looping (Gemini repetition loop).
+
+    Length alone never triggers this — only a periodic suffix (same unit repeated
+    >= _REPEAT_MIN_REPEATS times covering >= _REPEAT_MIN_COVERAGE of the tail).
+    """
+    s = " ".join(str(text or "").split())
+    if len(s) < _REPEAT_MIN_TEXT_LEN:
+        return False
+    tail = s[-_REPEAT_SCAN_TAIL:]
+    n = len(tail)
+    max_unit = n // (_REPEAT_MIN_REPEATS - 1)
+    for unit_len in range(_REPEAT_MIN_UNIT_LEN, max_unit + 1):
+        matched = 0
+        for j in range(n - 1, unit_len - 1, -1):
+            if tail[j] == tail[j - unit_len]:
+                matched += 1
+            else:
+                break
+        if matched >= (_REPEAT_MIN_REPEATS - 1) * unit_len:
+            coverage = (matched + unit_len) / n
+            if coverage >= _REPEAT_MIN_COVERAGE:
+                return True
+    return False
+
+
 def sanitize_json_text_for_log(text: str, *, max_len: int = 240) -> str:
     """Compact Gemini raw JSON for retry/error logs (truncate float bloat first)."""
     cleaned = prepare_gemini_json_text(text)
