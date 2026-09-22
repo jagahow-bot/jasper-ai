@@ -47,6 +47,7 @@ from app.engine.param_taxonomy import (
     FACTOR_CATEGORICAL_KEYS,
     FACTOR_NUMERIC_KEYS,
     SETUP_PARAM_KEYS,
+    factor_ranges_are_default_wide,
     has_regime_factor_ranges,
     normalize_round_seed,
 )
@@ -2648,8 +2649,18 @@ any narrowing/widening you describe MUST appear there with the same keys and dir
                     else:
                         last_error = "invalid_regime_factor_ranges"
                         continue
+            prior_ranges = learning_context.get("prior_factor_ranges")
+            prior_choices = learning_context.get("prior_factor_choices")
             normalized = normalize_round_seed(
-                sanitize_ai_response(parsed), blueprint=blueprint, param_controls=param_controls
+                sanitize_ai_response(parsed),
+                blueprint=blueprint,
+                param_controls=param_controls,
+                prior_factor_ranges=(
+                    prior_ranges if isinstance(prior_ranges, dict) else None
+                ),
+                prior_factor_choices=(
+                    prior_choices if isinstance(prior_choices, dict) else None
+                ),
             )
             if not normalized["round_setup"]:
                 last_error = "empty_round_setup"
@@ -2661,6 +2672,15 @@ any narrowing/widening you describe MUST appear there with the same keys and dir
                 normalized.get("regime_factor_ranges")
             ):
                 last_error = "empty_regime_factor_ranges"
+                continue
+            # balance/narrow must not silently sit on full-width defaults while the
+            # strategy claims tightening (salvage / incomplete seed / ignored plan).
+            if (
+                not dynamic_matrix
+                and exploration_phase in {"balance", "narrow"}
+                and factor_ranges_are_default_wide(normalized.get("factor_ranges"))
+            ):
+                last_error = "factor_ranges_default_wide"
                 continue
             if progress_cb:
                 progress_cb(1, 1, "Pro round: AI round seed ready")

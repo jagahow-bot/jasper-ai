@@ -19,6 +19,7 @@ from app.engine.param_taxonomy import (
     SETUP_PARAM_KEYS,
     _round_seed_numeric,
     complete_factor_ranges,
+    factor_ranges_are_default_wide,
     normalize_round_seed,
 )
 
@@ -242,6 +243,73 @@ def test_complete_factor_ranges_fills_sparse_ai_output():
     assert set(full.keys()) == set(FACTOR_NUMERIC_KEYS)
     assert full["w_mom"] == [0.2, 1.8]
     assert full["w_lowvol"][0] >= 0.0
+
+
+def test_complete_factor_ranges_prefers_prior_fallback_over_defaults():
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20, max_holdings=30)
+    prior = {
+        "w_mom": [0.2, 0.5],
+        "w_lowvol": [0.9, 1.5],
+        "w_drawdown": [0.4, 0.9],
+        "factor_lookback_days": [200, 300],
+    }
+    # Empty AI output (MAX_TOKENS salvage) must inherit prior narrow bands.
+    filled = complete_factor_ranges(
+        {},
+        blueprint=bp,
+        param_controls={},
+        fallback_ranges=prior,
+    )
+    assert filled["w_mom"] == [0.2, 0.5]
+    assert filled["w_lowvol"] == [0.9, 1.5]
+    assert filled["w_drawdown"] == [0.4, 0.9]
+    assert filled["factor_lookback_days"] == [200, 300]
+
+
+def test_factor_ranges_are_default_wide_detects_full_width():
+    from app.engine.param_taxonomy import DEFAULT_FACTOR_BOUNDS
+
+    defaults = {
+        k: [float(lo), float(hi)] for k, (lo, hi, _) in DEFAULT_FACTOR_BOUNDS.items()
+    }
+    assert factor_ranges_are_default_wide(defaults) is True
+    narrow = dict(defaults)
+    narrow["w_mom"] = [0.2, 0.5]
+    narrow["w_lowvol"] = [0.9, 1.4]
+    narrow["w_drawdown"] = [0.4, 0.8]
+    assert factor_ranges_are_default_wide(narrow) is False
+
+
+def test_normalize_round_seed_inherits_prior_when_ai_omits_ranges_and_choices():
+    bp = RunBlueprint(max_weight=0.5, max_turnover=0.8, top_n=20, max_holdings=30)
+    prior_ranges = {
+        "w_mom": [0.2, 0.5],
+        "w_lowvol": [0.9, 1.5],
+        "w_drawdown": [0.4, 0.9],
+    }
+    prior_choices = {
+        "mom_indicator": "risk_adjusted_return",
+        "lowvol_indicator": "negative_vol",
+    }
+    out = normalize_round_seed(
+        {
+            "rationale": "r",
+            "optimization_strategy": "Narrow lowvol.",
+            "performance_assessment": "本輪未達基準。",
+            "round_setup": {"mode": "min_var", "lookback_days": 252},
+            "factor_ranges": {},
+            "factor_choices": {},
+        },
+        blueprint=bp,
+        param_controls={},
+        prior_factor_ranges=prior_ranges,
+        prior_factor_choices=prior_choices,
+    )
+    assert out["factor_ranges"]["w_mom"] == [0.2, 0.5]
+    assert out["factor_ranges"]["w_lowvol"] == [0.9, 1.5]
+    assert out["factor_choices"]["mom_indicator"] == "risk_adjusted_return"
+    assert out["factor_choices"]["lowvol_indicator"] == "negative_vol"
+    assert factor_ranges_are_default_wide(out["factor_ranges"]) is False
 
 
 def test_taxonomy_key_lists_complete():
