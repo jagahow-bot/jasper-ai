@@ -1506,8 +1506,9 @@ export function overlayToBacktestRequest(
       max_weight: maxWeightForLockedUniverse(locked.length, preferredMax),
       objective: (opt.objective ?? base.objective) as Objective,
       regime_adaptive: opt.regime_adaptive ?? base.regime_adaptive,
-      optimization_mode: (opt.optimization_mode ??
-        base.optimization_mode) as OptimizationMode,
+      optimization_mode: (opt.optimization_mode ?? "pro_auto") as OptimizationMode,
+      enable_iterative_refinement:
+        (opt.optimization_mode ?? "pro_auto") === "pro_auto",
       rebalance_freq: opt.rebalance_freq ?? base.rebalance_freq,
       trials: opt.trials ?? 25,
       top_models: 5,

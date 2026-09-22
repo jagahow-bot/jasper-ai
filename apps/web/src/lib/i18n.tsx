@@ -1349,10 +1349,16 @@ const en: Dict = {
     "Available when a cash sleeve is in play. Skips the anchor replay and dual-track report; keeps the investable book and market ticker for risk metrics.",
   "rm.run.proSearchTitle": "Pro optimization",
   "rm.run.proSearchHint":
-    "Turning on Pro optimization runs AI multi-round parameter search (top-pick vs challenger proposals). It usually takes longer.",
+    "Customization defaults to Pro: AI multi-round parameter search (top-pick vs challenger). Turning it off uses standard full AI+Optuna (not constrained scenarios). Pro usually takes longer.",
   "rm.run.proSearchOn": "Pro optimization: ON (multi-round AI search)",
   "rm.run.proSearchOff":
-    "Pro optimization: OFF (single round — faster)",
+    "Pro optimization: OFF (standard full AI+Optuna — faster)",
+  "rm.run.searchMode.fullNote":
+    "Default: every customization runs full Pro multi-round AI tuning.",
+  "rm.run.proSearchOnNote":
+    "Pro multi-round search is on — this customization gets full multi-round tuning.",
+  "rm.run.proSearchOffNote":
+    "Pro is off: standard full AI+Optuna search (not constrained scenario mode).",
   "rm.run.execute": "Start trial comparison",
   "rm.run.showAdvanced": "Advanced settings",
   "rm.run.hideAdvanced": "Hide advanced settings",
@@ -3406,10 +3412,16 @@ const zh: Dict = {
     "現金部位客製化時可用。略過基準投組重播與雙軌對照報告；仍保留可投資標的與市場基準（如 SPY）供風險指標使用。",
   "rm.run.proSearchTitle": "Pro 最佳化",
   "rm.run.proSearchHint":
-    "開啟 Pro 最佳化會進行 AI 多輪參數搜尋（建議方案–對照方案），通常需要更長時間。",
+    "客製化預設開啟 Pro：AI 多輪參數搜尋（建議方案–對照方案）。關閉後改為標準完整 AI+Optuna（非受限情境模式）。Pro 通常需要更長時間。",
   "rm.run.proSearchOn": "Pro 最佳化：開啟（多輪 AI 搜尋）",
   "rm.run.proSearchOff":
-    "Pro 最佳化：關閉（單輪試算，較快完成）",
+    "Pro 最佳化：關閉（標準完整 AI+Optuna，較快）",
+  "rm.run.searchMode.fullNote":
+    "預設：每次客製化都執行完整 Pro 多輪 AI 調參。",
+  "rm.run.proSearchOnNote":
+    "已開啟 Pro 多輪搜尋——將對此客製化執行完整多輪調參。",
+  "rm.run.proSearchOffNote":
+    "已關閉 Pro：改為標準完整 AI+Optuna 搜尋（非受限情境模式）。",
   "rm.run.execute": "開始試算比較",
   "rm.run.showAdvanced": "進階設定",
   "rm.run.hideAdvanced": "收合進階設定",
@@ -5461,10 +5473,16 @@ const ko: Dict = {
     "현금 슬리브 맞춤화 시 사용. 기준 재현과 이중 비교 보고서를 건너뛰며, 투자 가능 종목과 시장 벤치마크(예: SPY)는 위험 지표용으로 유지합니다.",
   "rm.run.proSearchTitle": "Pro 최적화",
   "rm.run.proSearchHint":
-    "Pro 최적화를 켜면 AI 다중 라운드 파라미터 탐색(추천 방안–챌린저)이 실행되며, 보통 더 오래 걸립니다.",
+    "맞춤화는 기본으로 Pro를 켭니다: AI 다중 라운드 파라미터 탐색(추천 방안–챌린저). 끄면 표준 전체 AI+Optuna(제한 시나리오 모드 아님)로 실행됩니다. Pro는 보통 더 오래 걸립니다.",
   "rm.run.proSearchOn": "Pro 최적화: ON (다중 라운드 AI 탐색)",
   "rm.run.proSearchOff":
-    "Pro 최적화: OFF (단일 라운드 — 더 빠르게 완료)",
+    "Pro 최적화: OFF (표준 전체 AI+Optuna — 더 빠름)",
+  "rm.run.searchMode.fullNote":
+    "기본값: 모든 맞춤화가 전체 Pro 멀티라운드 AI 튜닝을 실행합니다.",
+  "rm.run.proSearchOnNote":
+    "Pro 멀티라운드 탐색이 켜져 있습니다 — 이 맞춤화에 전체 멀티라운드 튜닝이 적용됩니다.",
+  "rm.run.proSearchOffNote":
+    "Pro 꺼짐: 표준 전체 AI+Optuna 탐색(제한 시나리오 모드 아님).",
   "rm.run.execute": "시산 비교 시작",
   "rm.run.showAdvanced": "고급 설정",
   "rm.run.hideAdvanced": "고급 설정 숨기기",

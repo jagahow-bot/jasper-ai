@@ -39,6 +39,7 @@ from app.engine.constrained_customization import (
     build_constrained_param_rationale,
     build_constrained_proposal_set,
     build_constrained_scenario_seeds,
+    effective_pro_budget,
     pin_scenario_controls,
     select_constrained_champion_code,
     select_constrained_records_for_report,
@@ -578,8 +579,8 @@ def _run_iterative_search(
     )
     batch0 = int(req.refinement_batch_size)
     challengers = int(req.refinement_challengers_per_round)
-    max_rounds = int(req.refinement_max_rounds)
-    patience = req.refinement_patience
+    tradable_n = int(prices.shape[1]) if prices is not None else 0
+    max_rounds, patience = effective_pro_budget(req, tradable_count=tradable_n)
     min_gain = float(req.refinement_min_improvement)
     start_round_idx = 0
     if continuation_state and continuation_state.get("mode") == "pro":
@@ -3230,7 +3231,8 @@ def _run_backtest_engine(req: BacktestRequest, job_id: str, progress_cb=None) ->
         tradable_count=len(tickers),
         must_include_count=len(must_include_tickers),
     )
-    # Small locked client books: skip Pro / large AI search for named scenarios.
+    # Legacy constrained mode only when customization_search_mode="constrained"
+    # (internal/debug). Default "full" → constrained_mode=False, Pro not suppressed.
     if constrained_mode:
         if pro_mode:
             logger.info(
