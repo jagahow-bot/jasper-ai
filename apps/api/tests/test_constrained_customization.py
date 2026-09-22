@@ -36,6 +36,8 @@ def _req(**kwargs):
         anchor_weights={"IVV": 0.5, "TLT": 0.5},
         universe_tickers=["IVV", "TLT", "AGG", "GLD", "BOTZ"],
         client_ref="chen",
+        # Explicit legacy mode — production defaults to "full" (no auto-trigger).
+        customization_search_mode="constrained",
     )
     base.update(kwargs)
     return BacktestRequest(**base)

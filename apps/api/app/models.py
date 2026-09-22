@@ -310,6 +310,14 @@ class BacktestRequest(BaseModel):
         default=OptimizationMode.standard,
         description="standard = single-pass search; pro_auto = iterative AI convergence",
     )
+    customization_search_mode: Literal["full", "constrained"] = Field(
+        default="full",
+        description=(
+            "Anchored customization search strategy. 'full' (default) = standard "
+            "AI+Optuna or Pro multi-round per optimization_mode; 'constrained' = "
+            "legacy named-scenario lanes (internal/debug/tests only)."
+        ),
+    )
     enable_iterative_refinement: bool = Field(
         default=False,
         description="Deprecated alias; set True when optimization_mode=pro_auto",

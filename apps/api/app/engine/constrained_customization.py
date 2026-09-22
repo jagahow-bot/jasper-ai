@@ -1,28 +1,20 @@
-"""Constrained Customization Mode — small named weight scenarios for RM client books.
+"""Legacy Constrained Customization Mode — internal/debug/tests only.
 
-When customizing an existing client/anchor portfolio the searchable universe is
-already locked and Overlay rarely adds many names. Running full Pro multi-round
-or large AI/Optuna random search wastes trials and produces near-duplicate books.
+Production customization defaults to full AI+Optuna or Pro multi-round search
+(``customization_search_mode="full"``). This module remains for:
 
-Instead we evaluate 2–4 **named, optimizer-based** scenarios on the fixed universe:
+- Explicit ``customization_search_mode="constrained"`` (tests / internal clients)
+- Historical job rendering (named scenario labels and rationales)
 
-1. ``anchor_close`` — stay well inside the customization_drift ceiling
-2. ``full_drift`` — push the primary objective using the full drift budget
-3. ``defensive`` — min-variance / drawdown-oriented allocation
-4. ``theme`` — only when must-include / overlay adds exist
+When enabled, evaluate 2–4 **named, optimizer-based** scenarios on the fixed
+universe (``anchor_close`` / ``full_drift`` / ``defensive`` / ``theme``), each
+refined with a small local Optuna budget. Total trials =
+max(scenario_count, req.trials).
 
-Each scenario is then refined with a small local Optuna budget (identity keys
-pinned: allocator / objective / drift / rebalance; factor weights and lookbacks
-remain searchable). Total trials = max(scenario_count, req.trials).
+Trigger thresholds (only after explicit constrained flag):
+- ``MAX_TRADABLE_FOR_CONSTRAINED`` = 20
+- ``MAX_OVERLAY_SUPPLEMENTS_FOR_CONSTRAINED`` = 8
 
-Trigger thresholds (documented here; tune carefully):
-- ``MAX_TRADABLE_FOR_CONSTRAINED`` = 20 — locked model books are typically ≤ this
-- ``MAX_OVERLAY_SUPPLEMENTS_FOR_CONSTRAINED`` = 8 — overlay rarely adds more names
-
-Mode enables when ``anchor_weights`` is present AND the universe is small
-(tradable ≤ 20 OR must-include/supplements ≤ 8), and preferably an RM
-customization signal exists (locked ``universe_tickers``, ``client_ref``,
-``client_context``, or ``anchor_job_id`` / ``anchor_portfolio_id``).
 Static replay jobs never enter this path.
 """
 
@@ -64,19 +56,58 @@ def _has_rm_customization_signal(req: Any) -> bool:
     return False
 
 
+# models.py defaults — used to detect "not explicitly overridden" for Q4 budget.
+_DEFAULT_REFINEMENT_MAX_ROUNDS = 8
+SMALL_UNIVERSE_PRO_MAX_ROUNDS = 5
+SMALL_UNIVERSE_PRO_PATIENCE = 3
+SMALL_UNIVERSE_PRO_TRADABLE_CAP = 20
+
+
+def effective_pro_budget(
+    req: Any,
+    *,
+    tradable_count: int | None = None,
+) -> tuple[int, int | None]:
+    """Resolve Pro max_rounds / patience, lowering defaults for small locked books.
+
+    When customization has ``anchor_weights`` and tradable ≤ 20, and the request
+    still carries models.py defaults (max_rounds=8, patience=None), apply
+    max_rounds=5 and patience=3. Explicit overrides are respected.
+    """
+    max_rounds = int(getattr(req, "refinement_max_rounds", _DEFAULT_REFINEMENT_MAX_ROUNDS) or _DEFAULT_REFINEMENT_MAX_ROUNDS)
+    patience = getattr(req, "refinement_patience", None)
+    if not getattr(req, "anchor_weights", None):
+        return max_rounds, patience
+
+    n = tradable_count
+    if n is None:
+        n = _locked_universe_count(req)
+    if n is None or int(n) > SMALL_UNIVERSE_PRO_TRADABLE_CAP:
+        return max_rounds, patience
+
+    if max_rounds == _DEFAULT_REFINEMENT_MAX_ROUNDS:
+        max_rounds = SMALL_UNIVERSE_PRO_MAX_ROUNDS
+    if patience is None:
+        patience = SMALL_UNIVERSE_PRO_PATIENCE
+    return max_rounds, patience
+
+
 def should_use_constrained_customization(
     req: Any,
     *,
     tradable_count: int | None = None,
     must_include_count: int | None = None,
 ) -> bool:
-    """Return True when the engine should skip Pro / large AI search.
+    """Return True only for explicit legacy constrained mode (internal/tests).
 
-    Requires ``anchor_weights``. Universe must be small by tradable count and/or
-    overlay-supplement count. Prefers an RM customization signal when present;
-    if neither locked whitelist nor client signals exist, still allows the mode
-    when the live tradable pool is clearly small (≤ threshold).
+    Requires ``customization_search_mode="constrained"``, plus ``anchor_weights``
+    and a small universe (tradable ≤ 20 and/or must-include/supplements ≤ 8).
+    Prefers an RM customization signal when present; if neither locked whitelist
+    nor client signals exist, still allows the mode when the live tradable pool
+    is clearly small (≤ threshold).
     """
+    if str(getattr(req, "customization_search_mode", "full") or "full") != "constrained":
+        return False
     if getattr(req, "static_replay_holdings", None):
         return False
     anchor = getattr(req, "anchor_weights", None)

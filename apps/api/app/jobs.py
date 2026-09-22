@@ -13,7 +13,10 @@ from app.candidate_charts import (
     resolve_candidate_charts,
 )
 from app.engine.backtest import run_backtest, _is_pro_mode
-from app.engine.constrained_customization import estimate_constrained_trial_count
+from app.engine.constrained_customization import (
+    effective_pro_budget,
+    estimate_constrained_trial_count,
+)
 from app.engine.memory_budget import is_render_runtime
 from app.engine.report_sim_cache import TrialReportCache
 from app.job_history import list_job_summaries, load_persisted_job, persist_completed_job
@@ -123,7 +126,7 @@ def _estimated_trials_total(req: BacktestRequest) -> int:
     if _is_pro_mode(req):
         batch0 = int(req.refinement_batch_size)
         challengers = int(req.refinement_challengers_per_round)
-        max_rounds = int(req.refinement_max_rounds)
+        max_rounds, _patience = effective_pro_budget(req)
         return batch0 + (challengers + 1) * max(0, max_rounds - 1)
     return req.trials
 

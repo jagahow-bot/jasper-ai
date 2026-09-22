@@ -222,8 +222,8 @@ export function RmRunPanel({
               ) : null}
               <li>
                 {isPro
-                  ? t("rm.run.proSearchOn")
-                  : t("rm.run.proSearchOff")}
+                  ? t("rm.run.proSearchOnNote")
+                  : t("rm.run.proSearchOffNote")}
               </li>
             </ul>
           </div>

@@ -78,7 +78,7 @@ POST /jobs (apps/api/app/routers/jobs.py:29)
 | 路徑 | 觸發條件 | 關鍵程式 |
 |---|---|---|
 | Static replay | `static_replay_holdings` 有值 | `_run_static_replay_backtest`(`backtest.py:2668`) |
-| Constrained customization | `should_use_constrained_customization()`(`constrained_customization.py:69`)— 有 `anchor_weights` 且 universe 小(tradable ≤ 20 或 supplements ≤ 8) | `build_constrained_scenario_seeds` / `build_constrained_proposal_set`(`constrained_customization.py:349 / 536`),`SCENARIO_STYLES = ("anchor_close","full_drift","defensive","theme")` |
+| Constrained customization | 僅當 request 顯式 `customization_search_mode="constrained"`（內部／測試）且 `should_use_constrained_customization()` 為真——有 `anchor_weights` 且 universe 小(tradable ≤ 20 或 supplements ≤ 8)。預設 `"full"` 不觸發 | `build_constrained_scenario_seeds` / `build_constrained_proposal_set`(`constrained_customization.py`),`SCENARIO_STYLES = ("anchor_close","full_drift","defensive","theme")` |
 | Pro 收斂 | `optimization_mode = pro_auto` | `_run_iterative_search`(`backtest.py:549`)+ `refinement.py` + `ai_params.py`(Gemini round seeds) |
 | 標準 Optuna | 預設 | `run_optuna_search`(`optimizer.py:214`) |
 

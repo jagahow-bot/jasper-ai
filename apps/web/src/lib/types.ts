@@ -132,6 +132,8 @@ export interface BacktestRequest {
   objective_custom_text?: string | null;
   param_controls?: Record<string, ParamControl>;
   optimization_mode?: OptimizationMode;
+  /** Internal/debug only; production UI never sends this. Default on API is "full". */
+  customization_search_mode?: "full" | "constrained";
   enable_iterative_refinement?: boolean;
   refinement_batch_size?: number;
   refinement_challengers_per_round?: number;
