@@ -91,14 +91,17 @@ export function NeedsFulfillmentPanel({
   const rows: NeedsFloorRow[] = needsFloorRows(needs);
   const unfilled = classQuotaUnfilled?.filter(Boolean) ?? [];
   const infeasible = classQuotaInfeasible?.filter(Boolean) ?? [];
-  if (!rows.length && !unfilled.length && !infeasible.length) return null;
-
   const classRow = rows.find((r) => r.key === "classQuota");
   const bandRow = rows.find((r) => r.key === "groupBands");
   const emphasizeQuota = shouldEmphasizeClassQuota({
     classQuotaPass: classRow?.pass,
     classQuotaUnfilledCount: unfilled.length,
   });
+  // Hooks must run unconditionally — before any early return.
+  const [quotaExpanded, setQuotaExpanded] = useState(emphasizeQuota);
+
+  if (!rows.length && !unfilled.length && !infeasible.length) return null;
+
   // E10: only classQuota (no bands) → keep as primary, never hard-hide.
   const classQuotaAsSecondary = Boolean(classRow && bandRow);
   const primaryRows = rows.filter((r) => {
@@ -106,8 +109,6 @@ export function NeedsFulfillmentPanel({
     return true;
   });
   const secondaryClassRow = classQuotaAsSecondary ? classRow : null;
-
-  const [quotaExpanded, setQuotaExpanded] = useState(emphasizeQuota);
 
   const overall = needsAllPassed(needs);
   const border =
