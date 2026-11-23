@@ -34,10 +34,12 @@ class Settings(BaseSettings):
         ),
     )
     ai_reasoning_model: str = Field(
-        default="kimi-k3",
+        default="gemini-4-hydrogen",
         validation_alias=AliasChoices(
             "ai_reasoning_model",
             "AI_REASONING_MODEL",
+            "gemini_reasoning_model",
+            "GEMINI_REASONING_MODEL",
             "moonshot_model",
             "MOONSHOT_MODEL",
         ),
@@ -166,11 +168,16 @@ class Settings(BaseSettings):
             "ENGINE_STAGES_ENABLED",
         ),
     )
-    # Phase 2 codegen model (defaults to Kimi / ai_reasoning_model).
+    # Phase 2 codegen / frontier reasoning (gap, draft, repair).
     codegen_model: str = Field(
-        default="",
-        description="Override for codegen_draft; empty → ai_reasoning_model (kimi-k3).",
-        validation_alias=AliasChoices("codegen_model", "CODEGEN_MODEL"),
+        default="gemini-4-neon",
+        description="Frontier model for codegen_draft/repair and gap-style tasks.",
+        validation_alias=AliasChoices(
+            "codegen_model",
+            "CODEGEN_MODEL",
+            "gemini_codegen_model",
+            "GEMINI_CODEGEN_MODEL",
+        ),
     )
     # Phase 3: block proposal print/export when pending L2 capabilities exist.
     proposal_requires_supervisor_signoff: bool = Field(

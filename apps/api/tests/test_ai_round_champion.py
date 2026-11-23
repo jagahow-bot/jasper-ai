@@ -619,7 +619,7 @@ def test_round_champion_allows_single_retry():
 
 def test_generate_ai_round_champion_retries_on_max_tokens(monkeypatch):
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
-    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_reasoning_model", "gemini-3.5-flash")
     calls: list[dict] = []
 
     def fake_post(**kwargs):
@@ -804,7 +804,7 @@ def test_champion_payload_horizons_match_report_grid():
 
 def test_generate_ai_round_champion_honors_preselected_code(monkeypatch):
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
-    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_reasoning_model", "gemini-3.5-flash")
 
     def fake_post(**_kwargs):
         return "STOP", '{"round_champion_model_code":"M0001","rationale":"Wrong pick."}'

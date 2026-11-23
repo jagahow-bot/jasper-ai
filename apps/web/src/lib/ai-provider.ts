@@ -11,21 +11,36 @@ import {
  *
  * Gemini Flash (`defaultFlashModel` / DEFAULT_FLASH_MODEL_ID):
  *   Interactive / latency-sensitive — overlay/interpret, universe/filter,
- *   scenario/analyze, param-seeds.
+ *   goals extract, overlay starters, semantic review.
  *
- * Kimi K3 (`reasoningModel` / KIMI_K3_MODEL_ID):
- *   Non-interactive / prose-heavy — narrate, talking-summary,
- *   candidate-summary, candidate-compare-summary.
+ * Gemini 4 Hydrogen (`reasoningModel` / DEFAULT_REASONING_MODEL_ID):
+ *   Quality-first everyday intelligence — narrate, talking-summary,
+ *   client briefing/ask, scenario analyze, param_seeds (web).
+ *   Backend Pro refinement / AI param seeds use settings.ai_reasoning_model.
  *
- * Exact IDs come from GEMINI_MODEL / MOONSHOT_MODEL (defaults below).
- * Backend Pro refinement / AI param seeds use apps/api settings.gemini_model
- * (same Gemini Flash id); keep Kimi out of real-time overlay confirm paths.
+ * Gemini 4 Neon (`DEFAULT_CODEGEN_MODEL_ID`):
+ *   Frontier reasoning with throughput — gap_reasoning, codegen_draft/repair.
+ *
+ * Exact IDs: GEMINI_MODEL (Flash), GEMINI_REASONING_MODEL / AI_REASONING_MODEL
+ * (Hydrogen), CODEGEN_MODEL / GEMINI_CODEGEN_MODEL (Neon).
+ * Keep Neon/Hydrogen off the most latency-critical overlay confirm paths.
  */
 export const DEFAULT_FLASH_MODEL_ID =
   process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash";
 
-export const KIMI_K3_MODEL_ID =
-  process.env.MOONSHOT_MODEL?.trim() || "kimi-k3";
+export const DEFAULT_REASONING_MODEL_ID =
+  process.env.GEMINI_REASONING_MODEL?.trim() ||
+  process.env.AI_REASONING_MODEL?.trim() ||
+  process.env.MOONSHOT_MODEL?.trim() ||
+  "gemini-4-hydrogen";
+
+export const DEFAULT_CODEGEN_MODEL_ID =
+  process.env.CODEGEN_MODEL?.trim() ||
+  process.env.GEMINI_CODEGEN_MODEL?.trim() ||
+  "gemini-4-neon";
+
+/** @deprecated Prefer DEFAULT_REASONING_MODEL_ID — kept for existing imports. */
+export const KIMI_K3_MODEL_ID = DEFAULT_REASONING_MODEL_ID;
 
 export const KIMI_K3_REASONING_EFFORT =
   (
@@ -73,7 +88,12 @@ export function isProviderConfigured(modelId: string): boolean {
   );
 }
 
-export type GeminiThinkingLevel = "minimal" | "low" | "medium" | "high";
+export type GeminiThinkingLevel =
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
 
 export type AiProviderOptions = {
   google?: {
@@ -129,4 +149,3 @@ export function providerOptionsFor(
   }
   return { google: googleOptions };
 }
-

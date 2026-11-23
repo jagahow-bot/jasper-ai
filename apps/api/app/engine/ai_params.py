@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 
 from app.config import settings
-from app.engine.ai_client import generate_ai_text, model_has_api_key
+from app.engine.ai_client import generate_ai_text, model_has_api_key, reasoning_ai_model
 from app.engine.factors import (
     DRAWDOWN_INDICATOR_CHOICES,
     INCOME_INDICATOR_CHOICES,
@@ -401,13 +401,29 @@ _LEARNING_CONTEXT_LIMITS: dict[str, int] = {
     "full": 3800,
 }
 
-_VALID_THINKING_LEVELS = frozenset({"off", "minimal", "low", "medium", "high"})
-_ELEVATED_THINKING_LEVELS = frozenset({"low", "medium", "high"})
+_VALID_THINKING_LEVELS = frozenset(
+    {"off", "minimal", "low", "medium", "high", "xhigh"}
+)
+_ELEVATED_THINKING_LEVELS = frozenset({"low", "medium", "high", "xhigh"})
 
 
 def _normalize_thinking_level(raw: str | None, *, default: str = "off") -> str:
     level = (raw or default).strip().lower()
     return level if level in _VALID_THINKING_LEVELS else default
+
+
+def _model_uses_thinking_level(model: str) -> bool:
+    """Gemini 4 / 3.x / 2.5 use thinkingLevel (not thinkingBudget)."""
+    m = model.lower()
+    return "gemini-4" in m or "gemini-3" in m or "gemini-2.5" in m
+
+
+def _thinking_level_for_model(model: str, level: str) -> str:
+    """Map env levels onto what the target model accepts."""
+    if "gemini-4" in model.lower() and level == "minimal":
+        # Gemini 4 Hydrogen/Neon/Carbon do not expose MINIMAL; use low.
+        return "low"
+    return level
 
 
 def _resolve_thinking_level(
@@ -433,14 +449,16 @@ def _thinking_config_for_model(
     *,
     model: str,
 ) -> dict[str, Any] | None:
-    """Build thinkingConfig for Gemini generateContent (gemini-3.x uses thinkingLevel)."""
+    """Build thinkingConfig for Gemini generateContent (3.x/4.x use thinkingLevel)."""
     level = _resolve_thinking_level(learning_context)
     if level is None:
         return None
-    if "gemini-3" in model or "gemini-2.5" in model:
-        return {"thinkingLevel": level}
+    if _model_uses_thinking_level(model):
+        return {"thinkingLevel": _thinking_level_for_model(model, level)}
     if level in _ELEVATED_THINKING_LEVELS:
-        budget = {"low": 1024, "medium": 4096, "high": 8192}.get(level, 0)
+        budget = {"low": 1024, "medium": 4096, "high": 8192, "xhigh": 16384}.get(
+            level, 0
+        )
         return {"thinkingBudget": budget}
     if level == "minimal":
         return {"thinkingBudget": 256}
@@ -462,10 +480,12 @@ def _thinking_config_for_round_seed(*, model: str) -> dict[str, Any] | None:
     level = _resolve_round_seed_thinking_level()
     if level is None:
         return None
-    if "gemini-3" in model or "gemini-2.5" in model:
-        return {"thinkingLevel": level if level != "minimal" else "minimal"}
+    if _model_uses_thinking_level(model):
+        return {"thinkingLevel": _thinking_level_for_model(model, level)}
     if level in _ELEVATED_THINKING_LEVELS:
-        budget = {"low": 1024, "medium": 4096, "high": 8192}.get(level, 0)
+        budget = {"low": 1024, "medium": 4096, "high": 8192, "xhigh": 16384}.get(
+            level, 0
+        )
         return {"thinkingBudget": budget}
     if level == "minimal":
         return {"thinkingBudget": 256}
@@ -816,7 +836,7 @@ def generate_ai_param_sets(
     hard cap) instead of capping at ``ai_param_seed_max_count`` and leaving an
     Optuna-random remainder.
     """
-    model = settings.gemini_model
+    model = reasoning_ai_model()
     if not model_has_api_key(model):
         return {
             "enabled": False,
@@ -2333,7 +2353,7 @@ def generate_ai_round_seed(
     customization_drift_cap: float = 1.0,
 ) -> dict[str, Any]:
     """One AI call per Pro round: fixed round_setup + factor_ranges + factor_choices."""
-    model = settings.gemini_model
+    model = reasoning_ai_model()
     empty = {
         "enabled": False,
         "model": model,
@@ -2882,7 +2902,7 @@ def generate_ai_round_champion(
     selected_model_code: str | None = None,
 ) -> dict[str, Any]:
     """One AI call after each Pro Optuna round: narrate deterministic round champion."""
-    model = settings.gemini_model
+    model = reasoning_ai_model()
     fallback = selected_model_code or _round_champion_fallback_code(payload)
     empty: dict[str, Any] = {
         "enabled": False,
