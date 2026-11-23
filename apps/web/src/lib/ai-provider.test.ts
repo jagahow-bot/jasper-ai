@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_FLASH_MODEL_ID,
-  KIMI_K3_MODEL_ID,
+  DEFAULT_REASONING_MODEL_ID,
   providerOptionsFor,
+  resolveProvider,
   thinkingConfigForGoogleModel,
 } from "./ai-provider";
 
@@ -11,7 +12,8 @@ describe("thinkingConfigForGoogleModel", () => {
     expect(thinkingConfigForGoogleModel(DEFAULT_FLASH_MODEL_ID)).toBeUndefined();
     expect(thinkingConfigForGoogleModel("gemini-3.7-flash")).toBeUndefined();
     expect(thinkingConfigForGoogleModel("gemini-3.8-flash")).toBeUndefined();
-    expect(thinkingConfigForGoogleModel("gemini-3.1-pro-preview")).toBeUndefined();
+    expect(thinkingConfigForGoogleModel("gemini-4-hydrogen")).toBeUndefined();
+    expect(thinkingConfigForGoogleModel("gemini-4-neon")).toBeUndefined();
   });
 });
 
@@ -22,14 +24,22 @@ describe("providerOptionsFor", () => {
     expect(options.google?.responseMimeType).toBe("application/json");
   });
 
-  it("keeps Moonshot reasoning options unchanged", () => {
-    const options = providerOptionsFor(KIMI_K3_MODEL_ID);
+  it("routes default reasoning model (Hydrogen) through Google", () => {
+    expect(DEFAULT_REASONING_MODEL_ID).toContain("hydrogen");
+    expect(resolveProvider(DEFAULT_REASONING_MODEL_ID)).toBe("google");
+    const options = providerOptionsFor(DEFAULT_REASONING_MODEL_ID, { jsonMode: true });
+    expect(options.moonshotai).toBeUndefined();
+    expect(options.google?.responseMimeType).toBe("application/json");
+  });
+
+  it("keeps Moonshot reasoning options when model id is Kimi", () => {
+    const options = providerOptionsFor("kimi-k3");
     expect(options.google).toBeUndefined();
     expect(options.moonshotai?.reasoningEffort).toBeDefined();
   });
 
   it("allows overriding Moonshot reasoningEffort for short routes", () => {
-    const options = providerOptionsFor(KIMI_K3_MODEL_ID, {
+    const options = providerOptionsFor("kimi-k3", {
       jsonMode: true,
       reasoningEffort: "low",
     });

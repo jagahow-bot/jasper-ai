@@ -24,13 +24,19 @@ def resolve_ai_provider(model_id: str) -> Literal["google", "moonshot"]:
 
 
 def default_ai_model() -> str:
-    """Default model for routine structured AI calls (Gemini Flash / GEMINI_MODEL)."""
+    """Default model for latency-sensitive structured AI calls (Flash / GEMINI_MODEL)."""
     return settings.gemini_model
 
 
 def reasoning_ai_model() -> str:
-    """Kimi K3 for non-interactive / heavy reasoning (not real-time overlay)."""
+    """Gemini 4 Hydrogen for quality-first seeds / narrative (not real-time overlay)."""
     return settings.ai_reasoning_model
+
+
+def codegen_ai_model() -> str:
+    """Gemini 4 Neon for frontier codegen / gap reasoning."""
+    model = (settings.codegen_model or "").strip()
+    return model or "gemini-4-neon"
 
 
 def model_has_api_key(model_id: str) -> bool:

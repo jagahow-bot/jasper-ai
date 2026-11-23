@@ -1,16 +1,22 @@
 /**
  * Central LLM task routing (design §4.6 / §4.7).
  *
+ * Quality-first tiers:
+ *   Flash  — latency-critical structured extract / overlay confirm
+ *   Hydrogen — everyday intelligence (narrative, briefing, param seeds)
+ *   Neon — frontier codegen / gap reasoning (no silent Flash fallback)
+ *
  * codegen_draft / codegen_repair MUST NOT silently fall back to Flash when
- * Kimi is unavailable — callers should mark tickets blocked_model_unavailable.
+ * Neon is unavailable — callers should mark tickets blocked_model_unavailable.
  */
 
 import type { LanguageModel } from "ai";
 import {
   createAiModel,
+  DEFAULT_CODEGEN_MODEL_ID,
   DEFAULT_FLASH_MODEL_ID,
+  DEFAULT_REASONING_MODEL_ID,
   isProviderConfigured,
-  KIMI_K3_MODEL_ID,
   providerOptionsFor,
   type AiProviderOptions,
 } from "./ai-provider";
@@ -22,6 +28,9 @@ export type LlmTask =
   | "scenario_analyze"
   | "param_seeds"
   | "goals_extract"
+  | "overlay_starters"
+  | "client_briefing"
+  | "client_ask"
   | "narrate"
   | "talking_summary"
   | "gap_reasoning"
@@ -37,21 +46,28 @@ export type LlmTaskRoute = {
 };
 
 const FLASH = DEFAULT_FLASH_MODEL_ID;
-const KIMI = KIMI_K3_MODEL_ID;
+const HYDROGEN = DEFAULT_REASONING_MODEL_ID;
+const NEON = DEFAULT_CODEGEN_MODEL_ID;
 
 export const LLM_TASK_ROUTING: Record<LlmTask, LlmTaskRoute> = {
+  // Tier 0 — latency-critical structured extract
   interpret: { modelId: FLASH, jsonMode: true },
   chat_extract: { modelId: FLASH, jsonMode: true },
   universe_filter: { modelId: FLASH, jsonMode: true },
-  scenario_analyze: { modelId: FLASH },
-  param_seeds: { modelId: FLASH, jsonMode: true },
   goals_extract: { modelId: FLASH, jsonMode: true },
-  narrate: { modelId: KIMI },
-  talking_summary: { modelId: KIMI },
-  gap_reasoning: { modelId: KIMI },
-  codegen_draft: { modelId: KIMI, noSilentFallback: true },
-  codegen_repair: { modelId: KIMI, noSilentFallback: true },
+  overlay_starters: { modelId: FLASH, jsonMode: true },
   semantic_review: { modelId: FLASH, jsonMode: true },
+  // Tier 1 — quality-first everyday intelligence (Hydrogen)
+  scenario_analyze: { modelId: HYDROGEN },
+  param_seeds: { modelId: HYDROGEN, jsonMode: true },
+  client_briefing: { modelId: HYDROGEN, jsonMode: true },
+  client_ask: { modelId: HYDROGEN, jsonMode: true },
+  narrate: { modelId: HYDROGEN },
+  talking_summary: { modelId: HYDROGEN },
+  // Tier 2 — frontier (Neon); never silent-fall back to Flash
+  gap_reasoning: { modelId: NEON, noSilentFallback: true },
+  codegen_draft: { modelId: NEON, noSilentFallback: true },
+  codegen_repair: { modelId: NEON, noSilentFallback: true },
 };
 
 function envOverrideKey(task: LlmTask): string {
@@ -99,4 +115,3 @@ export function providerOptionsForTask(task: LlmTask): AiProviderOptions {
 export function isCodegenTask(task: LlmTask): boolean {
   return task === "codegen_draft" || task === "codegen_repair";
 }
-

@@ -4,16 +4,24 @@ import {
   isCodegenTask,
   resolveModelIdForTask,
 } from "./llm-task-routing";
-import { DEFAULT_FLASH_MODEL_ID, KIMI_K3_MODEL_ID } from "./ai-provider";
+import {
+  DEFAULT_CODEGEN_MODEL_ID,
+  DEFAULT_FLASH_MODEL_ID,
+  DEFAULT_REASONING_MODEL_ID,
+} from "./ai-provider";
 
 describe("llm-task-routing", () => {
-  it("routes interpret to Flash and codegen to Kimi with noSilentFallback", () => {
+  it("routes Flash / Hydrogen / Neon tiers with codegen noSilentFallback", () => {
     expect(LLM_TASK_ROUTING.interpret.modelId).toBe(DEFAULT_FLASH_MODEL_ID);
-    expect(LLM_TASK_ROUTING.codegen_draft.modelId).toBe(KIMI_K3_MODEL_ID);
+    expect(LLM_TASK_ROUTING.param_seeds.modelId).toBe(DEFAULT_REASONING_MODEL_ID);
+    expect(LLM_TASK_ROUTING.narrate.modelId).toBe(DEFAULT_REASONING_MODEL_ID);
+    expect(LLM_TASK_ROUTING.codegen_draft.modelId).toBe(DEFAULT_CODEGEN_MODEL_ID);
     expect(LLM_TASK_ROUTING.codegen_draft.noSilentFallback).toBe(true);
     expect(LLM_TASK_ROUTING.codegen_repair.noSilentFallback).toBe(true);
+    expect(LLM_TASK_ROUTING.gap_reasoning.modelId).toBe(DEFAULT_CODEGEN_MODEL_ID);
+    expect(LLM_TASK_ROUTING.gap_reasoning.noSilentFallback).toBe(true);
     expect(LLM_TASK_ROUTING.semantic_review.modelId).toBe(DEFAULT_FLASH_MODEL_ID);
-    expect(LLM_TASK_ROUTING.gap_reasoning.modelId).toBe(KIMI_K3_MODEL_ID);
+    expect(LLM_TASK_ROUTING.overlay_starters.modelId).toBe(DEFAULT_FLASH_MODEL_ID);
   });
 
   it("marks codegen tasks", () => {
@@ -22,8 +30,8 @@ describe("llm-task-routing", () => {
   });
 
   it("resolves model ids", () => {
-    expect(resolveModelIdForTask("narrate")).toBe(KIMI_K3_MODEL_ID);
+    expect(resolveModelIdForTask("narrate")).toBe(DEFAULT_REASONING_MODEL_ID);
+    expect(resolveModelIdForTask("gap_reasoning")).toBe(DEFAULT_CODEGEN_MODEL_ID);
     expect(resolveModelIdForTask("universe_filter")).toBe(DEFAULT_FLASH_MODEL_ID);
   });
 });
-

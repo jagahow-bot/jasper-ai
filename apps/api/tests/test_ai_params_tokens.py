@@ -230,6 +230,31 @@ def test_thinking_config_for_gemini_35_uses_thinking_level(monkeypatch):
     assert cfg == {"thinkingLevel": "minimal"}
 
 
+def test_thinking_config_gemini4_maps_minimal_to_low(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_thinking_level", "minimal")
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_learning_context_mode", "standard"
+    )
+    cfg = _thinking_config_for_model(
+        _sample_learning_context(), model="gemini-4-hydrogen"
+    )
+    assert cfg == {"thinkingLevel": "low"}
+
+
+def test_thinking_config_gemini4_neon_high(monkeypatch):
+    monkeypatch.setattr("app.engine.ai_params.settings.gemini_thinking_level", "high")
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_learning_context_mode", "full"
+    )
+    monkeypatch.setattr(
+        "app.engine.ai_params.settings.gemini_thinking_level_full", "high"
+    )
+    cfg = _thinking_config_for_model(
+        _sample_learning_context(), model="gemini-4-neon"
+    )
+    assert cfg == {"thinkingLevel": "high"}
+
+
 def test_thinking_config_omitted_when_off(monkeypatch):
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_thinking_level", "off")
     cfg = _thinking_config_for_model(
@@ -252,7 +277,7 @@ def test_thinking_config_gemini_3_flash_preview(monkeypatch):
 def test_generate_ai_round_seed_posts_thinking_config(monkeypatch):
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
     monkeypatch.setattr(
-        "app.engine.ai_params.settings.gemini_model", "gemini-3-flash-preview"
+        "app.engine.ai_params.settings.ai_reasoning_model", "gemini-3-flash-preview"
     )
     monkeypatch.setattr(
         "app.engine.ai_params.settings.gemini_round_seed_thinking_level", "low"
@@ -342,7 +367,7 @@ def test_round_seed_max_output_tokens_escalates_on_retry(monkeypatch):
 def test_generate_ai_round_seed_inherits_thinking_from_global(monkeypatch):
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
     monkeypatch.setattr(
-        "app.engine.ai_params.settings.gemini_model", "gemini-3-flash-preview"
+        "app.engine.ai_params.settings.ai_reasoning_model", "gemini-3-flash-preview"
     )
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_thinking_level", None)
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_thinking_level", "low")
@@ -444,7 +469,7 @@ def test_generate_ai_round_seed_max_tokens_returns_disabled(monkeypatch):
 def test_generate_ai_round_seed_max_tokens_salvages_bloated_shrinkage(monkeypatch):
     """Regression: salvage partial JSON when Gemini loops on regime shrinkage decimals."""
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
-    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3-flash-preview")
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_reasoning_model", "gemini-3-flash-preview")
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_thinking_level", "off")
     monkeypatch.setattr(
         "app.engine.ai_params.settings.gemini_param_seed_max_retries", 1
@@ -547,7 +572,7 @@ def test_regime_factor_ranges_well_formed_rejects_long_arrays():
 
 def test_generate_ai_round_seed_dynamic_split_regime_factors(monkeypatch):
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
-    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3-flash-preview")
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_reasoning_model", "gemini-3-flash-preview")
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_round_seed_thinking_level", "off")
     posts: list[dict] = []
 
@@ -687,7 +712,7 @@ def _round_seed_payload(performance_assessment: str) -> str:
 def test_generate_ai_round_seed_retries_on_repetition_loop(monkeypatch):
     """Repetition loop in a text field must trigger a retry, not a silent accept."""
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
-    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_reasoning_model", "gemini-3.5-flash")
     calls: list[dict] = []
     loop_text = "開頭正常論述。" + "因子配置仍缺乏基準優勢，回撤控制未見改善，" * 40
 
@@ -715,7 +740,7 @@ def test_generate_ai_round_seed_retries_on_repetition_loop(monkeypatch):
 def test_generate_ai_round_seed_repetition_loop_exhausts_retries(monkeypatch):
     """If every attempt loops, fail the round seed with a repetition error."""
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
-    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_reasoning_model", "gemini-3.5-flash")
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_param_seed_max_retries", 2)
     calls: list[dict] = []
     loop_text = "開頭正常論述。" + "因子配置仍缺乏基準優勢，回撤控制未見改善，" * 40
@@ -744,7 +769,7 @@ def test_generate_ai_round_seed_retries_default_wide_factor_ranges(monkeypatch):
     from app.engine.param_taxonomy import DEFAULT_FACTOR_BOUNDS
 
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
-    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_reasoning_model", "gemini-3.5-flash")
     calls: list[dict] = []
     wide = {
         k: [float(lo), float(hi)] for k, (lo, hi, _) in DEFAULT_FACTOR_BOUNDS.items()
@@ -797,7 +822,7 @@ def test_generate_ai_round_seed_retries_default_wide_factor_ranges(monkeypatch):
 def test_generate_ai_round_seed_retries_paraphrase_closing_cascade(monkeypatch):
     """Chinese paraphrase closing cascade (no exact unit) must also retry."""
     monkeypatch.setattr("app.engine.ai_params.settings.gemini_api_key", "test-key")
-    monkeypatch.setattr("app.engine.ai_params.settings.gemini_model", "gemini-3.5-flash")
+    monkeypatch.setattr("app.engine.ai_params.settings.ai_reasoning_model", "gemini-3.5-flash")
     calls: list[dict] = []
     # Real-world Round-4 style cascade (exact unit detector misses; closing markers catch).
     cascade = (
